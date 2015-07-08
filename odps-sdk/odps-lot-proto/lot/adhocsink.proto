@@ -1,0 +1,10 @@
+import "common/expression.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "AdhocSinkProtos";
+
+//for adhoc query. e.g.: select xx from table1;
+message AdhocSink
+{
+}

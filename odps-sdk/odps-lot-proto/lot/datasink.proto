@@ -1,0 +1,18 @@
+import "lot/tablesink.proto";
+import "lot/adhocsink.proto";
+import "lot/fakesink.proto";
+import "lot/languagesink.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "DataSinkProtos";
+
+message DataSink
+{
+    required string Id = 1;
+    required string ParentId = 2;
+    optional TableSink TableSink = 3;
+    optional AdhocSink AdhocSink = 4;
+    optional LanguageSink LanguageSink = 5;
+    optional FakeSink FakeSink = 6;
+}

@@ -1,0 +1,4 @@
+project=project_name
+table=mr_p_empty
+columns=key:STRING
+partitions=p1:STRING,p2:STRING

@@ -1,0 +1,3 @@
+project=yzy2
+table=sssp_out
+columns=v:BIGINT,l:BIGINT

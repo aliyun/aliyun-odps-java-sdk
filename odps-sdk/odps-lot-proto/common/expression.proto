@@ -1,0 +1,42 @@
+import "common/types.proto";
+
+package apsara.odps;
+
+option java_outer_classname = "ExpressionProtos";
+
+message Reference
+{
+    required string Name = 1;
+    optional string From = 2;//OperatorId，标识这个Reference的来源
+}
+
+message Null
+{
+
+}
+
+message ArrayAny
+{
+    message ArrayItem
+    {
+        optional int64 ArrayInteger = 1;
+        optional double ArrayDouble = 2;
+        optional string ArrayString = 3;
+        optional int64 ArrayDatetime = 4;
+        optional bool ArrayBool = 5;
+        optional string ArrayDecimal = 6;
+        optional Null ArrayNull = 7;
+    }
+    repeated ArrayItem Item = 1;
+}
+
+message Constant
+{
+    optional int64 Integer = 1;
+    optional double Double = 2;
+    optional string String = 3;
+    optional int64 Datetime = 4;
+    optional string Decimal = 5;
+    optional bool Bool = 6;
+    optional ArrayAny Array = 14;
+}

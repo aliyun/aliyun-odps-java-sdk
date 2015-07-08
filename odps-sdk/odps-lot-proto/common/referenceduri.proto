@@ -1,0 +1,11 @@
+import "common/permission.proto";
+
+package apsara.odps;
+
+option java_outer_classname = "ReferencedURIProtos";
+
+message ReferencedURI
+{
+    required string URI = 1;
+    required Permission Permission = 2;
+}

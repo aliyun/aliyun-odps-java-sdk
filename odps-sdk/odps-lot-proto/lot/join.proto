@@ -1,0 +1,27 @@
+import "common/expression.proto";
+import "common/jointype.proto";
+import "lot/expression.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "JoinProtos";
+
+message Join
+{
+    enum ExecutionType
+    {
+        Auto = 0;
+        MergeJoin = 1;
+        FullHashJoin = 2;//现在odps的map join
+        ShuffledHashJoin = 3;//两边输入做shuffle，然后做map join
+        //distributed hash join和semi-join将来再说，后者够呛在分布式上用到
+    }
+
+    required string Id = 1;
+    required string LeftParentId = 2;
+    required string RightParentId = 3;
+    required JoinType JoinType = 4;
+    optional ScalarExpression OnCondition = 5;//when CartesianProduct, on condition'll be ignored
+    optional ExecutionType ExeType = 6 [default = Auto];
+    repeated string SmallParents = 7; // just used for hash join
+}

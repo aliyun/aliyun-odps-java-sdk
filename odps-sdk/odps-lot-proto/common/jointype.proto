@@ -1,0 +1,12 @@
+package apsara.odps;
+
+option java_outer_classname = "JoinTypeProtos";
+
+enum JoinType
+{
+    InnerJoin = 0;
+    LeftJoin = 1;
+    RightJoin = 2;
+    FullOuterJoin = 3;
+    CartesianProduct = 4;
+}

@@ -1,0 +1,14 @@
+import "common/expression.proto";
+import "common/order.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "SortByProtos";
+
+message SortBy
+{
+    required string Id = 1;
+    required string ParentId = 2;
+    repeated Order Orders = 3;
+    required bool IsPartial = 4 [default = true]; // true: sort rows in each instance, false: sort all rows
+}

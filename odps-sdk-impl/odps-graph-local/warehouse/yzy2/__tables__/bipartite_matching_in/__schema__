@@ -1,0 +1,3 @@
+project=yzy2
+table=bipartite_matching_in
+columns=v:STRING,value:STRING,es:STRING

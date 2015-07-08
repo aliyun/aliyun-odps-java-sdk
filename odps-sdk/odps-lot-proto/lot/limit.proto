@@ -1,0 +1,12 @@
+import "common/expression.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "LimitProtos";
+
+message Limit
+{
+    required string Id = 1;
+    required string ParentId = 2;
+    required uint64 Count = 3;
+}

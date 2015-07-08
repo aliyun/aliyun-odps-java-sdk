@@ -1,0 +1,3 @@
+project=yzy2
+table=kmeans_out
+columns=dim1:DOUBLE,dim2:DOUBLE

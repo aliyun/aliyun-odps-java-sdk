@@ -1,0 +1,15 @@
+import "lot/tablescan.proto";
+import "lot/languagesource.proto";
+import "lot/viewsource.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "DataSourceProtos";
+
+message DataSource
+{
+    required string Id = 1;
+    optional TableScan TableScan = 2;
+    optional LanguageSource LanguageSource = 3;
+    optional ViewSource ViewSource = 4;
+}

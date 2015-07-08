@@ -1,0 +1,3 @@
+project=yzy2
+table=strongly_connected_components_out
+columns=vid:BIGINT,cid:BIGINT

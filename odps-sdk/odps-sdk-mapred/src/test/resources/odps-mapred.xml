@@ -1,0 +1,10 @@
+<configuration>
+    <property>
+        <name>odps.mapred.local.warehouse</name>
+        <value>../warehouse</value>
+    </property>
+    <property>
+        <name>odps.mapred.temp.dir</name>
+        <value>target/mr_temp</value>
+    </property>
+</configuration>

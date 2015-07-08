@@ -1,0 +1,11 @@
+import "common/partitionspec.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "TableScanProtos";
+
+message TableScan
+{
+    required string Project = 1;
+    required string Table = 2;
+}

@@ -1,0 +1,269 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/**
+ *
+ */
+package com.aliyun.odps.rest;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+
+/**
+ * 用来构造RESTful API调用的资源标识符
+ *
+ * @author shenggong.wang@alibaba-inc.com
+ */
+public class ResourceBuilder {
+
+  public static final String PROJECTS = "/projects";
+  public static final String TABLES = "/tables";
+  public static final String REGISTRATION = "/registration";
+  public static final String FUNCTIONS = "/functions";
+  public static final String EVENTS = "/events";
+  public static final String RESOURCES = "/resources";
+  public static final String INSTANCES = "/instances";
+  public static final String VOLUMES = "/volumes";
+  private static final String STREAMS = "/streams";
+  private static final String TOPOLOGIES = "/topologies";
+  private static final String XFLOWS = "/xflows";
+
+  private static final String OFFLINEMODELS = "/offlinemodels";
+
+  public static String buildProjectsResource() {
+    return PROJECTS;
+  }
+
+  public static String buildProjectResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+
+    return sb.toString();
+  }
+
+  public static String buildTablesResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(TABLES);
+
+    return sb.toString();
+  }
+
+  public static String buildTableResource(String projectName, String tableName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(TABLES).append('/').append(encodeObjectName(tableName));
+
+    return sb.toString();
+  }
+
+  public static String buildFunctionsResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(REGISTRATION)
+        .append(FUNCTIONS);
+
+    return sb.toString();
+  }
+
+  public static String buildFunctionResource(String projectName, String functionName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(REGISTRATION).append(FUNCTIONS).append('/').append(encodeObjectName(functionName));
+
+    return sb.toString();
+  }
+
+  public static String buildXFlowsResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(XFLOWS);
+
+    return sb.toString();
+  }
+
+  public static String buildXFlowResource(String projectName, String xFlowName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(XFLOWS).append('/').append(encodeObjectName(xFlowName));
+
+    return sb.toString();
+  }
+
+  public static String buildInstancesResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(INSTANCES);
+
+    return sb.toString();
+  }
+
+  public static String buildInstanceResource(String projectName, String instanceId) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(INSTANCES).append('/').append(encodeObjectName(instanceId));
+
+    return sb.toString();
+  }
+
+  public static String buildResourcesResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(RESOURCES);
+
+    return sb.toString();
+  }
+
+  public static String buildResourceResource(String projectName, String resourceName) {
+
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(RESOURCES).append('/').append(encodeObjectName(resourceName));
+
+    return sb.toString();
+  }
+
+  public static String buildVolumesResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(VOLUMES);
+
+    return sb.toString();
+  }
+
+  public static String buildVolumeResource(String projectName, String volumeName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(VOLUMES).append('/').append(encodeObjectName(volumeName));
+
+    return sb.toString();
+  }
+
+  public static String buildStreamsResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(STREAMS);
+
+    return sb.toString();
+  }
+
+  public static String buildStreamResource(String projectName, String streamName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(STREAMS).append('/').append(encodeObjectName(streamName));
+
+    return sb.toString();
+  }
+
+  public static String buildTopologiesResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(TOPOLOGIES);
+
+    return sb.toString();
+  }
+
+  public static String buildTopologyResource(String projectName, String topologyName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(TOPOLOGIES).append('/').append(encodeObjectName(topologyName));
+
+    return sb.toString();
+  }
+
+  public static String buildVolumePartitionResource(String projectName, String volumeName,
+                                                    String partitionName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(VOLUMES).append('/').append(encodeObjectName(volumeName));
+    sb.append('/').append(partitionName);
+
+    return sb.toString();
+  }
+
+  public static String encodeObjectName(String name) {
+    if (name == null || name.trim().length() != name.length()) {
+      throw new IllegalArgumentException("Invalid name: " + name);
+    }
+
+    return encode(name);
+  }
+
+  public static String encode(String str) {
+    if (str == null || str.length() == 0) {
+      return str;
+    }
+
+    String r = null;
+    try {
+      r = URLEncoder.encode(str, "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      throw new IllegalArgumentException("Encode failed: " + str);
+    }
+    r = r.replaceAll("\\+", "%20");
+    return r;
+  }
+
+  public static String buildEventsResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(REGISTRATION)
+        .append(EVENTS);
+
+    return sb.toString();
+  }
+
+  public static String buildEventResource(String projectName, String eventName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(REGISTRATION).append(EVENTS).append('/').append(encodeObjectName(eventName));
+
+    return sb.toString();
+  }
+
+  public static String buildOfflineModelResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName))
+        .append(OFFLINEMODELS);
+
+    return sb.toString();
+  }
+
+  public static String buildOfflineModelResource(String projectName,
+                                                 String modelName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName))
+        .append(OFFLINEMODELS).append("/").append(modelName);
+
+    return sb.toString();
+  }
+}

@@ -1,0 +1,48 @@
+package apsara.odps;
+
+option java_outer_classname = "TypesProtos";
+
+enum Type
+{
+    Integer = 1;
+    Double = 2;
+    String = 3;
+    Datetime = 4;
+    Bool = 5;
+    Decimal = 6;
+
+    ArrayInteger = 7;
+    ArrayDouble = 8;
+    ArrayString = 9;
+    ArrayDatetime = 10;
+    ArrayBool = 11;
+    ArrayDecimal = 12;
+
+    MapIntegerInteger = 13;
+    MapIntegerDouble = 14;
+    MapIntegerString = 15;
+    MapIntegerDatetime = 16;
+    MapIntegerBool = 17;
+    MapIntegerDecimal = 18;
+
+    MapStringInteger = 19;
+    MapStringDouble = 20;
+    MapStringString = 21;
+    MapStringDatetime = 22;
+    MapStringBool = 23;
+    MapStringDecimal = 24;
+
+    MapDatetimeInteger = 25;
+    MapDatetimeDouble = 26;
+    MapDatetimeString = 27;
+    MapDatetimeDatetime = 28;
+    MapDatetimeBool = 29;
+    MapDatetimeDecimal = 30;
+
+    MapDecimalInteger = 31;
+    MapDecimalDouble = 32;
+    MapDecimalString = 33;
+    MapDecimalDatetime = 34;
+    MapDecimalBool = 35;
+    MapDecimalDecimal = 36;
+}

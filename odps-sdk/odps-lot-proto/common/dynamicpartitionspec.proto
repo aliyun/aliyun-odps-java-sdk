@@ -1,0 +1,14 @@
+import "common/expression.proto";
+
+package apsara.odps;
+
+option java_outer_classname = "DynamicPartitionSpecProtos";
+
+message DynamicPartitionSpec
+{
+    repeated group Items = 1
+    {
+        required string Key = 1;//partition key
+        required Reference Value = 2;//partition value
+    };
+}

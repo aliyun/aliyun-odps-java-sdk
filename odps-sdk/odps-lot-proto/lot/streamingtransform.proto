@@ -1,0 +1,13 @@
+package apsara.odps.lot;
+
+option java_outer_classname = "StreamingTransformProtos";
+
+message StreamingTransform
+{
+    required string Cmd = 1; 
+    repeated group Properties = 2
+    {
+        required string Key = 1;
+        required string Value = 2;
+    };
+}

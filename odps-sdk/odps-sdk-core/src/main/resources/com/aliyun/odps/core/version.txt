@@ -1,0 +1,4 @@
+******Odps Java SDK******
+BuildTime: ${timestamp}
+Revision: ${buildNumber}
+MavenVersion: ${version}

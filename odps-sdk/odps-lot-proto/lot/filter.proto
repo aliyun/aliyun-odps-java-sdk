@@ -1,0 +1,13 @@
+import "common/expression.proto";
+import "lot/expression.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "FilterProtos";
+
+message Filter
+{
+    required string Id = 1;
+    required string ParentId = 2;
+    required ScalarExpression Condition = 3;
+}

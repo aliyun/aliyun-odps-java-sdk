@@ -1,0 +1,10 @@
+package apsara.odps;
+
+option java_outer_classname = "PermissionProtos";
+
+enum Permission
+{
+    Read = 1;
+    Write = 2;
+    ReadWrite = 3;
+}

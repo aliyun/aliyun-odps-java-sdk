@@ -1,0 +1,12 @@
+package apsara.odps.lot;
+
+option java_outer_classname = "VolumeProtos";
+
+message Volume
+{
+    required string Project = 1;
+    required string VolumeName = 2;
+    required string Partition = 3;
+    required string Label = 4;
+    required bool IsInput = 5;  //true for input, false for output
+}

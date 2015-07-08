@@ -1,0 +1,8 @@
+package apsara.odps.lot;
+
+option java_outer_classname = "FakeSinkProtos";
+
+//什么都不干的sink，包括屏显也不干
+message FakeSink
+{
+}

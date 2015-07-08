@@ -1,0 +1,85 @@
+import "common/types.proto";
+import "common/expression.proto";
+import "common/language.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "ExpressionProtos";
+
+/*
+ * 之所以不直接支持提供函数嵌套，如在值函数中引用聚合函数、在聚合函数中引用值函数、在窗口函数引用聚合函数/值函数等等是因为当用户直接构造LOT时思考方式不会这样。
+ * 另外在planner内部，表达式就是这个样子
+ */
+
+message ScalarExpression
+{
+    optional Reference Reference = 1;
+    optional Constant Constant = 2;
+    optional Null Null = 3;
+    optional ScalarFunction Expression = 4;
+}
+
+message ScalarFunction
+{
+    required string Project = 1;
+    required string Name = 2;
+    repeated ScalarExpression Parameters = 3;
+    optional bool requireBuiltin = 4 [default = false];
+}
+
+message AggregationFunction
+{
+    required string Project = 1;
+    required string Name = 2;
+    required bool IsDistinct = 3;
+    repeated ScalarExpression Parameters = 4;
+    optional bool requireBuiltin = 5 [default = false];
+}
+
+message WindowFunction
+{
+    required string Project = 1;
+    required string Name = 2;
+    optional bool IsDistinct = 3;
+    repeated ScalarExpression Parameters = 4;
+    repeated ScalarExpression PartitionBy = 5;
+    repeated group OrderBy = 6
+    {
+        required ScalarExpression Expression = 1;
+        optional bool IsAsc = 2 [default = true]; 
+    };
+    optional group WindowingClause = 7
+    {
+        required int32 Begin = 1;
+        required int32 End = 2;
+    }
+    optional bool requireBuiltin = 8 [default = false];
+    //TODO: add other properties.
+}
+
+//UDTF,实际上聚合函数、WindowFunction都是它的特例
+message TableValuedFunction
+{
+    required string Project = 1;
+    required string Name = 2;
+    repeated ScalarExpression Parameters = 3;
+    repeated string OutputColumns = 4;
+    repeated group Properties = 5
+    {
+        required string Key = 1;
+        required string Value = 2;
+    };
+    optional bool requireBuiltin = 6 [default = false];
+}
+
+message TemporaryFunction
+{
+    required string Name = 1;
+    repeated group Resources = 2
+    {
+        required string Project = 1;
+        required string ResourceName = 2;
+    };
+    required string ClassName = 3;
+    required Language Language = 4;
+}

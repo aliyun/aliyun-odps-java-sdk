@@ -1,0 +1,3 @@
+project=yzy2
+table=triangle_count_out
+columns=vid:BIGINT,cid:BIGINT

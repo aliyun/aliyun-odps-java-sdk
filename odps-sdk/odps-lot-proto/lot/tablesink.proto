@@ -1,0 +1,17 @@
+import "common/partitionspec.proto";
+import "common/dynamicpartitionspec.proto";
+import "common/expression.proto";
+
+package apsara.odps.lot;
+
+option java_outer_classname = "TableSinkProtos";
+
+//当一个LOT中有多个对同一张表的TableSink时的检查
+message TableSink
+{
+    required string Project = 1;
+    required string Table = 2;
+    required bool IsOverwrite = 3;
+    optional PartitionSpec Partition = 4;
+    optional DynamicPartitionSpec DynamicPartition = 5;
+}
