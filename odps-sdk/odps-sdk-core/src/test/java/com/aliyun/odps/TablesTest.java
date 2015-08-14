@@ -19,7 +19,10 @@
 
 package com.aliyun.odps;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Iterator;
+import java.util.UUID;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -30,7 +33,7 @@ import com.aliyun.odps.commons.transport.OdpsTestUtils;
 
 public class TablesTest extends TestBase {
 
-  private String tableName = "table_name_for_testTables";
+  private String tableName = this.getClass().getSimpleName() + "_table_name_for_testTables";
 
   @Before
   public void setUp() throws Exception {
@@ -56,7 +59,33 @@ public class TablesTest extends TestBase {
 
   @Test
   public void testCreateTable() throws OdpsException {
-    //Already Test in method setUp() ,please don't create again
+    UUID id = UUID.randomUUID();
+    String tableName = id.toString().replace("-" , "");
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("c1", OdpsType.BIGINT));
+    schema.addColumn(new Column("_c2", OdpsType.STRING, "_comment here"));
+    schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
+    schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
+    odps.tables().create(odps.getDefaultProject(), "testCreateTable" + tableName, schema, "_table comment", false);
+    Table table = odps.tables().get("testCreateTable" + tableName);
+    assertEquals(table.getComment(), "_table comment");
+    TableSchema returnSchema = table.getSchema();
+    assertEquals(returnSchema.getColumns().size(), 2L);
+    assertEquals(returnSchema.getColumn("c1").getName(), "c1");
+    assertEquals(returnSchema.getColumn("c1").getType(), OdpsType.BIGINT);
+    assertEquals(returnSchema.getColumn("c1").getComment(), "");
+    assertEquals(returnSchema.getColumn("_c2").getName(), "_c2");
+    assertEquals(returnSchema.getColumn("_c2").getType(), OdpsType.STRING);
+    assertEquals(returnSchema.getColumn("_c2").getComment(), "_comment here");
+
+    assertEquals(returnSchema.getPartitionColumn("p1").getName(), "p1");
+    assertEquals(returnSchema.getPartitionColumn("p1").getType(), OdpsType.STRING);
+    assertEquals(returnSchema.getPartitionColumn("p1").getComment(), "");
+    assertEquals(returnSchema.getPartitionColumn("_p2").getName(), "_p2");
+    assertEquals(returnSchema.getPartitionColumn("_p2").getType(), OdpsType.STRING);
+    assertEquals(returnSchema.getPartitionColumn("_p2").getComment(), "_comment here");
+
+
   }
 
   @Test(expected = OdpsException.class)
@@ -83,10 +112,10 @@ public class TablesTest extends TestBase {
   @Test
   public void testExistsString() throws OdpsException {
     boolean flag = odps.tables().exists(tableName);
-    Assert.assertEquals(flag, true);
+    assertEquals(flag, true);
 
     flag = odps.tables().exists("table_name_for_test_not_exists");
-    Assert.assertEquals(flag, false);
+    assertEquals(flag, false);
   }
 
   @Test

@@ -38,6 +38,8 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.io.proto.XstreamPack.XStreamPack;
+import com.google.protobuf.ByteString;
 
 
 public class StreamWriter {
@@ -73,16 +75,32 @@ public class StreamWriter {
    *
    */
   public WritePackResult write(StreamRecordPack recordPack) throws TunnelException, IOException {
-    return write(null, recordPack);
+    return write(null, recordPack, null);
+  }
+  
+  /**
+   * 向ODPS hub服务的非分区表写入一个pack
+   *
+   * @param recordPack
+   *     {@link StreamRecordPack} 对象
+   * @param property
+   *     pack属性
+   * @throws TunnelException, IOexception
+   *
+   * @return {@link WritePackResult}
+   *
+   */
+  public WritePackResult write(StreamRecordPack recordPack, byte [] meta) throws TunnelException, IOException {
+    return write(null, recordPack, meta);
   }
 
   /**
    * 向ODPS hub服务的分区表写入一个pack
    *
-   * @param PartitionSpec
-   *     {@link PartitionSpec} 对象
    * @param recordPack
    *     {@link StreamRecordPack} 对象
+   * @param property
+   *     pack 属性    
    * @throws TunnelException, IOexception
    *
    * @return {@link WritePackResult}
@@ -90,15 +108,48 @@ public class StreamWriter {
    */
   public WritePackResult write(PartitionSpec partitionSpec, StreamRecordPack recordPack)
       throws TunnelException, IOException {
+    return write(partitionSpec, recordPack, null);
+  }
+  
+  /**
+   * 向ODPS hub服务的分区表写入一个pack
+   *
+   * @param PartitionSpec
+   *     {@link PartitionSpec} 对象
+   * @param recordPack
+   *     {@link StreamRecordPack} 对象
+   * @param meta
+   *     pack 属性    
+   * @throws TunnelException, IOexception
+   *
+   * @return {@link WritePackResult}
+   *
+   */
+  public WritePackResult write(PartitionSpec partitionSpec, StreamRecordPack recordPack, byte [] meta)
+      throws TunnelException, IOException {
 
     HashMap<String, String> params = new HashMap<String, String>(this.params);
     HashMap<String, String> headers = new HashMap<String, String>(this.headers);
     headers.put(HttpHeaders.CONTENT_ENCODING, "deflate");
     try {
       byte[] bytes = recordPack.getByteArray();
+      
+      if ((null == bytes || 0 == bytes.length) && null == meta) {
+        throw new TunnelException("both record pack and meta are empty.");
+      }
+
+      XStreamPack.Builder pack = XStreamPack.newBuilder();
+      pack.setPackData(ByteString.copyFrom(bytes));
+      if (null != meta) {
+        pack.setPackMeta(ByteString.copyFrom(meta));
+      }
+      
+      bytes = pack.build().toByteArray();
+      
       if (partitionSpec != null && partitionSpec.toString().length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec.toString().replaceAll("'", ""));
       }
+      
       params.put(TunnelConstants.RECORD_COUNT, String.valueOf(recordPack.getRecordCount()));
       headers.put(Headers.CONTENT_MD5, generatorMD5(bytes));
       Response resp = tunnelServiceClient.requestForRawResponse(path, "PUT", params, headers,

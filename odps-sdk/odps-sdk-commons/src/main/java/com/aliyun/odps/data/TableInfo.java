@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.aliyun.odps.PartitionSpec;
 
 /**
@@ -224,7 +226,25 @@ public class TableInfo {
    * @param name
    */
   public void setTableName(String name) {
-    this.tblName = name;
+    if (name == null || name.trim().isEmpty()) {
+      throw new RuntimeException(
+          "ODPS-0730001: table should not be null or empty: " + name);
+    }
+    String[] ss = StringUtils.splitPreserveAllTokens(name.trim(), '.');
+    if (ss.length == 2) {
+      if (ss[0].trim().isEmpty() || ss[1].trim().isEmpty()) {
+        throw new RuntimeException("ODPS-0730001: error table format: " + name);
+      }
+      this.projectName = ss[0];
+      this.tblName = ss[1];
+    } else if (ss.length == 1) {
+      if (ss[0].trim().isEmpty()) {
+        throw new RuntimeException("ODPS-0730001: error table format: " + name);
+      }
+      this.tblName = ss[0];
+    } else {
+      throw new RuntimeException("ODPS-0730001: error table format: " + name);
+    }
   }
 
   /**

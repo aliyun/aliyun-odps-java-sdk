@@ -1,0 +1,18 @@
+{
+  "context": {
+    "logViewHost": "",
+    "debug": false,
+    "endpoint": "http://endpoint/",
+    "isAsyncMode": false,
+    "project": "test",
+    "runningCluster": "test_cluster",
+    "priority": 9,
+    "consoleWidth": 150,
+    "machineReadable": false,
+    "isJson": false,
+    "isDryRun": false,
+    "retryTimes": 1,
+    "step": 0,
+    "https_check": true
+  }
+}

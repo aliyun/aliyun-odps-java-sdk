@@ -40,16 +40,16 @@ public class TableTest extends TestBase {
 
   private static TableSchema schema;
 
-  private static String TABLE_NAME = "table_name_for_test";
-  private static String TABLE_NAME_2 = "table_name_for_test2";
-  private static String TABLE_NAME_3 = "table_name_for_test3";
-  private static String HUB_TABLE_NAME = "hubtable_name_for_test";
-  private static String HUB_TABLE_NAME_2 = "table_name_for_test_2";
-  private static String HUB_TABLE_NAME_3 = "hubtable_name_for_test_3";
-  private static String HUB_TABLE_NAME_4 = "hubtable_name_for_test_4";
-  private static String TRUNCATE_TABLE_NAME = "truncate_test";
-  private static String SOURCE_TABLE_NAME = "test_table_test";
-  private static String NO_CHECK_TALBE = "no_check_table";
+  private static String TABLE_NAME = TableTest.class.getSimpleName() + "_table_name_for_test";
+  private static String TABLE_NAME_2 = TableTest.class.getSimpleName() + "_table_name_for_test2";
+  private static String TABLE_NAME_3 = TableTest.class.getSimpleName() + "_table_name_for_test3";
+  private static String HUB_TABLE_NAME = TableTest.class.getSimpleName() + "_hubtable_name_for_test";
+  private static String HUB_TABLE_NAME_2 = TableTest.class.getSimpleName() + "_table_name_for_test_2";
+  private static String HUB_TABLE_NAME_3 = TableTest.class.getSimpleName() + "_hubtable_name_for_test_3";
+  private static String HUB_TABLE_NAME_4 = TableTest.class.getSimpleName() + "_hubtable_name_for_test_4";
+  private static String TRUNCATE_TABLE_NAME = TableTest.class.getSimpleName() + "_truncate_test";
+  private static String SOURCE_TABLE_NAME = TableTest.class.getSimpleName() + "_test_table_test";
+  private static String NO_CHECK_TALBE = TableTest.class.getSimpleName() + "_no_check_table";
 
   @BeforeClass
   public static void setUp() throws Exception {

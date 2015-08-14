@@ -262,6 +262,24 @@ public class Tables implements Iterable<Table> {
    */
   public void create(String projectName, String tableName, TableSchema schema, boolean ifNotExists)
       throws OdpsException {
+    create(projectName, tableName, schema, null, ifNotExists);
+  }
+
+  /**
+   * 创建表
+   *
+   * @param projectName
+   *     目标表所在{@link Project}名称
+   * @param tableName
+   *     所要创建的{@link Table}名称
+   * @param schema
+   *     表结构 {@link TableSchema}
+   * @param comment
+   *     表注释, 其中不能带有单引号
+   * @param ifNotExists
+   */
+  public void create(String projectName, String tableName, TableSchema schema, String comment, boolean ifNotExists)
+      throws OdpsException {
     if (projectName == null || tableName == null || schema == null) {
       throw new IllegalArgumentException();
     }
@@ -272,19 +290,26 @@ public class Tables implements Iterable<Table> {
       sb.append(" IF NOT EXISTS ");
     }
 
-    sb.append(projectName).append(".").append(tableName).append(" (");
+    sb.append(projectName).append(".`").append(tableName).append("` (");
 
     List<Column> columns = schema.getColumns();
     for (int i = 0; i < columns.size(); i++) {
       Column c = columns.get(i);
-      sb.append(c.getName()).append(" ")
+      sb.append("`").append(c.getName()).append("` ")
           .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
+      if (c.getComment() != null) {
+        sb.append(" COMMENT '").append(c.getComment()).append("'");
+      }
       if (i + 1 < columns.size()) {
         sb.append(',');
       }
     }
 
     sb.append(')');
+
+    if (comment != null) {
+      sb.append(" COMMENT '" + comment + "' ");
+    }
 
     List<Column> pcolumns = schema.getPartitionColumns();
     if (pcolumns.size() > 0) {
@@ -293,6 +318,9 @@ public class Tables implements Iterable<Table> {
         Column c = pcolumns.get(i);
         sb.append(c.getName()).append(" ")
             .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
+        if (c.getComment() != null) {
+          sb.append(" COMMENT '").append(c.getComment()).append("'");
+        }
         if (i + 1 < pcolumns.size()) {
           sb.append(',');
         }

@@ -47,6 +47,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.local.common.Constants;
+import com.aliyun.odps.local.common.DownloadMode;
 import com.aliyun.odps.local.common.ExceptionCode;
 import com.aliyun.odps.local.common.TableMeta;
 import com.aliyun.odps.local.common.WareHouse;
@@ -64,7 +65,7 @@ public class DownloadUtils {
     if (odps == null || tableInfo == null) {
       throw new IllegalArgumentException("Missing arguments:odps|tableInfo");
     }
-
+    
     if (StringUtils.isBlank(tableInfo.getProjectName())) {
       tableInfo.setProjectName(odps.getDefaultProject());
     }
@@ -76,7 +77,9 @@ public class DownloadUtils {
     // create table scheme file
     File tableDir = WareHouse.getInstance().getTableDir(tableInfo.getProjectName(),
                                                         tableInfo.getTableName());
-    tableDir.mkdirs();
+    if (!tableDir.exists()){
+      tableDir.mkdirs();
+    }
     TableMeta tableMeta = TableMeta.fromTable(table);
     SchemaUtils.generateSchemaFile(tableMeta, null, tableDir);
 
@@ -111,12 +114,16 @@ public class DownloadUtils {
 
     File tableDir = WareHouse.getInstance().getTableDir(tableMeta.getProjName(),
                                                         tableMeta.getTableName());
-    tableDir.mkdirs();
+    if (!tableDir.exists()) {
+      tableDir.mkdirs();
+    }
 
     File dataDir = tableDir;
     if (partition != null) {
       dataDir = new File(tableDir, PartitionUtils.toString(partition));
-      dataDir.mkdirs();
+      if (!dataDir.exists()) {
+        dataDir.mkdirs();
+      }
     }
 
     LOG.info("Start to write table: " + tableInfo.toString() + "-->" + dataDir.getAbsolutePath());
@@ -165,7 +172,8 @@ public class DownloadUtils {
 
     validateTable(odps, tableInfo);
 
-    LOG.info("Start to download table: " + tableInfo.toString());
+    LOG.info("Start to download table: '" + tableInfo.toString() + "', download mode:"
+        + WareHouse.getInstance().getDownloadMode());
 
     List<String[]> list = new LinkedList<String[]>();
     TableMeta tableMeta = null;
@@ -209,7 +217,8 @@ public class DownloadUtils {
         result.add(dstData);
       }
     }
-    LOG.info("Finished download table: " + tableInfo.toString());
+    LOG.info("Finished download table: '" + tableInfo.toString() + "', download mode:"
+        + WareHouse.getInstance().getDownloadMode());
 
     return result;
 
@@ -220,10 +229,18 @@ public class DownloadUtils {
     if (odps == null || StringUtils.isBlank(projName) || StringUtils.isBlank(resourceName)) {
       throw new IllegalArgumentException("Missing arguments: odps|projName|resourceName");
     }
+    
+    if (WareHouse.getInstance().getDownloadMode() == DownloadMode.NEVER) {
+      throw new RuntimeException("Download resource '" + projName + "." + resourceName
+          + "' Failed! Current download mode is:" + DownloadMode.NEVER + ".Please check parameter'"
+          + Constants.LOCAL_DOWNLOAD_MODE + "'");
+    }
+    
     try {
       if (!odps.resources().exists(projName, resourceName)) {
         throw new RuntimeException("Download resource: " + projName + "." + resourceName
-                                   + " Failed! resource not exists in remote server!");
+            + " Failed!Remote resource not found! Download mode:"
+            + WareHouse.getInstance().getDownloadMode());
       }
     } catch (OdpsException e1) {
       throw new RuntimeException(e1);
@@ -232,7 +249,8 @@ public class DownloadUtils {
     Resource resource = odps.resources().get(projName, resourceName);
     File resFile = WareHouse.getInstance().getReourceFile(projName, resourceName);
     LOG.info("Start to download resource: " + resource.getName() + "-->"
-             + resFile.getAbsolutePath() + ", type: " + resource.getType());
+        + resFile.getAbsolutePath() + ", type: " + resource.getType() + ",download mode:"
+        + WareHouse.getInstance().getDownloadMode());
 
     switch (resource.getType()) {
       case FILE:
@@ -276,17 +294,7 @@ public class DownloadUtils {
         Table stable = tr.getSourceTable();
         String sourceProjName = stable.getProject();
         String sourceTbleName = stable.getName();
-
-        List<Partition> parts = null;
-        try {
-          parts = stable.getPartitions();
-        } catch (Exception e) {
-
-        }
-        PartitionSpec partSpec = null;
-        if (parts != null) {
-          partSpec = parts.get(0).getPartitionSpec();
-        }
+        PartitionSpec partSpec = tr.getSourceTablePartition();
 
         // 下载数据table到warehouse/_table__
         TableInfo tableInfo = null;
@@ -321,7 +329,8 @@ public class DownloadUtils {
     }
 
     LOG.info("Finished download resource: " + resource.getName() + "-->"
-             + resFile.getAbsolutePath() + ", type: " + resource.getType());
+        + resFile.getAbsolutePath() + ", type: " + resource.getType() + ",download mode:"
+        + WareHouse.getInstance().getDownloadMode());
 
   }
 
@@ -387,10 +396,19 @@ public class DownloadUtils {
   }
 
   public static void validateTable(Odps odps, TableInfo tableInfo) {
+    if (tableInfo == null) {
+      throw new IllegalArgumentException("Missing arugument: tableInfo");
+    }
+    if (WareHouse.getInstance().getDownloadMode() == DownloadMode.NEVER) {
+      throw new RuntimeException("Download table schema '" + tableInfo.toString()
+          + "' Failed! Current download mode is:" + DownloadMode.NEVER + ".Please check parameter '"
+          + Constants.LOCAL_DOWNLOAD_MODE + "'");
+    }
     try {
       if (!odps.tables().exists(tableInfo.getProjectName(), tableInfo.getTableName())) {
         throw new RuntimeException("Download table " + tableInfo
-                                   + " Failed! table not exists in remote server!");
+            + " Failed! Remote table not found!Download mode:"
+            + WareHouse.getInstance().getDownloadMode());
       }
     } catch (OdpsException e1) {
       throw new RuntimeException(e1);
@@ -403,8 +421,9 @@ public class DownloadUtils {
         && (table.getSchema().getPartitionColumns() == null || table.getSchema()
         .getPartitionColumns().isEmpty())) {
       throw new RuntimeException("Download table " + tableInfo + "Failed! Remote table "
-                                 + table.getProject() + "." + table.getName()
-                                 + " is not a partitioned table");
+          + table.getProject() + "." + table.getName()
+          + " is not a partitioned table,Download mode:"
+          + WareHouse.getInstance().getDownloadMode());
     }
 
     if (table.isVirtualView()) {

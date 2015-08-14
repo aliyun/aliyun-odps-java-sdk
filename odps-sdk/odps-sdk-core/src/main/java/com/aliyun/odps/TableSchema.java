@@ -137,6 +137,15 @@ public class TableSchema {
     return columns.get(getColumnIndex(name));
   }
 
+  public void setColumns(List<Column> columns) {
+    this.nameMap.clear();
+    this.columns.clear();
+    for (Column column : columns) {
+      addColumn(column);
+    }
+
+  }
+
   /**
    * 获得列定义列表
    *
@@ -149,6 +158,14 @@ public class TableSchema {
   @SuppressWarnings("unchecked")
   public List<Column> getColumns() {
     return (List<Column>) columns.clone();
+  }
+
+  public void setPartitionColumns(ArrayList<Column> partitionColumns) {
+    this.partitionNameMap.clear();
+    this.partitionColumns.clear();
+    for (Column column : partitionColumns) {
+      addPartitionColumn(column);
+    }
   }
 
   /**
@@ -207,5 +224,12 @@ public class TableSchema {
    */
   public boolean containsPartitionColumn(String name) {
     return partitionNameMap.containsKey(name);
+  }
+
+  public Column getPartitionColumn(int idx) {
+    if (idx < 0 || idx >= partitionColumns.size()) {
+      throw new IllegalArgumentException("idx out of range");
+    }
+    return partitionColumns.get(idx);
   }
 }

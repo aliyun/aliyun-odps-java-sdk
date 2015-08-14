@@ -28,6 +28,7 @@ import java.util.Calendar;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.StreamJob.StreamJobModel;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.GalaxyTask;
@@ -38,7 +39,20 @@ import com.aliyun.odps.commons.util.JacksonParser;
  *
  * @author zhiyong.dai@alibaba-inc.com
  */
-public class StreamJobs {
+public class StreamJobs implements Iterable<StreamJob> {
+
+  @XmlRootElement(name = "StreamJobs")
+  private static class ListStreamJobsResponse {
+
+    @XmlElement(name = "StreamJob")
+    private List<StreamJobModel> streamJobs = new ArrayList<StreamJobModel>();
+
+    @XmlElement(name = "Marker")
+    private String marker;
+
+    @XmlElement(name = "MaxItems")
+    private Integer maxItems;
+  }
 
   RestClient client;
   Odps odps;
@@ -48,13 +62,46 @@ public class StreamJobs {
     this.client = odps.getRestClient();
   }
 
-  public String list() throws OdpsException {
-    GalaxyTask task = new GalaxyTask();
-    String taskName = "LIST_STREAMJOB_TASK";
-    task.setName(taskName);
-    task.setOperationType("LIST_STREAMJOB");
-    //TODO 处理异常情况
-    return runInstance(getDefaultProjectName(), task);
+  @Override
+  public Iterator<StreamJob> iterator() {
+    return iterator(getDefaultProjectName());
+  }
+
+
+  public Iterator<StreamJob> iterator(final String projectName) {
+    return new ListIterator<StreamJob>() {
+
+      Map<String, String> params = new HashMap<String, String>();
+
+      @Override
+      protected List<StreamJob> list() {
+        ArrayList<StreamJob> streamJobs = new ArrayList<StreamJob>();
+        params.put("expectmarker", "true");
+
+        String lastMarker = params.get("marker");
+        if (params.containsKey("marker") && (lastMarker == null || lastMarker.length() == 0)) {
+          return null;
+        }
+
+        String resource = ResourceBuilder.buildStreamJobsResource(projectName);
+        try {
+
+          ListStreamJobsResponse resp =
+              client.request(ListStreamJobsResponse.class, resource, "GET", params);
+
+          for (StreamJobModel model : resp.streamJobs) {
+            StreamJob t = new StreamJob(model, projectName, client);
+            streamJobs.add(t);
+          }
+
+          params.put("marker", resp.marker);
+        } catch (OdpsException e) {
+          throw new RuntimeException(e.getMessage(), e);
+        }
+
+        return streamJobs;
+      }
+    };
   }
 
   /**

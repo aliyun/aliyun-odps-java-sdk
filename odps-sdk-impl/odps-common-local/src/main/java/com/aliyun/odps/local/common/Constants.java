@@ -34,6 +34,7 @@ public class Constants {
   public static final String LOCAL_TEMP_DIR = "odps.mapred.local.temp.dir";
   public static final String LOCAL_TEMP_RETAIN = "odps.mapred.local.temp.retain";
   public static final String LOCAL_RECORD_LIMIT = "odps.mapred.local.record.download.limit";
+  public static final String LOCAL_DOWNLOAD_MODE = "odps.mapred.local.download.mode"; //always|auto|never; default auto
   public static final String
       LOCAL_INPUT_COLUMN_SEPERATOR =
       "odps.mapred.local.input.column.seperator";

@@ -26,6 +26,7 @@ import java.util.Date;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
+import org.apache.commons.io.output.CountingOutputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
 
 import com.aliyun.odps.Column;
@@ -37,14 +38,16 @@ import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.tunnel.InvalidColumnTypeException;
+import com.google.protobuf.CodedOutputStream;
 
 /**
  * @author chao.liu
  */
 class ProtobufRecordStreamWriter implements RecordWriter {
 
+  private CountingOutputStream bou;
   private Column[] columns;
-  private ProtobufOutputStream out;
+  private CodedOutputStream out;
   private long count;
 
   private Checksum crc = new Checksum();
@@ -58,29 +61,31 @@ class ProtobufRecordStreamWriter implements RecordWriter {
   public ProtobufRecordStreamWriter(TableSchema schema, OutputStream out, CompressOption option)
       throws IOException {
     columns = schema.getColumns().toArray(new Column[0]);
-
+    OutputStream tmpOut;
     if (option != null) {
       if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZLIB)) {
         def = new Deflater();
         def.setLevel(option.level);
         def.setStrategy(option.strategy);
-
-        this.out = new ProtobufOutputStream(new DeflaterOutputStream(out, def));
-
+        tmpOut = new DeflaterOutputStream(out, def);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
-
-        this.out = new ProtobufOutputStream(new SnappyFramedOutputStream(out));
-
+        tmpOut = new SnappyFramedOutputStream(out);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
-
-        this.out = new ProtobufOutputStream(out);
-
+        tmpOut = out;
       } else {
         throw new IOException("invalid compression option.");
       }
     } else {
-      this.out = new ProtobufOutputStream(out);
+      tmpOut = out;
     }
+    bou = new CountingOutputStream(tmpOut);
+    this.out = CodedOutputStream.newInstance(bou);
+  }
+
+  static void writeRawBytes(int fieldNumber, byte[] value, CodedOutputStream out) throws IOException {
+    out.writeTag(fieldNumber, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    out.writeRawVarint32(value.length);
+    out.writeRawBytes(value);
   }
 
   @Override
@@ -109,18 +114,18 @@ class ProtobufRecordStreamWriter implements RecordWriter {
         case BOOLEAN: {
           boolean value = (Boolean) v;
           crc.update(value);
-          out.writeBoolean(pbIdx, value);
+          out.writeBool(pbIdx, value);
           break;
         }
         case DATETIME: {
           Date value = (Date) v;
           Long longValue = DateUtils.date2ms(value);
           crc.update(longValue);
-          out.writeLong(pbIdx, longValue);
+          out.writeSInt64(pbIdx, longValue);
           break;
         }
         case STRING: {
-          byte[] bytes = null;
+          byte[] bytes;
           if (v instanceof String) {
             String value = (String) v;
             bytes = value.getBytes("UTF-8");
@@ -128,7 +133,7 @@ class ProtobufRecordStreamWriter implements RecordWriter {
             bytes = (byte[]) v;
           }
           crc.update(bytes, 0, bytes.length);
-          out.writeRawBytes(pbIdx, bytes);
+          writeRawBytes(pbIdx, bytes, out);
           break;
         }
         case DOUBLE: {
@@ -140,14 +145,14 @@ class ProtobufRecordStreamWriter implements RecordWriter {
         case BIGINT: {
           long value = (Long) v;
           crc.update(value);
-          out.writeLong(pbIdx, value);
+          out.writeSInt64(pbIdx, value);
           break;
         }
         case DECIMAL: {
           String value = ((BigDecimal) v).toPlainString();
           byte[] bytes = value.getBytes("UTF-8");
           crc.update(bytes, 0, bytes.length);
-          out.writeRawBytes(pbIdx, bytes);
+          writeRawBytes(pbIdx, bytes, out);
           break;
         }
         default:
@@ -156,7 +161,7 @@ class ProtobufRecordStreamWriter implements RecordWriter {
     }
 
     int checksum = (int) crc.getValue();
-    out.writeUInt32(WireFormat.TUNNEL_END_RECORD, checksum);
+    out.writeUInt32(TunnelWireConstant.TUNNEL_END_RECORD, checksum);
 
     crc.reset();
     crccrc.update(checksum);
@@ -168,9 +173,10 @@ class ProtobufRecordStreamWriter implements RecordWriter {
   public void close() throws IOException {
 
     try {
-      out.writeLong(WireFormat.TUNNEL_META_COUNT, count);
-      out.writeUInt32(WireFormat.TUNNEL_META_CHECKSUM, (int) crccrc.getValue());
-      out.close();
+      out.writeSInt64(TunnelWireConstant.TUNNEL_META_COUNT, count);
+      out.writeUInt32(TunnelWireConstant.TUNNEL_META_CHECKSUM, (int) crccrc.getValue());
+      out.flush();
+      bou.close();
     } finally {
       if (def != null) {
         def.end();
@@ -187,13 +193,13 @@ class ProtobufRecordStreamWriter implements RecordWriter {
    * @return 字节数
    */
   public long getTotalBytes() {
-    return out.getTotalBytes();
+    return bou.getByteCount();
   }
 
   public void write(RecordPack pack) throws IOException {
     if (pack instanceof ProtobufRecordPack) {
       ProtobufRecordPack pbPack = (ProtobufRecordPack) pack;
-      pbPack.getProtobufStream().writeTo(out);
+      pbPack.getProtobufStream().writeTo(bou);
       count += pbPack.getSize();
       setCheckSum(pbPack.getCheckSum());
     } else {

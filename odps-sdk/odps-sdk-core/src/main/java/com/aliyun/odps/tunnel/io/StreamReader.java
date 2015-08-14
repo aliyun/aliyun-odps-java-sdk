@@ -40,6 +40,7 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.io.proto.XstreamPack.XStreamPack;
 
 
 public class StreamReader {
@@ -217,6 +218,9 @@ public class StreamReader {
 
       InputStream in = conn.getInputStream();
       byte[] bytes = IOUtils.readFully(in);
+      
+      XStreamPack pack = XStreamPack.parseFrom(bytes);
+      bytes = pack.getPackData().toByteArray();
 
       this.protobufRecordStreamReader = new ProtobufRecordStreamReader(
           tableSchema, new ByteArrayInputStream(bytes), compressOption);

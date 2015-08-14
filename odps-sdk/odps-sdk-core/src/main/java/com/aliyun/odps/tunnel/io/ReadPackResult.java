@@ -27,8 +27,13 @@ public class ReadPackResult {
     private String nextPackId;
     private long   timeStamp;
     private List<Record> records;
+    private byte [] meta;
 
     public ReadPackResult(String packId, String nextPackId, long timeStamp, List<Record> records) {
+      this(packId, nextPackId, timeStamp, records, null);
+    }
+    
+    public ReadPackResult(String packId, String nextPackId, long timeStamp, List<Record> records, byte [] meta) {
         if (packId == null || nextPackId == null) {
             throw new IllegalArgumentException("Invalid pack string.");
         }
@@ -36,6 +41,7 @@ public class ReadPackResult {
         this.nextPackId = nextPackId;
         this.timeStamp = timeStamp;
         this.records = records;
+        this.meta = meta;
     }
 
     public List<Record> getRecords() {
@@ -52,5 +58,9 @@ public class ReadPackResult {
 
     public String getNextPackId() {
         return this.nextPackId;
+    }
+    
+    public byte [] getMeta() {
+        return this.meta;
     }
 }

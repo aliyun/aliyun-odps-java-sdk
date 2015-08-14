@@ -40,7 +40,7 @@ import com.aliyun.odps.tunnel.TunnelException;
 public class InstancesTest extends TestBase {
 
   Instance i;
-  private static String TABLE_NAME = "test_instances_test";
+  private static String TABLE_NAME = InstancesTest.class.getSimpleName() + "_test_instances_test";
 
   @BeforeClass
   public static void setup() throws TunnelException, OdpsException, IOException {
@@ -159,4 +159,5 @@ public class InstancesTest extends TestBase {
     i.waitForSuccess();
     i.getTaskDetailJson("testsqlcase");
   }
+  
 }

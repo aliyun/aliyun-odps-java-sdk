@@ -194,6 +194,22 @@ class Configuration {
   }
 
   /**
+   * 获得流式上传的RESTful资源标识符
+   *
+   * @param projectName
+   * @param tableName
+   * @return
+   */
+  public String getStreamUploadResource(String projectName, String tableName) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("/projects/").append(projectName).append("/tables/")
+        .append(tableName)
+        .append("/shards");
+
+    return sb.toString();
+  }
+
+  /**
    * 取得当前配置的数据传输块大小
    *
    * @return 当前配置的块大小

@@ -38,8 +38,7 @@ public class OdpsHooksTest extends TestBase {
   static boolean beforeDone = false;
   static boolean afterDone = false;
 
-  private static String TABLE_NAME = "test_test_hook";
-
+  private static String TABLE_NAME = OdpsHooksTest.class.getSimpleName() +  "_test_test_hook";
 
   public static class TestHook extends OdpsHook {
 

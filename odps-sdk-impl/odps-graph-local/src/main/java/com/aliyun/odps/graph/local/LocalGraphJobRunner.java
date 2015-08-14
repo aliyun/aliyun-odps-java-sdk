@@ -50,6 +50,7 @@ import com.aliyun.odps.graph.job.JobRunner;
 import com.aliyun.odps.graph.local.master.Master;
 import com.aliyun.odps.graph.local.utils.LocalGraphRunUtils;
 import com.aliyun.odps.local.common.Constants;
+import com.aliyun.odps.local.common.DownloadMode;
 import com.aliyun.odps.local.common.ExceptionCode;
 import com.aliyun.odps.local.common.FileSplit;
 import com.aliyun.odps.local.common.JobDirecotry;
@@ -174,7 +175,8 @@ public class LocalGraphJobRunner implements JobRunner {
     }
 
     // 该部分逻辑只负责下载Table Scheme和数据，后续处理和本地一样
-    if (!wareHouse.existsTable(projName, tblName)) {
+    if (!wareHouse.existsTable(projName, tblName)
+        || wareHouse.getDownloadMode() == DownloadMode.ALWAYS) {
 
       DownloadUtils
           .downloadTableSchemeAndData(odps, tableInfo, wareHouse.getLimitDownloadRecordCount(),
@@ -285,7 +287,8 @@ public class LocalGraphJobRunner implements JobRunner {
       String projName = res.get(0);
       String resName = res.get(1);
 
-      if (!wareHouse.existsResource(projName, resName)) {
+      if (!wareHouse.existsResource(projName, resName)
+          || wareHouse.getDownloadMode() == DownloadMode.ALWAYS) {
         DownloadUtils
             .downloadResource(odps, projName, resName, wareHouse.getLimitDownloadRecordCount(),
                               wareHouse.getInputColumnSeperator());
@@ -324,7 +327,8 @@ public class LocalGraphJobRunner implements JobRunner {
       File tblDir = jobDirecotry.getOutputDir(table.getLabel());
       tblDir.mkdirs();
       TableMeta tblMeta = null;
-      if (wareHouse.existsTable(projName, tblName)) {
+      if (wareHouse.existsTable(projName, tblName)
+          && wareHouse.getDownloadMode() != DownloadMode.ALWAYS) {
         tblMeta = wareHouse.getTableMeta(projName, tblName);
       } else {
         tblMeta = DownloadUtils.downloadTableInfo(odps, table);

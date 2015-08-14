@@ -48,7 +48,7 @@ public class Resource extends LazyLoad {
    *
    * @author zhemin.nizm@alibaba-inc.com
    */
-  public static enum Type {
+  public enum Type {
     /**
      * 文件类型资源
      */
@@ -72,6 +72,7 @@ public class Resource extends LazyLoad {
     TABLE,
 
     VOLUMEFILE,
+    VOLUMEARCHIVE,
 
     /**
      * 用户设置的或系统暂不支持的资源类型
@@ -151,6 +152,7 @@ public class Resource extends LazyLoad {
         break;
       case UNKOWN:
         resource = new Resource();
+        break;
       default:
         resource = new Resource();
     }
@@ -241,6 +243,10 @@ public class Resource extends LazyLoad {
   public Type getType() {
     if (model.type == null && client != null) {
       lazyLoad();
+    }
+
+    if (model.type == null) {
+      return Type.UNKOWN;
     }
 
     try {

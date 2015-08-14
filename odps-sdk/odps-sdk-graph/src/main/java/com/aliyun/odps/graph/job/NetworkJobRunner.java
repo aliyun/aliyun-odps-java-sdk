@@ -19,8 +19,6 @@
 
 package com.aliyun.odps.graph.job;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -33,12 +31,8 @@ import com.aliyun.odps.Task.Property;
 import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.conf.Configured;
 import com.aliyun.odps.graph.GRAPH_CONF;
-import com.aliyun.odps.graph.GraphLoader;
 import com.aliyun.odps.graph.JobConf;
-import com.aliyun.odps.graph.MutationContext;
 import com.aliyun.odps.graph.common.COMMON_GRAPH_CONF;
-import com.aliyun.odps.io.LongWritable;
-import com.aliyun.odps.io.WritableRecord;
 import com.aliyun.odps.mapred.RunningJob;
 import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.task.GraphTask;
@@ -92,11 +86,9 @@ public class NetworkJobRunner extends Configured implements JobRunner {
       }
     }
 
-    // check new sdk
-    if (confInJob.get(COMMON_GRAPH_CONF.USE_NEW_SDK) == null
-        && !isDeprecatedJob(confInJob)) {
-      jobConf.addProperty(new Property(COMMON_GRAPH_CONF.USE_NEW_SDK, "true"));
-    }
+    // all job uses new sdk.
+    jobConf.addProperty(new Property(COMMON_GRAPH_CONF.USE_NEW_SDK, "true"));
+
     // handle priority
     int priority = confInJob.getJobPriority();
 
@@ -120,8 +112,7 @@ public class NetworkJobRunner extends Configured implements JobRunner {
     Map<String, String> aliases = SessionState.get().getAliases();
     if (aliases != null) {
       try {
-        String json = JacksonParser.getObjectMapper().writeValueAsString(
-            aliases);
+        String json = JacksonParser.getObjectMapper().writeValueAsString(aliases);
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -149,50 +140,11 @@ public class NetworkJobRunner extends Configured implements JobRunner {
   // print logview in old console, do not print logview in new console
   private void printLogViewIfNecessary(Instance instance) {
     try {
-      Class<?> logviewClass = Class.forName("com.aliyun.odps.LogView");
-      Constructor<?> constructor = logviewClass.getConstructor(Odps.class);
-      Odps odps = SessionState.get().getOdps();
-      Object logview = constructor.newInstance(odps);
-      if (odps != null && odps.getLogViewHost() != null) {
-        Method setLogView = logviewClass.getMethod("setLogViewHost", String.class);
-        setLogView.invoke(logview, odps.getLogViewHost());
-      }
-      Method m = logviewClass.getMethod("generateLogView", Instance.class, long.class);
-      Object log = m.invoke(logview, instance, 7 * 24);
-      System.out.println((String) (log));
+      String log = SessionState.get().getOdps().logview().generateLogView(instance, 7 * 24);
+      System.out.println(log);
     } catch (Exception e) {
       // do nothing if not load logview class
     }
   }
 
-  // Check if graph job in deprecated version.
-  // This method is only used to be compatible with deprecated graph job
-  // to be deleted
-  @Deprecated
-  private boolean isDeprecatedJob(JobConf conf) {
-
-    Class<? extends GraphLoader> loaderClass = conf.getClass(
-        GRAPH_CONF.GRAPH_LOADER_CLASS, null, GraphLoader.class);
-
-    // try to get load method in new version
-    Class[] loadParaTypes = new Class[3];
-    loadParaTypes[0] = LongWritable.class;
-    loadParaTypes[1] = WritableRecord.class;
-    loadParaTypes[2] = MutationContext.class;
-
-    // if graph loader class is not set
-    // just assume that the job is in new version
-    // then encounter error on server side
-    if (loaderClass == null) {
-      return false;
-    }
-    try {
-      loaderClass.getDeclaredMethod("load", loadParaTypes);
-    } catch (NoSuchMethodException e) {
-      // job in old version
-      return true;
-    }
-    return false;
-
-  }
 }

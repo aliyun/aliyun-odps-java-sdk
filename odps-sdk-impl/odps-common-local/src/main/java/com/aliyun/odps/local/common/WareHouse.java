@@ -1173,6 +1173,18 @@ public class WareHouse {
     }
     return limit > 0 ? limit : Constants.DEFAULT_DOWNLOAD_RECORD;
   }
+  
+  public DownloadMode getDownloadMode() {
+    String downloadModeStr =
+        getConfiguration().get(Constants.LOCAL_DOWNLOAD_MODE, DownloadMode.AUTO.toString())
+            .toUpperCase();
+    DownloadMode downloadMode = DownloadMode.AUTO;
+    try {
+      downloadMode = DownloadMode.valueOf(downloadModeStr);
+    } catch (Exception exception) {
+    }
+    return downloadMode;
+  }
 
   public boolean caintainsKey(String key) {
     Iterator<Entry<String, String>> it = getConfiguration().iterator();

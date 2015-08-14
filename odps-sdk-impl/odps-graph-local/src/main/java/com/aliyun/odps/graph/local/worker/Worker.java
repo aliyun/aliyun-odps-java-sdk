@@ -193,7 +193,7 @@ public class Worker<VERTEX_ID extends WritableComparable<?>, VERTEX_VALUE extend
     GraphLoader graphLoader = ReflectionUtils.newInstance(loaderClass, mJob);
 
     graphLoader.setup(mTaskContext.getConfiguration(),
-                      mTaskContext.getWorkerId(), mInput.getTable());
+                      mTaskContext.getWorkerId(), mInput.getTable(), mTaskContext);
 
     BaseRecordReader<LongWritable, WritableRecord> reader;
 
@@ -255,7 +255,7 @@ public class Worker<VERTEX_ID extends WritableComparable<?>, VERTEX_VALUE extend
       Writable initAggregatorValue = mAggregators.get(i)
           .createInitialValue(mTaskContext);
       if (initAggregatorValue == null) {
-        throw new RuntimeException("ODPS-0730001: " + mAggregators.getClass().getName()
+        throw new RuntimeException("ODPS-0730001: " + mAggregators.get(i).getClass().getName()
                                    + " createInitialValue return null");
       }
       mAggregatorValues.add(initAggregatorValue);

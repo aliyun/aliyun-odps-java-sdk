@@ -19,24 +19,7 @@
 
 package com.aliyun.odps.tunnel;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
-import com.aliyun.odps.Column;
-import com.aliyun.odps.Odps;
-import com.aliyun.odps.OdpsException;
-import com.aliyun.odps.PartitionSpec;
-import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.*;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -49,6 +32,18 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Tunnel 是 ODPS 的数据通道，用户可以通过 Tunnel 向 ODPS 中上传或者下载数据。<br />
@@ -287,7 +282,7 @@ public class TableTunnel {
    * @param partitionSpec
    *     指定分区 {@link PartitionSpec}
    * @param shardId
-   *     指定shardId
+   *     指定shardIs
    * @return {@link DownloadSession}
    * @throws TunnelException
    */
@@ -405,6 +400,21 @@ public class TableTunnel {
   public StreamClient createStreamClient(String projectName, String tableName)
       throws TunnelException {
     return new StreamClient(config, projectName, tableName);
+  }
+
+  /**
+   * 创建流式上传Client
+   *
+   * @param projectName
+   *    Project名称
+   * @param tableName
+   *    Table 名称
+   * @return {@link com.aliyun.odps.tunnel.StreamUploadClient}
+   * @throws com.aliyun.odps.tunnel.TunnelException
+   */
+  public StreamUploadClient createStreamUploadClient(String projectName, String tableName)
+    throws TunnelException {
+    return new StreamUploadClient(config, projectName, tableName);
   }
 
   /**
@@ -950,7 +960,7 @@ public class TableTunnel {
      * @throws TunnelException
      * @throws IOException
      */
-    public RecordReader openRecordReader(long start, long count) throws TunnelException,
+    public TunnelRecordReader openRecordReader(long start, long count) throws TunnelException,
                                                                         IOException {
       return openRecordReader(start, count, false);
     }
@@ -967,7 +977,7 @@ public class TableTunnel {
      * @throws TunnelException
      * @throws IOException
      */
-    public RecordReader openRecordReader(long start, long count, boolean compress)
+    public TunnelRecordReader openRecordReader(long start, long count, boolean compress)
         throws TunnelException, IOException {
       return openRecordReader(start, count, compress, null);
     }
@@ -984,7 +994,7 @@ public class TableTunnel {
      * @throws TunnelException
      * @throws IOException
      */
-    public RecordReader openRecordReader(long start, long count, CompressOption compress)
+    public TunnelRecordReader openRecordReader(long start, long count, CompressOption compress)
         throws TunnelException, IOException {
       return openRecordReader(start, count, compress, null);
     }
@@ -1003,7 +1013,7 @@ public class TableTunnel {
      * @throws TunnelException
      * @throws IOException
      */
-    public RecordReader openRecordReader(long start, long count, boolean compress,
+    public TunnelRecordReader openRecordReader(long start, long count, boolean compress,
                                          List<Column> columns) throws TunnelException, IOException {
       CompressOption option = compress ? conf.getCompressOption() :
                               new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
@@ -1024,7 +1034,7 @@ public class TableTunnel {
      * @throws TunnelException
      * @throws IOException
      */
-    public RecordReader openRecordReader(long start, long count, CompressOption compress,
+    public TunnelRecordReader openRecordReader(long start, long count, CompressOption compress,
                                          List<Column> columns) throws TunnelException, IOException {
       HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = new HashMap<String, String>();

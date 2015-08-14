@@ -40,12 +40,15 @@ public class StreamRecordPack {
    * 新建一个StreamRecordPack
    *
    * @param recordSchema
+   * @throws IOException 
    */
-  public StreamRecordPack(TableSchema recordSchema) {
+  public StreamRecordPack(TableSchema recordSchema) throws IOException {
     this.recordSchema = recordSchema;
     this.byteArrayOutputStream = new ByteArrayOutputStream();
     this.recordCount = 0;
     this.compressOption = new CompressOption();
+    this.protobufRecordStreamWriter =
+        new ProtobufRecordStreamWriter(recordSchema, byteArrayOutputStream, compressOption);
   }
 
   /**
@@ -70,10 +73,15 @@ public class StreamRecordPack {
   /**
    * 清空StreamRecordPack
    */
-  public void clear() throws IOException {
-    if (protobufRecordStreamWriter != null) {
-      protobufRecordStreamWriter.close();
+  public void clear() {
+    try {
+      if (protobufRecordStreamWriter != null) {
+        protobufRecordStreamWriter.close();
+      }
+    } catch (IOException e) {
+
     }
+
     protobufRecordStreamWriter = null;
     byteArrayOutputStream.reset();
     recordCount = 0;

@@ -84,6 +84,11 @@ public class Odps {
 
   private String logViewHost;
 
+  public void setAccount(Account account) {
+    this.client.setAccount(account);
+    this.account = account;
+  }
+
   /**
    * 指定{@link Account}构造Odps对象
    *
@@ -116,6 +121,7 @@ public class Odps {
     setEndpoint(odps.getEndpoint());
     setLogViewHost(odps.getLogViewHost());
     client.setIgnoreCerts(odps.getRestClient().isIgnoreCerts());
+    instances.setDefaultRunningCluster(odps.instances.getDefaultRunningCluster());
   }
 
   /**
@@ -265,6 +271,15 @@ public class Odps {
    */
   public String getUserAgent() {
     return userAgent;
+  }
+
+  /**
+   * 获取Logview工具类
+   *
+   * @return {@link LogView}
+   */
+  public LogView logview() {
+    return new LogView(this);
   }
 
   @Override

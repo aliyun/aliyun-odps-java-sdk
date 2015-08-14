@@ -34,4 +34,10 @@ public class ProjectTest extends TestBase {
     assertEquals(false, flag);
   }
 
+  @Test
+  public void testGetExtendedProperties() throws Exception {
+    Map<String, String> properties = odps.projects().get().getExtendedProperties();
+    assertTrue(properties.size() > 0);
+    System.out.println(properties);
+  }
 }

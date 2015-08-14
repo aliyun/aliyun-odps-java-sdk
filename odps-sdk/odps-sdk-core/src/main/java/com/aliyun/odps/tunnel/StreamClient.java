@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -53,6 +54,7 @@ public class StreamClient {
   private TableSchema schema = new TableSchema();
   private List<Long> shards = new ArrayList<Long>();
 
+  final private Long MAX_WAITING_MILLISECOND = 60000L;
 
   /**
    * shard的状态
@@ -74,6 +76,14 @@ public class StreamClient {
     initiate();
   }
 
+  public String getProjectName() {
+    return projectName;
+  }
+
+  public String getTableName() {
+    return tableName;
+  }
+
   /**
    * 在ODPS hub服务上启用shard
    *
@@ -81,7 +91,7 @@ public class StreamClient {
    *     需要启用的shard数量
    * @throws TunnelException
    */
-  public void loadShard(int shardNumber) throws TunnelException {
+  public void loadShard(long shardNumber) throws TunnelException {
     if (shardNumber < 0) {
       throw new TunnelException("invalid shard number");
     }
@@ -93,7 +103,7 @@ public class StreamClient {
     String path = getResource() + "/shards";
     Connection conn = null;
     try {
-      params.put(TunnelConstants.SHARD_NUMBER, Integer.toString(shardNumber));
+      params.put(TunnelConstants.SHARD_NUMBER, Long.toString(shardNumber));
       conn = tunnelServiceClient.connect(path, "POST", params, headers);
       Response resp = conn.getResponse();
 
@@ -118,10 +128,99 @@ public class StreamClient {
     }
   }
 
+  @Deprecated
+  public void loadShard(int shardNumber) throws TunnelException {
+    loadShard(Long.valueOf(shardNumber));
+  }
+
+  /**
+   * 同步等待 load shard 完成
+   * 默认超时时间为 60s
+   *
+   * @return
+   * @throws TunnelException
+   */
+
+  public void waitForShardLoad() throws TunnelException {
+    waitForShardLoad(MAX_WAITING_MILLISECOND);
+  }
+
+  /**
+   * 同步等待 load shard 完成
+   * 最大超时时间为 60000ms
+   *
+   * @param timeout
+   *     超时时间,单位是毫秒
+   *     若该值超过 60000ms,将等待 60000ms
+   * @return
+   * @throws TunnelException
+   */
+
+  public void waitForShardLoad(long timeout) throws TunnelException {
+
+    if (timeout <= 0) {
+      throw new TunnelException("invalid waiting time");
+    }
+
+    boolean loadShardOK = false;
+
+    long waitTime = timeout > MAX_WAITING_MILLISECOND ? MAX_WAITING_MILLISECOND : timeout;
+
+    long now = System.currentTimeMillis();
+
+    long end = now + waitTime;
+
+    while (now < end) {
+      try {
+        if (isShardLoadCompleted()) {
+          loadShardOK = true;
+          break;
+        }
+        Thread.sleep(10000L);
+        now = System.currentTimeMillis();
+      } catch (Exception e) {
+        throw new TunnelException(e.getMessage(), e);
+      }
+    }
+
+    if (loadShardOK == false) {
+      throw new TunnelException("load shard timeout");
+    }
+  }
+
+  /**
+   * 检查 StreamClinet 对应的table拥有的shard 是否全部 loaded
+   *
+   * @return true 为全部 load 完成, 否则返回 false
+   * 注: 内部处理了 getShardStatus 可能引起的异常
+   */
+
+  private boolean isShardLoadCompleted() {
+    try {
+      HashMap<Long, ShardState> shardStatusMap = getShardStatus();
+      Iterator iter = shardStatusMap.entrySet().iterator();
+
+      while (iter.hasNext()) {
+        Map.Entry entry = (Map.Entry) iter.next();
+        ShardState status = (ShardState) entry.getValue();
+
+        if (status != ShardState.LOADED) {
+          return false;
+        }
+      }
+
+      return true;
+    } catch (Exception e) {
+
+    }
+
+    return false;
+  }
+
   /**
    * 查询StreamClinet对应的table拥有的shard在服务端的状态
    *
-   * @return 返回key为shardid,value是ShardState的HashMap
+   * @return 返回key为shardid, value是ShardState的HashMap
    * @throws TunnelException
    */
   public HashMap<Long, ShardState> getShardStatus() throws TunnelException, IOException {
@@ -298,7 +397,7 @@ public class StreamClient {
     HashMap<String, String> headers = new HashMap<String, String>(this.headers);
     headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
     return new PackReader(tunnelServiceClient, schema, getStreamResource(shardId), params,
-                            headers);
+                          headers);
   }
 
   public PackReader openPackReader(long shardId, String packId)
@@ -310,7 +409,7 @@ public class StreamClient {
     HashMap<String, String> headers = new HashMap<String, String>(this.headers);
     headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
     return new PackReader(tunnelServiceClient, schema, getStreamResource(shardId), params,
-                            headers, packId);
+                          headers, packId);
   }
 
   private String getResource() {

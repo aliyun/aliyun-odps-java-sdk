@@ -43,6 +43,7 @@ public class ResourceBuilder {
   private static final String STREAMS = "/streams";
   private static final String TOPOLOGIES = "/topologies";
   private static final String XFLOWS = "/xflows";
+  private static final String STREAMJOBS = "/streamjobs";
 
   private static final String OFFLINEMODELS = "/offlinemodels";
 
@@ -192,6 +193,23 @@ public class ResourceBuilder {
 
     sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
     sb.append(TOPOLOGIES).append('/').append(encodeObjectName(topologyName));
+
+    return sb.toString();
+  }
+
+  public static String buildStreamJobsResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(STREAMJOBS);
+
+    return sb.toString();
+  }
+
+  public static String buildStreamJobResource(String projectName, String streamJobName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(STREAMJOBS).append('/').append(encodeObjectName(streamJobName));
 
     return sb.toString();
   }

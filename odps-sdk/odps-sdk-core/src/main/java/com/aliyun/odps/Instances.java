@@ -66,6 +66,28 @@ public class Instances implements Iterable<Instance> {
   private Odps odps;
   private RestClient client;
 
+  /**
+   * 获取默认 runningCluster
+   * 如果为 null,使用project 默认 cluster
+   *
+   * @return
+   */
+  public String getDefaultRunningCluster() {
+    return defaultRunningCluster;
+  }
+
+  /**
+   * 设置默认 runningCluster
+   * 如果为 null,使用project 默认 cluster
+   *
+   * @param defaultRunningCluster
+   */
+  public void setDefaultRunningCluster(String defaultRunningCluster) {
+    this.defaultRunningCluster = defaultRunningCluster;
+  }
+
+  private String defaultRunningCluster;
+
   Instances(Odps odps) {
     this.odps = odps;
     this.client = odps.getRestClient();
@@ -107,6 +129,22 @@ public class Instances implements Iterable<Instance> {
    */
   public Instance create(Task task, int priority) throws OdpsException {
     return create(getDefaultProjectName(), task, priority);
+  }
+
+  /**
+   * 为给定的{@link Task}创建Instance
+   *
+   * @param task
+   *     {@link Task}
+   * @param priority
+   *     指定优先级
+   * @param runningCluster
+   *     指定的计算集群
+   * @return {@link Instance}对象
+   * @throws OdpsException
+   */
+  public Instance create(Task task, int priority, String runningCluster) throws OdpsException {
+    return create(getDefaultProjectName(), task, priority, runningCluster);
   }
 
   /**
@@ -201,6 +239,24 @@ public class Instances implements Iterable<Instance> {
    */
   public Instance create(String projectName, Task task, int priority)
       throws OdpsException {
+    return create(projectName, task, priority, defaultRunningCluster);
+  }
+
+  /**
+   * 为给定的{@link Task}创建Instance
+   *
+   * @param projectName
+   *     Instance运行的Project名称
+   * @param task
+   *     {@link Task}对象
+   * @param priority
+   *     指定的优先级
+   * @param runningCluster
+   *     指定的计算集群
+   * @return {@link Instance}对象
+   * @throws OdpsException
+   */
+  public Instance create(String projectName, Task task, int priority, String runningCluster) throws OdpsException {
     Job job = new Job();
     job.addTask(task);
     // check priority not negative
@@ -208,6 +264,7 @@ public class Instances implements Iterable<Instance> {
       throw new OdpsException("Priority must more than or equal to zero.");
     }
     job.setPriority(priority);
+    job.setRunningCluster(runningCluster);
 
     return create(projectName, job);
   }
@@ -263,7 +320,6 @@ public class Instances implements Iterable<Instance> {
 
     AnonymousInstance i = new AnonymousInstance();
     i.job = job.model;
-
     String xml = null;
     try {
       xml = JAXBUtils.marshal(i, AnonymousInstance.class);

@@ -26,6 +26,8 @@ import java.util.Properties;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.utils.StringUtils;
 
 public class TestUtils {
 
@@ -72,6 +74,15 @@ public class TestUtils {
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
     return odps;
+  }
+
+  public static TableTunnel newTableTunnel(Odps odps) {
+    TableTunnel tunnel = new TableTunnel(odps);
+    String tunnelEndpoint = props.getProperty("default.tunnel.endpoint");
+    if (!StringUtils.isNullOrEmpty(tunnelEndpoint)) {
+      tunnel.setEndpoint(tunnelEndpoint);
+    }
+    return tunnel;
   }
 
 }

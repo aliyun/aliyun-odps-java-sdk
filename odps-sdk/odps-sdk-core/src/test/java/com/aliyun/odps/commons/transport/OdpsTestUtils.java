@@ -37,6 +37,7 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import com.aliyun.odps.utils.StringUtils;
 
 public class OdpsTestUtils {
 
@@ -114,6 +115,18 @@ public class OdpsTestUtils {
     return odps;
   }
 
+  /**
+   * 根据 odps 对象创建 TableTunnel 对象，并根据 test.conf 设置 tunnel endpoint
+   * @return
+   */
+  public static TableTunnel newTableTunnel(Odps odps) {
+    TableTunnel tunnel = new TableTunnel(odps);
+    String tunnelEndpoint = props.getProperty("default.tunnel.endpoint");
+    if (!StringUtils.isNullOrEmpty(tunnelEndpoint)) {
+      tunnel.setEndpoint(tunnelEndpoint);
+    }
+    return tunnel;
+  }
 
   public static RestClient newRestClient() {
     String accessId = props.getProperty("default.access.id");

@@ -111,11 +111,12 @@ public class SessionState {
   private final static String LOCAL_TEMP_DIR = "odps.mapred.local.temp.dir";
   private final static String LOCAL_TEMP_RETAIN = "odps.mapred.local.temp.retain";
   private final static String LOCAL_RECORD_LIMIT = "odps.mapred.local.record.download.limit";
+  public static final String LOCAL_DOWNLOAD_MODE = "odps.mapred.local.download.mode"; //always|auto|never; default auto
   //Local security
-  public static final String LOCAL_SECURITY_ENABLE="odps.local.security.enable";
-  public static final String LOCAL_SECURITY_JNI_ENABLE="odps.local.security.jni.enable";
-  public static final String LOCAL_USER_DEFINE_POLICY="odps.local.user.define.policy";
-  
+  public static final String LOCAL_SECURITY_ENABLE = "odps.local.security.enable";
+  public static final String LOCAL_SECURITY_JNI_ENABLE = "odps.local.security.jni.enable";
+  public static final String LOCAL_USER_DEFINE_POLICY = "odps.local.user.define.policy";
+
   private final static String
       LOCAL_INPUT_COLUMN_SEPERATOR =
       "odps.mapred.local.input.column.seperator";
@@ -166,6 +167,11 @@ public class SessionState {
         }
       }
 
+      String runningCluster = (String) ctx.get("runningCluster");
+      if (!StringUtils.isNullOrEmpty(runningCluster)) {
+        odps.instances().setDefaultRunningCluster(runningCluster);
+      }
+
       if (ctx.get("logViewHost") != null) {
         String logViewHost = (String) ctx.get("logViewHost");
         odps.setLogViewHost(logViewHost);
@@ -188,7 +194,7 @@ public class SessionState {
       if (runmode.equalsIgnoreCase("local")) {
         handleLocalMR(prop);
       } else {
-        System.err.println("Running job on old console.");
+        System.err.println("Running job in console.");
       }
 
       AccountProvider accountProvider = AccountProvider.ALIYUN;
@@ -340,6 +346,9 @@ public class SessionState {
       }
     }
 
+    String downloadMode = prop.getProperty(LOCAL_DOWNLOAD_MODE, "AUTO");
+    defaultJob.set(LOCAL_DOWNLOAD_MODE, downloadMode);
+
     String inputColumnSeperator = prop.getProperty(LOCAL_INPUT_COLUMN_SEPERATOR);
     if (inputColumnSeperator != null && !inputColumnSeperator.isEmpty()) {
       defaultJob.set(LOCAL_INPUT_COLUMN_SEPERATOR, inputColumnSeperator);
@@ -349,7 +358,7 @@ public class SessionState {
     if (outputColumnSeperator != null && !outputColumnSeperator.isEmpty()) {
       defaultJob.set(LOCAL_OUTPUT_COLUMN_SEPERATOR, outputColumnSeperator);
     }
-    
+
     boolean isSecurityEnabled =
         prop.getProperty(LOCAL_SECURITY_ENABLE, "false").equalsIgnoreCase("true");
     if (isSecurityEnabled) {

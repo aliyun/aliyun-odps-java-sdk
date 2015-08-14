@@ -34,16 +34,19 @@ import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.WireFormat;
 
 /**
  * @author chao.liu
  */
 class ProtobufRecordStreamReader implements RecordReader {
 
-  private ProtobufInputStream in;
+  private BufferedInputStream bin;
+  private CodedInputStream in;
   private Column[] columns;
   private long count;
-
+  private long bytesReaded = 0;
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
 
@@ -64,30 +67,47 @@ class ProtobufRecordStreamReader implements RecordReader {
       this.columns = tmpColumns;
     }
 
-    BufferedInputStream bin = new BufferedInputStream(in);
+    bin = new BufferedInputStream(in);
 
     if (option != null) {
       if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZLIB)) {
-        this.in = new ProtobufInputStream(new InflaterInputStream(bin));
+        this.in = CodedInputStream.newInstance(new InflaterInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
-        this.in = new ProtobufInputStream(new SnappyFramedInputStream(bin));
+        this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
-        this.in = new ProtobufInputStream(bin);
+        this.in = CodedInputStream.newInstance((bin));
       } else {
         throw new IOException("invalid compression option.");
       }
     } else {
-      this.in = new ProtobufInputStream(bin);
+      this.in = CodedInputStream.newInstance(bin);
     }
+    this.in.setSizeLimit(Integer.MAX_VALUE);
   }
 
-  @Override
-  public Record read() throws IOException {
-    Record record = new ArrayRecord(columns);
+  /**
+   * 使用 reuse 的Record 读取数据
+   * 当 reuseRecord 为 null 时，返回一个新的 Record 对象
+   * 当 reuseRecord 非 null 时， 返回 reuseRecord 本身
+   * 当数据读取完成， 返回 null
+   *
+   * @param reuseRecord
+   * @return
+   * @throws IOException
+   */
+  public Record read(Record reuseRecord) throws IOException {
+    if (reuseRecord == null) {
+      reuseRecord = new ArrayRecord(columns);
+    } else {
+      for (int i = 0; i < reuseRecord.getColumnCount(); ++i) {
+        reuseRecord.set(i, null);
+      }
+    }
+
     while (true) {
       int checkSum = 0;
-      int i = in.readFieldNumber();
-      if (i == WireFormat.TUNNEL_END_RECORD) {
+      int i = getTagFieldNumber(in);
+      if (i == TunnelWireConstant.TUNNEL_END_RECORD) {
         checkSum = (int) crc.getValue();
         if (in.readUInt32() != checkSum) {
           throw new IOException("Checksum invalid.");
@@ -96,12 +116,12 @@ class ProtobufRecordStreamReader implements RecordReader {
         crccrc.update(checkSum);
         break;
       }
-      if (i == WireFormat.TUNNEL_META_COUNT) {
-        if (count != in.readLong()) {
+      if (i == TunnelWireConstant.TUNNEL_META_COUNT) {
+        if (count != in.readSInt64()) {
           throw new IOException("count does not match.");
         }
 
-        if (WireFormat.TUNNEL_META_CHECKSUM != in.readFieldNumber()) {
+        if (TunnelWireConstant.TUNNEL_META_CHECKSUM != getTagFieldNumber(in)) {
           throw new IOException("Invalid stream.");
         }
 
@@ -109,7 +129,7 @@ class ProtobufRecordStreamReader implements RecordReader {
           throw new IOException("Checksum invalid.");
         }
 
-        if (in.read() >= 0) {
+        if (!in.isAtEnd()) {
           throw new IOException("Expect at the end of stream, but not.");
         }
         return null;
@@ -126,54 +146,75 @@ class ProtobufRecordStreamReader implements RecordReader {
         case DOUBLE: {
           double v = in.readDouble();
           crc.update(v);
-          record.setDouble(i - 1, v);
+          reuseRecord.setDouble(i - 1, v);
           break;
         }
         case BOOLEAN: {
-          boolean v = in.readBoolean();
+          boolean v = in.readBool();
           crc.update(v);
-          record.setBoolean(i - 1, v);
+          reuseRecord.setBoolean(i - 1, v);
           break;
         }
         case BIGINT: {
-          long v = in.readLong();
+          long v = in.readSInt64();
           crc.update(v);
-          record.setBigint(i - 1, v);
+          reuseRecord.setBigint(i - 1, v);
           break;
         }
         case STRING: {
-          byte[] bytes = in.readRawBytes();
+          int size = in.readRawVarint32();
+          byte[] bytes = in.readRawBytes(size);
           crc.update(bytes, 0, bytes.length);
-          record.setString(i - 1, bytes);
+          reuseRecord.setString(i - 1, bytes);
+          bytesReaded += in.getTotalBytesRead();
+          in.resetSizeCounter();
           break;
         }
         case DATETIME: {
-          long v = in.readLong();
+          long v = in.readSInt64();
           crc.update(v);
-          record.setDatetime(i - 1, DateUtils.ms2date(v));
+          reuseRecord.setDatetime(i - 1, DateUtils.ms2date(v));
           break;
         }
         case DECIMAL: {
-          byte[] bytes = in.readRawBytes();
+          int size = in.readRawVarint32();
+          byte[] bytes = in.readRawBytes(size);
           crc.update(bytes, 0, bytes.length);
           BigDecimal decimal = new BigDecimal(new String(bytes, "UTF-8"));
-          record.setDecimal(i - 1, decimal);
+          reuseRecord.setDecimal(i - 1, decimal);
           break;
         }
         default:
           throw new IOException("Unsupported type " + columns[i - 1].getType());
       }
     }
+    bytesReaded += in.getTotalBytesRead();
+    in.resetSizeCounter();
     count++;
-    return record;
+    return reuseRecord;
+  }
+
+  static int getTagFieldNumber(CodedInputStream in) throws IOException {
+    return WireFormat.getTagFieldNumber(in.readTag());
+  }
+
+  @Override
+  public Record read() throws IOException {
+    return read(null);
+  }
+
+  public Record createEmptyRecord() throws IOException {
+    return new ArrayRecord(columns);
   }
 
   @Override
   public void close() throws IOException {
-    in.close();
+    if (bin != null) {
+      bin.close();
+    }
   }
 
   public long getTotalBytes() {
-    return in.getTotalBytes();
+    return bytesReaded;
   }
 }

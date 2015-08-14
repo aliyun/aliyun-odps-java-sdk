@@ -44,8 +44,8 @@ public class MoyeTask extends Task {
     Plan = plan;
   }
 
-  static Instance run(Odps odps, String project, String plan, String taskName,
-      Map<String, String> hints) throws OdpsException {
+  static MoyeTask GetMoyeTask(String plan, String taskName, Map<String, String> hints)
+      throws OdpsException {
     MoyeTask task = new MoyeTask();
     task.setName(taskName);
     task.setPlan(plan);
@@ -57,17 +57,20 @@ public class MoyeTask extends Task {
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
       }
-
     }
-    return odps.instances().create(project, task);
+    return task;
+  }
+
+  public static Instance run(Odps odps, String project, String plan, Map<String, String> hints,
+      int priority) throws OdpsException {
+    MoyeTask task = GetMoyeTask(plan, "no_use", hints);
+    return odps.instances().create(project, task, priority);
   }
 
   public static Instance run(Odps odps, String project, String plan, Map<String, String> hints)
       throws OdpsException {
-    return run(odps, project, plan, "no_use", hints);
+    MoyeTask task = GetMoyeTask(plan, "no_use", hints);
+    return odps.instances().create(project, task);
   }
 
-  public static Instance run(Odps odps, String project, String plan) throws OdpsException {
-    return run(odps, project, plan, null);
-  }
 }

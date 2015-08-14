@@ -41,6 +41,7 @@ import com.aliyun.odps.Table;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.ExceptionCode;
 import com.aliyun.odps.local.common.TableMeta;
+import com.aliyun.odps.local.common.WareHouse;
 
 public class LocalRunUtils {
 
@@ -102,8 +103,7 @@ public class LocalRunUtils {
   }
 
   public static DateFormat getDateFormat(String formateStr) {
-    SimpleDateFormat dateFormat = new SimpleDateFormat(formateStr, Locale.US);
-    dateFormat.setTimeZone(new SimpleTimeZone(0, "GMT"));
+    SimpleDateFormat dateFormat = new SimpleDateFormat(formateStr);
     return dateFormat;
   }
 
@@ -274,8 +274,10 @@ public class LocalRunUtils {
     return "\nTable '"
            + tableInfo
            + "' is not exists in local warehouse, and download failed! Please check the following information:\n"
-           + "1. Endpoint/accessId/accessKey\n" + "2. Project/Table/Partition name\n"
+           + "1. Endpoint/accessId/accessKey\n" 
+           + "2. Project/Table/Partition name\n"
            + "3. Local warehouse table __schema__ file infomation.\n"
-           + "4. If remote server has this table.\n";
+           + "4. If remote server has this table.\n"
+           + "Download Mode:" + WareHouse.getInstance().getDownloadMode().toString();
   }
 }

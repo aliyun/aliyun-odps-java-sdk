@@ -53,5 +53,20 @@ public class TableInfoTest {
     Assert.assertEquals(true, partitionSpec.isEmpty());
 
   }
+  
+  @Test
+  public void testTableName() {
+    TableInfo info = new TableInfo();
+    
+    // normal tablename
+    info.setTableName("table");
+    Assert.assertTrue(info.getProjectName() == null);
+    Assert.assertEquals("table", info.getTableName());
+    
+    // projectname.tablename
+    info.setTableName("prj.table");
+    Assert.assertEquals("prj", info.getProjectName());
+    Assert.assertEquals("table", info.getTableName());
+  }
 
 }

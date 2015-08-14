@@ -55,11 +55,11 @@ import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
 public class DownloadUtilsTest {
 
   static String project;
-  static String partTable = "download_part_table";
-  static String nonePartTable = "download_none_part_table";
-  static String fileResource = "download_file_resource.tar";
-  static String partTableResource = "download_part_table_resource1";
-  static String nonePartTableResource = "download_none_part_table_resource1";
+  static String partTable = DownloadUtils.class.getSimpleName() + "_download_part_table";
+  static String nonePartTable = DownloadUtils.class.getSimpleName() + "_download_none_part_table";
+  static String fileResource = DownloadUtils.class.getSimpleName() + "_download_file_resource.tar";
+  static String partTableResource = DownloadUtils.class.getSimpleName() + "_download_part_table_resource1";
+  static String nonePartTableResource = DownloadUtils.class.getSimpleName() + "_download_none_part_table_resource1";
   static Odps odps;
 
   @BeforeClass
@@ -85,7 +85,7 @@ public class DownloadUtilsTest {
       odps.tables().get(partTable).createPartition(new PartitionSpec("p1='1',p2='1'"));
       odps.tables().get(partTable).createPartition(new PartitionSpec("p1='1',p2='2'"));
 
-      TableTunnel tunnel = new TableTunnel(odps);
+      TableTunnel tunnel = TestUtils.newTableTunnel(odps);
       TableTunnel.UploadSession session = tunnel.createUploadSession(odps.getDefaultProject(),
                                                                      partTable, new PartitionSpec(
           "p1='1',p2='1'"));
@@ -125,7 +125,7 @@ public class DownloadUtilsTest {
       schema.addColumn(new Column("c4", OdpsType.BOOLEAN));
       schema.addColumn(new Column("c5", OdpsType.DATETIME));
       odps.tables().create(nonePartTable, schema);
-      TableTunnel tunnel = new TableTunnel(odps);
+      TableTunnel tunnel = TestUtils.newTableTunnel(odps);
       TableTunnel.UploadSession session = tunnel.createUploadSession(odps.getDefaultProject(),
                                                                      nonePartTable);
       TunnelRecordWriter rw = (TunnelRecordWriter) session.openRecordWriter(0L);

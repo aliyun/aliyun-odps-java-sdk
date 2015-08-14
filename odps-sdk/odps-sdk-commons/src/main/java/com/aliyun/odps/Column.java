@@ -46,18 +46,6 @@ public final class Column {
     this(name, type, comment, (String)null, null);
   }
 
-  @Deprecated
-  Column(String name, OdpsType type, String comment, Long label,
-         List<OdpsType> genericOdpsTypeList) {
-    this.name = name;
-    this.type = type;
-    this.comment = comment;
-    if (label != null) {
-      this.label = this.label.toString();
-    }
-    this.genericOdpsTypeList = genericOdpsTypeList;
-  }
-  
   Column(String name, OdpsType type, String comment, String label,
          List<OdpsType> genericOdpsTypeList) {
     this.name = name;

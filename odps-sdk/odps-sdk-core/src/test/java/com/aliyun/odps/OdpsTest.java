@@ -45,12 +45,14 @@ public class OdpsTest {
   @Test
   public void testClone() {
     Odps odps1 = OdpsTestUtils.newDefaultOdps();
+    odps1.instances().setDefaultRunningCluster("test_cluster");
     Odps odps2 = odps1.clone();
     assertFalse(odps1 == odps2);
     assertEquals(odps1.getAccount(), odps2.getAccount());
     assertEquals(odps1.getUserAgent(), odps2.getUserAgent());
     assertEquals(odps1.getEndpoint(), odps2.getEndpoint());
     assertEquals(odps1.getDefaultProject(), odps2.getDefaultProject());
+    assertEquals(odps1.instances().getDefaultRunningCluster(), odps2.instances().getDefaultRunningCluster());
   }
 
   @Test
@@ -59,5 +61,4 @@ public class OdpsTest {
     odps.getRestClient().setIgnoreCerts(true);
     assertFalse(odps.projects().exists("NOT_EXIST_PROJECT"));
   }
-
 }

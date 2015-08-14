@@ -414,6 +414,10 @@ public class GraphJob extends JobConf {
       if (logViewHost != null && logViewHost.length() != 0) {
         odps.setLogViewHost(logViewHost);
       }
+      
+      // set running cluster to new odps
+      String runningCluster = SessionState.get().getOdps().instances().getDefaultRunningCluster();
+      odps.instances().setDefaultRunningCluster(runningCluster);
 
       SessionState.get().setOdps(odps);
     }

@@ -221,17 +221,6 @@ public class JobConf extends Configuration {
     addInput(tbl, tbl.getCols());
   }
 
-  /**
-   * 增加作业输入, 兼容老SDK中的TableInfo
-   *
-   * @param tbl
-   *     输入表信息
-   * @throws IOException
-   */
-  @Deprecated
-  public void addInput(com.aliyun.odps.io.TableInfo tbl) throws IOException {
-    addInput(tbl, null);
-  }
 
   /**
    * 增加作业输入，支持指定读取部分列.
@@ -285,22 +274,6 @@ public class JobConf extends Configuration {
     set(GRAPH_CONF.INPUT_DESC, gson.toJson(array));
   }
 
-  /**
-   * 增加作业输入, 支持指定读取部分列.兼容老SDK中的TableInfo
-   *
-   * @param tbl
-   *     输入表信息
-   * @param cols
-   *     指定读取的列
-   * @throws IOException
-   */
-  @Deprecated
-  public void addInput(com.aliyun.odps.io.TableInfo tbl, String[] cols) throws IOException {
-    String inputDesc = get(GRAPH_CONF.INPUT_DESC, "[]");
-    JsonArray array = parser.parse(inputDesc).getAsJsonArray();
-    array.add(toJson(tbl, cols));
-    set(GRAPH_CONF.INPUT_DESC, gson.toJson(array));
-  }
 
   /**
    * 增加给定 label 的作业输出，覆盖原数据.
@@ -313,17 +286,6 @@ public class JobConf extends Configuration {
     addOutput(tbl, true);
   }
 
-  /**
-   * 增加默认作业输出，即label为空字符串，默认覆盖语义.兼容老SDK中的TableInfo
-   *
-   * @param tbl
-   *     输出表信息
-   * @throws IOException
-   */
-  @Deprecated
-  public void addOutput(com.aliyun.odps.io.TableInfo tbl) throws IOException {
-    processOutput(tbl, null, true);
-  }
 
   /**
    * 增加给定 label 的作业输出，可以设置是否覆盖原数据.
@@ -389,53 +351,6 @@ public class JobConf extends Configuration {
     }
   }
 
-  /**
-   * 增加默认作业输出，即label为空字符串，可以指定是否覆盖原数据.兼容老SDK中的TableInfo
-   *
-   * @param tbl
-   *     输出表信息
-   * @param overwrite
-   *     是否覆盖原数据
-   * @throws IOException
-   */
-  @Deprecated
-  public void addOutput(com.aliyun.odps.io.TableInfo tbl, boolean overwrite) throws IOException {
-    processOutput(tbl, null, overwrite);
-  }
-
-  /**
-   * 增加给定label的作业输出，默认覆盖原数据.兼容老SDK中的TableInfo
-   *
-   * @param tbl
-   *     输出表信息
-   * @param label
-   *     输出 label，默认输出的 label 为空
-   * @throws IOException
-   */
-  @Deprecated
-  public void addOutput(com.aliyun.odps.io.TableInfo tbl, String label) throws IOException {
-    checkLabel(label);
-    processOutput(tbl, label, true);
-  }
-
-
-  /**
-   * 增加给定 label 的作业输出，可以设置是否覆盖原数据.兼容老SDK中的TableInfo
-   *
-   * @param tbl
-   *     输出表信息
-   * @param label
-   *     输出 label，默认输出的 label 为空
-   * @param overwrite
-   *     是否覆盖原数据
-   * @throws IOException
-   */
-  @Deprecated
-  public void addOutput(com.aliyun.odps.io.TableInfo tbl, String label, boolean overwrite)
-      throws IOException {
-    checkLabel(label);
-    processOutput(tbl, label, overwrite);
-  }
 
   /**
    * 设置作业优先级，范围：[0, 9]，默认0.
@@ -1095,34 +1010,8 @@ public class JobConf extends Configuration {
     return obj;
   }
 
-  @Deprecated
-  private static JsonObject toJson(com.aliyun.odps.io.TableInfo tbl, String[] cols) {
-    JsonObject obj = new JsonObject();
-    String projectName = tbl.getProjectName();
-    if (projectName == null) {
-      projectName = "";
-    }
-    obj.addProperty("projName", projectName);
-    obj.addProperty("tblName", tbl.getTableName());
-    JsonArray array = new JsonArray();
-    LinkedHashMap<String, String> partSpec = tbl.getPartSpecMap();
-    for (Map.Entry<String, String> entry : partSpec.entrySet()) {
-      array.add(new JsonPrimitive(entry.getKey() + "=" + entry.getValue()));
-    }
-    obj.add("partSpec", array);
-    obj.addProperty("cols", cols == null ? "" : StringUtils.join(cols, ','));
-    return obj;
-  }
 
   private void processOutput(TableInfo tbl, String label, boolean overwrite) {
-    String outputDesc = get(GRAPH_CONF.OUTPUT_DESC, "[]");
-    JsonArray array = parser.parse(outputDesc).getAsJsonArray();
-    array.add(toJson(tbl, label, overwrite));
-    set(GRAPH_CONF.OUTPUT_DESC, gson.toJson(array));
-  }
-
-  @Deprecated
-  private void processOutput(com.aliyun.odps.io.TableInfo tbl, String label, boolean overwrite) {
     String outputDesc = get(GRAPH_CONF.OUTPUT_DESC, "[]");
     JsonArray array = parser.parse(outputDesc).getAsJsonArray();
     array.add(toJson(tbl, label, overwrite));
@@ -1147,33 +1036,6 @@ public class JobConf extends Configuration {
     obj.addProperty("label", lab);
     obj.addProperty("overwrite", overwrite);
     return obj;
-  }
-
-  @Deprecated
-  private JsonObject toJson(com.aliyun.odps.io.TableInfo tbl, String label, boolean overwrite) {
-    JsonObject obj = new JsonObject();
-    String projectName = tbl.getProjectName();
-    if (projectName == null) {
-      projectName = "";
-    }
-    obj.addProperty("projName", projectName);
-    obj.addProperty("tblName", tbl.getTableName());
-    JsonArray array = new JsonArray();
-    LinkedHashMap<String, String> partSpec = tbl.getPartSpecMap();
-    for (Map.Entry<String, String> entry : partSpec.entrySet()) {
-      array.add(new JsonPrimitive(entry.getKey() + "=" + entry.getValue()));
-    }
-    obj.add("partSpec", array);
-    String lab = (label == null) ? "" : label;
-    obj.addProperty("label", lab);
-    obj.addProperty("overwrite", overwrite);
-    return obj;
-  }
-
-  private void checkLabel(String label) throws IOException {
-    if (label == null || label.isEmpty()) {
-      throw new IOException("Specified label must not be null or empty");
-    }
   }
 
   private void appendProperties(String name, String value) {

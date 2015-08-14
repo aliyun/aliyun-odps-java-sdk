@@ -33,7 +33,7 @@ import com.aliyun.odps.account.Account.AccountProvider;
 public class AliyunAccountTest {
 
   private static TableSchema schema;
-  String tableName = "table_name_for_test";
+  String tableName = this.getClass().getSimpleName() +  "_table_name_for_test";
 
   Odps odps;
 

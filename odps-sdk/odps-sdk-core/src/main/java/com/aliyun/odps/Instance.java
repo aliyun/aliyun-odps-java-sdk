@@ -21,6 +21,7 @@ package com.aliyun.odps;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -624,6 +625,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     @XmlAttribute(name = "ID")
     String name;
 
+    @XmlElement(name = "BackupWorkers")
+    int backupSysInstances;
+
     @XmlElement(name = "TerminatedWorkers")
     int terminatedSysInstances;
 
@@ -638,6 +642,18 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     @XmlElement(name = "OutputRecords")
     long outputRecords;
+
+    @XmlElement(name = "FinishedPercentage")
+    int finishedPercentage;
+
+    /**
+     * 获得backup的Worker数，对应于original worker，backup会在长尾时被启动，同时运行。
+     *
+     * @return Worker数
+     */
+    public int getBackupWorkers() {
+      return backupSysInstances;
+    }
 
     /**
      * 获得正在运行的Worker数。多个Worker构成一个Stage，Worker可以简单的被看做一个进程。
@@ -693,6 +709,32 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     public long getOutputRecords() {
       return outputRecords;
     }
+
+    /**
+     * 获得已处理数据量的百分比
+     *
+     * @return finishedPercentage
+     */
+    public int getFinishedPercentage() {
+      return finishedPercentage;
+    }
+  }
+
+  public static String getStageProgressFormattedString(List<StageProgress> stages) {
+    StringBuilder result = new StringBuilder();
+
+    SimpleDateFormat sim = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String dateString = sim.format(new Date());
+    result.append(dateString + ' ');
+
+    for (StageProgress stage : stages) {
+      result.append(String.format("%s:%s/%s/%s%s%s", stage.getName(), stage.getRunningWorkers(),
+                                  stage.getTerminatedWorkers(), stage.getTotalWorkers(),
+                                  stage.getBackupWorkers() > 0 ? "(+" + stage.getBackupWorkers() + " backups)" : "",
+                                  "[" + stage.getFinishedPercentage() + "%]\t"
+      ));
+    }
+    return result.toString();
   }
 
   @XmlRootElement(name = "Progress")

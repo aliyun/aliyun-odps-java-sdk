@@ -28,7 +28,7 @@ package com.aliyun.odps.tunnel;
 
 public interface TunnelConstants {
 
-  public static int VERSION = 3;
+  public static int VERSION = 4;
   public static String RES_PROJECTS = "projects";
   public static String RES_TABLES = "tables";
   public static String RES_VOLUMES = "volumes";
@@ -57,4 +57,6 @@ public interface TunnelConstants {
   public static String SHARD_STATUS = "shardstatus";
   public static String LOCAL_ERROR_CODE = "Local Error";
   public static String SEEK_TIME = "timestamp";
+  public static String NORMAL_TABLE_TYPE = "normal_type";
+  public static String HUB_TABLE_TYPE = "hub_type";
 }

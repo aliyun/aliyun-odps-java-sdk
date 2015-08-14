@@ -39,8 +39,8 @@ import com.aliyun.odps.commons.transport.OdpsTestUtils;
 
 public class ResourceTest extends TestBase {
 
-  static String tableName = "table_for_test_abc";
-  private static String TABLE_NAME = "test_resource_test";
+  static String tableName = ResourceTest.class.getSimpleName() +  "_table_for_test_abc";
+  private static String TABLE_NAME = ResourceTest.class.getSimpleName() + "_test_resource_test";
 
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {

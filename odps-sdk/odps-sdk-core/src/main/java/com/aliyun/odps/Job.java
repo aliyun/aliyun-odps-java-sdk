@@ -62,6 +62,9 @@ public class Job {
     @XmlElement(name = "Priority")
     int priority = 9; // Default value 9.
 
+    @XmlElement(name = "RunningCluster")
+    String runningCluster;
+
     @XmlElementWrapper(name = "Tasks")
     @XmlElementRef
     List<Task> tasks = new LinkedList<Task>();
@@ -131,6 +134,14 @@ public class Job {
   /* Un-document */
   public void addTask(Task task) {
     model.tasks.add(task);
+  }
+
+  public String getRunningCluster() {
+    return model.runningCluster;
+  }
+
+  public void setRunningCluster(String runningCluster) {
+    model.runningCluster = runningCluster;
   }
 
   /* Un-document */

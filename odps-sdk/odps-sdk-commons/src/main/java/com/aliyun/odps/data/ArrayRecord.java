@@ -21,6 +21,7 @@ package com.aliyun.odps.data;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -34,6 +35,9 @@ import com.aliyun.odps.Column;
 public class ArrayRecord implements Record {
 
   private static final int STRING_MAX_LENTH = 8 * 1024 * 1024;
+  private static final int DECIMAL_MAX_INTLENGTH = 36;
+  private static final int DECIMAL_MAX_SCALE = 18;
+
   // 9999-12-31 23:59:59
   private static final long DATETIME_MAX_TICKS = 253402271999000L;
   // 0001-01-01 00:00:00
@@ -204,6 +208,14 @@ public class ArrayRecord implements Record {
 
   @Override
   public void setDecimal(int idx, BigDecimal value) {
+    if (value != null) {
+      BigDecimal tmpValue = value.setScale(DECIMAL_MAX_SCALE, RoundingMode.HALF_UP);
+      int intLength =  tmpValue.precision() - tmpValue.scale();
+      if (intLength > DECIMAL_MAX_INTLENGTH) {
+        throw new IllegalArgumentException(String.format("decimal value %s overflow, max integer digit number is %s.",
+                                                         value, DECIMAL_MAX_INTLENGTH));
+      }
+    }
     values[idx] = value;
 
   }
