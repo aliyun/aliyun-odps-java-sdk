@@ -29,6 +29,7 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import com.aliyun.odps.security.CheckPermissionConstants.*;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -93,6 +94,16 @@ public class SecurityManager {
 
     @XmlElement(name = "Role")
     private List<RoleModel> roles = new ArrayList<RoleModel>();
+  }
+
+  @XmlRootElement(name = "Auth")
+
+  private static class CheckPermissionResponse {
+
+    @XmlElement(name = "Result")
+    private String result;
+
+    public String getResult() {return result;}
   }
 
   public SecurityManager(String project, RestClient client) {
@@ -221,6 +232,27 @@ public class SecurityManager {
       users.add(t);
     }
     return users;
+  }
+
+  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
+                                               ActionType action) throws OdpsException {
+    return checkPermission(type, objectName, action, project);
+  }
+
+  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
+                                               ActionType action, String projectName) throws OdpsException {
+    StringBuilder resource = new StringBuilder();
+    resource.append("/projects/").append(projectName).append("/auth/");
+
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("type", type.toString());
+    params.put("name", objectName);
+    params.put("grantee", action.toString());
+    CheckPermissionResponse response = client.request(CheckPermissionResponse.class,
+                                                      resource.toString(), "GET", params, null, null);
+    System.out.println(response.getResult());
+    return response.getResult().toUpperCase().equals("ALLOW")?
+           CheckPermissionResult.Allow : CheckPermissionResult.Deny;
   }
 
   public String runQuery(String query, Boolean jsonOutput) throws OdpsException {

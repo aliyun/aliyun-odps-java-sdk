@@ -28,6 +28,9 @@ import org.junit.Test;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.security.CheckPermissionConstants.ActionType;
+import com.aliyun.odps.security.CheckPermissionConstants.CheckPermissionResult;
+import com.aliyun.odps.security.CheckPermissionConstants.ObjectType;
 
 public class SecurityManagerTest extends TestBase {
 
@@ -39,6 +42,10 @@ public class SecurityManagerTest extends TestBase {
     sm = odps.projects().get().getSecurityManager();
   }
 
+  @Test(expected = OdpsException.class)
+  public void testNoPermission() throws Exception {
+    String query = sm.runQuery("add user aliyun$NOT_EXIST@aliyun.com", false);
+  }
 
   @Test
   public void testGetRolePolicy() throws OdpsException {
@@ -70,4 +77,14 @@ public class SecurityManagerTest extends TestBase {
     List<User> list = sm.listUsersForRole("admin");
   }
 
+  @Test
+  public void testCheckPermission() throws OdpsException {
+    CheckPermissionResult r;
+
+    r = sm.checkPermission(ObjectType.Project, "", ActionType.List);
+    Assert.assertEquals(CheckPermissionResult.Allow, r);
+
+    r = sm.checkPermission(ObjectType.Table, "testTable", ActionType.List);
+    Assert.assertEquals(CheckPermissionResult.Allow, r);
+  }
 }

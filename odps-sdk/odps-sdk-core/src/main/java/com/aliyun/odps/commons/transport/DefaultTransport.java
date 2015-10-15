@@ -23,17 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import com.aliyun.odps.commons.transport.Request.Method;
 import com.aliyun.odps.commons.util.IOUtils;
@@ -44,8 +33,6 @@ import com.aliyun.odps.commons.util.IOUtils;
  * @author shenggong.wang@alibaba-inc.com
  */
 public class DefaultTransport implements Transport {
-
-  private static Boolean sslInit = false;
 
   public DefaultTransport() {
   }

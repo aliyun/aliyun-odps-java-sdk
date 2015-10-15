@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.18.3-public</version>
+        <version>0.19.3-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -18,7 +18,7 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-commons</artifactId>
-            <version>0.18.3-public</version>
+            <version>0.19.3-public</version>
         </dependency>
 
         <!-- Base64 -->
@@ -39,9 +39,9 @@
             <version>2.0</version>
         </dependency>
         <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.52</version>
+            <groupId>com.alibaba.external</groupId>
+            <artifactId>bouncycastle.provider</artifactId>
+            <version>1.38-jdk15</version>
         </dependency>
         <dependency>
             <groupId>org.xerial.snappy</groupId>

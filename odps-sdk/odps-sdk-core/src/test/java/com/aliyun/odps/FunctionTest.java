@@ -19,66 +19,104 @@
 
 package com.aliyun.odps;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class FunctionTest extends TestBase {
 
+  public static final String FUNCTION_TEST = "function_test";
+  public static final String CLASS_PATH = "function_test.class_path";
+  public static final String RESOURCE_NAME = "function_resource.jar";
+  private static final String UPDATE_RESOURCE_NAME = "update_function_resource.jar";
+  private static final String FUNCTION_UPDATE_TEST = "function_update_test";
+  private static final String UPDATE_CLASS_PATH = "update_function_test.update_class_path";
 
-  @Test
-  public void test() throws Exception {
-    // create function
-    createFunction();
-    // list function
-    listFunction();
-    // delete function
-    deleteFunction();
-  }
-
-  private void createFunction() throws FileNotFoundException, OdpsException {
+  @BeforeClass
+  public static void createFunction() throws FileNotFoundException, OdpsException {
+    clean();
     prepareResource();
     Function fm = new Function();
-    fm.setName("zhemin_fun");
-    fm.setClassPath("zhemin.fun");
+    fm.setName(FUNCTION_TEST);
+    fm.setClassPath(CLASS_PATH);
     ArrayList<String> resources = new ArrayList<String>();
-    resources.add("zhemin_fun.jar");
+    resources.add(RESOURCE_NAME);
     fm.setResources(resources);
     odps.functions().create(fm);
   }
 
-  private void prepareResource() throws FileNotFoundException, OdpsException {
+  private static void prepareResource() throws FileNotFoundException, OdpsException {
 
     String filename = ResourceTest.class.getClassLoader()
         .getResource("resource.jar").getFile();
     JarResource rm = new JarResource();
-    rm.setName("zhemin_fun.jar");
+    rm.setName(RESOURCE_NAME);
+    odps.resources().create(rm, new FileInputStream(new File(filename)));
+    rm.setName(UPDATE_RESOURCE_NAME);
     odps.resources().create(rm, new FileInputStream(new File(filename)));
   }
 
-  @After
-  public void clean() {
-    try {
-      deleteFunction();
-    } catch (Exception e) {
-      // pass
-    }
-
-    try {
-      deleteResource();
-    } catch (Exception e) {
-      // pass
-    }
+  @AfterClass
+  public static void clean() {
+    deleteFunction();
+    deleteResource();
   }
 
-  private void listFunction() {
+  @Test
+  public void getFunction() throws OdpsException {
+    Function function = odps.functions().get(FUNCTION_TEST);
+    assertEquals(function.getClassPath(), CLASS_PATH);
+    assertEquals(function.getResources().size(), 1);
+    assertTrue(function.getResources().get(0).getName().endsWith(RESOURCE_NAME));
+  }
+
+  @Test(expected = NoSuchObjectException.class)
+  public void getFunctionNotExist() throws OdpsException {
+    Function function = odps.functions().get("NOT_EXISTS");
+    function.reload();
+  }
+
+
+  @Test
+  public void testExists() throws OdpsException {
+    assertTrue(odps.functions().exists(FUNCTION_TEST));
+    assertFalse(odps.functions().exists("NOT_EXISTS"));
+  }
+
+  @Test
+  public void updateFunction() throws OdpsException {
+    Function fm = new Function();
+    fm.setName(FUNCTION_UPDATE_TEST);
+    fm.setClassPath(CLASS_PATH);
+    ArrayList<String> resources = new ArrayList<String>();
+    resources.add(RESOURCE_NAME);
+    fm.setResources(resources);
+    odps.functions().create(fm);
+
+    fm.setClassPath(UPDATE_CLASS_PATH);
+    resources.set(0, UPDATE_RESOURCE_NAME);
+    fm.setResources(resources);
+
+    odps.functions().update(fm);
+
+    Function ret = odps.functions().get(FUNCTION_UPDATE_TEST);
+    assertEquals(ret.getClassPath(), UPDATE_CLASS_PATH);
+    assertEquals(ret.getResources().size(), 1);
+    System.out.println(ret.getResources().get(0).getName());
+    assertTrue(ret.getResources().get(0).getName().endsWith(UPDATE_RESOURCE_NAME));
+
+  }
+
+  @Test
+  public void listFunction() {
     int count = 0;
     for (Function f : odps.functions()) {
       ++count;
@@ -87,11 +125,26 @@ public class FunctionTest extends TestBase {
     assertTrue("function nums > 0 ", count > 0);
   }
 
-  private void deleteFunction() throws Exception {
-    odps.functions().delete("zhemin_fun");
+  public static void deleteFunction() {
+    try {
+      odps.functions().delete(FUNCTION_TEST);
+    } catch (Exception e) {
+    }
+
+    try {
+      odps.functions().delete(FUNCTION_UPDATE_TEST);
+    } catch (Exception e) {
+    }
   }
 
-  private void deleteResource() throws OdpsException {
-    odps.resources().delete("zhemin_fun.jar");
+  private static void deleteResource() {
+    try {
+      odps.resources().delete(RESOURCE_NAME);
+    } catch (Exception e) {
+    }
+    try {
+      odps.resources().delete(UPDATE_RESOURCE_NAME);
+    } catch (Exception e) {
+    }
   }
 }

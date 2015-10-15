@@ -25,7 +25,6 @@ import java.util.Map;
 import org.junit.Test;
 
 import com.aliyun.odps.OdpsException;
-import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.commons.transport.Response;
 
 public class RestMockTest extends RestClient {
@@ -66,13 +65,13 @@ public class RestMockTest extends RestClient {
 
   @Test
   public void testRetry() throws OdpsException {
-    retryTimes = 3;
+    retryTimes = 4;
     request("", "GET", null, null, null, 0);
   }
 
   @Test(expected = OdpsException.class)
   public void testRetryFail() throws OdpsException {
-    retryTimes = 4;
+    retryTimes = 5;
     request("", "GET", null, null, null, 0);
   }
 

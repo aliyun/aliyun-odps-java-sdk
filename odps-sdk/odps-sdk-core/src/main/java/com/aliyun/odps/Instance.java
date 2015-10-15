@@ -183,7 +183,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     String transform;
 
     @XmlAttribute(name = "Format")
-    String format;
+    String format;  
 
     @XmlValue
     String text;

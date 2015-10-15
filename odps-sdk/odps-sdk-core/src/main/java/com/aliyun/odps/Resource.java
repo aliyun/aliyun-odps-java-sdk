@@ -111,6 +111,7 @@ public class Resource extends LazyLoad {
     String contentMD5;
 
     boolean isTempResource;
+    String volumePath;
   }
 
   ResourceModel model;
@@ -149,6 +150,12 @@ public class Resource extends LazyLoad {
         break;
       case TABLE:
         resource = new TableResource();
+        break;
+      case VOLUMEFILE:
+        resource = new VolumeFileResource();
+        break;
+      case VOLUMEARCHIVE:
+        resource = new VolumeArchiveResource();
         break;
       case UNKOWN:
         resource = new Resource();
@@ -307,13 +314,10 @@ public class Resource extends LazyLoad {
       throw new OdpsException("Invalid date format", e);
     }
 
-    if (model.type.equalsIgnoreCase("table")) {
-      model.sourceTableName = headers
-          .get(ResourceHeaders.X_ODPS_COPY_TABLE_SOURCE);
-    } else {
-      model.contentMD5 = headers.get(Headers.CONTENT_MD5);
-    }
-
+    model.sourceTableName = headers
+        .get(ResourceHeaders.X_ODPS_COPY_TABLE_SOURCE);
+    model.volumePath = headers.get(ResourceHeaders.X_ODPS_COPY_FILE_SOURCE);
+    model.contentMD5 = headers.get(Headers.CONTENT_MD5);
     setLoaded(true);
   }
 

@@ -72,6 +72,7 @@ public class SessionState {
   private JobConf defaultJob;
   private boolean isLocalRun;
   private Map<String, String> aliases;
+  private String commandText = "";
 
   private SessionState() {
     aliases = new HashMap<String, String>();
@@ -370,6 +371,14 @@ public class SessionState {
       defaultJob.set(LOCAL_USER_DEFINE_POLICY, userDefinePolicy);
     }
 
+  }
+
+  public String getCommandText() {
+    return commandText;
+  }
+
+  public void setCommandText(String commandText) {
+    this.commandText = commandText;
   }
 
 }

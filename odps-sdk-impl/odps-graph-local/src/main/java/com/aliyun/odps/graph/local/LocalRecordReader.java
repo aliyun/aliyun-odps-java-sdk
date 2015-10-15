@@ -34,6 +34,7 @@ import com.aliyun.odps.graph.local.utils.LocalGraphRunUtils;
 import com.aliyun.odps.io.LongWritable;
 import com.aliyun.odps.io.Writable;
 import com.aliyun.odps.io.WritableRecord;
+import com.aliyun.odps.local.common.utils.DownloadUtils;
 import com.aliyun.odps.local.common.utils.LocalRunUtils;
 import com.aliyun.odps.local.common.utils.SchemaUtils;
 import com.aliyun.odps.utils.ReflectionUtils;
@@ -69,9 +70,7 @@ public class LocalRecordReader extends BaseRecordReader<LongWritable, WritableRe
         byteCounter.increment(dataFile.length());
       }
       Charset encoding = LocalRunContext.getInstance().getEncoding();
-      CsvReader csvReader = new CsvReader(dataFile.getAbsolutePath(), ',',
-                                          encoding);
-      csvReader.setSafetySwitch(false);
+      CsvReader csvReader = DownloadUtils.newCsvReader(dataFile.getAbsolutePath(), ',', encoding);
       readers.add(csvReader);
     }
     if (readers.size() > 0) {

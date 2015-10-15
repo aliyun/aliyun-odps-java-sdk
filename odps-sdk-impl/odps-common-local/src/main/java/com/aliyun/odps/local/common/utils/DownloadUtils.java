@@ -20,6 +20,7 @@
 package com.aliyun.odps.local.common.utils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +52,7 @@ import com.aliyun.odps.local.common.DownloadMode;
 import com.aliyun.odps.local.common.ExceptionCode;
 import com.aliyun.odps.local.common.TableMeta;
 import com.aliyun.odps.local.common.WareHouse;
+import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
 
 public class DownloadUtils {
@@ -430,6 +432,13 @@ public class DownloadUtils {
       throw new RuntimeException(ExceptionCode.ODPS_0720101 + " - " + tableInfo);
     }
 
+  }
+
+  public static CsvReader newCsvReader(String fileName, char sep, Charset charset)
+      throws FileNotFoundException {
+    CsvReader reader = new CsvReader(fileName, sep, charset);
+    reader.setSafetySwitch(false);
+    return reader;
   }
 
 }

@@ -36,6 +36,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.VolumeTunnel;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -70,6 +71,30 @@ public class OdpsTestUtils {
     }
 
     return props;
+  }
+
+  public static String getGrantUser() {
+    return props.getProperty("grant.user");
+  }
+
+  /**
+   * 根据test.properties的grant设置创建一个新的Odps对象
+   *
+   * @return
+   */
+  public static Odps newGrantOdps(String project) {
+    Odps odps = null;
+
+    String accessId = props.getProperty("grant.access.id");
+    String accessKey = props.getProperty("grant.access.key");
+    String endpoint = props.getProperty("default.endpoint");
+
+    Account account = new AliyunAccount(accessId, accessKey);
+    odps = new Odps(account);
+    odps.setDefaultProject(project);
+    odps.setEndpoint(endpoint);
+
+    return odps;
   }
 
   /**
@@ -199,4 +224,12 @@ public class OdpsTestUtils {
     }
   }
 
+  public static VolumeTunnel newVolumeTunnel(Odps odps) {
+    VolumeTunnel tunnel = new VolumeTunnel(odps);
+    String tunnelEndpoint = props.getProperty("default.tunnel.endpoint");
+    if (!StringUtils.isNullOrEmpty(tunnelEndpoint)) {
+      tunnel.setEndpoint(tunnelEndpoint);
+    }
+    return tunnel;
+  }
 }

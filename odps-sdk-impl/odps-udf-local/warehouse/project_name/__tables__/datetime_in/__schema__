@@ -1,0 +1,3 @@
+project=project_name
+table=datetime_in
+columns=c1:STRING,c2:datetime

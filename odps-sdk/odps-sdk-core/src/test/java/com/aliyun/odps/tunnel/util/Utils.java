@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.tunnel.util;
 
+import java.lang.management.ManagementFactory;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,6 +40,8 @@ public class Utils {
   private static AtomicLong counter = new AtomicLong();
   private static Project project = null;
   private static Odps odps = OdpsTestUtils.newDefaultOdps();
+  private static String processName = ManagementFactory.getRuntimeMXBean().getName();
+  private static String processID = processName.substring(0, processName.indexOf('@'));
 
   public static Project getProject() throws OdpsException {
     if (project == null) {
@@ -96,15 +99,25 @@ public class Utils {
 
   public static VolumeTunnel getTunnelInstance() {
     VolumeTunnel tunnel = new VolumeTunnel(odps);
+    String endpoint = OdpsTestUtils.getProperty("default.tunnel");
+    if (endpoint != null && !endpoint.isEmpty()) {
+        tunnel.setEndpoint(endpoint);
+    }
     return tunnel;
   }
 
-  public static String getRandomProjectName() {
-    return "otopen_prj_" + System.currentTimeMillis() + "_" + counter.addAndGet(1);
+  public static VolumeTunnel getTunnelInstanceForSecurity(String project) {
+    Odps grantOdps = OdpsTestUtils.newGrantOdps(project);
+    VolumeTunnel tunnel = new VolumeTunnel(grantOdps);
+    String endpoint = OdpsTestUtils.getProperty("default.tunnel");
+    if (endpoint != null && !endpoint.isEmpty()) {
+        tunnel.setEndpoint(endpoint);
+    }
+    return tunnel;
   }
 
   public static String getRandomVolumeName() {
-    return "volume_" + System.currentTimeMillis() + "_" + counter.addAndGet(1);
+    return "volume_" + processID  + "_" + System.currentTimeMillis() + "_" + counter.addAndGet(1);
   }
 
   public static String getRandomPartitionName() {
@@ -129,6 +142,17 @@ public class Utils {
     Odps odps = OdpsTestUtils.newDefaultOdps();
     odps.setDefaultProject(projectName);
     odps.volumes().delete(projectName, volumeName);
+  }
+
+  public static String invokeAuth(String command, String projectName) throws OdpsException {
+    if (command.indexOf(';') == -1) {
+      command += ";";
+    }
+    odps.setDefaultProject(projectName);
+    Project project = odps.projects().get();
+    SecurityManager security = project.getSecurityManager();
+    String result = security.runQuery(command, false);
+    return result;
   }
 
   public static List<String> listVolumePartitions(String volumeName, String partitionName,

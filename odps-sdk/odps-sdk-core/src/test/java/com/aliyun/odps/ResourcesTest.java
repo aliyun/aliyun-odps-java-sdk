@@ -55,8 +55,6 @@ public class ResourcesTest extends TestBase {
     FileResource r = odps.resources().createTempResource(testFile.getFile());
     assertTrue(r instanceof FileResource);
     assertTrue(r.getName().endsWith("resource.txt"));
-    //TODO BUG :  #ODPS-31638
-    //assertTrue(r.getIsTempResource());
     assertEquals(r.getType(), Resource.Type.FILE);
   }
 
@@ -75,8 +73,6 @@ public class ResourcesTest extends TestBase {
                                             Resource.Type.JAR);
     assertTrue(r instanceof JarResource);
     assertTrue(r.getName().endsWith("resource.jar"));
-    //TODO BUG : #ODPS-31638
-    //assertTrue(r.getIsTempResource());
     assertEquals(r.getType(), Resource.Type.JAR);
   }
 
@@ -90,8 +86,6 @@ public class ResourcesTest extends TestBase {
                                             Resource.Type.PY);
     assertTrue(r instanceof PyResource);
     assertTrue(r.getName().endsWith("resource.py"));
-    //TODO BUG : #ODPS-31638
-    //assertTrue(r.getIsTempResource());
     assertEquals(r.getType(), Resource.Type.PY);
   }
 

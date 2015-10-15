@@ -272,17 +272,23 @@ public class JAXBUtils {
     return out.toString();
   }
 
+  public static <T> T unmarshal(byte[] xml, Class<T> clazz) throws JAXBException {
+    if (xml == null) {
+      throw new RuntimeException("Invalid XML to unmarshal.");
+    }
+
+    JAXBContext jc = getJAXBContext(clazz);
+    Unmarshaller um = jc.createUnmarshaller();
+    return (T) um.unmarshal(new ByteArrayInputStream(xml));
+  }
+
   @SuppressWarnings("unchecked")
   public static <T> T unmarshal(Response resp, Class<T> clazz)
       throws JAXBException {
     if (resp == null || resp.getBody() == null) {
       throw new RuntimeException("Invalid XML to unmarshal.");
     }
-
-    JAXBContext jc = getJAXBContext(clazz);
-    Unmarshaller um = jc.createUnmarshaller();
-    return (T) um.unmarshal(new ByteArrayInputStream(resp.getBody()));
-
+    return unmarshal(resp.getBody(), clazz);
   }
 
   private static JAXBContext getJAXBContext(Class<?> clazz)

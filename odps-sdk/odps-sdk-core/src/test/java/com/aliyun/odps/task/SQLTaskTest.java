@@ -21,11 +21,18 @@ package com.aliyun.odps.task;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
+import java.util.List;
+
 import org.junit.Test;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.TestBase;
+import com.aliyun.odps.data.Record;
 
 /**
  * Created by nizheming on 15/4/24.
@@ -38,4 +45,25 @@ public class SQLTaskTest extends TestBase {
     assertEquals(i.getPriority(), 3);
   }
 
+  @Test
+  public void testSelectSQLTask() throws OdpsException, IOException {
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("c1", OdpsType.BIGINT));
+    try {
+      odps.tables().create("test_select_sql_result", schema);
+    } catch (OdpsException e) {
+    }
+
+    String taskName = "test_select_sql_task";
+    Instance i = SQLTask.run(odps, odps.getDefaultProject(),
+                             "select * from test_select_sql_result;", taskName, null, null, 3);
+    i.waitForSuccess();
+    List<Record> records = SQLTask.getResult(i, taskName);
+    assertEquals(0, records.size());
+
+    i = SQLTask.run(odps, odps.getDefaultProject(), "select * from test_select_sql_result;", null, null);
+    i.waitForSuccess();
+    records = SQLTask.getResult(i);
+    assertEquals(0, records.size());
+  }
 }

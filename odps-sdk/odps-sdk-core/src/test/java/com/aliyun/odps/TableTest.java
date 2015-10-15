@@ -19,11 +19,11 @@
 
 package com.aliyun.odps;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 
 import org.junit.AfterClass;
@@ -43,10 +43,18 @@ public class TableTest extends TestBase {
   private static String TABLE_NAME = TableTest.class.getSimpleName() + "_table_name_for_test";
   private static String TABLE_NAME_2 = TableTest.class.getSimpleName() + "_table_name_for_test2";
   private static String TABLE_NAME_3 = TableTest.class.getSimpleName() + "_table_name_for_test3";
-  private static String HUB_TABLE_NAME = TableTest.class.getSimpleName() + "_hubtable_name_for_test";
-  private static String HUB_TABLE_NAME_2 = TableTest.class.getSimpleName() + "_table_name_for_test_2";
-  private static String HUB_TABLE_NAME_3 = TableTest.class.getSimpleName() + "_hubtable_name_for_test_3";
-  private static String HUB_TABLE_NAME_4 = TableTest.class.getSimpleName() + "_hubtable_name_for_test_4";
+  private static String
+      HUB_TABLE_NAME =
+      TableTest.class.getSimpleName() + "_hubtable_name_for_test";
+  private static String
+      HUB_TABLE_NAME_2 =
+      TableTest.class.getSimpleName() + "_table_name_for_test_2";
+  private static String
+      HUB_TABLE_NAME_3 =
+      TableTest.class.getSimpleName() + "_hubtable_name_for_test_3";
+  private static String
+      HUB_TABLE_NAME_4 =
+      TableTest.class.getSimpleName() + "_hubtable_name_for_test_4";
   private static String TRUNCATE_TABLE_NAME = TableTest.class.getSimpleName() + "_truncate_test";
   private static String SOURCE_TABLE_NAME = TableTest.class.getSimpleName() + "_test_table_test";
   private static String NO_CHECK_TALBE = TableTest.class.getSimpleName() + "_no_check_table";
@@ -81,9 +89,7 @@ public class TableTest extends TestBase {
     odps.tables().create(odps.getDefaultProject(), TABLE_NAME, schema, true);
     odps.tables().create(odps.getDefaultProject(), TABLE_NAME_2, schema, true);
     odps.tables().create(odps.getDefaultProject(), TABLE_NAME_3, schema, true);
-    odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME, schema, true);
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_2, schema, true);
-    odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_3, schema, true);
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_4, schema, true);
 
     odps.projects().get().getSecurityManager()
@@ -125,6 +131,14 @@ public class TableTest extends TestBase {
     a.getSchema().getColumn("c6").getGenericTypeList().get(0).equals(OdpsType.BIGINT);
     a.getSchema().getColumn("c7").getGenericTypeList().get(0).equals(OdpsType.STRING);
     a.getSchema().getColumn("c7").getGenericTypeList().get(1).equals(OdpsType.STRING);
+  }
+
+  @Test
+  public void testPartitioned() throws OdpsException {
+    Table a = odps.tables().get(TABLE_NAME);
+    assertTrue(a.isPartitioned());
+    Table b = odps.tables().get(TRUNCATE_TABLE_NAME);
+    assertFalse(b.isPartitioned());
   }
 
   @Test
@@ -240,19 +254,20 @@ public class TableTest extends TestBase {
   }
 
   @Test
-  public void testCreateShardsOnHubTable() throws OdpsException {
-    odps.tables().get(HUB_TABLE_NAME).createShards(2, true, 2);
+  public void testCreateHubTable() throws OdpsException {
+    odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME, schema, true, 2L, 2L);
   }
 
   @Test
   public void testCreateShardOnNormalTable() throws OdpsException {
-    odps.tables().get(TABLE_NAME_2).createShards(2);
+    odps.tables().create(odps.getDefaultProject(), TABLE_NAME_2, schema, true, 2L, null);
   }
 
   @Test(expected = OdpsException.class)
   public void testCreateShardsTwiceOnHubTable() throws OdpsException {
-    odps.tables().get(HUB_TABLE_NAME_2).createShards(1, true, 7);
-    odps.tables().get(HUB_TABLE_NAME_2).createShards(2, true, 7);
+    odps.tables().delete(HUB_TABLE_NAME, true);
+    odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME, schema, true, 1L, 7L);
+    odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME, schema, false, 1L, 7L);
   }
 
   @Test(expected = OdpsException.class)
@@ -292,8 +307,8 @@ public class TableTest extends TestBase {
 
   @Test
   public void testGetShardInfo() throws OdpsException {
+    odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_3, schema, true, 3L, 7L);
     Table t1 = odps.tables().get(HUB_TABLE_NAME_3);
-    t1.createShards(3, true, 7);
     Shard s1 = t1.getShard();
     assertTrue(s1 != null);
     assertTrue(s1.getShardNum() == 3);
@@ -330,5 +345,18 @@ public class TableTest extends TestBase {
     assertTrue(s4.getSortColumnNames() != null & s4.getSortColumnNames().size() == 2);
     assertTrue(s4.getSortColumnNames().get(0).equals("c3:1"));
     assertTrue(s4.getSortColumnNames().get(1).equals("c4:1"));
+  }
+
+  @Test
+  public void testMaxLabel() {
+    assertEquals("", Table.calculateMaxLabel(Arrays.asList(new String[]{})));
+    assertEquals("", Table.calculateMaxLabel(Arrays.asList(new String[]{null,null,null})));
+    assertEquals("B2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", ""})));
+    assertEquals("L2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", "2"})));
+    assertEquals("B2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", "B1"})));
+    assertEquals("C3", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", "C3"})));
+    assertEquals("B2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", "B1"})));
+    assertEquals("C4", Table.calculateMaxLabel(Arrays.asList(new String[]{"C4", "S2"})));
+    assertEquals("L4", Table.calculateMaxLabel(Arrays.asList(new String[]{"C4", "B4", "S2"})));
   }
 }

@@ -30,6 +30,7 @@ import java.util.SimpleTimeZone;
 public class DateUtils {
 
   private static long TZ = +8;
+  private static Calendar CAL = Calendar.getInstance();
 
   //Java unix time stamp of Current Timezone
   private static final long _0001_01_01 = getTime(1, 1, 1, 0, 0, 0);
@@ -75,7 +76,9 @@ public class DateUtils {
   private static final long _1991_09_14_23_C = 684860400L;
 
   private static long getTime(int year, int month, int day, int hour, int min, int sec) {
-    Calendar c = Calendar.getInstance();
+    Calendar c = (Calendar) CAL.clone();
+
+
     c.set(Calendar.YEAR, year);
     c.set(Calendar.MONTH, month - 1);
     c.set(Calendar.DAY_OF_MONTH, day);
@@ -90,7 +93,7 @@ public class DateUtils {
     long ms;
     Calendar c = null;
 
-    c = Calendar.getInstance();
+    c = (Calendar) CAL.clone();
     c.setTime(date);
     ms = c.get(Calendar.MILLISECOND);
 
@@ -99,7 +102,7 @@ public class DateUtils {
 
   public static Date ms2date(long ms) {
     Date d = rawtime2date(ms / 1000);
-    Calendar c = Calendar.getInstance();
+    Calendar c = (Calendar) CAL.clone();
 
     c.setTime(d);
     c.set(Calendar.MILLISECOND, (int) (ms % 1000));
@@ -127,7 +130,7 @@ public class DateUtils {
     int year, mon, day, hour, min, sec;
     long ans;
 
-    c = Calendar.getInstance();
+    c = (Calendar) CAL.clone();
     c.setTime(date);
     c.set(Calendar.MILLISECOND, 0);
 
@@ -199,7 +202,7 @@ public class DateUtils {
     int year, mon, day, hour, min, sec, leap;
     long offset;
 
-    Calendar c = Calendar.getInstance();
+    Calendar c = (Calendar) CAL.clone();
 
     if (rawtime < _0000_03_01_C) {
       offset = rawtime - _0000_01_01_C;

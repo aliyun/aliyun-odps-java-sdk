@@ -64,6 +64,89 @@ public class Functions implements Iterable<Function> {
     this.client = odps.getRestClient();
   }
 
+
+  /**
+   * 获取 Function 对象
+   *
+   * @param functionName Function 名字
+   * @return
+   * @throws OdpsException
+   */
+  public Function get(String functionName)  throws OdpsException {
+    return get(getDefaultProjectName(), functionName);
+  }
+
+  /**
+   * 获取 Function 对象
+   *
+   * @param projectName Project 名
+   * @param functionName Function 名字
+   * @return
+   */
+  public Function get(String projectName, String functionName) {
+    FunctionModel model = new FunctionModel();
+    model.name = functionName;
+    return new Function(model, projectName, odps);
+  }
+
+  /**
+   * 判断 Function 是否存在
+   *
+   * @param functionName Function 名字
+   * @return
+   */
+  public boolean exists(String functionName) throws OdpsException {
+    return exists(odps.getDefaultProject(), functionName);
+  }
+
+  /**
+   * 判断 Function 是否存在
+   *
+   * @param projectName Project 名
+   * @param functionName Function 名字
+   * @return
+   */
+  public boolean exists(String projectName, String functionName) throws OdpsException {
+    Function function = get(projectName, functionName);
+    try {
+      function.reload();
+      return true;
+    } catch (NoSuchObjectException e) {
+      return false;
+    }
+  }
+
+  /**
+   * 更新 Function
+   *
+   * @param func
+   * @throws OdpsException
+   */
+  public void update(Function func) throws OdpsException {
+    update(getDefaultProjectName(), func);
+  }
+
+  /**
+   * 更新 Function
+   *
+   * @param projectName
+   * @param func
+   * @throws OdpsException
+   */
+  public void update(String projectName, Function func) throws OdpsException {
+    String resource = ResourceBuilder.buildFunctionResource(projectName, func.getName());
+    HashMap<String, String> header = new HashMap<String, String>();
+    header.put("Content-Type", "application/xml");
+
+    String ret;
+    try {
+      ret = JAXBUtils.marshal(func.model, FunctionModel.class);
+    } catch (JAXBException e) {
+      throw new OdpsException(e);
+    }
+    client.stringRequest(resource, "PUT", null, header, ret);
+  }
+
   /**
    * 创建函数
    *

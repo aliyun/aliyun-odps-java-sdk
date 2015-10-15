@@ -72,12 +72,12 @@ public class RestClient {
   /**
    * 底层网络建立超时时间,50秒
    */
-  public static final int DEFAULT_CONNECT_TIMEOUT = 50; // seconds
+  public static final int DEFAULT_CONNECT_TIMEOUT = 5; // seconds
 
   /**
    * 底层网络重试次数, 3
    */
-  public static final int DEFAULT_CONNECT_RETRYTIMES = 3;
+  public static final int DEFAULT_CONNECT_RETRYTIMES = 4;
 
   /**
    * 底层网络连接超时时间, 120秒。

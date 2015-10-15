@@ -32,6 +32,7 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.aliyun.odps.Resource.ResourceModel;
 import com.aliyun.odps.rest.JAXBUtils;
+import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
 /**
@@ -209,6 +210,7 @@ public class Function extends LazyLoad {
 
   @Override
   public void reload() throws OdpsException {
-    throw new OdpsException("Get function not supported yet.");
+    String resource = ResourceBuilder.buildFunctionResource(project, model.name);
+    model = client.request(FunctionModel.class, resource, "GET", null);
   }
 }

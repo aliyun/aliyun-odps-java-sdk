@@ -1,0 +1,3 @@
+project=project_name
+table=ii
+columns=col1:BIGINT,col2:BIGINT

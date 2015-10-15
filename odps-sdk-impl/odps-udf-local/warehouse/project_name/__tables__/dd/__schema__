@@ -1,0 +1,3 @@
+project=project_name
+table=dd
+columns=col1:DOUBLE,col2:DOUBLE

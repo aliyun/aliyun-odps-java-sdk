@@ -1,0 +1,8 @@
+
+package com.aliyun.odps.tunnel.io.proto;
+
+message XStreamPack
+{
+	required bytes pack_data = 1;
+	optional bytes pack_meta = 2;
+}

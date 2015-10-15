@@ -20,6 +20,8 @@
 package com.aliyun.odps.data;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -27,18 +29,26 @@ import org.junit.internal.ArrayComparisonFailure;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.TableSchema;
 
 public class ArrayRecordTest {
 
   private static final String STRING_CHARSET = "UTF-8";
 
+
   @Test
-  public void testGetBytes() throws ArrayComparisonFailure, UnsupportedEncodingException {
-    // positive case
+  public void testArrayConstructor() throws ArrayComparisonFailure, UnsupportedEncodingException {
     Column col1 = new Column("col1", OdpsType.STRING);
     Column col2 = new Column("col2", OdpsType.STRING);
-    Column[] columns = new Column[] {col1, col2};
+    Column[] columns = new Column[]{col1, col2};
     ArrayRecord record = new ArrayRecord(columns);
+
+    testGetBytes(record);
+  }
+
+
+  public void testGetBytes(ArrayRecord record) throws ArrayComparisonFailure, UnsupportedEncodingException {
+    // positive case
     record.set("col1", "val1");
     record.set(1, "val2");
     byte[] b1 = record.getBytes(0);
@@ -66,4 +76,15 @@ public class ArrayRecordTest {
     Assert.assertNull(b2);
   }
 
+  @Test
+  public void testSchemaConstructor() throws ArrayComparisonFailure, UnsupportedEncodingException {
+    TableSchema schema = new TableSchema();
+
+    schema.addColumn(new Column("col1", OdpsType.STRING));
+    schema.addColumn(new Column("col2", OdpsType.STRING));
+
+    ArrayRecord record = new ArrayRecord(schema);
+
+    testGetBytes(record);
+  }
 }

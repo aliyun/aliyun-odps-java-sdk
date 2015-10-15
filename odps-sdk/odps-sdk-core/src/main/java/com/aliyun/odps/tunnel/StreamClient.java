@@ -38,8 +38,8 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.io.ReplicatorStatus;
 import com.aliyun.odps.tunnel.io.PackReader;
+import com.aliyun.odps.tunnel.io.ReplicatorStatus;
 import com.aliyun.odps.tunnel.io.StreamReader;
 import com.aliyun.odps.tunnel.io.StreamWriter;
 
@@ -54,7 +54,7 @@ public class StreamClient {
   private TableSchema schema = new TableSchema();
   private List<Long> shards = new ArrayList<Long>();
 
-  final private Long MAX_WAITING_MILLISECOND = 60000L;
+  final private Long MAX_WAITING_MILLISECOND = 120000L;
 
   /**
    * shard的状态
@@ -162,8 +162,6 @@ public class StreamClient {
       throw new TunnelException("invalid waiting time");
     }
 
-    boolean loadShardOK = false;
-
     long waitTime = timeout > MAX_WAITING_MILLISECOND ? MAX_WAITING_MILLISECOND : timeout;
 
     long now = System.currentTimeMillis();
@@ -173,8 +171,7 @@ public class StreamClient {
     while (now < end) {
       try {
         if (isShardLoadCompleted()) {
-          loadShardOK = true;
-          break;
+          return;
         }
         Thread.sleep(10000L);
         now = System.currentTimeMillis();
@@ -183,7 +180,7 @@ public class StreamClient {
       }
     }
 
-    if (loadShardOK == false) {
+    if (isShardLoadCompleted() == false) {
       throw new TunnelException("load shard timeout");
     }
   }
@@ -256,7 +253,7 @@ public class StreamClient {
    *
    * @param shardId
    *     需要查询的shardId
-   * @param partitionsSpec
+   * @param partitionSpec
    *     查询的分区，分区表必选, 非分区表可以为null
    * @return ReplicatorStatus
    * @throws TunnelException
@@ -372,6 +369,15 @@ public class StreamClient {
     return new StreamWriter(tunnelServiceClient, getStreamResource(shardId), params, headers);
   }
 
+  public StreamWriter openStreamWriter() throws TunnelException, IOException {
+    HashMap<String, String> params = new HashMap<String, String>();
+    HashMap<String, String> headers = new HashMap<String, String>(this.headers);
+    headers.put(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
+    headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
+
+    return new StreamWriter(tunnelServiceClient, getStreamResource(), params, headers);
+  }
+
   public StreamReader openStreamReader(long shardId) throws TunnelException, IOException {
     HashMap<String, String> params = new HashMap<String, String>();
     HashMap<String, String> headers = new HashMap<String, String>(this.headers);
@@ -422,6 +428,10 @@ public class StreamClient {
 
   private String getStreamResource(long shardId) {
     return conf.getStreamUploadResource(projectName, tableName, shardId);
+  }
+
+  private String getStreamResource() {
+    return conf.getStreamUploadResource(projectName, tableName);
   }
 
   private void loadFromJson(InputStream is) throws TunnelException {

@@ -24,8 +24,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.TableSchema;
 
 /**
  * 基于数组的{@link Record}实现
@@ -64,6 +66,10 @@ public class ArrayRecord implements Record {
       nameMap.put(columns[i].getName(), i);
     }
 
+  }
+
+  public ArrayRecord(TableSchema schema) {
+    this(schema.getColumns().toArray(new Column[0]));
   }
 
   @Override

@@ -173,6 +173,7 @@ public class AnnotationParser {
     registeredTypes.add(OdpsType.STRING.name());
     registeredTypes.add(OdpsType.DOUBLE.name());
     registeredTypes.add(OdpsType.BOOLEAN.name());
+    registeredTypes.add(OdpsType.DECIMAL.name());
     registeredTypes.add(OdpsType.DATETIME.name());
   }
 

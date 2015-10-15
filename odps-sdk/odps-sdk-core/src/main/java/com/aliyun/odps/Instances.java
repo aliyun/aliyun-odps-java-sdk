@@ -219,10 +219,7 @@ public class Instances implements Iterable<Instance> {
    * @throws OdpsException
    */
   public Instance create(String projectName, Task task) throws OdpsException {
-    Job job = new Job();
-    job.addTask(task);
-
-    return create(projectName, job);
+    return create(projectName, task, null, null);
   }
 
   /**
@@ -257,13 +254,19 @@ public class Instances implements Iterable<Instance> {
    * @throws OdpsException
    */
   public Instance create(String projectName, Task task, int priority, String runningCluster) throws OdpsException {
+    return create(projectName, task, new Integer(priority), runningCluster);
+  }
+
+  public Instance create(String projectName, Task task, Integer priority, String runningCluster) throws OdpsException {
     Job job = new Job();
     job.addTask(task);
-    // check priority not negative
-    if (priority < 0) {
-      throw new OdpsException("Priority must more than or equal to zero.");
+    if (priority != null) {
+      // check priority not negative
+      if (priority < 0) {
+        throw new OdpsException("Priority must more than or equal to zero.");
+      }
+      job.setPriority(priority);
     }
-    job.setPriority(priority);
     job.setRunningCluster(runningCluster);
 
     return create(projectName, job);

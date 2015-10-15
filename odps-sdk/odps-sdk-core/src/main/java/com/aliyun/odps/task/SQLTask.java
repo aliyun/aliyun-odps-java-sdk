@@ -19,16 +19,25 @@
 
 package com.aliyun.odps.task;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.Task;
 import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.data.ArrayRecord;
+import com.aliyun.odps.data.Record;
+import com.csvreader.CsvReader;
 
 /**
  * SQLTask的定义
@@ -39,6 +48,8 @@ import com.aliyun.odps.commons.util.JacksonParser;
 public class SQLTask extends Task {
 
   private String query;
+
+  private static final String AnonymousSQLTaskName = "AnonymousSQLTask";
 
   public String getQuery() {
     return query;
@@ -53,6 +64,89 @@ public class SQLTask extends Task {
   @XmlElement(name = "Query")
   public void setQuery(String query) {
     this.query = query;
+  }
+
+  /**
+   * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br />
+   * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
+   *
+   * This API is used when SQLTask Instance is created with specific task name.
+   *
+   * <br />
+   * Example:
+   * <pre>
+   * {
+   *   String taskName = "test_select_sql_task";
+   *   Instance i = SQLTask.run(odps, odps.getDefaultProject(),
+                                "select * from test_select_sql_result;",
+                                taskName, null, null, 3);
+       instance.waitForSuccess();
+       List<Record> records = SQLTask.getResult(i, taskName);
+   * }
+   * </pre>
+   *
+   * @param instance
+   * @return
+   * @throws OdpsException
+   */
+  public static List<Record> getResult(Instance instance, String taskName) throws OdpsException {
+    Map<String, String> results = instance.getTaskResults();
+    String selectResult = results.get(taskName);
+
+    if (selectResult != null) {
+      CsvReader reader = new CsvReader(new StringReader(selectResult));
+      List<Record> records = new ArrayList<Record>();
+      int lineCount = 0;
+      String[] newline;
+      Column[] columns = new Column[]{};
+
+      try {
+        while (reader.readRecord()) {
+          newline = reader.getValues();
+          // the first line is column names
+          if (lineCount == 0) {
+            columns = new Column[newline.length];
+            for (int i = 0; i < newline.length; i++) {
+              columns[i] = new Column(newline[i], OdpsType.STRING);
+            }
+          } else {
+            Record record = new ArrayRecord(columns);
+            for (int i = 0; i < newline.length; i++) {
+              record.set(i, newline[i]);
+            }
+            records.add(record);
+          }
+          lineCount++;
+        }
+      } catch (IOException e) {
+        throw new OdpsException("Error when parse sql results.");
+      }
+      return records;
+    }
+    return null;
+  }
+
+  /**
+   * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br />
+   * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
+   * Default task name 'AnonymousSQLTask' will be used. <br />
+   *
+   * <br />
+   * Example:
+   * <pre>
+   * {
+   *   Instance i = SQLTask.run(odps, "select * from test_select_sql_result;");
+       instance.waitForSuccess();
+       List<Record> records = SQLTask.getResult(i);
+   * }
+   * </pre>
+   *
+   * @param instance
+   * @return
+   * @throws OdpsException
+   */
+  public static List<Record> getResult(Instance instance) throws OdpsException {
+    return getResult(instance, AnonymousSQLTaskName);
   }
 
   @Override
@@ -125,7 +219,7 @@ public class SQLTask extends Task {
   public static Instance run(Odps odps, String project, String sql,
                              Map<String, String> hints, Map<String, String> aliases)
       throws OdpsException {
-    return run(odps, project, sql, "AnonymousSQLTask", hints, aliases, "sql");
+    return run(odps, project, sql, AnonymousSQLTaskName, hints, aliases, "sql");
   }
 
   /*Un-document*/

@@ -71,6 +71,7 @@ public class Resources implements Iterable<Resource> {
   static class ResourceHeaders {
 
     public static final String X_ODPS_COPY_TABLE_SOURCE = "x-odps-copy-table-source";
+    public static final String X_ODPS_COPY_FILE_SOURCE = "x-odps-copy-file-source";
     public static final String X_ODPS_COMMENT = "x-odps-comment";
     public static final String X_ODPS_RESOURCE_NAME = "x-odps-resource-name";
     public static final String X_ODPS_RESOURCE_TYPE = "x-odps-resource-type";
@@ -156,6 +157,78 @@ public class Resources implements Iterable<Resource> {
    */
   public void create(String projectName, TableResource r) throws OdpsException {
     createTable(projectName, r, false);
+  }
+
+  /**
+   * 创建 Volume 资源
+   *
+   * @param r
+   *     {@link VolumeResource}类型对象
+   * @throws OdpsException
+   */
+  public void create(VolumeResource r) throws OdpsException {
+    create(getDefaultProjectName(), r);
+  }
+
+  /**
+   * 创建 Volume 资源
+   *
+   * @param projectName
+   * @param r
+   *     {@link VolumeResource}类型对象
+   * @throws OdpsException
+   */
+  public void create(String projectName, VolumeResource r) throws OdpsException {
+    addVolumeResource(projectName, r, false);
+  }
+
+  /**
+   * 更新 Volume 资源
+   *
+   * @param r
+   *     {@link VolumeResource}类型对象
+   * @throws OdpsException
+   */
+  public void update(VolumeResource r) throws OdpsException {
+    update(getDefaultProjectName(), r);
+  }
+
+  /**
+   * 更新 Volume 资源
+   *
+   * @param projectName
+   * @param r
+   *     {@link VolumeResource}类型对象
+   * @throws OdpsException
+   */
+  public void update(String projectName, VolumeResource r) throws OdpsException {
+    addVolumeResource(projectName, r, true);
+  }
+
+
+  private void addVolumeResource(String projectName, VolumeResource r, boolean isUpdate) throws OdpsException {
+    RestClient client = odps.getRestClient();
+    String method;
+    String resource;
+    if (isUpdate) {
+      method = "PUT";
+      resource = ResourceBuilder.buildResourceResource(projectName, r.getName());
+    } else {
+      method = "POST";
+      resource = ResourceBuilder.buildResourcesResource(projectName);
+    }
+
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put("x-odps-resource-type", r.model.type.toLowerCase());
+    headers.put("x-odps-resource-name", r.getName());
+    headers.put("x-odps-copy-file-source", r.getVolumePath());
+
+    if (r.getComment() != null) {
+      headers.put("x-odps-comment", r.getComment());
+    }
+
+    client.request(resource, method, null, headers, null);
+
   }
 
   /**

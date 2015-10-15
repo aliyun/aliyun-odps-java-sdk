@@ -91,14 +91,26 @@ public class SecurityUtils {
       String key = entry.getKey();
       Object value = entry.getValue();
 
+
       if (key.startsWith(prefix)) {
-        builder.append(key).append(':').append(value);
+
+        // null key will error in jdk.
+        builder.append(key);
+
+        builder.append(':');
+
+        if (value != null) {
+          builder.append(value);
+        }
+
       } else {
         builder.append(value);
       }
 
       builder.append("\n");
     }
+
+
 
     // Add canonical resource
     builder.append(buildCanonicalizedResource(resource, request.getParameters()));

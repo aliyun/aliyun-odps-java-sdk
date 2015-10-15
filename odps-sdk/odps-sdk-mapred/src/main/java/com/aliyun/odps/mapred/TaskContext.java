@@ -179,6 +179,34 @@ public interface TaskContext extends JobContext {
    */
   BufferedInputStream readResourceFileAsStream(String resourceName)
       throws IOException;
+  
+  /**
+   * 读取Archive文件类型资源，返回一个带缓存的输入流迭代器.
+   * 
+   * <p>
+   * readResourceArchiveAsStream 支持边读边处理
+   * </p>
+   * 
+   * @param resourceName 资源名称
+   * @return 资源内容的{@link BufferedInputStream}的迭代器
+   * @throws IOException 资源未声明、资源类型不匹配以及其他读取错误抛异常
+   */
+  Iterable<BufferedInputStream> readResourceArchiveAsStream(String resourceName) throws IOException;
+
+  /**
+   * 读取Archive文件类型资源，返回一个带缓存的输入流的迭代器.
+   * 
+   * <p>
+   * readResourceArchiveAsStream 支持边读边处理
+   * </p>
+   * 
+   * @param resourceName 资源名称
+   * @param relativePath Archive内部相对路径
+   * @return 资源内容的{@link BufferedInputStream}的迭代器
+   * @throws IOException 资源未声明、资源类型不匹配以及其他读取错误抛异常
+   */
+  Iterable<BufferedInputStream> readResourceArchiveAsStream(String resourceName, String relativePath)
+      throws IOException;
 
   /**
    * 读取表类型资源，ODPS的小表（Table）也可以作为资源，大小限制参见ODPS的相关文档.

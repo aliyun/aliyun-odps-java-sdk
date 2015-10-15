@@ -474,7 +474,8 @@ public class WareHouse {
       }
     } else {
       for (File file : LocalRunUtils.listDataFiles(srcDir)) {
-        CsvReader reader = new CsvReader(file.getAbsolutePath(), inputColumnSeperator, encoding);
+        CsvReader reader = DownloadUtils.newCsvReader(
+            file.getAbsolutePath(), inputColumnSeperator, encoding);
         CsvWriter writer = new CsvWriter(new File(destDir, file.getName()).getAbsolutePath(),
                                          inputColumnSeperator, encoding);
         while (reader.readRecord()) {
@@ -928,7 +929,7 @@ public class WareHouse {
     CsvReader reader;
     List<Object[]> result = new ArrayList<Object[]>();
     for (File file : dataFiles) {
-      reader = new CsvReader(file.getAbsolutePath(), inputColumnSeperator, encoding);
+      reader = DownloadUtils.newCsvReader(file.getAbsolutePath(), inputColumnSeperator, encoding);
       while (reader.readRecord()) {
         String[] vals = reader.getValues();
         Object[] newVals;
@@ -1055,7 +1056,7 @@ public class WareHouse {
           }
 
           File f = datafiles.remove(0);
-          reader = new CsvReader(f.getAbsolutePath(), inputColumnSeperator, encoding);
+          reader = DownloadUtils.newCsvReader(f.getAbsolutePath(), inputColumnSeperator, encoding);
           reader.setSafetySwitch(false);
           current = read();
           fetched = true;
@@ -1066,7 +1067,7 @@ public class WareHouse {
 
         if (current == null && !datafiles.isEmpty()) {
           File f = datafiles.remove(0);
-          reader = new CsvReader(f.getAbsolutePath(), inputColumnSeperator, encoding);
+          reader = DownloadUtils.newCsvReader(f.getAbsolutePath(), inputColumnSeperator, encoding);
           reader.setSafetySwitch(false);
 
           current = read();

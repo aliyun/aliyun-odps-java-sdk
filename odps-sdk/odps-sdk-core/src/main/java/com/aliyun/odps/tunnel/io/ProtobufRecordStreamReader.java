@@ -106,6 +106,11 @@ class ProtobufRecordStreamReader implements RecordReader {
 
     while (true) {
       int checkSum = 0;
+
+      if (in.isAtEnd()) {
+        throw new IOException("No more record");
+      }
+
       int i = getTagFieldNumber(in);
       if (i == TunnelWireConstant.TUNNEL_END_RECORD) {
         checkSum = (int) crc.getValue();

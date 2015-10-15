@@ -36,7 +36,8 @@ public enum OdpsType {
   DOUBLE,
   BOOLEAN,
   DATETIME,
-
+  DECIMAL,
+  
   @Deprecated
   IGNORE;
 }

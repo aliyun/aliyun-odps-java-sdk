@@ -44,6 +44,7 @@ public class ResourceBuilder {
   private static final String TOPOLOGIES = "/topologies";
   private static final String XFLOWS = "/xflows";
   private static final String STREAMJOBS = "/streamjobs";
+  private static final String MATRICES = "/matrices";
 
   private static final String OFFLINEMODELS = "/offlinemodels";
 
@@ -281,6 +282,24 @@ public class ResourceBuilder {
 
     sb.append(PROJECTS).append('/').append(encodeObjectName(projectName))
         .append(OFFLINEMODELS).append("/").append(modelName);
+
+    return sb.toString();
+  }
+
+  public static String buildMatrixResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName))
+        .append(MATRICES);
+
+    return sb.toString();
+  }
+
+  public static String buildMatrixResource(String projectName, String maxtrixName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName))
+        .append(MATRICES).append("/").append(maxtrixName);
 
     return sb.toString();
   }

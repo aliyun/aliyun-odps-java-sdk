@@ -38,8 +38,12 @@ public interface Account {
    * 域帐号使用token认证
    */
   public enum AccountProvider {
+    // 淘宝帐号
+    TAOBAO,
     // 阿里云账号
-    ALIYUN
+    ALIYUN,
+    //LDAP账号
+    LDAP
   }
 
   /**

@@ -228,10 +228,33 @@ public class Tables implements Iterable<Table> {
    *     在创建表时，如果为 false 而存在同名表，则返回出错；若为 true，则无论是否存在同名表，即使原表结构与要创建的目标表结构不一致，均返回成功。已存在的同名表的元信息不会被改动。
    * @throws OdpsException
    */
-  public void create(String tableName, TableSchema schema, boolean ifNotExists) throws OdpsException {
+  public void create(String tableName, TableSchema schema, boolean ifNotExists)
+      throws OdpsException {
     create(client.getDefaultProject(), tableName, schema, ifNotExists);
   }
 
+  /**
+   * 创建表
+   *
+   * @param projectName
+   *     目标表所在{@link Project}名称
+   * @param tableName
+   *     表名
+   * @param schema
+   *     表结构 {@link TableSchema}
+   * @param ifNotExists
+   *     在创建表时，如果为 false 而存在同名表，则返回出错；若为 true，则无论是否存在同名表，即使原表结构与要创建的目标表结构不一致，均返回成功。已存在的同名表的元信息不会被改动。
+   * @param shardNum
+   *     表中shard数量，小于0表示未设置
+   * @param hubLifecycle
+   *     Hub表生命周期，小于0表示未设置，如果hublifecycle设置但是shardNum未设置，则返回错误
+   * @throws OdpsException
+   */
+  public void create(String projectName, String tableName, TableSchema schema, boolean ifNotExists,
+                     Long shardNum, Long hubLifecycle)
+      throws OdpsException {
+    create(projectName, tableName, schema, null, ifNotExists, shardNum, hubLifecycle);
+  }
 
   /**
    * 创建表
@@ -277,64 +300,48 @@ public class Tables implements Iterable<Table> {
    * @param comment
    *     表注释, 其中不能带有单引号
    * @param ifNotExists
+   *     在创建表时，如果为 false 而存在同名表，则返回出错；若为 true，则无论是否存在同名表，即使原表结构与要创建的目标表结构不一致，均返回成功。已存在的同名表的元信息不会被改动。
+   * @param shardNum
+   *     表中shard数量，小于0表示未设置
+   * @param hubLifecycle
+   *     Hub表生命周期，小于0表示未设置，如果hublifecycle设置但是shardNum未设置，则返回错误
    */
-  public void create(String projectName, String tableName, TableSchema schema, String comment, boolean ifNotExists)
+  public void create(String projectName, String tableName, TableSchema schema,
+                     String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle)
       throws OdpsException {
-    if (projectName == null || tableName == null || schema == null) {
-      throw new IllegalArgumentException();
-    }
-
-    StringBuilder sb = new StringBuilder();
-    sb.append("CREATE TABLE ");
-    if (ifNotExists) {
-      sb.append(" IF NOT EXISTS ");
-    }
-
-    sb.append(projectName).append(".`").append(tableName).append("` (");
-
-    List<Column> columns = schema.getColumns();
-    for (int i = 0; i < columns.size(); i++) {
-      Column c = columns.get(i);
-      sb.append("`").append(c.getName()).append("` ")
-          .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
-      if (c.getComment() != null) {
-        sb.append(" COMMENT '").append(c.getComment()).append("'");
-      }
-      if (i + 1 < columns.size()) {
-        sb.append(',');
-      }
-    }
-
-    sb.append(')');
-
-    if (comment != null) {
-      sb.append(" COMMENT '" + comment + "' ");
-    }
-
-    List<Column> pcolumns = schema.getPartitionColumns();
-    if (pcolumns.size() > 0) {
-      sb.append(" PARTITIONED BY (");
-      for (int i = 0; i < pcolumns.size(); i++) {
-        Column c = pcolumns.get(i);
-        sb.append(c.getName()).append(" ")
-            .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
-        if (c.getComment() != null) {
-          sb.append(" COMMENT '").append(c.getComment()).append("'");
-        }
-        if (i + 1 < pcolumns.size()) {
-          sb.append(',');
-        }
-      }
-      sb.append(')');
-    }
-
-    sb.append(';');
-
     // new SQLTask
     String taskName = "SQLCreateTableTask";
     SQLTask task = new SQLTask();
     task.setName(taskName);
-    task.setQuery(sb.toString());
+    task.setQuery(
+        getSQLString(projectName, tableName, schema, comment, ifNotExists, shardNum, hubLifecycle));
+    Instances instances = new Instances(odps);
+    Instance instance = instances.create(task);
+
+    instance.waitForSuccess();
+  }
+
+  /**
+   * 创建表
+   *
+   * @param projectName
+   *     目标表所在{@link Project}名称
+   * @param tableName
+   *     所要创建的{@link Table}名称
+   * @param schema
+   *     表结构 {@link TableSchema}
+   * @param comment
+   *     表注释, 其中不能带有单引号
+   * @param ifNotExists
+   */
+  public void create(String projectName, String tableName, TableSchema schema, String comment,
+                     boolean ifNotExists)
+      throws OdpsException {
+    // new SQLTask
+    String taskName = "SQLCreateTableTask";
+    SQLTask task = new SQLTask();
+    task.setName(taskName);
+    task.setQuery(getSQLString(projectName, tableName, schema, comment, ifNotExists, null, null));
     Instances instances = new Instances(odps);
     Instance instance = instances.create(task);
 
@@ -419,5 +426,68 @@ public class Tables implements Iterable<Table> {
       throw new RuntimeException("No default project specified.");
     }
     return project;
+  }
+
+  private String getSQLString(
+      String projectName, String tableName, TableSchema schema,
+      String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle) {
+    if (projectName == null || tableName == null || schema == null) {
+      throw new IllegalArgumentException();
+    }
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("CREATE TABLE ");
+    if (ifNotExists) {
+      sb.append(" IF NOT EXISTS ");
+    }
+
+    sb.append(projectName).append(".`").append(tableName).append("` (");
+
+    List<Column> columns = schema.getColumns();
+    for (int i = 0; i < columns.size(); i++) {
+      Column c = columns.get(i);
+      sb.append("`").append(c.getName()).append("` ")
+          .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
+      if (c.getComment() != null) {
+        sb.append(" COMMENT '").append(c.getComment()).append("'");
+      }
+      if (i + 1 < columns.size()) {
+        sb.append(',');
+      }
+    }
+
+    sb.append(')');
+
+    if (comment != null) {
+      sb.append(" COMMENT '" + comment + "' ");
+    }
+
+    List<Column> pcolumns = schema.getPartitionColumns();
+    if (pcolumns.size() > 0) {
+      sb.append(" PARTITIONED BY (");
+      for (int i = 0; i < pcolumns.size(); i++) {
+        Column c = pcolumns.get(i);
+        sb.append(c.getName()).append(" ")
+            .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
+        if (c.getComment() != null) {
+          sb.append(" COMMENT '").append(c.getComment()).append("'");
+        }
+        if (i + 1 < pcolumns.size()) {
+          sb.append(',');
+        }
+      }
+      sb.append(')');
+    }
+
+    if (null != shardNum) {
+      sb.append(" INTO " + String.valueOf(shardNum) + " SHARDS");
+      if (null != hubLifecycle) {
+        sb.append(" HUBLIFECYCLE " + String.valueOf(hubLifecycle));
+      }
+    }
+
+    sb.append(';');
+
+    return sb.toString();
   }
 }

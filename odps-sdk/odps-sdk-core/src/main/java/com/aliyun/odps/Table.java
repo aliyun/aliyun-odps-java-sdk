@@ -46,6 +46,7 @@ import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Table表示ODPS中的表
@@ -78,6 +79,9 @@ public class Table extends LazyLoad {
 
     @XmlElement(name = "Owner")
     String owner;
+
+    @XmlElement(name = "TableLabel")
+    String tableLabel;
 
     @XmlElement(name = "CreationTime")
     @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
@@ -168,6 +172,86 @@ public class Table extends LazyLoad {
       lazyLoad();
     }
     return model.createdTime;
+  }
+
+  public String getTableLabel() {
+    if (model.tableLabel == null) {
+      lazyLoad();
+    }
+    return model.tableLabel;
+  }
+
+  /**
+   * 获取最高的label级别
+   * Label的定义分两部分：
+   * 1. 业务分类：C，S，B
+   * 2. 数据等级：1，2，3，4
+   *
+   * 二者是正交关系，即C1,C2,C3,C4,S1,S2,S3,S4,B1,B2,B3,B4。
+   *
+   * MaxLabel的语意：
+   * 1. MaxLabel=max(TableLabel, ColumnLabel), max(...)函数的语意由Label中的数据等级决定：4>3>2>1
+   * 2. MaxLabel显示：
+   * 当最高等级Label只出现一次时，MaxLabel=业务分类+数据等级，例如：B4, C3，S2
+   * 当最高等级Labe出现多次，但业务分类也唯一，MaxLabel=业务分类+数据等级，例如：B4, C3，S2
+   * 当最高等级Labe出现多次，且业务不唯一，MaxLabel=L+数据等级，例如：L4， L3
+   *
+   * @return 表示最高label，如果没有任何label的设置，返回空字符串
+   */
+  public String getMaxLabel() {
+    List<String> labels = new ArrayList<String>();
+
+    labels.add(getTableLabel());
+    for (Column column : tableSchema.getColumns()) {
+      labels.add(column.getCategoryLabel());
+    }
+    return calculateMaxLabel(labels);
+  }
+
+  static String calculateMaxLabel(List<String> labels) {
+    int maxLevel = 0;
+    char category = '-';
+
+    for (String label : labels) {
+      if (!StringUtils.isNullOrEmpty(label)) {
+        char num = label.charAt(label.length() - 1);
+        if (Character.isDigit(num) && num - '0' >= maxLevel) {
+          if (num - '0' > maxLevel) {
+            maxLevel = num - '0';
+            category = '-';
+          }
+
+          // label is only one num
+          if (label.length() == 1) {
+            category = 'L';
+            continue;
+          }
+
+          // handle one or more letter before the level number
+          for (int i = label.length() - 2; i >= 0; i--) {
+            char c = label.charAt(i);
+            if (Character.isLetter(c)) {
+              c = Character.toUpperCase(c);
+              if (category == '-') {
+                category = c;
+              } else if (category != c) {
+                category = 'L';
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (category == '-' && maxLevel == 0) {
+      return "";
+    }
+
+    if (category == '-') {
+      category = 'L';
+    }
+
+    return category + "" + maxLevel;
   }
 
   /**
@@ -440,6 +524,15 @@ public class Table extends LazyLoad {
         }
       }
 
+      node = tree.get("tableLabel");
+      if (node != null && !node.isNull()) {
+        model.tableLabel = node.asText();
+        // Service will return 0 if nothing set
+        if (model.tableLabel.equals("0")) {
+          model.tableLabel = "";
+        }
+      }
+
       JsonNode columnsNode = tree.get("columns");
       if (columnsNode != null && !columnsNode.isNull() && columnsNode.isArray()) {
         for (JsonNode n : columnsNode) {
@@ -575,32 +668,9 @@ public class Table extends LazyLoad {
    *     创建Shard的个数
    */
   public void createShards(long shardCount) throws OdpsException {
-    createShards(shardCount, false, -1L);
-  }
-
-  /**
-   * 在HubTable上创建Shards,只能在HubTable上创建Shard,并且当前一个HubTable只能创建一次Shard,否则抛出OdpsException
-   *
-   * @param shardCount
-   *     创建Shard的个数
-   * @param enableHubTable
-   *     是否是HubTable
-   * @param hubLifeCycle
-   *     Hub表的LifeCycle
-   * @throws OdpsException
-   */
-  public void createShards(long shardCount, boolean enableHubTable, long hubLifeCycle)
-      throws OdpsException {
     StringBuilder sb = new StringBuilder();
     sb.append("ALTER TABLE ").append(getProject()).append(".").append(getName());
-
-    if (enableHubTable) {
-      sb.append(String.format(" ENABLE HUBTABLE WITH %d SHARDS HUBLIFECYCLE %d;", shardCount,
-                              hubLifeCycle));
-    } else {
-      sb.append(String.format(" INTO %d SHARDS;", shardCount));
-    }
-
+    sb.append(String.format(" INTO %d SHARDS;", shardCount));
     String taskName = "SQLCreateShardsTask";
     runSQL(taskName, sb.toString());
   }
@@ -608,7 +678,7 @@ public class Table extends LazyLoad {
   /**
    * 获取分区迭代器
    *
-   * @return {@link Partiion} 分区迭代器
+   * @return {@link Partition} 分区迭代器
    */
   public Iterator<Partition> getPartitionIterator() {
     return getPartitionIterator(null);
@@ -716,6 +786,19 @@ public class Table extends LazyLoad {
     sb.append("TRUNCATE TABLE ").append(getProject()).append(".").append(getName()).append(";");
     String taskName = "SQLTruncateTask";
     runSQL(taskName, sb.toString());
+  }
+
+  /**
+   * 判断是否  Partition 表
+   *
+   * @return 是否为 Partition 表
+   * @throws OdpsException
+   */
+  public boolean isPartitioned() throws OdpsException {
+    if (isVirtualView()) {
+      return false;
+    }
+    return getSchema().getPartitionColumns().size() > 0;
   }
 
   private void runSQL(String taskName, String query) throws OdpsException {

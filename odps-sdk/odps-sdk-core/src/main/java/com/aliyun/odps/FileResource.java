@@ -39,7 +39,7 @@ public class FileResource extends Resource {
    *
    * @return 资源的MD5值
    */
-  String getContentMd5() {
+  public String getContentMd5() {
     if (model.contentMD5 == null && client != null) {
       lazyLoad();
     }

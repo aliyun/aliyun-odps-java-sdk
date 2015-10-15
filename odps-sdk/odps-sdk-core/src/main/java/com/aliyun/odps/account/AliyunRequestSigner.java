@@ -31,7 +31,7 @@ import com.aliyun.odps.commons.transport.Request;
 /**
  * ODPS请求签名工具
  */
-class AliyunRequestSigner implements RequestSigner {
+public class AliyunRequestSigner implements RequestSigner {
 
   private static final Logger log = Logger.getLogger(AliyunRequestSigner.class
                                                          .getName());
@@ -52,6 +52,10 @@ class AliyunRequestSigner implements RequestSigner {
 
   @Override
   public void sign(String resource, Request req) {
+    req.getHeaders().put("Authorization", getSignature(resource, req));
+  }
+
+  public String getSignature(String resource, Request req) {
     try {
       resource = URLDecoder.decode(resource, "UTF-8");
     } catch (UnsupportedEncodingException e) {
@@ -67,7 +71,8 @@ class AliyunRequestSigner implements RequestSigner {
                                                     accessKey.getBytes());
 
     String signature = Base64.encodeBase64String(crypto).trim();
-    req.getHeaders().put("Authorization", "ODPS " + accessId + ":" + signature);
+
+    return "ODPS " + accessId + ":" + signature;
   }
 
 
