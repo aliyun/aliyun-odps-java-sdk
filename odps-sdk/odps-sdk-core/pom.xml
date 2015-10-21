@@ -39,9 +39,9 @@
             <version>2.0</version>
         </dependency>
         <dependency>
-            <groupId>com.alibaba.external</groupId>
-            <artifactId>bouncycastle.provider</artifactId>
-            <version>1.38-jdk15</version>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+            <version>1.52</version>
         </dependency>
         <dependency>
             <groupId>org.xerial.snappy</groupId>
@@ -111,4 +111,3 @@
         </plugins>
     </reporting>
 </project>
-
