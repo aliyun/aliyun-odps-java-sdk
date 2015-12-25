@@ -19,9 +19,7 @@
 
 package com.aliyun.odps;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -157,6 +155,11 @@ public class ResourceTest extends TestBase {
     FileResource rm = new FileResource();
     rm.setName("zhemin_res.file");
     odps.resources().update(rm, new FileInputStream(new File(filename)));
+    Resource r = odps.resources().get("zhemin_res.file");
+    assertEquals("type must be file", r.getType(), Type.FILE);
+    assertEquals("zhemin_res.file", r.getName());
+    assertEquals(Long.valueOf(new File(filename).length()), Long.valueOf(r.getSize()));
+    assertNotNull(r.getLastUpdator());
   }
 
   private void deleteResourceFile() throws OdpsException {
@@ -205,6 +208,12 @@ public class ResourceTest extends TestBase {
     JarResource rm = new JarResource();
     rm.setName("zhemin_res.jar");
     odps.resources().update(rm, new FileInputStream(new File(filename)));
+
+    Resource r = odps.resources().get("zhemin_res.jar");
+    assertEquals(r.getType(), Type.JAR);
+    assertEquals("zhemin_res.jar", r.getName());
+    assertNotNull(r.getSize());
+    assertNotNull(r.getLastUpdator());
   }
 
   private void updateResourcePy() throws FileNotFoundException, OdpsException {
@@ -213,6 +222,12 @@ public class ResourceTest extends TestBase {
     PyResource rm = new PyResource();
     rm.setName("zhemin_res.py");
     odps.resources().update(rm, new FileInputStream(new File(filename)));
+
+    Resource r = odps.resources().get("zhemin_res.py");
+    assertEquals(r.getType(), Type.PY);
+    assertEquals("zhemin_res.py", r.getName());
+    assertNotNull(r.getSize());
+    assertNotNull(r.getLastUpdator());
   }
 
   private void updateResourceArchive() throws FileNotFoundException, OdpsException {
@@ -221,6 +236,12 @@ public class ResourceTest extends TestBase {
     ArchiveResource rm = new ArchiveResource();
     rm.setName("zhemin_res.tar.gz");
     odps.resources().update(rm, new FileInputStream(new File(filename)));
+
+    Resource r = odps.resources().get("zhemin_res.tar.gz");
+    assertEquals(r.getType(), Type.ARCHIVE);
+    assertEquals("zhemin_res.tar.gz", r.getName());
+    assertNotNull(r.getSize());
+    assertNotNull(r.getLastUpdator());
   }
 
   private void deleteResourceJar() throws OdpsException {
@@ -252,6 +273,12 @@ public class ResourceTest extends TestBase {
     TableResource rm = new TableResource(TABLE_NAME, odps.getDefaultProject());
     rm.setName("zhemin_res_src");
     odps.resources().update(rm);
+
+    Resource r = odps.resources().get("zhemin_res_src");
+    assertEquals(r.getType(), Type.TABLE);
+    assertEquals("zhemin_res_src", r.getName());
+    assertNull(r.getSize());
+    assertNotNull(r.getLastUpdator());
   }
 
   private void deleteResourceTable() throws OdpsException {

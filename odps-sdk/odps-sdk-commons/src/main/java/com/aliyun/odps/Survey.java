@@ -17,15 +17,11 @@
  * under the License.
  */
 
-package com.aliyun.odps.tunnel;
+package com.aliyun.odps;
 
 /**
- * 该异常在Schema的中列类型不被支持时抛出
+ * Created by nizheming on 15/11/11.
  */
-@SuppressWarnings("serial")
-public class InvalidColumnTypeException extends TunnelException {
+public @interface Survey {
 
-  public InvalidColumnTypeException(String message) {
-    super(message);
-  }
 }

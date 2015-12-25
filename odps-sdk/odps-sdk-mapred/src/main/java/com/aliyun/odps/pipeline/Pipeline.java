@@ -102,6 +102,9 @@ public class Pipeline {
     String type;
     TransformNode prevNode;
     TransformNode nextNode;
+    int taskNum = -1;
+    int taskMemoryMB = -1;
+    int jvmMemoryMB = -1;
 
     /**
      * 获取Pipeline节点的类型
@@ -353,6 +356,48 @@ public class Pipeline {
      */
     @SuppressWarnings("rawtypes")
     public abstract Class getTransformClass();
+
+    /**
+     * 设置当前节点任务数
+     *
+     * @param n
+     *     任务数
+     */
+    public void setNumTasks(int n) {
+      this.taskNum = n;
+    }
+    
+    public int getNumTasks() {
+      return this.taskNum;
+    }
+    
+    /**
+     * 设置当前节点的内存资源大小，单位：MB，默认值：2048.
+     *
+     * @param mem
+     *     内存大小
+     */
+    public void setMemoryForTask(int mem) {
+      this.taskMemoryMB = mem;
+    }
+    
+    public int getMemoryForTask() {
+      return this.taskMemoryMB;
+    }
+    
+    /**
+     * 设置当前节点的JVM虚拟机的内存资源大小，单位：MB，默认值：1024.
+     *
+     * @param mem
+     *     内存大小
+     */
+    public void setMemoryForJVM(int mem) {
+      this.jvmMemoryMB = mem;
+    }
+    
+    public int getMemoryForJVM() {
+      return this.jvmMemoryMB;
+    }
   }
 
   /**
@@ -670,6 +715,51 @@ public class Pipeline {
 
       return this;
     }
+    
+    /**
+     * 设置当前节点任务数
+     *
+     * @param n
+     *     任务数
+     * @return Builder对象
+     */
+    public Builder setNumTasks(int n) {
+      if (lastNode != null) {
+        lastNode.setNumTasks(n);
+      }
+
+      return this;
+    }
+    
+    /**
+     * 设置当前节点的内存资源大小，单位：MB，默认值：2048.
+     *
+     * @param mem
+     *     内存大小
+     * @return Builder对象
+     */
+    public Builder setMemoryForTask(int mem) {
+      if (lastNode != null) {
+        lastNode.setMemoryForTask(mem);
+      }
+
+      return this;
+    }
+    
+    /**
+     * 设置当前节点JVM虚拟机的内存资源大小，单位：MB，默认值：1024.
+     *
+     * @param mem
+     *     内存大小
+     * @return Builder对象
+     */
+    public Builder setMemoryForJVM(int mem) {
+      if (lastNode != null) {
+        lastNode.setMemoryForJVM(mem);
+      }
+
+      return this;
+    }
 
     /**
      * 设置当前节点输出的分组列
@@ -764,6 +854,30 @@ public class Pipeline {
       if (node.getOutputGroupingColumns() != null) {
         conf.set(PIPELINE + i + OUTPUT_GROUP_COLUMNS,
                  StringUtils.join(node.getOutputGroupingColumns(), ","));
+      }
+      
+      if (node.getNumTasks() >= 0) {
+        if (i == 0) {
+          conf.setInt("odps.stage.mapper.num", node.getNumTasks());
+        } else {
+          conf.setInt("odps.stage.reducer." + i + ".num", node.getNumTasks());
+        }
+      }
+
+      if (node.getMemoryForTask() >= 0) {
+        if (i == 0) {
+          conf.setInt("odps.stage.mapper.mem", node.getMemoryForTask());
+        } else {
+          conf.setInt("odps.stage.reducer." + i + ".mem", node.getMemoryForTask());
+        }
+      }
+
+      if (node.getMemoryForJVM() >= 0) {
+        if (i == 0) {
+          conf.setInt("odps.stage.mapper.jvm.mem", node.getMemoryForJVM());
+        } else {
+          conf.setInt("odps.stage.reducer." + i + ".jvm.mem", node.getMemoryForJVM());
+        }
       }
     }
 
@@ -867,6 +981,14 @@ public class Pipeline {
       if (groupCols != null && !groupCols.isEmpty()) {
         builder.setOutputGroupingColumns(groupCols.split(","));
       }
+
+      int numTasks = 1;
+      if (i == 0) {
+        numTasks = conf.getInt("odps.stage.mapper.num", 1);
+      } else {
+        numTasks = conf.getInt("odps.stage.reducer." + i + ".num", conf.getInt("odps.stage.reducer.num", 1));
+      }
+      builder.setNumTasks(numTasks);
     }
     return builder.createPipeline();
   }

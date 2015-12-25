@@ -80,11 +80,7 @@ public class SecurityManagerTest extends TestBase {
   @Test
   public void testCheckPermission() throws OdpsException {
     CheckPermissionResult r;
-
     r = sm.checkPermission(ObjectType.Project, "", ActionType.List);
-    Assert.assertEquals(CheckPermissionResult.Allow, r);
-
-    r = sm.checkPermission(ObjectType.Table, "testTable", ActionType.List);
     Assert.assertEquals(CheckPermissionResult.Allow, r);
   }
 }

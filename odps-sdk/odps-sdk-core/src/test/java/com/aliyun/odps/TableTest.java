@@ -291,6 +291,12 @@ public class TableTest extends TestBase {
   }
 
   @Test
+  public void testGetID() throws OdpsException {
+    Table a = odps.tables().get(TABLE_NAME);
+    assertNotNull(a.getTableID());
+  }
+
+  @Test
   public void testGetJsonSchema() throws OdpsException {
     Table a = odps.tables().get(TABLE_NAME);
     a.getJsonSchema();
@@ -350,7 +356,7 @@ public class TableTest extends TestBase {
   @Test
   public void testMaxLabel() {
     assertEquals("", Table.calculateMaxLabel(Arrays.asList(new String[]{})));
-    assertEquals("", Table.calculateMaxLabel(Arrays.asList(new String[]{null,null,null})));
+    assertEquals("", Table.calculateMaxLabel(Arrays.asList(new String[]{null, null, null})));
     assertEquals("B2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", ""})));
     assertEquals("L2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", "2"})));
     assertEquals("B2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", "B1"})));

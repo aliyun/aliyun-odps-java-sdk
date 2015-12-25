@@ -378,7 +378,31 @@ public class SessionState {
   }
 
   public void setCommandText(String commandText) {
-    this.commandText = commandText;
+    this.commandText = stripNonValidXMLCharacters(commandText);
   }
 
+  /**
+   * This method ensures that the output String has only valid XML unicode characters as specified
+   * by the XML 1.0 standard. For reference, please see <a
+   * href="http://www.w3.org/TR/2000/REC-xml-20001006#NT-Char">the standard</a>. This method will
+   * return an empty String if the input is null or empty.
+   * 
+   * @param in The String whose non-valid characters we want to remove.
+   * @return The in String, stripped of non-valid characters.
+   */
+  private String stripNonValidXMLCharacters(String in) {
+    StringBuilder out = new StringBuilder();
+    char current;
+    if (in == null || ("".equals(in)))
+      return "";
+    for (int i = 0; i < in.length(); i++) {
+      current = in.charAt(i);
+      if ((current == 0x9) || (current == 0xA) || (current == 0xD)
+          || ((current >= 0x20) && (current <= 0xD7FF))
+          || ((current >= 0xE000) && (current <= 0xFFFD))
+          || ((current >= 0x10000) && (current <= 0x10FFFF)))
+        out.append(current);
+    }
+    return out.toString();
+  }
 }

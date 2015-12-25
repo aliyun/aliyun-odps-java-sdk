@@ -128,4 +128,18 @@ public class LocalExecutionContext extends ExecutionContext {
     return null;
   }
 
+  //TODO
+  @Override
+  public Iterable<BufferedInputStream> readCacheArchiveAsStream(String resourceName)
+      throws IOException {
+    return null;
+  }
+
+  //TODO
+  @Override
+  public Iterable<BufferedInputStream> readCacheArchiveAsStream(String resourceName,
+      String relativePath) throws IOException {
+    return null;
+  }
+
 }

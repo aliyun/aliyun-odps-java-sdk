@@ -88,11 +88,16 @@ public class DownloadUtils {
     // download data file
     if (tableMeta.getPartitions() != null && tableMeta.getPartitions().length > 0) {
       LinkedHashMap<String, String> parts = tableInfo.getPartSpec();
+      int downloadedPartition = 0;
       for (Partition partition : table.getPartitions()) {
         PartitionSpec spec = partition.getPartitionSpec();
         if (matches(spec, parts)) {
           downloadTable(odps, tableMeta, spec, limitDownloadRecordCount, inputColumnSeperator);
+          downloadedPartition++;
         }
+      }
+      if (downloadedPartition == 0) {
+        throw new RuntimeException("No partition found for " + tableInfo.toString());
       }
     } else {
       if (tableInfo.getPartSpec().size() > 0) {

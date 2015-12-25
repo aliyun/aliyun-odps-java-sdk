@@ -18,7 +18,7 @@
  */
 
 package com.aliyun.odps.tunnel.io;
-
+@Deprecated
 public class WritePackResult {
 
   private String packId;

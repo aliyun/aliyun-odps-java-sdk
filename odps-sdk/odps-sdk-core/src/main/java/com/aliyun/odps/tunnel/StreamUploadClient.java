@@ -1,5 +1,12 @@
 package com.aliyun.odps.tunnel;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
@@ -7,17 +14,11 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.io.StreamUploadWriter;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
 
 /**
  * Created by yinyue on 15-6-8.
  */
+@Deprecated
 public class StreamUploadClient {
 
   private String projectName;
@@ -74,7 +75,7 @@ public class StreamUploadClient {
   }
 
   /**
-   * 打开StreamUploadWriter，Hub表需要有shard处于loaded状态，非Hub表则不用关心
+   * 打开StreamUploadWriter
    */
   public StreamUploadWriter openStreamUploadWriter()
     throws TunnelException, IOException {
@@ -82,7 +83,7 @@ public class StreamUploadClient {
     HashMap<String, String> headers = new HashMap<String, String>(this.headers);
     headers.put(HttpHeaders.CONTENT_TYPE, "application/octet-stream");
     headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
-    return new StreamUploadWriter(tunnelServiceClient, getStreamResource(), params, headers);
+    return new StreamUploadWriter(tunnelServiceClient, getResource(), params, headers, schema);
   }
 
   public TableSchema getStreamSchema() { return this.schema; }
@@ -107,10 +108,6 @@ public class StreamUploadClient {
 
   private String getResource() {
     return conf.getResource(projectName, tableName);
-  }
-
-  private String getStreamResource() {
-    return conf.getStreamUploadResource(projectName, tableName);
   }
 }
 

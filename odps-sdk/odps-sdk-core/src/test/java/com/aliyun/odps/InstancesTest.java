@@ -159,5 +159,5 @@ public class InstancesTest extends TestBase {
     i.waitForSuccess();
     i.getTaskDetailJson("testsqlcase");
   }
-  
+
 }

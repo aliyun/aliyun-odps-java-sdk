@@ -31,6 +31,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.commons.proto.ProtobufRecordStreamReader;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
@@ -42,7 +43,7 @@ import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.proto.XstreamPack.XStreamPack;
 
-
+@Deprecated
 public class StreamReader {
 
   private RestClient tunnelServiceClient;

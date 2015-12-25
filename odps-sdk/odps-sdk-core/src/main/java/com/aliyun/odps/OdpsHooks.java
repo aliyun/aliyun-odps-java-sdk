@@ -66,6 +66,18 @@ public class OdpsHooks {
   }
 
   /**
+   * 调用 Hook 的 ready
+   * @param instance
+   * @param odps
+   * @throws OdpsException
+   */
+  public void onInstanceCreated(Instance instance, Odps odps) throws OdpsException {
+    for (OdpsHook hook : runningHooks) {
+      hook.onInstanceCreated(instance, odps);
+    }
+  }
+
+  /**
    * 调用 Hook 的 after
    *
    * @param instance

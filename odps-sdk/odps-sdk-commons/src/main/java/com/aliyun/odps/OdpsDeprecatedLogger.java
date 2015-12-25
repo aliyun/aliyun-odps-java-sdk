@@ -34,16 +34,47 @@ public class OdpsDeprecatedLogger {
 
   @Around("@annotation(Deprecated)")
   public Object around(ProceedingJoinPoint point) throws Throwable {
-    String methodSignature = point.getSignature().toString();
-    Long calledTimes = getDeprecatedCalls().get(methodSignature);
-    if (calledTimes == null) {
-      calledTimes = 1L;
-    } else {
-      calledTimes += 1L;
+    try {
+      String methodSignature = point.getSignature().toString();
+      Long calledTimes = getDeprecatedCalls().get(methodSignature);
+      if (calledTimes == null) {
+        calledTimes = 1L;
+      } else {
+        calledTimes += 1L;
+      }
+      getDeprecatedCalls().put(methodSignature, calledTimes);
+    } catch (Throwable e) {
+      //do nothing.
     }
-    getDeprecatedCalls().put(methodSignature, calledTimes);
     return point.proceed();
   }
+
+  @Around("@annotation(Survey)")
+  public Object aroundOdpsImpl(ProceedingJoinPoint point) throws Throwable {
+    //Thread Class
+    //Deprecated Logger
+    //Odps Implemention methods
+    //User Code
+
+    // if usercode is not odps calling, log it.
+    try {
+      String callerClass = Thread.currentThread().getStackTrace()[4].getClassName();
+      if (!callerClass.startsWith("com.aliyun.odps.")) {
+        String methodSignature = point.getSignature().toString();
+        Long calledTimes = getDeprecatedCalls().get(methodSignature);
+        if (calledTimes == null) {
+          calledTimes = 1L;
+        } else {
+          calledTimes += 1L;
+        }
+        getDeprecatedCalls().put(methodSignature, calledTimes);
+      }
+    } catch (Throwable e) {
+      // do nothing
+    }
+    return point.proceed();
+  }
+
 
   public static ConcurrentHashMap<String, Long> getDeprecatedCalls() {
     return deprecatedCalls;

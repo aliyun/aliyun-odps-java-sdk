@@ -21,7 +21,7 @@ package com.aliyun.odps.tunnel.io;
 
 import java.util.List;
 import com.aliyun.odps.data.Record;
-
+@Deprecated
 public class ReadPackResult {
     private String currPackId;
     private String nextPackId;

@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+  <property>
+    <name>fs.contract.test.fs.odps</name>
+    <value>odps://${project_name}/</value>
+  </property>
+
+  <property>
+    <name>fs.odps.impl.disable.cache</name>
+    <value>true</value>
+  </property>
+
+  <property>
+    <name>odps.service.endpoint</name>
+    <value>${service_endpoint}</value>
+  </property>
+
+  <property>
+    <name>odps.tunnel.endpoint</name>
+    <value>${tunnel_endpoint}</value>
+  </property>
+
+  <property>
+    <name>odps.access.id</name>
+    <value>${access_id}</value>
+  </property>
+
+  <property>
+    <name>odps.access.key</name>
+    <value>${access_key}</value>
+  </property>
+
+  <property>
+    <name>odps.home.volume</name>
+    <value>user</value>
+  </property>
+
+  <property>
+    <name>odps.volume.block.size</name>
+    <value>67108864</value>
+  </property>
+
+  <property>
+    <name>odps.volume.block.buffer.dir</name>
+    <value>/tmp/volumefs/</value>
+  </property>
+
+  <property>
+    <name>odps.volume.transfer.compress.enabled</name>
+    <value>false</value>
+  </property>
+
+  <property>
+    <name>odps.volume.transfer.compress.algorithm</name>
+    <value>ODPS_ZLIB</value>
+  </property>
+
+  <property>
+    <name>odps.volume.seek.optimization.enabled</name>
+    <value>false</value>
+  </property>
+  
+  <property>
+  	<name>dfs.replication</name>
+  	<value>3</value>
+  </property>
+</configuration>

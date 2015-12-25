@@ -107,7 +107,15 @@ public class Resource extends LazyLoad {
     @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
     Date lastModifiedTime;
 
+    @XmlElement(name = "LastUpdator")
+    String lastUpdator;
+
+    @XmlElement(name = "ResourceSize")
+    Long size;
+
+    @XmlElement(name = "TableName")
     String sourceTableName;
+
     String contentMD5;
 
     boolean isTempResource;
@@ -288,6 +296,31 @@ public class Resource extends LazyLoad {
   }
 
   /**
+   * 获得资源最后更新者
+   *
+   * @return 资源最后更新者
+   */
+  public String getLastUpdator() {
+    if (model.lastUpdator == null && client != null) {
+      lazyLoad();
+    }
+    return model.lastUpdator;
+  }
+
+  /**
+   * 获得资源大小
+   *
+   * 注意: 表 和 volumn 返回 null
+   * @return 资源大小
+   */
+  public Long getSize() {
+    if (model.size == null && client != null) {
+      lazyLoad();
+    }
+    return model.size;
+  }
+
+  /**
    * 获取资源所在{@link Project}名称
    *
    * @return Project名称
@@ -304,6 +337,14 @@ public class Resource extends LazyLoad {
     model.owner = headers.get(ResourceHeaders.X_ODPS_OWNER);
     model.type = headers.get(ResourceHeaders.X_ODPS_RESOURCE_TYPE);
     model.comment = headers.get(ResourceHeaders.X_ODPS_COMMENT);
+    model.lastUpdator = headers.get(ResourceHeaders.X_ODPS_RESOURCE_LAST_UPDATOR);
+
+    String sizeStr = headers.get(ResourceHeaders.X_ODPS_RESOURCE_SIZE);
+    try {
+      model.size = (sizeStr == null ? null : Long.parseLong(sizeStr));
+    } catch (NumberFormatException e) {
+      throw new OdpsException("Invalid resource size format" + sizeStr, e);
+    }
 
     try {
       model.createdTime = DateUtils.parseRfc822Date(headers

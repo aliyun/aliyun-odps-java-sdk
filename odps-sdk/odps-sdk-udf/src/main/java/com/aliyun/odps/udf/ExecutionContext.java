@@ -230,6 +230,29 @@ public abstract class ExecutionContext {
   public abstract Iterable<Object[]> readResourceTable(String resourceName)
       throws IOException;
 
+  /**
+   * 读取压缩档案类型资源，返回 BufferedInputStream 的迭代器.
+   *
+   * @param resourceName 资源名称
+   * @return BufferedInputStream的迭代器
+   * @throws IOException 资源未声明、资源类型不匹配以及其他读取错误抛异常
+   */
+  public abstract Iterable<BufferedInputStream> readCacheArchiveAsStream(String resourceName)
+      throws IOException;
+
+  /**
+   * 读取压缩档案类型资源，返回 BufferedInputStream 的迭代器.
+   *
+   * @param resourceName
+   *        资源名称
+   * @param relativePath
+   *        读取资源的相对路径
+   * @return BufferedInputStream的迭代器
+   * @throws IOException 资源未声明、资源类型不匹配以及其他读取错误抛异常
+   */
+  public abstract Iterable<BufferedInputStream> readCacheArchiveAsStream(String resourceName,
+      String relativePath) throws IOException;
+
   public abstract VolumeInfo getInputVolumeInfo() throws IOException;
 
   public abstract VolumeInfo getInputVolumeInfo(String label) throws IOException;

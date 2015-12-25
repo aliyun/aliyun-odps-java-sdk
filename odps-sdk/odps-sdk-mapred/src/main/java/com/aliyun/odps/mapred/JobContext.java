@@ -49,6 +49,8 @@ public interface JobContext {
    *
    * 如果通过{@link JobConf#setNumReduceTasks(int)}设定过{@link Reducer}数，则返回值与其相同；
    * 否则，为Map Task数的1/4.
+   * 对于pipeline模式的job，返回下一级节点的reducer数目，如果为最后一个reduce节点，则返回该节点的数目，
+   * 如果只有map节点，则返回0
    *
    * @return 实际的{@link Reducer} 数.
    * @see JobConf#getNumReduceTasks()

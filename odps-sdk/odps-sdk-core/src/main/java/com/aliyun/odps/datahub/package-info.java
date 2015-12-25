@@ -17,11 +17,26 @@
  * under the License.
  */
 
-package com.aliyun.odps.tunnel.io;
+/**
+ * ODPS Datahub服务用于上传、下载数据到ODPS
+ *
+ * <p>
+ * Examples:
+ *
+ * <ul>
+ * <li>
+ * <code><pre>
+ * Account account = new AliyunAccount("accessId", "accessKey");
+ * Odps odps = new Odps(account);
+ * odps.setDefaultProject("my_project");
+ *
+ * DatahubClient client = new DatahubClient(odps);
+ * DatahubReader reader = client.openDatahubReader("shardId");
+ * DatahubWriter writer = client.openDatahubWriter("shardId");
+ * ....
+ * </pre></code>
+ * </li></ul>
+ * <p>
+ */
+package com.aliyun.odps.datahub;
 
-import java.io.IOException;
-
-@SuppressWarnings("serial")
-public class CorruptedStreamException extends IOException {
-
-}

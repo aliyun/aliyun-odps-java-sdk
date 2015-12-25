@@ -37,6 +37,7 @@ public class OdpsHooksTest extends TestBase {
 
   static boolean beforeDone = false;
   static boolean afterDone = false;
+  static boolean onInstanceCreatedDone = false;
 
   private static String TABLE_NAME = OdpsHooksTest.class.getSimpleName() +  "_test_test_hook";
 
@@ -52,6 +53,12 @@ public class OdpsHooksTest extends TestBase {
       assertEquals(task.getQuery(), "select count(*) from " + TABLE_NAME + ";");
       beforeMessage = true;
       beforeDone = true;
+    }
+
+    @Override
+    public void onInstanceCreated(Instance instance, Odps odps) throws OdpsException {
+      onInstanceCreatedDone = true;
+      assertTrue(odps.instances().exists(instance.getId()));
     }
 
     @Override
@@ -71,8 +78,9 @@ public class OdpsHooksTest extends TestBase {
     Instance i = SQLTask.run(odps, "select count(*) from " + TABLE_NAME + ";");
     i.waitForSuccess();
 
-    assertTrue(beforeDone == true);
-    assertTrue(afterDone == true);
+    assertTrue(beforeDone);
+    assertTrue(afterDone);
+    assertTrue(onInstanceCreatedDone);
   }
 
   @BeforeClass

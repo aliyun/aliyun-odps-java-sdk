@@ -17,14 +17,20 @@
  * under the License.
  */
 
-package com.aliyun.odps.tunnel.io;
+package com.aliyun.odps.commons.proto;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
+
+import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 
 import org.apache.commons.io.output.CountingOutputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
@@ -32,18 +38,19 @@ import org.xerial.snappy.SnappyFramedOutputStream;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.tunnel.io.Checksum;
+import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
-import com.aliyun.odps.tunnel.InvalidColumnTypeException;
 import com.google.protobuf.CodedOutputStream;
 
 /**
  * @author chao.liu
  */
-class ProtobufRecordStreamWriter implements RecordWriter {
+public class ProtobufRecordStreamWriter implements RecordWriter {
 
   private CountingOutputStream bou;
   private Column[] columns;
@@ -55,7 +62,7 @@ class ProtobufRecordStreamWriter implements RecordWriter {
   private Deflater def;
 
   public ProtobufRecordStreamWriter(TableSchema schema, OutputStream out) throws IOException {
-    this(schema, out, null);
+    this(schema, out, new CompressOption());
   }
 
   public ProtobufRecordStreamWriter(TableSchema schema, OutputStream out, CompressOption option)
@@ -82,7 +89,8 @@ class ProtobufRecordStreamWriter implements RecordWriter {
     this.out = CodedOutputStream.newInstance(bou);
   }
 
-  static void writeRawBytes(int fieldNumber, byte[] value, CodedOutputStream out) throws IOException {
+  static void writeRawBytes(int fieldNumber, byte[] value, CodedOutputStream out)
+      throws IOException {
     out.writeTag(fieldNumber, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
     out.writeRawVarint32(value.length);
     out.writeRawBytes(value);
@@ -155,13 +163,31 @@ class ProtobufRecordStreamWriter implements RecordWriter {
           writeRawBytes(pbIdx, bytes, out);
           break;
         }
+        case ARRAY: {
+          List<OdpsType> genericTypeList = columns[i].getGenericTypeList();
+          if ((genericTypeList == null) || (genericTypeList.isEmpty())) {
+            throw new IOException("Failed to get OdpsType inside Array of column index: " + i);
+          }
+          out.writeTag(pbIdx, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
+          writeArray((List) v, genericTypeList.get(0));
+          break;
+        }
+        case MAP: {
+          List<OdpsType> genericTypeList = columns[i].getGenericTypeList();
+          if ((genericTypeList == null) || (genericTypeList.isEmpty()) || (genericTypeList.size() < 2)) {
+            throw new IOException("Failed to get OdpsType inside Map of column index: " + i);
+          }
+          out.writeTag(pbIdx, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
+          writeMap((Map) v, genericTypeList.get(0), genericTypeList.get(1));
+          break;
+        }
         default:
-          throw new IOException(new InvalidColumnTypeException("Invalid data type: " + type));
+          throw new IOException("Invalid data type: " + type);
       }
     }
 
     int checksum = (int) crc.getValue();
-    out.writeUInt32(TunnelWireConstant.TUNNEL_END_RECORD, checksum);
+    out.writeUInt32(ProtoWireConstant.TUNNEL_END_RECORD, checksum);
 
     crc.reset();
     crccrc.update(checksum);
@@ -169,12 +195,92 @@ class ProtobufRecordStreamWriter implements RecordWriter {
     count++;
   }
 
+
+  private void writeArray(List v, OdpsType type) throws IOException {
+    out.writeInt32NoTag(v.size());
+    for (int i = 0; i < v.size(); i++) {
+      if (v.get(i) == null) {
+        out.writeBoolNoTag(true);
+      } else {
+        out.writeBoolNoTag(false);
+        writePrimitiveObject(v.get(i), type);
+      }
+    }
+  }
+
+  private void writeMap(Map v, OdpsType keyType, OdpsType valueType) throws IOException {
+    if ((keyType == OdpsType.BOOLEAN) || (keyType == OdpsType.DOUBLE)) {
+      throw new IOException(keyType + " is not supported as key in MAP");
+    }
+
+    if (valueType == OdpsType.BOOLEAN) {
+      throw new IOException(valueType + "is not supported as value in MAP");
+    }
+
+    List keyList = new ArrayList();
+    List valueList = new ArrayList();
+    Iterator iter = v.entrySet().iterator();
+    while (iter.hasNext()) {
+      Map.Entry entry = (Map.Entry) iter.next();
+
+      if (entry.getKey() == null) {
+        throw new IOException("SQLMap's key can't be null.");
+      }
+
+      keyList.add(entry.getKey());
+      valueList.add(entry.getValue());
+    }
+
+    writeArray(keyList, keyType);
+    writeArray(valueList, valueType);
+  }
+
+  private void writePrimitiveObject(Object v, OdpsType type) throws IOException {
+
+    switch (type) {
+      case STRING: {
+        byte[] bytes;
+        if (v instanceof String) {
+          String value = (String) v;
+          bytes = value.getBytes();
+        } else {
+          bytes = (byte[]) v;
+        }
+
+        out.writeRawVarint32(bytes.length);
+        out.writeRawBytes(bytes);
+        crc.update(bytes, 0, bytes.length);
+        break;
+      }
+      case BIGINT: {
+        long value = (Long) v;
+        out.writeSInt64NoTag(value);
+        crc.update(value);
+        break;
+      }
+      case DOUBLE: {
+        double value = (Double) v;
+        out.writeDoubleNoTag(value);
+        crc.update(value);
+        break;
+      }
+      case BOOLEAN: {
+        boolean value = (Boolean) v;
+        out.writeBoolNoTag(value);
+        crc.update(value);
+        break;
+      }
+      default:
+        throw new IOException("Not a primitive type in array. type :" + type);
+    }
+  }
+
   @Override
   public void close() throws IOException {
 
     try {
-      out.writeSInt64(TunnelWireConstant.TUNNEL_META_COUNT, count);
-      out.writeUInt32(TunnelWireConstant.TUNNEL_META_CHECKSUM, (int) crccrc.getValue());
+      out.writeSInt64(ProtoWireConstant.TUNNEL_META_COUNT, count);
+      out.writeUInt32(ProtoWireConstant.TUNNEL_META_CHECKSUM, (int) crccrc.getValue());
       out.flush();
       bou.close();
     } finally {
@@ -196,6 +302,7 @@ class ProtobufRecordStreamWriter implements RecordWriter {
     return bou.getByteCount();
   }
 
+  @Deprecated
   public void write(RecordPack pack) throws IOException {
     if (pack instanceof ProtobufRecordPack) {
       ProtobufRecordPack pbPack = (ProtobufRecordPack) pack;
@@ -222,7 +329,7 @@ class ProtobufRecordStreamWriter implements RecordWriter {
     return crccrc;
   }
 
-  void setCheckSum(Checksum checkSum) {
+  public void setCheckSum(Checksum checkSum) {
     crccrc = checkSum;
   }
 

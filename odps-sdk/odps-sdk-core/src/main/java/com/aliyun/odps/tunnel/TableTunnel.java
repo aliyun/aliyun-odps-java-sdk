@@ -32,6 +32,8 @@ import java.util.List;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
+import org.apache.commons.io.output.CountingOutputStream;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -43,12 +45,16 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import com.google.protobuf.CodedOutputStream;
 
 /**
  * Tunnel 是 ODPS 的数据通道，用户可以通过 Tunnel 向 ODPS 中上传或者下载数据。<br />
@@ -402,24 +408,30 @@ public class TableTunnel {
    * @return {@link com.aliyun.odps.tunnel.StreamClient}
    * @throws TunnelException
    */
+  @Deprecated
   public StreamClient createStreamClient(String projectName, String tableName)
       throws TunnelException {
     return new StreamClient(config, projectName, tableName);
   }
 
   /**
-   * 创建流式上传Client
+   * 创建流式上传Writer
    *
    * @param projectName
    *    Project名称
    * @param tableName
    *    Table 名称
-   * @return {@link com.aliyun.odps.tunnel.StreamUploadClient}
-   * @throws com.aliyun.odps.tunnel.TunnelException
+   * @return {@link com.aliyun.odps.tunnel.StreamUploadWriter}
+   * @throws com.aliyun.odps.tunnel.TunnelException, java.io.IOException
    */
-  public StreamUploadClient createStreamUploadClient(String projectName, String tableName)
-    throws TunnelException {
-    return new StreamUploadClient(config, projectName, tableName);
+  public StreamUploadWriter createStreamUploadWriter(String projectName, String tableName)
+      throws TunnelException, IOException {
+    RestClient tunnelServiceClient = config.newRestClient(projectName);
+    return new StreamUploadWriter(tunnelServiceClient, getResource(projectName, tableName));
+  }
+
+  private String getResource(String projectName, String tableName) {
+    return config.getResource(projectName, tableName);
   }
 
   /**
@@ -573,6 +585,65 @@ public class TableTunnel {
     }
 
     /**
+     * 打开http链接，写入pack数据，然后关闭链接，多次向同一个block写入时会覆盖之前数据
+     * @param blockId
+     *  块标识
+     *  @param pack
+     *  pack数据
+     * */
+    public void writeBlock(long blockId, RecordPack pack)
+        throws IOException {
+      Connection conn = null;
+      try {
+        if (pack instanceof ProtobufRecordPack) {
+          ProtobufRecordPack protoPack = (ProtobufRecordPack)pack;
+          conn = getConnection(blockId, protoPack.getCompressOption());
+          sendBlock(protoPack, conn);
+        } else {
+          RecordWriter writer = openRecordWriter(blockId);
+          RecordReader reader = pack.getRecordReader();
+          Record record;
+          while ((record = reader.read()) != null) {
+            writer.write(record);
+          }
+          writer.close();
+        }
+      } catch (IOException e) {
+        throw e;
+      } catch (TunnelException e) {
+        throw new IOException(e.getMessage(), e.getCause());
+      } catch (OdpsException e) {
+        throw new IOException(e.getMessage(), e.getCause());
+      } finally {
+        if (null != conn) {
+          conn.disconnect();
+        }
+      }
+    }
+
+    private void sendBlock(ProtobufRecordPack pack, Connection conn) throws IOException {
+      CountingOutputStream bou;
+      CodedOutputStream out;
+      if (null == conn) {
+        throw new IOException("Invalid connection");
+      }
+      bou = new CountingOutputStream(conn.getOutputStream());
+      out = CodedOutputStream.newInstance(bou);
+
+      pack.complete();
+      pack.getProtobufStream().writeTo(bou);
+      out.flush();
+      bou.close();
+
+      Response response = conn.getResponse();
+      if (!response.isOK()) {
+        TunnelException err = new TunnelException(conn.getInputStream());
+        err.setRequestId(response.getHeader("x-odps-request-id")); // XXX: hard code
+        throw new IOException(err);
+      }
+    }
+
+    /**
      * 打开{@link RecordWriter}用来写入数据
      *
      * <p>
@@ -612,6 +683,29 @@ public class TableTunnel {
     public RecordWriter openRecordWriter(long blockId, CompressOption compress)
         throws TunnelException,
                IOException {
+
+      TunnelRecordWriter writer = null;
+      Connection conn = null;
+      try {
+        conn = getConnection(blockId, compress);
+        writer = new TunnelRecordWriter(schema, conn, compress);
+
+      } catch (IOException e) {
+        if (conn != null) {
+          conn.disconnect();
+        }
+        throw new TunnelException(e.getMessage(), e.getCause());
+      } catch (TunnelException e) {
+        throw e;
+      } catch (OdpsException e) {
+        throw new TunnelException(e.getMessage(), e);
+      }
+
+      return writer;
+    }
+
+    private Connection getConnection(long blockId, CompressOption compress)
+        throws OdpsException, IOException {
       HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = new HashMap<String, String>();
 
@@ -644,26 +738,7 @@ public class TableTunnel {
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
-
-      TunnelRecordWriter writer = null;
-      Connection conn = null;
-      try {
-        conn = tunnelServiceClient.connect(getResource(), "PUT", params, headers);
-
-        writer = new TunnelRecordWriter(schema, conn, compress);
-
-      } catch (IOException e) {
-        if (conn != null) {
-          conn.disconnect();
-        }
-        throw new TunnelException(e.getMessage(), e.getCause());
-      } catch (TunnelException e) {
-        throw e;
-      } catch (OdpsException e) {
-        throw new TunnelException(e.getMessage(), e);
-      }
-
-      return writer;
+      return tunnelServiceClient.connect(getResource(), "PUT", params, headers);
     }
 
     private void reload() throws TunnelException {
@@ -832,6 +907,13 @@ public class TableTunnel {
       return new ArrayRecord(getSchema().getColumns().toArray(new Column[0]));
     }
 
+    public RecordPack newRecordPack() throws IOException {
+      return new ProtobufRecordPack(schema);
+    }
+
+    public RecordPack newRecordPack(CompressOption option) throws IOException {
+      return new ProtobufRecordPack(schema, new Checksum(), option);
+    }
     /**
      * 获取当前会话已经上传成功的数据块列表
      */

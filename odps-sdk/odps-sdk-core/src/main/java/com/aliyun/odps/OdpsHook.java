@@ -34,6 +34,13 @@ public abstract class OdpsHook {
    */
   public abstract void before(Job job, Odps odps) throws OdpsException;
 
+  /**
+   * 向远程提交 job 并产生 instance 时，将 Instance 和 Odps 对象传入 Hook
+   *
+   * @param instance
+   * @param odps
+   */
+  public void onInstanceCreated(Instance instance, Odps odps) throws OdpsException {};
 
   /**
    * instance 结束后，框架会将 Instance 和 odps 对象传入 hook

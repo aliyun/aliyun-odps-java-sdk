@@ -23,9 +23,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
+
 
 /**
  * 用 Protobuf 序列化存储的 {@link RecordPack}
@@ -38,6 +40,8 @@ public class ProtobufRecordPack extends RecordPack {
   private ByteArrayOutputStream byteos;
   private long count = 0;
   private TableSchema schema;
+  private CompressOption option = null;
+  private boolean isComplete = false;
 
   /**
    * 新建一个ProtobufRecordPack
@@ -70,15 +74,48 @@ public class ProtobufRecordPack extends RecordPack {
    */
   public ProtobufRecordPack(TableSchema schema, Checksum checkSum, int capacity)
       throws IOException {
+    this(schema, checkSum, capacity, null);
+  }
+
+  /**
+   * 新建一个 ProtobufRecordPack，用对应的 CheckSum 初始化, 数据压缩方式 option
+   *
+   * @param schema
+   * @param checksum
+   * @param option
+   * @throws IOException
+   */
+  public ProtobufRecordPack(TableSchema schema, Checksum checksum, CompressOption option)
+    throws IOException {
+    this(schema, checksum, 0, option);
+  }
+
+  /**
+   * 新建一个 ProtobufRecordPack，用对应的 CheckSum 初始化, 数据压缩方式 option, 并且预设流 buffer 大小为 capacity
+   *
+   * @param schema
+   * @param checksum
+   * @param capacity
+   * @param option
+   * @throws IOException
+   */
+  public ProtobufRecordPack(TableSchema schema, Checksum checksum, int capacity, CompressOption option)
+    throws IOException {
+    isComplete = false;
     if (capacity == 0) {
       byteos = new ByteArrayOutputStream();
     } else {
       byteos = new ByteArrayOutputStream(capacity);
     }
+
     this.schema = schema;
-    writer = new ProtobufRecordStreamWriter(schema, byteos);
-    if (checkSum != null) {
-      writer.setCheckSum(checkSum);
+    if (null != option) {
+      this.option = option;
+    }
+
+    writer = new ProtobufRecordStreamWriter(schema, byteos, option);
+    if (null != checksum) {
+      writer.setCheckSum(checksum);
     }
   }
 
@@ -100,9 +137,22 @@ public class ProtobufRecordPack extends RecordPack {
     throw new UnsupportedOperationException("PBPack does not supported Read.");
   }
 
-  ByteArrayOutputStream getProtobufStream() throws IOException {
-    writer.flush();
+  public ByteArrayOutputStream getProtobufStream() throws IOException {
+    if (!isComplete) {
+      writer.flush();
+    }
     return byteos;
+  }
+
+  public void complete() throws IOException {
+    if (!isComplete) {
+      writer.close();
+      isComplete = true;
+    }
+  }
+
+  public CompressOption getCompressOption() {
+    return this.option;
   }
 
   /**
@@ -130,9 +180,13 @@ public class ProtobufRecordPack extends RecordPack {
       byteos.reset();
     }
     count = 0;
-    this.writer = new ProtobufRecordStreamWriter(schema, byteos);
+    this.writer = new ProtobufRecordStreamWriter(schema, byteos, null);
+    isComplete = false;
   }
 
+  public boolean isComplete() {
+    return isComplete;
+  }
 
   /**
    * 清空 RecordPack
@@ -141,18 +195,14 @@ public class ProtobufRecordPack extends RecordPack {
    *     初始化 checksum
    */
   public void reset(Checksum checksum) throws IOException {
-    if (byteos != null) {
-      byteos.reset();
-    }
-    count = 0;
-    this.writer = new ProtobufRecordStreamWriter(schema, byteos);
+    reset();
 
     if (checksum != null) {
       this.writer.setCheckSum(checksum);
     }
   }
 
-  long getSize() {
+  public long getSize() {
     return count;
   }
 }

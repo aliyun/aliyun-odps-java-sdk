@@ -19,9 +19,17 @@
 
 package com.aliyun.odps.mapred.conf;
 
+import static org.junit.Assert.*;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.util.Properties;
+
 import org.junit.Test;
 
-import junit.framework.Assert;
+import com.aliyun.odps.Odps;
+import com.aliyun.odps.account.Account;
 
 public class SessionStateTest {
 
@@ -33,10 +41,46 @@ public class SessionStateTest {
       @Override
       public void run() {
         SessionState ss = SessionState.get();
-        Assert.assertEquals("bar", ss.getDefaultJob().get("foo"));
+        assertEquals("bar", ss.getDefaultJob().get("foo"));
       }
     };
     thread.start();
     thread.join();
   }
+
+  @Test
+  public void testRunningCluster() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    SessionState ss = SessionState.get();
+    ss.setOdps(new Odps((Account)null));
+    assertEquals(ss.getOdps().instances().getDefaultRunningCluster(), null);
+
+    Properties properties = new Properties();
+    URL resource = this.getClass().getClassLoader().getResource("console_conf.json");
+    assertNotNull(resource);
+
+    properties.setProperty("odps.exec.context.file", resource.getFile());
+
+    Method loadContextFile = SessionState.class.getDeclaredMethod("loadContextFile", Properties.class);
+    loadContextFile.setAccessible(true);
+    loadContextFile.invoke(ss, properties);
+    assertEquals(ss.getOdps().instances().getDefaultRunningCluster(), "test_cluster");
+  }
+
+
+  @Test
+  public void testSetCommandText() throws InterruptedException {
+    SessionState ss = SessionState.get();
+    // with invisible char
+    ss.setCommandText("jar -resources oyz_test.jar -Dds=\005 -classpath oyz_test.jar wc.WordCount wc_in wc_out;");
+    assertEquals("jar -resources oyz_test.jar -Dds= -classpath oyz_test.jar wc.WordCount wc_in wc_out;", ss.getCommandText());
+
+    // with visible char
+    ss.setCommandText("jar -resources oyz_test.jar -Dds=$ -classpath oyz_test.jar wc.WordCount wc_in wc_out;");
+    assertEquals("jar -resources oyz_test.jar -Dds=$ -classpath oyz_test.jar wc.WordCount wc_in wc_out;", ss.getCommandText());
+
+    // normal
+    ss.setCommandText("jar -resources oyz_test.jar -classpath oyz_test.jar wc.WordCount wc_in wc_out;");
+    assertEquals("jar -resources oyz_test.jar -classpath oyz_test.jar wc.WordCount wc_in wc_out;", ss.getCommandText());
+  }
+
 }

@@ -28,6 +28,8 @@ public class DefaultResponse extends Response {
     this.status = status;
   }
 
+  void setMessage(String message) { this.message = message; }
+
   void setBody(byte[] body) {
     this.body = body;
   }

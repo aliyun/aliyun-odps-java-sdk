@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.tunnel;
 
+import java.util.Arrays;
 import java.util.Iterator;
 
 import org.codehaus.jackson.JsonNode;
@@ -38,10 +39,50 @@ class TunnelTableSchema extends TableSchema {
         JsonNode column = it.next();
         JsonNode name = column.get("name");
         JsonNode type = column.get("type");
+        Column col = null;
 
-        addColumn(new Column(name.asText(), OdpsType.valueOf(type.asText()
-                                                                 .toUpperCase())));
+        if (type.asText().toUpperCase().startsWith("MAP")) {
+          col = new Column(name.asText(), OdpsType.MAP);
+          col.setGenericTypeList(Arrays.asList(parseMapType(type.asText().toUpperCase())));
+        } else if (type.asText().toUpperCase().startsWith("ARRAY")) {
+          col = new Column(name.asText(), OdpsType.ARRAY);
+          col.setGenericTypeList(Arrays.asList(parseArrayType(type.asText().toUpperCase())));
+        } else {
+          col = new Column(name.asText(), OdpsType.valueOf(type.asText().toUpperCase()));
+        }
+
+        addColumn(col);
       }
     }
   }
+
+
+  private OdpsType parseArrayType(String typeLiteral) throws IllegalArgumentException {
+    if (!typeLiteral.startsWith("ARRAY<")) {
+      throw new IllegalArgumentException("Array type should start with ARRAY<, now is " + typeLiteral);
+    }
+
+    String subTypeLiteral = typeLiteral.substring("ARRAY<".length(), typeLiteral.length() - 1);
+    OdpsType type = OdpsType.valueOf(subTypeLiteral);
+    return type;
+  }
+
+  private OdpsType[] parseMapType(String typeLiteral) throws IllegalArgumentException {
+    if (!typeLiteral.startsWith("MAP<")) {
+      throw new IllegalArgumentException("Map type should start with Map<, now is " + typeLiteral);
+    }
+
+    String subTypeLiteral = typeLiteral.substring("Map<".length(), typeLiteral.length() - 1);
+
+    String[] subTypes = subTypeLiteral.split(",");
+    if (subTypes.length != 2) {
+      throw new IllegalArgumentException("Map type's format is Map<keyType,valueType> , now is " + typeLiteral);
+    }
+
+    OdpsType[] types = new OdpsType[2];
+    types[0] = OdpsType.valueOf(subTypes[0]);
+    types[1] = OdpsType.valueOf(subTypes[1]);
+    return types;
+  }
+
 }

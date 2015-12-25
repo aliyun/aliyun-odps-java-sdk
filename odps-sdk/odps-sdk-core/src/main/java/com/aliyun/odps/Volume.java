@@ -30,6 +30,8 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.aliyun.odps.VolumePartition.VolumePartitionModel;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -37,13 +39,11 @@ import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
-/**
- * Volume表示ODPS中的volume
- * <b>暂未开放，仅限内部使用<b/>
- *
- * @author lu.lu@alibaba-inc.com
- */
 public class Volume extends LazyLoad {
+
+  public static enum Type {
+    NEW, OLD
+  }
 
   @XmlRootElement(name = "Meta")
   static class VolumeModel {
@@ -53,6 +53,9 @@ public class Volume extends LazyLoad {
 
     @XmlElement(name = "Comment")
     String comment;
+
+    @XmlElement(name = "Type")
+    String type;
 
     @XmlElement(name = "Length")
     Long length;
@@ -103,6 +106,10 @@ public class Volume extends LazyLoad {
     setLoaded(true);
   }
 
+  public VolumeFSFile getVolumeFSFile(String path) throws VolumeException {
+    return new VolumeFSFile(project, path, client);
+  }
+
   /**
    * 获取volume名
    *
@@ -110,6 +117,23 @@ public class Volume extends LazyLoad {
    */
   public String getName() {
     return this.name;
+  }
+
+
+  public Type getType() {
+    if (model.type == null) {
+      lazyLoad();
+    }
+    if (StringUtils.isBlank(model.type)) {
+      return Type.OLD;
+    }
+    Type type;
+    try {
+      type = Type.valueOf(model.type.toUpperCase());
+    } catch (Exception e) {
+      type = Type.OLD;
+    }
+    return type;
   }
 
   /**
@@ -188,8 +212,7 @@ public class Volume extends LazyLoad {
   /**
    * 获取指定分区信息
    *
-   * @param spec
-   *     分区定义
+   * @param spec 分区定义
    * @return 分区信息
    */
   public VolumePartition getVolumePartition(String partitionName) {
@@ -201,13 +224,11 @@ public class Volume extends LazyLoad {
   /**
    * 删除指定分区
    *
-   * @param spec
-   *     分区描述
+   * @param spec 分区描述
    * @throws OdpsException
    */
   public void deleteVolumePartition(String partitionName) throws OdpsException {
-    String
-        resource =
+    String resource =
         ResourceBuilder.buildVolumePartitionResource(project, this.name, partitionName);
     client.request(resource, "DELETE", null, null, null);
   }
@@ -246,8 +267,7 @@ public class Volume extends LazyLoad {
   /**
    * 获取volume partition迭代器
    *
-   * @param filter
-   *     过滤条件
+   * @param filter 过滤条件
    * @return VolumePartition迭代器
    */
   public Iterator<VolumePartition> getPartitionIterator(final VolumeFilter filter) {
@@ -274,8 +294,8 @@ public class Volume extends LazyLoad {
         String resource = ResourceBuilder.buildVolumeResource(project, name);
         try {
 
-          ListPartitionsResponse resp = client.request(ListPartitionsResponse.class,
-                                                       resource, "GET", params);
+          ListPartitionsResponse resp =
+              client.request(ListPartitionsResponse.class, resource, "GET", params);
 
           for (VolumePartitionModel model : resp.partitions.partitions) {
             VolumePartition t = new VolumePartition(model, project, name, client);
@@ -291,4 +311,22 @@ public class Volume extends LazyLoad {
       }
     };
   }
-};
+
+  /**
+   * Check whether the path has a volume part
+   * 
+   * @param path
+   * @return
+   */
+  public static boolean checkPathHasVolume(String path) {
+    if (path == null || !path.startsWith("/")) {
+      return false;
+    }
+    String[] strArray = path.split("/");
+    if (strArray.length < 2) {
+      return false;
+    } else {
+      return StringUtils.isNotBlank(strArray[1]);
+    }
+  }
+}

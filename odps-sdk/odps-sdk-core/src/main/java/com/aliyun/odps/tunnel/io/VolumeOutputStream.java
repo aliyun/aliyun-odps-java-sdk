@@ -20,6 +20,7 @@
 package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -41,6 +42,8 @@ public class VolumeOutputStream extends OutputStream {
   private int chunkOffset;
   private boolean init;
   private Deflater def;
+  private boolean isClosed = true;
+  Response resp;
 
   public VolumeOutputStream(Connection conn, CompressOption option) throws IOException {
 
@@ -60,6 +63,7 @@ public class VolumeOutputStream extends OutputStream {
 
     this.conn = conn;
     init = false;
+    isClosed = false;
   }
 
   @Override
@@ -71,6 +75,16 @@ public class VolumeOutputStream extends OutputStream {
 
   @Override
   public void close() throws IOException {
+    isClosed = true;
+    //Add By zhenyi.zzy@alibaba-inc.com
+    //For creating 0 Byte file 
+    if (!init) {
+      init = true;
+      writeInt(CHUNK_SIZE);
+      crcInt(CHUNK_SIZE);
+      chunkOffset = 0;
+    }
+
     if (chunkOffset != 0) {
       int checkSum = (int) crc.getValue();
       writeInt(checkSum);
@@ -80,11 +94,16 @@ public class VolumeOutputStream extends OutputStream {
 
     // handle response
     try {
-      Response resp = conn.getResponse();
+      resp = conn.getResponse();
       if (!resp.isOK()) {
-        TunnelException err = new TunnelException(conn.getInputStream());
+        InputStream in = conn.getInputStream();
+        TunnelException err = null;
+        if (in == null) {
+          err = new TunnelException(conn.getResponse().getMessage());
+        } else {
+          err = new TunnelException(conn.getInputStream());
+        }
         err.setRequestId(resp.getHeader("x-odps-request-id"));
-
         throw new IOException(err);
       }
     } finally {
@@ -137,4 +156,14 @@ public class VolumeOutputStream extends OutputStream {
   public long getBytes() {
     return this.totalBytes;
   }
+
+  public Response getResp() {
+    return resp;
+  }
+
+  public boolean isClosed() {
+    return isClosed;
+  }
+
+
 }

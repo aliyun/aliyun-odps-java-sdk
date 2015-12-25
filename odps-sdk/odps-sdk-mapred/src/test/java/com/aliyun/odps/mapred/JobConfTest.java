@@ -20,6 +20,7 @@
 package com.aliyun.odps.mapred;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -30,7 +31,9 @@ import org.junit.Test;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.conf.Configuration;
 import com.aliyun.odps.mapred.conf.JobConf;
+import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.mapred.conf.JobConf.SortOrder;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 
@@ -54,6 +57,31 @@ public class JobConfTest {
     }
     conf = new JobConf();
     conf.addResource(is);
+    assertEquals(MapperBase.class.getName(), conf.getMapperClass().getName());
+  }
+  
+  @Test
+  public void testLoadSessionContext() {
+    JobConf defaultConf = new JobConf();
+    defaultConf.set("default_key", "default_value");
+    SessionState.get().setDefaultJob(defaultConf);
+    
+    JobConf conf = new JobConf();
+    assertEquals(conf.get("default_key"), "default_value");
+    Configuration mconf = new Configuration();
+    
+    mconf.set("test_key", "test_value");
+    conf = new JobConf(mconf);
+    assertEquals(conf.get("default_key"), "default_value");
+    assertEquals(conf.get("test_key"), "test_value");
+    
+    conf = new JobConf(true);
+    assertEquals(conf.get("default_key"), "default_value");
+    conf = new JobConf(false);
+    assertNull(conf.get("default_key"));
+    
+    conf = new JobConf("jobconf.xml");
+    assertEquals(conf.get("default_key"), "default_value");
     assertEquals(MapperBase.class.getName(), conf.getMapperClass().getName());
   }
 

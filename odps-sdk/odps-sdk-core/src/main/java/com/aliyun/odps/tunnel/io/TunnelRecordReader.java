@@ -25,6 +25,7 @@ import java.util.List;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
+import com.aliyun.odps.commons.proto.ProtobufRecordStreamReader;
 
 /**
  * TunnelReaderReader支持通过Tunnel服务读取ODPS表中的数据

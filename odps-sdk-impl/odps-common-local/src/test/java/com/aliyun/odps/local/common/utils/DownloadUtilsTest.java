@@ -201,7 +201,15 @@ public class DownloadUtilsTest {
     Assert.assertEquals(true, record[3] instanceof Boolean);
     Assert.assertEquals(false, (Boolean) record[3]);
     Assert.assertEquals(true, record[4] instanceof Date);
+  }
 
+  @Test(expected = RuntimeException.class)
+  public void testDownloadTableWithWrongPartSpec() throws IOException {
+    WareHouse.getInstance().dropTableIfExists(project, partTable);
+    Assert.assertEquals(false, WareHouse.getInstance().existsTable(project, partTable));
+    TableInfo tableInfo = TableInfo.builder().projectName(project).tableName(partTable)
+        .partSpec(new PartitionSpec("p1=2")).build();
+    DownloadUtils.downloadTableSchemeAndData(odps, tableInfo, 10, ',');
   }
 
   @Test

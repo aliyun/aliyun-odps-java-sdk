@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,13 +23,17 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.ReflectPermission;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +46,8 @@ import com.aliyun.odps.io.DataInputBuffer;
 import com.aliyun.odps.io.DataOutputBuffer;
 import com.aliyun.odps.io.NullWritable;
 import com.aliyun.odps.io.Writable;
+
+import sun.security.util.SecurityConstants;
 
 /**
  * General reflection utilities
@@ -73,7 +79,36 @@ public class ReflectionUtils {
       }
     }
   }
-
+  /**
+   * Check the access to theMember that belongs to theClass
+   * @param theClass
+   * @param theMember
+   * @exception
+   *        java.security.AccessControlException
+   */
+  private static void checkMemberAccess(final Class<?> theClass,final Member theMember) {
+    // 1) bypass the permission check when theMember is public or null.
+    if(theMember == null || Modifier.isPublic(theMember.getModifiers())){
+      return;
+    }
+    // 2) bypass the permission check when not in a security mode
+    final SecurityManager s = System.getSecurityManager();
+    if (s == null) {
+      return;
+    }
+    // 3) bypass the permission check when theClass is an user defined class.
+    if(AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+      public Boolean run() {
+        return ReflectionUtils.class.getClassLoader() == theClass.getClassLoader().getParent();
+      }
+    })){
+      return;
+    }
+    // do permission check on other conditions!!!
+    s.checkPermission(SecurityConstants.CHECK_MEMBER_ACCESS_PERMISSION);
+    s.checkPermission(new ReflectPermission("suppressAccessChecks"));
+    //this.checkPackageAccess(ccl, checkProxyInterfaces);
+  }
   /**
    * Create an object for the given class and initialize it from conf
    *
@@ -86,31 +121,22 @@ public class ReflectionUtils {
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <T> T newInstance(final Class<T> theClass, Configuration conf) {
     T result;
-    try {
-      Constructor<T> meth = (Constructor<T>) CONSTRUCTOR_CACHE.get(theClass);
-      if (meth == null) {
-        // privileged code, for this method may be invoked by user code
-        Constructor<T> m = (Constructor<T>) AccessController
-            .doPrivileged(new PrivilegedAction() {
-              public Object run() {
-                try {
-                  final Constructor<T> m = theClass
-                      .getDeclaredConstructor(EMPTY_ARRAY);
-                  if (!m.isAccessible()) {
-                    m.setAccessible(true);
-                  }
-                  return m;
-                } catch (NoSuchMethodException e) {
-                  throw new RuntimeException(e);
-                }
-              }
-            });
-        meth = (Constructor<T>) CONSTRUCTOR_CACHE.putIfAbsent(theClass, m);
-        if (meth == null) {
-          meth = m;
+    Constructor<T> retMethod = (Constructor<T>) CONSTRUCTOR_CACHE.get(theClass);
+    if (retMethod == null) try {
+      retMethod = AccessController.doPrivileged(new PrivilegedExceptionAction<Constructor<T>>() {
+        public Constructor<T> run() throws NoSuchMethodException {
+          Constructor<T> ret = theClass.getDeclaredConstructor(EMPTY_ARRAY);
+          ret.setAccessible(true);
+          return ret;
         }
-      }
-      result = meth.newInstance();
+      });
+      checkMemberAccess(theClass, retMethod);
+      CONSTRUCTOR_CACHE.putIfAbsent(theClass, retMethod);
+    } catch (PrivilegedActionException e) {
+      throw new RuntimeException(e);
+    }
+    try {
+      result = retMethod.newInstance();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -161,28 +187,26 @@ public class ReflectionUtils {
    *
    * @param inClass
    *     Class to search for declared field.
-   * @param methodname
+   * @param methodName
    *     Method name to search for
    * @return Method or will return null.
    */
   public static Method findUserClassMethod(final Class<?> inClass, final String methodName) {
-    Method m = (Method) AccessController
-        .doPrivileged(new PrivilegedAction() {
-          public Object run() {
-            if (!Object.class.equals(inClass)) {
-              for (Method method : inClass.getDeclaredMethods()) {
-                if (method.getName().equals(methodName)) {
-                  if (!method.isAccessible()) {
-                    method.setAccessible(true);
-                  }
-                  return method;
-                }
-              }
+    Method retMethod = AccessController.doPrivileged(new PrivilegedAction<Method>() {
+      public Method run() {
+        for (final Method method : inClass.getDeclaredMethods()) {
+          if (method.getName().equals(methodName)) {
+            if (!method.isAccessible()) {
+              method.setAccessible(true);
             }
-            return null;
+            return method;
           }
-        });
-    return m;
+        }
+        return null;
+      }
+    });
+    checkMemberAccess(inClass, retMethod);
+    return retMethod;
   }
 
   /**
@@ -260,7 +284,7 @@ public class ReflectionUtils {
    *
    * @param inClass
    *     Class to search for declared field.
-   * @param methodname
+   * @param methodName
    *     Method name to search for
    * @return Method or will throw.
    * @throws NoSuchMethodException
@@ -286,7 +310,7 @@ public class ReflectionUtils {
    *
    * @param inClass
    *     Class to search for declared field.
-   * @param methodname
+   * @param methodName
    *     Method name to search for
    * @return Method or will throw.
    * @throws NoSuchMethodException
@@ -381,7 +405,7 @@ public class ReflectionUtils {
         sb.append("]");
         throw new IllegalStateException("ODPS-0730001: Subclass of "
                                         + parentClass.getSimpleName() + " '" + userImplClass
-            .getName()
+                                            .getName()
                                         + "' must not have non-static member variables " + sb
                                             .toString()
                                         + ", put them into vertex value if really need.");

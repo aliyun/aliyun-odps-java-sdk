@@ -112,10 +112,12 @@ public class PipelineTest {
                     new Column[]{new Column("word", OdpsType.STRING)},
                     new Column[]{new Column("count", OdpsType.BIGINT)},
                     null, null, null, null, null)
+         .setNumTasks(10)
         .addReducer(WordCount.SumReducer.class)
         .createPipeline();
     JobConf conf = new JobConf();
     Pipeline.toJobConf(conf, pipelineOld);
+    conf.setNumReduceTasks(2);
 
     Pipeline pipeline = Pipeline.fromJobConf(conf);
     assertNotNull(pipeline);
@@ -136,5 +138,8 @@ public class PipelineTest {
                  SchemaUtils.getNames(interNode.getOutputKeySchema())[0]);
     assertEquals(interNode.getOutputValueSchema()[0].getName(), "count");
     assertEquals(interNode.getOutputValueSchema()[0].getType(), OdpsType.BIGINT);
+
+    assertEquals(interNode.getNumTasks(), 10);
+    assertEquals(interNode.getNextNode().getNumTasks(), 2);
   }
 }

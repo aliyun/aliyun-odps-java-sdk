@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.aliyun.odps.Survey;
+
 /**
  * Connection表示一次HTTP请求所使用的连接
  *
@@ -39,6 +41,7 @@ import java.io.OutputStream;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
+@Survey
 public interface Connection {
 
   /**
@@ -64,6 +67,7 @@ public interface Connection {
    * @return Response对象
    * @throws IOException
    */
+  @Survey
   public Response getResponse() throws IOException;
 
   /**

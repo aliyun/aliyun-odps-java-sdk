@@ -68,6 +68,9 @@ public class Table extends LazyLoad {
     @XmlElement(name = "Name")
     String name;
 
+    @XmlElement(name = "TableId")
+    String ID;
+
     @XmlAttribute(name = "format")
     private String format;
 
@@ -179,6 +182,19 @@ public class Table extends LazyLoad {
       lazyLoad();
     }
     return model.tableLabel;
+  }
+
+  /**
+   * 获取表 ID
+   *
+   * @return tableId
+   */
+  public String getTableID() {
+    if(model.ID == null) {
+      lazyLoad();
+    }
+
+    return model.ID;
   }
 
   /**

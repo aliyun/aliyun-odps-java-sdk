@@ -33,6 +33,7 @@ import com.aliyun.odps.VolumePartition;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.security.SecurityConfiguration;
 import com.aliyun.odps.security.SecurityManager;
+import com.aliyun.odps.tunnel.VolumeFSTunnel;
 import com.aliyun.odps.tunnel.VolumeTunnel;
 
 public class Utils {
@@ -99,17 +100,26 @@ public class Utils {
 
   public static VolumeTunnel getTunnelInstance() {
     VolumeTunnel tunnel = new VolumeTunnel(odps);
-    String endpoint = OdpsTestUtils.getProperty("default.tunnel");
+    String endpoint = OdpsTestUtils.getProperty("default.tunnel.endpoint");
     if (endpoint != null && !endpoint.isEmpty()) {
         tunnel.setEndpoint(endpoint);
     }
     return tunnel;
   }
+  
+  public static VolumeFSTunnel getVolumeFSTunnel() {
+    VolumeFSTunnel tunnelFS = new VolumeFSTunnel(odps);
+    String endpoint = OdpsTestUtils.getProperty("default.tunnel.endpoint");
+    if (endpoint != null && !endpoint.isEmpty()) {
+      tunnelFS.setEndpoint(endpoint);
+    }
+    return tunnelFS;
+  }
 
   public static VolumeTunnel getTunnelInstanceForSecurity(String project) {
     Odps grantOdps = OdpsTestUtils.newGrantOdps(project);
     VolumeTunnel tunnel = new VolumeTunnel(grantOdps);
-    String endpoint = OdpsTestUtils.getProperty("default.tunnel");
+    String endpoint = OdpsTestUtils.getProperty("default.tunnel.endpoint");
     if (endpoint != null && !endpoint.isEmpty()) {
         tunnel.setEndpoint(endpoint);
     }

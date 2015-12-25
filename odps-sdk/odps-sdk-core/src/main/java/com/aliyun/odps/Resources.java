@@ -77,6 +77,8 @@ public class Resources implements Iterable<Resource> {
     public static final String X_ODPS_RESOURCE_TYPE = "x-odps-resource-type";
     public static final String X_ODPS_OWNER = "x-odps-owner";
     public static final String X_ODPS_IS_TEMP_RESOURCE = "x-odps-resource-istemp";
+    public static final String X_ODPS_RESOURCE_LAST_UPDATOR = "x-odps-updator";
+    public static final String X_ODPS_RESOURCE_SIZE = "x-odps-resource-size";
   }
 
   /* for resource listing */

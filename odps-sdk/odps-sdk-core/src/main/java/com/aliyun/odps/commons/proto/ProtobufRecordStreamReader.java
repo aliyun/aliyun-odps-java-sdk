@@ -17,19 +17,25 @@
  * under the License.
  */
 
-package com.aliyun.odps.tunnel.io;
+package com.aliyun.odps.commons.proto;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.InflaterInputStream;
 
 import org.xerial.snappy.SnappyFramedInputStream;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.tunnel.io.Checksum;
+import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
@@ -40,7 +46,7 @@ import com.google.protobuf.WireFormat;
 /**
  * @author chao.liu
  */
-class ProtobufRecordStreamReader implements RecordReader {
+public class ProtobufRecordStreamReader implements RecordReader {
 
   private BufferedInputStream bin;
   private CodedInputStream in;
@@ -49,6 +55,11 @@ class ProtobufRecordStreamReader implements RecordReader {
   private long bytesReaded = 0;
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
+
+  public ProtobufRecordStreamReader(TableSchema schema, InputStream in)
+      throws IOException {
+    this(schema, null, in, new CompressOption());
+  }
 
   public ProtobufRecordStreamReader(TableSchema schema, InputStream in, CompressOption option)
       throws IOException {
@@ -112,7 +123,7 @@ class ProtobufRecordStreamReader implements RecordReader {
       }
 
       int i = getTagFieldNumber(in);
-      if (i == TunnelWireConstant.TUNNEL_END_RECORD) {
+      if (i == ProtoWireConstant.TUNNEL_END_RECORD) {
         checkSum = (int) crc.getValue();
         if (in.readUInt32() != checkSum) {
           throw new IOException("Checksum invalid.");
@@ -121,12 +132,12 @@ class ProtobufRecordStreamReader implements RecordReader {
         crccrc.update(checkSum);
         break;
       }
-      if (i == TunnelWireConstant.TUNNEL_META_COUNT) {
+      if (i == ProtoWireConstant.TUNNEL_META_COUNT) {
         if (count != in.readSInt64()) {
           throw new IOException("count does not match.");
         }
 
-        if (TunnelWireConstant.TUNNEL_META_CHECKSUM != getTagFieldNumber(in)) {
+        if (ProtoWireConstant.TUNNEL_META_CHECKSUM != getTagFieldNumber(in)) {
           throw new IOException("Invalid stream.");
         }
 
@@ -189,6 +200,33 @@ class ProtobufRecordStreamReader implements RecordReader {
           reuseRecord.setDecimal(i - 1, decimal);
           break;
         }
+        case ARRAY: {
+          List<OdpsType> genericTypeList = columns[i - 1].getGenericTypeList();
+          if ((genericTypeList == null) || (genericTypeList.isEmpty())) {
+            throw new IOException("Failed to get OdpsType inside Array of column index: " + (i - 1));
+          }
+
+          if (reuseRecord instanceof ArrayRecord) {
+            ((ArrayRecord) reuseRecord).setArray(i - 1, readArray(genericTypeList.get(0)));
+          } else {
+            throw new IOException("Only ArrayRecord support Array type: " + reuseRecord.getClass().getName());
+          }
+          break;
+        }
+        case MAP: {
+          List<OdpsType> genericTypeList = columns[i - 1].getGenericTypeList();
+          if ((genericTypeList == null) || (genericTypeList.isEmpty()) || (genericTypeList.size() < 2)) {
+            throw new IOException("Failed to get OdpsType inside Map of column index: " + (i - 1));
+          }
+
+          if (reuseRecord instanceof ArrayRecord) {
+            ((ArrayRecord) reuseRecord)
+                .setMap(i - 1, readMap(genericTypeList.get(0), genericTypeList.get(1)));
+          } else {
+            throw new IOException("Only ArrayRecord support Map type: " + reuseRecord.getClass().getName());
+          }
+          break;
+        }
         default:
           throw new IOException("Unsupported type " + columns[i - 1].getType());
       }
@@ -222,4 +260,89 @@ class ProtobufRecordStreamReader implements RecordReader {
   public long getTotalBytes() {
     return bytesReaded;
   }
+
+  public List readArray(OdpsType type) throws IOException {
+    int arraySize = in.readUInt32();
+    List list = null;
+
+    switch (type) {
+      case STRING: {
+        list = new ArrayList<byte []>();
+
+        for (int i = 0; i < arraySize; i++) {
+          if (in.readBool()) {
+            list.add(null);
+          } else {
+            int size = in.readRawVarint32();
+            byte[] bytes = in.readRawBytes(size);
+            crc.update(bytes, 0, bytes.length);
+            list.add(bytes);
+          }
+        }
+        break;
+      }
+      case BIGINT: {
+        list = new ArrayList<Long>();
+
+        for (int i = 0; i < arraySize; i++) {
+          if (in.readBool()) {
+            list.add(null);
+          } else {
+            Long value = in.readSInt64();
+            crc.update(value);
+            list.add(value);
+          }
+        }
+        break;
+      }
+      case DOUBLE: {
+        list = new ArrayList<Double>();
+
+        for (int i = 0; i < arraySize; i++) {
+          if (in.readBool()) {
+            list.add(null);
+          } else {
+            Double value = in.readDouble();
+            crc.update(value);
+            list.add(value);
+          }
+        }
+        break;
+
+      }
+      case BOOLEAN: {
+        list = new ArrayList<Boolean>();
+        for (int i = 0; i < arraySize; i++) {
+          if (in.readBool()) {
+            list.add(null);
+          } else {
+            Boolean value = in.readBool();
+            crc.update(value);
+            list.add(value);
+          }
+        }
+        break;
+      }
+      default:
+        throw new IOException("Unsupport array type. type :" + type);
+    }
+
+    return list;
+  }
+
+  public Map readMap(OdpsType keyType, OdpsType valueType) throws IOException {
+    List keyArray = readArray(keyType);
+    List valueArray = readArray(valueType);
+    if (keyArray.size() != valueArray.size()) {
+      throw new IOException("Read Map error: key value does not match.");
+    }
+
+    Map map = new HashMap();
+    for (int i = 0; i < keyArray.size(); i++) {
+      map.put(keyArray.get(i), valueArray.get(i));
+    }
+
+    return map;
+  }
+
 }

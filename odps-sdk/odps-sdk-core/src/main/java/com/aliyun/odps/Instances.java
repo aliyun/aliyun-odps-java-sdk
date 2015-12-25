@@ -361,6 +361,14 @@ public class Instances implements Iterable<Instance> {
     model.name = instanceId;
     Instance instance = new Instance(project, model, results, odps);
     instance.setOdpsHooks(hooks);
+
+    if (OdpsHooks.isEnabled()) {
+      if (hooks == null) {
+        hooks = new OdpsHooks();
+      }
+      hooks.onInstanceCreated(instance, odps);
+    }
+
     return instance;
   }
 

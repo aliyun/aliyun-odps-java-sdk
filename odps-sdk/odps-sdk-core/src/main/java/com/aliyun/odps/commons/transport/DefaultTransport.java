@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 
+import com.aliyun.odps.Survey;
 import com.aliyun.odps.commons.transport.Request.Method;
 import com.aliyun.odps.commons.util.IOUtils;
 
@@ -32,6 +33,7 @@ import com.aliyun.odps.commons.util.IOUtils;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
+@Survey
 public class DefaultTransport implements Transport {
 
   public DefaultTransport() {
@@ -60,7 +62,6 @@ public class DefaultTransport implements Transport {
 
       if (Method.HEAD != req.getMethod()) {
         InputStream in = conn.getInputStream();
-
         resp.setBody(IOUtils.readFully(in));
       }
 

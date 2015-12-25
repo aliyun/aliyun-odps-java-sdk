@@ -27,7 +27,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.tunnel.TunnelException;
-
+@Deprecated
 public class ReplicatorStatus {
 
   private String lastReplicatedPackId;

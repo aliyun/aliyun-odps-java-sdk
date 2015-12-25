@@ -18,7 +18,7 @@
  */
 
 package com.aliyun.odps.tunnel.io;
-
+@Deprecated
 public class SeekPackResult {
     private String packId;
 

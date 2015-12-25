@@ -18,7 +18,7 @@
  */
 
 package com.aliyun.odps.tunnel.io;
-
+@Deprecated
 public interface PackType {
 
   public static final int PACKID_LENGTH = 32;

@@ -41,7 +41,7 @@ import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.proto.XstreamPack.XStreamPack;
 import com.google.protobuf.ByteString;
 
-
+@Deprecated
 public class StreamWriter {
 
   private RestClient tunnelServiceClient;
@@ -83,8 +83,8 @@ public class StreamWriter {
    *
    * @param recordPack
    *     {@link StreamRecordPack} 对象
-   * @param property
-   *     pack属性
+   * @param meta
+   *     meta属性
    * @throws TunnelException, IOexception
    *
    * @return {@link WritePackResult}
@@ -99,8 +99,8 @@ public class StreamWriter {
    *
    * @param recordPack
    *     {@link StreamRecordPack} 对象
-   * @param property
-   *     pack 属性    
+   * @param partitionSpec
+   *     {@link PartitionSpec} 对象
    * @throws TunnelException, IOexception
    *
    * @return {@link WritePackResult}
@@ -114,7 +114,7 @@ public class StreamWriter {
   /**
    * 向ODPS hub服务的分区表写入一个pack
    *
-   * @param PartitionSpec
+   * @param partitionSpec
    *     {@link PartitionSpec} 对象
    * @param recordPack
    *     {@link StreamRecordPack} 对象

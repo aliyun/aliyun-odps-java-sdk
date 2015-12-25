@@ -17,29 +17,8 @@
  * under the License.
  */
 
-package com.aliyun.odps;
+/**
+ * protobuf组件 SDK用户可以不关注
+ */
+package com.aliyun.odps.commons.proto;
 
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-
-import org.junit.Test;
-
-import com.aliyun.odps.io.LongWritable;
-import com.aliyun.odps.utils.ReflectionUtils;
-
-public class OdpsDeprecatedLoggerTest {
-
-
-  @SuppressWarnings("deprecation")
-  @Test
-  public void testDeprecatedLogger() throws IOException {
-    LongWritable src = new LongWritable(1L);
-    LongWritable dst = new LongWritable(1L);
-    ReflectionUtils.cloneWritableInto(src, dst);
-    for (String key : OdpsDeprecatedLogger.getDeprecatedCalls().keySet()) {
-      System.out.println(key);
-    }
-    assertTrue(OdpsDeprecatedLogger.getDeprecatedCalls().size() > 0);
-  }
-}

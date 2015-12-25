@@ -21,6 +21,8 @@ package com.aliyun.odps.commons.transport;
 
 import java.io.IOException;
 
+import com.aliyun.odps.Survey;
+
 /**
  * Transport提供HTTP请求功能
  *
@@ -35,6 +37,7 @@ import java.io.IOException;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
+@Survey
 public interface Transport {
 
   /**

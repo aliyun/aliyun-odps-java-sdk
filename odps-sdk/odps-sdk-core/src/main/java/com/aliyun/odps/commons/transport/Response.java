@@ -31,6 +31,7 @@ import java.util.Map;
 public abstract class Response {
 
   protected int status = 500;
+  protected String message = null;
   protected Map<String, String> headers = new HashMap<String, String>();
   protected byte[] body;
 
@@ -56,6 +57,17 @@ public abstract class Response {
    */
   public int getStatus() {
     return status;
+  }
+
+  /**
+   * 获得响应的状态信息
+   *
+   * 状态信息参见{@link HttpURLConnection}
+   *
+   * @return
+   */
+  public String getMessage() {
+    return message;
   }
 
   /**

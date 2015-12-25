@@ -17,16 +17,17 @@
  * under the License.
  */
 
-package com.aliyun.odps.tunnel.io;
+package com.aliyun.odps.datahub;
 
-/**
- * This class contains constants useful for dealing with
- * the Protocol Buffer wire format.
- *
- * @author kenton@google.com Kenton Varda
- */
-class TunnelWireConstant {
-  public static final int TUNNEL_META_COUNT = 33554430; // magic num 2^25-2
-  public static final int TUNNEL_META_CHECKSUM = 33554431; // magic num 2^25-1
-  public static final int TUNNEL_END_RECORD = 33553408; // maigc num 2^25-1024
+import com.aliyun.odps.commons.transport.Headers;
+
+public class DatahubHttpHeaders implements Headers{
+
+  public static final String HEADER_ODPS_REQUEST_ID = "x-odps-request-id";
+  public static final String HEADER_ODPS_TUNNEL_VERSION = "x-odps-tunnel-version";
+  public static final String HEADER_STREAM_VERSION = "x-odps-tunnel-stream-version";
+  public static final String HEADER_ODPS_CURRENT_PACKID = "x-odps-current-packid";
+  public static final String HEADER_ODPS_PACK_TIMESTAMP = "x-odps-pack-timestamp";
+  public static final String HEADER_ODPS_NEXT_PACKID = "x-odps-next-packid";
+  public static final String HEADER_ODPS_PACK_NUM = "x-odps-pack-num";
 }

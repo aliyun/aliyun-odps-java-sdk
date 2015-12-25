@@ -42,7 +42,7 @@ import com.aliyun.odps.tunnel.io.PackReader;
 import com.aliyun.odps.tunnel.io.ReplicatorStatus;
 import com.aliyun.odps.tunnel.io.StreamReader;
 import com.aliyun.odps.tunnel.io.StreamWriter;
-
+@Deprecated
 public class StreamClient {
 
   private String projectName;

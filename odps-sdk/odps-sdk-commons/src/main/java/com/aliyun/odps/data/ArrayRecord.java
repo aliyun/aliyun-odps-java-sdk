@@ -22,9 +22,12 @@ package com.aliyun.odps.data;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
@@ -106,6 +109,12 @@ public class ArrayRecord implements Record {
         break;
       case DECIMAL:
         setDecimal(idx, (BigDecimal) value);
+        break;
+      case ARRAY:
+        setArray(idx, (List) value);
+        break;
+      case MAP:
+        setMap(idx, (Map) value);
     }
   }
 
@@ -216,10 +225,11 @@ public class ArrayRecord implements Record {
   public void setDecimal(int idx, BigDecimal value) {
     if (value != null) {
       BigDecimal tmpValue = value.setScale(DECIMAL_MAX_SCALE, RoundingMode.HALF_UP);
-      int intLength =  tmpValue.precision() - tmpValue.scale();
+      int intLength = tmpValue.precision() - tmpValue.scale();
       if (intLength > DECIMAL_MAX_INTLENGTH) {
-        throw new IllegalArgumentException(String.format("decimal value %s overflow, max integer digit number is %s.",
-                                                         value, DECIMAL_MAX_INTLENGTH));
+        throw new IllegalArgumentException(
+            String.format("decimal value %s overflow, max integer digit number is %s.",
+                          value, DECIMAL_MAX_INTLENGTH));
       }
     }
     values[idx] = value;
@@ -266,11 +276,7 @@ public class ArrayRecord implements Record {
       return null;
     }
     if (!(o instanceof String)) {
-      try {
-        return new String((byte[]) o, STRING_CHARSET);
-      } catch (UnsupportedEncodingException e) {
-        throw new IllegalArgumentException(e.getMessage(), e);
-      }
+      return bytesToString((byte[]) o);
     } else {
       return (String) get(idx);
     }
@@ -311,11 +317,7 @@ public class ArrayRecord implements Record {
       return null;
     }
     if (o instanceof String) {
-      try {
-        return ((String) o).getBytes(STRING_CHARSET);
-      } catch (UnsupportedEncodingException e) {
-        throw new IllegalArgumentException(e.getMessage(), e);
-      }
+      return stringToBytes((String) o);
     } else {
       return (byte[]) get(idx);
     }
@@ -348,4 +350,223 @@ public class ArrayRecord implements Record {
     }
     return idx;
   }
+
+  public void clear() {
+    for (int i = 0; i < values.length; i++) {
+      values[i] = null;
+    }
+  }
+
+  public void setArray(String columnName, List list) {
+    setArray(getColumnIndex(columnName), list);
+  }
+
+  private byte[] stringToBytes(String string) {
+    try {
+      return String.valueOf(string).getBytes(STRING_CHARSET);
+    } catch (UnsupportedEncodingException e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+  }
+
+  private String bytesToString(byte[] bytes) {
+    try {
+      return new String(bytes, STRING_CHARSET);
+    } catch (UnsupportedEncodingException e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+
+  }
+
+  /**
+   * 设置对应索引列的值，该列是 Array 类型
+   *
+   * @param idx
+   *     列索引
+   * @param list 注意，String 将被转换为 byte[] 进行存储，转换过程使用 UTF-8 编码
+   *     列值
+   */
+
+  public void setArray(int idx, List list) {
+    if (list == null) {
+      values[idx] = list;
+      return;
+    }
+
+    List<Object> newList = new ArrayList<Object>(list.size());
+
+    for (Object obj : list) {
+      if (obj instanceof String) {
+        newList.add(stringToBytes((String) obj));
+      } else {
+        newList.add(obj);
+      }
+    }
+
+    values[idx] = newList;
+  }
+
+  /**
+   * 设置对应索引列的值，该列是 Map 类型
+   *
+   * @param idx
+   *     列索引
+   * @param map Map 中 String 类型的 key/value 将被转换为 byte[] 存储，转换过程使用 UTF-8 编码
+   *     列值
+   */
+  public void setMap(int idx, Map map) {
+    if (map == null) {
+      values[idx] = map;
+      return;
+    }
+
+    Map newMap = new HashMap(map.size(), 1.0f);
+    Iterator iter = map.entrySet().iterator();
+    while (iter.hasNext()) {
+      Map.Entry entry = (Map.Entry) iter.next();
+
+      Object key = entry.getKey();
+      Object value = entry.getValue();
+
+      if (key instanceof String) {
+        key = stringToBytes((String) key);
+      }
+
+      if (value instanceof String) {
+        value = stringToBytes((String) value);
+      }
+
+      newMap.put(key, value);
+    }
+
+    values[idx] = newMap;
+  }
+
+  public void setMap(String columnName, Map map) {
+    setMap(getColumnIndex(columnName), map);
+  }
+
+  public <T> List<T> getArray(Class<T> className, String columnName) {
+    return getArray(className, getColumnIndex(columnName));
+  }
+
+  /**
+   * 获取对应索引列的值，该列是 Array 类型
+   *
+   * @param <T>
+   *     返回 List 的元素类型，当类型为 String 时，内部存储的 byte[] 将使用 UTF-8 编码为 String 并返回
+   * @param className
+   *     返回 List 的元素类型名称
+   * @param idx
+   *     列索引值
+   * @return Array 类型的列值
+   */
+
+  public <T> List<T> getArray(Class<T> className, int idx) {
+    List list = getArray(idx);
+    if (list == null) {
+      return null;
+    }
+
+    if (className == String.class) {
+      List newList = new ArrayList<String>(list.size());
+      for (Object obj : list) {
+        if (obj instanceof byte[]) {
+          newList.add(bytesToString((byte[]) obj));
+        } else {
+          newList.add((String) obj);
+        }
+      }
+      return newList;
+    } else {
+      return (List<T>) list;
+    }
+  }
+
+  public List getArray(String columnName) {
+    return getArray(getColumnIndex(columnName));
+  }
+
+  public List getArray(int idx) {
+    Object obj = get(idx);
+    if (obj == null) {
+      return null;
+    }
+
+    if (obj instanceof List) {
+      return (List) obj;
+    } else {
+      throw new IllegalArgumentException("Column " + idx + " is not an array column");
+    }
+  }
+
+  public <k, v> Map<k, v> getMap(Class<k> keyClass, Class<v> valueClass, String columnName) {
+    return getMap(keyClass, valueClass, getColumnIndex(columnName));
+  }
+
+  /**
+   * 获取对应索引列的值，该列是 Map 类型
+   *
+   * @param <k>
+   *     待获取的 map 中 key 的类型，当类型为 String 时，内部存储的 byte[] 将使用 UTF-8 编码为 String 并返回
+   * @param <v>
+   *     待获取的 map 中 value 的类型，当类型为 String 时，内部存储的 byte[] 将使用 UTF-8 编码为 String 并返回
+   * @param keyClass
+   *     待获取的 map 中 key 的类型名称
+   * @param valueClass
+   *     待获取的 map 中 value 的类型名称
+   * @param idx
+   *     列索引值
+   * @return Map 类型的列值
+   */
+
+  public <k, v> Map<k, v> getMap(Class<k> keyClass, Class<v> valueClass, int idx) {
+    Map map = getMap(idx);
+    if (map == null) {
+      return null;
+    }
+
+    if (keyClass != String.class && valueClass != String.class) {
+      return (Map<k, v>) map;
+    }
+
+    Map<k, v> newMap = new HashMap<k, v>(map.size(), 1.0f);
+
+    Iterator iter = map.entrySet().iterator();
+    while (iter.hasNext()) {
+      Map.Entry entry = (Map.Entry) iter.next();
+      Object key = entry.getKey();
+      Object value = entry.getValue();
+
+      if (keyClass == String.class && key != null) {
+        key = bytesToString((byte[]) key);
+      }
+
+      if (valueClass == String.class && value != null) {
+        value = bytesToString((byte[]) value);
+      }
+
+      newMap.put((k) key, (v) value);
+    }
+
+    return newMap;
+  }
+
+  public Map getMap(String columnName) {
+    return getMap(getColumnIndex(columnName));
+  }
+
+  public Map getMap(int idx) {
+    Object obj = get(idx);
+    if (obj == null) {
+      return null;
+    }
+
+    if (obj instanceof Map) {
+      return (Map) obj;
+    } else {
+      throw new IllegalArgumentException("Column " + idx + " is not a map column");
+    }
+  }
 }
+

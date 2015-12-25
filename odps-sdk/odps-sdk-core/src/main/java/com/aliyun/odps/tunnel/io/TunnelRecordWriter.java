@@ -25,6 +25,7 @@ import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
 
 /**
  * TunnelRecordWriter支持通过Tunnel服务写入数据到ODPS表

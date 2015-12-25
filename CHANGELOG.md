@@ -1,3 +1,16 @@
+# 0.20.7
+- security improvement
+
+# 0.20.1
+- fix pipeline combiner
+
+# 0.20.0 
+- add ArrayRecord.clear()
+- add onInstanceCreated hook
+- array|map is supported in TableTunnel
+- add volumefs sdk
+- add Table.getTableID()
+
 # 0.19.3
 - fix bug of table tunnel download with columns
 

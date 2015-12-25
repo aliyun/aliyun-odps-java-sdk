@@ -25,13 +25,9 @@ package com.aliyun.odps.tunnel;
 /**
  * TunnelConstants defined for OPDS.
  */
-
 public interface TunnelConstants {
 
   public static int VERSION = 4;
-  public static String RES_PROJECTS = "projects";
-  public static String RES_TABLES = "tables";
-  public static String RES_VOLUMES = "volumes";
   public static String RES_PARTITION = "partition";
   public static String RES_SHARD = "shard";
   public static String RES_COLUMNS = "columns";
@@ -51,12 +47,10 @@ public interface TunnelConstants {
   public static String ITERATE_MODE = "iteratemode";
   public static String ITER_MODE_AT_PACKID = "AT_PACKID";
   public static String ITER_MODE_AFTER_PACKID = "AFTER_PACKID";
-  public static String ITER_MODE_FIRST_PACK = "FIRST_PACK";
-  public static String ITER_MODE_LAST_PACK = "LAST_PACK";
   public static String SHARD_NUMBER = "shardnumber";
   public static String SHARD_STATUS = "shardstatus";
   public static String LOCAL_ERROR_CODE = "Local Error";
   public static String SEEK_TIME = "timestamp";
-  public static String NORMAL_TABLE_TYPE = "normal_type";
-  public static String HUB_TABLE_TYPE = "hub_type";
+  public static String MODE = "mode";
+  public static String STREAM_UPLOAD = "streamupload";
 }

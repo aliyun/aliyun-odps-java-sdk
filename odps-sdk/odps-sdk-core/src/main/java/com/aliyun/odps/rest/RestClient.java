@@ -37,6 +37,7 @@ import javax.xml.bind.JAXBException;
 import com.aliyun.odps.NoSuchObjectException;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.Survey;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
@@ -100,7 +101,7 @@ public class RestClient {
   private static final String
       USER_AGENT_PREFIX =
       "JavaSDK" + " Revision:" + SvnRevisionUtils.getSvnRevision()
-      + " Version:" + SvnRevisionUtils.getMavenVersion();
+      + " Version:" + SvnRevisionUtils.getMavenVersion() + " JavaVersion:" + SvnRevisionUtils.getJavaVersion();
 
   private String userAgent;
 
@@ -119,6 +120,7 @@ public class RestClient {
    *
    * @param transport
    */
+  @Survey
   public RestClient(Transport transport) {
     this.transport = transport;
   }
@@ -387,8 +389,8 @@ public class RestClient {
       } else {
         if (error != null) {
           e = new OdpsException(error.getMessage(), new RestException(error));
-        } else {
-          e = new OdpsException(String.valueOf(resp.getStatus()));
+        } else {         
+          e = new OdpsException(String.valueOf(resp.getStatus()));          
         }
       }
       throw e;
@@ -476,6 +478,7 @@ public class RestClient {
    * @throws OdpsException
    * @throws IOException
    */
+  @Survey
   public Response requestForRawResponse(String resource, String method, Map<String, String> params,
                                         Map<String, String> headers,
                                         InputStream body, int length)
@@ -508,6 +511,7 @@ public class RestClient {
     return endpoint;
   }
 
+  @Survey
   public Transport getTransport() {
     return transport;
   }
@@ -588,7 +592,16 @@ public class RestClient {
   }
 
   /**
-   * 设置User-Agent
+   * 获取 User-Agent
+   *
+   * @return
+   */
+  public String getUserAgent() {
+    return userAgent;
+  }
+
+  /**
+   * 设置 User-Agent
    *
    * @param userAgent
    */

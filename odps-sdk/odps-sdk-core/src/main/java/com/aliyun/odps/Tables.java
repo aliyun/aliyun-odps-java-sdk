@@ -180,6 +180,10 @@ public class Tables implements Iterable<Table> {
           if (filter.getName() != null) {
             params.put("name", filter.getName());
           }
+
+          if (filter.getOwner() != null ) {
+            params.put("owner", filter.getOwner());
+          }
         }
 
         String resource = ResourceBuilder.buildTablesResource(projectName);

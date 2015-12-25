@@ -34,12 +34,6 @@ import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
-/**
- * Volumes表示ODPS中所有Volume的集合
- * <b>暂未开放，仅限内部使用<b/>
- *
- * @author lu.lu@alibaba-inc.com
- */
 public class Volumes implements Iterable<Volume> {
 
   @XmlRootElement(name = "Volumes")
@@ -211,7 +205,9 @@ public class Volumes implements Iterable<Volume> {
    *     volume名
    * @param comment
    * @throws OdpsException
+   * @deprecated call #create(String, String, Volume.TYPE) instead.
    */
+  @Deprecated
   public void create(String volumeName, String comment)
       throws OdpsException {
     create(client.getDefaultProject(), volumeName, comment);
@@ -226,7 +222,9 @@ public class Volumes implements Iterable<Volume> {
    *     所要创建的volume名
    * @param comment
    * @throws OdpsException
+   * @deprecated call #create(String, String, String, Volume.TYPE) instead.
    */
+  @Deprecated
   public void create(String projectName, String volumeName, String comment
   ) throws OdpsException {
     if (projectName == null || volumeName == null) {
@@ -237,6 +235,54 @@ public class Volumes implements Iterable<Volume> {
     Volume.VolumeModel model = new Volume.VolumeModel();
     model.name = volumeName;
     model.comment = comment;
+
+    String xml = null;
+    try {
+      xml = JAXBUtils.marshal(model, Volume.VolumeModel.class);
+    } catch (JAXBException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put("Content-Type", "application/xml");
+
+    client.stringRequest(resource, "POST", null, headers, xml);
+  }
+  
+  /**
+   * 创建Volume
+   *
+   * @param volumeName volume名
+   * @param comment
+   * @param type 创建原有Volume传入 {@link Volume}.Type.Old,创建新VolumeFS功能的volume传入{@link Volume}
+   *        .Type.New。VolumeFS特性需要Project开启该功能才可使用
+   * @throws OdpsException
+   */
+  public void create(String volumeName, String comment, Volume.Type type) throws OdpsException {
+    create(client.getDefaultProject(), volumeName, comment, type);
+  }
+
+  /**
+   * 创建Volume
+   *
+   * @param projectName 目标表所在Project名称
+   * @param volumeName 所要创建的volume名
+   * @param comment
+   * @param type 创建原有Volume传入 {@link Volume}.Type.Old,创建新VolumeFS功能的volume传入{@link Volume}
+   *        .Type.New。VolumeFS特性需要Project开启该功能才可使用
+   * @throws OdpsException
+   */
+  public void create(String projectName, String volumeName, String comment, Volume.Type type) throws OdpsException {
+    if (projectName == null || volumeName == null) {
+      throw new IllegalArgumentException();
+    }
+    String resource = ResourceBuilder.buildVolumesResource(projectName);
+
+    Volume.VolumeModel model = new Volume.VolumeModel();
+    model.name = volumeName;
+    model.comment = comment;
+    if(type!=null)
+      model.type = type.name().toLowerCase();
 
     String xml = null;
     try {

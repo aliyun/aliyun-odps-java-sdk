@@ -17,19 +17,20 @@
  * under the License.
  */
 
-package com.aliyun.odps.tunnel;
+package com.aliyun.odps.datahub;
 
-/**
- * 该异常在Schema的格式不正确的时候抛出
- */
-@SuppressWarnings("serial")
-public class InvalidRecordSchema extends TunnelException {
+public class SeekPackResult {
+    private String packId;
 
-  public InvalidRecordSchema(String message) {
-    super(message);
-  }
+    public SeekPackResult(String packStr) {
+        if (packStr == null) {
+            throw new IllegalArgumentException("Invalid pack string.");
+        }
 
-  public InvalidRecordSchema(String message, Throwable t) {
-    super(message, t);
-  }
+        this.packId = packStr;
+    }
+
+    public String getPackId() {
+        return packId;
+    }
 }

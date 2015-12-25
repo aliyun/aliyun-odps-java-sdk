@@ -21,6 +21,7 @@ package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.UUID;
 
@@ -30,6 +31,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.commons.util.JacksonParser;
 
 public class TablesTest extends TestBase {
 
@@ -48,25 +50,28 @@ public class TablesTest extends TestBase {
     schema.addPartitionColumn(new Column("p1", OdpsType.BIGINT));
     schema.addPartitionColumn(new Column("p2", OdpsType.STRING));
 
+    tearDown();
     odps.tables().create(odps.getDefaultProject(), tableName, schema);
   }
 
-
-  @After
   public void tearDown() throws Exception {
-    odps.tables().delete(tableName);
+    if (odps.tables().exists(odps.getDefaultProject(), tableName)) {
+      odps.tables().delete(tableName);
+    }
   }
 
   @Test
   public void testCreateTable() throws OdpsException {
     UUID id = UUID.randomUUID();
-    String tableName = id.toString().replace("-" , "");
+    String tableName = id.toString().replace("-", "");
     TableSchema schema = new TableSchema();
     schema.addColumn(new Column("c1", OdpsType.BIGINT));
     schema.addColumn(new Column("_c2", OdpsType.STRING, "_comment here"));
     schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
     schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
-    odps.tables().create(odps.getDefaultProject(), "testCreateTable" + tableName, schema, "_table comment", false);
+    odps.tables()
+        .create(odps.getDefaultProject(), "testCreateTable" + tableName, schema, "_table comment",
+                false);
     Table table = odps.tables().get("testCreateTable" + tableName);
     assertEquals(table.getComment(), "_table comment");
     TableSchema returnSchema = table.getSchema();
@@ -119,13 +124,23 @@ public class TablesTest extends TestBase {
   }
 
   @Test
-  public void testIteratorTableFilter() {
+  public void testIteratorTableFilter() throws IOException, OdpsException {
     TableFilter tableFilter = new TableFilter();
     tableFilter.setName("user");
     Iterator<Table> iterator = odps.tables().iterator(tableFilter);
     while (iterator.hasNext()) {
       Table table = iterator.next();
       Assert.assertNotNull(table.getName());
+    }
+
+    tableFilter = new TableFilter();
+    String userDetail = odps.projects().get().getSecurityManager().runQuery("whoami", true);
+    String owner = JacksonParser.parse(userDetail).get("DisplayName").asText();
+    tableFilter.setOwner(owner);
+    iterator = odps.tables().iterator(tableFilter);
+    while (iterator.hasNext()) {
+      Table table = iterator.next();
+      Assert.assertNotNull(table.getOwner());
     }
   }
 

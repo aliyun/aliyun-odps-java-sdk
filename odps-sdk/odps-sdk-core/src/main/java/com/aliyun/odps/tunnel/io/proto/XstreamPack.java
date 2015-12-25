@@ -2,7 +2,7 @@
 // source: xstream_pack.proto
 
 package com.aliyun.odps.tunnel.io.proto;
-
+@Deprecated
 public final class XstreamPack {
   private XstreamPack() {}
   public static void registerAllExtensions(

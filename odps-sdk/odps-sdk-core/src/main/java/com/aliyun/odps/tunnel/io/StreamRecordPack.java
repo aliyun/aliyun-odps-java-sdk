@@ -19,89 +19,22 @@
 
 package com.aliyun.odps.tunnel.io;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.data.Record;
+import com.aliyun.odps.datahub.DatahubRecordPack;
 
-
-public class StreamRecordPack {
-
-  private ByteArrayOutputStream byteArrayOutputStream;
-  private ProtobufRecordStreamWriter protobufRecordStreamWriter;
-  private CompressOption compressOption;
-  private TableSchema recordSchema;
-  private long recordCount;
-  private int blockThreshold = 1024 * 1024 * 2;
-  private boolean packSealed = false;
+public class StreamRecordPack extends DatahubRecordPack{
 
   /**
    * 新建一个StreamRecordPack
    *
    * @param recordSchema
-   * @throws IOException 
-   */
-  public StreamRecordPack(TableSchema recordSchema) throws IOException {
-    this.recordSchema = recordSchema;
-    this.byteArrayOutputStream = new ByteArrayOutputStream();
-    this.recordCount = 0;
-    this.compressOption = new CompressOption();
-    this.protobufRecordStreamWriter =
-        new ProtobufRecordStreamWriter(recordSchema, byteArrayOutputStream, compressOption);
-  }
-
-  /**
-   * 向StreamRecordPack中append一条Record。插入成功返回true, 否则返回false,代表需要通过StreamWriter将StreamRecordPack中的数据发送到tunnel
-   *
-   * @param r
    * @throws IOException
    */
-  public boolean append(Record r) throws IOException {
-    if (protobufRecordStreamWriter == null) {
-      protobufRecordStreamWriter =
-          new ProtobufRecordStreamWriter(recordSchema, byteArrayOutputStream, compressOption);
-    }
-    if (protobufRecordStreamWriter.getTotalBytes() >= this.blockThreshold || packSealed == true) {
-      return false;
-    }
-    protobufRecordStreamWriter.write(r);
-    recordCount += 1;
-    return true;
+  public StreamRecordPack(TableSchema recordSchema) throws IOException {
+    super(recordSchema);
+
   }
 
-  /**
-   * 清空StreamRecordPack
-   */
-  public void clear() {
-    try {
-      if (protobufRecordStreamWriter != null) {
-        protobufRecordStreamWriter.close();
-      }
-    } catch (IOException e) {
-
-    }
-
-    protobufRecordStreamWriter = null;
-    byteArrayOutputStream.reset();
-    recordCount = 0;
-    packSealed = false;
-  }
-
-  byte[] getByteArray() throws IOException {
-    packSealed = true;
-    if (protobufRecordStreamWriter != null) {
-      protobufRecordStreamWriter.close();
-      protobufRecordStreamWriter = null;
-    }
-    return byteArrayOutputStream.toByteArray();
-  }
-
-  public long getRecordCount() {
-    return recordCount;
-  }
-
-  CompressOption getCompressOption() {
-    return compressOption;
-  }
 }

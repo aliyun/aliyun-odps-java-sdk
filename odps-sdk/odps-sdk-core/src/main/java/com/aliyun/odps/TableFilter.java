@@ -34,6 +34,7 @@ package com.aliyun.odps;
  * <code>
  * TableFilter filter = new TableFilter();
  * filter.setName("my_table_prefix");
+ * filter.setOwner("my_table_owner");
  *
  * for (Table t : odps.tables().iterator(filter)) {
  *     // do somthing on the Table object
@@ -47,6 +48,8 @@ package com.aliyun.odps;
 public class TableFilter {
 
   private String name;
+
+  private String owner;
 
   /**
    * 设置表名前缀
@@ -65,5 +68,24 @@ public class TableFilter {
    */
   public String getName() {
     return name;
+  }
+
+  /**
+   * 获得表所有者
+   *
+   * @return 表所有者
+   */
+  public String getOwner() {
+    return owner;
+  }
+
+  /**
+   * 设置表所有者
+   *
+   * @param owner
+   *     表所有者
+   */
+  public void setOwner(String owner) {
+    this.owner = owner;
   }
 }

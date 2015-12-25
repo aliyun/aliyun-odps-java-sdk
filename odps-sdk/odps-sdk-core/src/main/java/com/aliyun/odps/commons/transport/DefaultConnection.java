@@ -32,6 +32,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 
+import com.aliyun.odps.Survey;
 import com.aliyun.odps.account.AuthorizationUtil;
 
 /**
@@ -39,6 +40,7 @@ import com.aliyun.odps.account.AuthorizationUtil;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
+@Survey
 public class DefaultConnection implements Connection {
 
   private static final Logger log = Logger.getLogger(DefaultConnection.class.getName());
@@ -120,11 +122,13 @@ public class DefaultConnection implements Connection {
   }
 
   @Override
+  @Survey
   public Response getResponse() throws IOException {
     checkConnection();
     DefaultResponse resp = new DefaultResponse();
 
     resp.setStatus(conn.getResponseCode());
+    resp.setMessage(conn.getResponseMessage());
     Map<String, List<String>> fields = conn.getHeaderFields();
     Map<String, String> headers = resp.getHeaders();
     for (Entry<String, List<String>> kv : fields.entrySet()) {
@@ -143,13 +147,17 @@ public class DefaultConnection implements Connection {
   public InputStream getInputStream() throws IOException {
     checkConnection();
 
-    InputStream is = null;
-    if (conn.getResponseCode() / 100 == 2) {
+    InputStream is;
+    if (conn.getResponseCode() / 100 < 4) {
       is = conn.getInputStream();
     } else {
       is = conn.getErrorStream();
     }
 
+    if (is == null) {
+      throw new IOException("Invalid connection.");
+    }
+    
     String encoding = conn.getHeaderField(Headers.CONTENT_ENCODING);
     if (encoding != null && encoding.equalsIgnoreCase("gzip")) {
       is = new GZIPInputStream(is);

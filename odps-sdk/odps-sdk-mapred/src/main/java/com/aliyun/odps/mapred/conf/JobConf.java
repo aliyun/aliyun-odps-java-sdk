@@ -21,6 +21,8 @@ package com.aliyun.odps.mapred.conf;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -121,7 +123,8 @@ public class JobConf extends Configuration {
    *     配置管理器
    */
   public JobConf(Configuration conf) {
-    super(conf);
+    super(SessionState.get().getDefaultJob());
+    mergeConfiguration(conf);
   }
 
   /**
@@ -155,6 +158,23 @@ public class JobConf extends Configuration {
    */
   public JobConf(boolean loadSessionContext) {
     super();
+    if (loadSessionContext) {
+      mergeConfiguration(SessionState.get().getDefaultJob());
+    }
+  }
+
+  /**
+   * 合并一个配置, 以传入的配置为主。
+   *
+   * @param conf
+   *     需要合并的配置。
+   */
+  private void mergeConfiguration(Configuration conf) {
+    Iterator<Map.Entry<String,String>> iter = conf.iterator();
+    while (iter.hasNext()) {
+      Map.Entry<String, String> entry = iter.next();
+      this.set(entry.getKey(), entry.getValue());
+    }
   }
 
   /**

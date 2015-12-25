@@ -26,6 +26,7 @@ public class SvnRevisionUtils {
 
   public static String revision = "UNKNOWN";
   public static String mavenVersion = "UNKNOWN";
+  public static String javaVersion = "UNKNOWN";
 
   static {
     InputStream is = null;
@@ -35,6 +36,7 @@ public class SvnRevisionUtils {
       properties.load(is);
       revision = properties.getProperty("Revision");
       mavenVersion = properties.getProperty("MavenVersion");
+      javaVersion = System.getProperty("java.version");
     } catch (Exception e) {
     }
   }
@@ -47,4 +49,7 @@ public class SvnRevisionUtils {
     return mavenVersion;
   }
 
+  public static String getJavaVersion() {
+    return javaVersion;
+  }
 }
