@@ -1,8 +1,6 @@
 # ODPS SDK for Java Developers
 
-
-
-
+[![Build Status](https://travis-ci.org/aliyun/aliyun-odps-java-sdk.svg?branch=master)](https://travis-ci.org/aliyun/aliyun-odps-java-sdk)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.aliyun.odps/odps/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.aliyun.odps/odps)
 
 
