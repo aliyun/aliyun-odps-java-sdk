@@ -1,5 +1,12 @@
 # ODPS SDK for Java Developers
 
+
+
+
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.aliyun.odps/odps/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.aliyun.odps/odps)
+
+
+
 ## Requirements
 
 - Java 6+

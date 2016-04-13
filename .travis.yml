@@ -1,0 +1,12 @@
+language: java
+install: mvn install -DskipTests=true -Dgpg.skip=true -Djavadoc.skip=true
+script: mvn package -DskipTests=true -Dgpg.skip=true -Djavadoc.skip=true
+
+deploy:
+  provider: releases
+  api_key:
+    secure: ELVhWQO+F3Qgm7zcNdiJom/7aqTLbDu+sYEkQqnOGff46eZr+EbfYDgOZ8YxQQtUd1rAtUKNsZ+udwauFOCIsNNddLz0TYP2j8eCVwlYd3KYa5e4bPbxFqf9eYvAjFiM54ux6BHb0pwfeudJQU+iJPJc4Kx5q7py2tcb1I2D0wNbqO33qoUIcehJsoInY3IH9BUiJb/k2PgYKtDt1/bARfna9C4DAtgoH0whK62XRoozSj8qBJjsTYHiJp4kpY2tWj9vUy9pXVuONY5CrpdLrk5Us7qguUE0FePqkeFCwwg9cI4Kvuf2iVKyr1qAJGCAhBQgK8JD3a8Itwg5n9zHI/lEDpk/g2d/+UfuqccHZSDie5COWTAGOPUCi/jyY9U5z7wRAqT6+H9Ho0Sjkun9wI9rUSgrprOinhuSoLBZ2rHyv/VDT2bcSaZIa3Ks8Bp6hCIcDyOpl1jnreyXMm8tD8lRtsIou8Sssdp5Psy2BXq8PMJ9VrVgJmx6LOjPTsBNvQiFvVoIaWuMPh+3gSpVyHnc2yu+ZqOvkdkIfuejWhcOi59I7lh8HtTDXiwSvWMrMSCPMDe10BGF7FQZrSIYebrJxnOZQWGgXODO0YmXms3iqbo8nkQ3YfZNgKTjEAee0j79HvVgZa03hnGWS/xv3iLVylid3OyesvJZ219zM18=
+  file: ''
+  on:
+    tags: true
+    
