@@ -20,6 +20,7 @@
 package com.aliyun.odps;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.FileNotFoundException;
@@ -122,6 +123,15 @@ public class InstancesTest extends TestBase {
         break;
       }
     }
+
+    max = 50;
+    for (Instance instance : odps.instances().iterable(filter)) {
+      assertNotNull(instance.getOwner());
+      --max;
+      if (max < 0) {
+        break;
+      }
+    }
   }
 
   @Test
@@ -144,6 +154,13 @@ public class InstancesTest extends TestBase {
     Iterator<Instance> iterator = odps.instances().iterator();
     if (iterator.hasNext()) {
       iterator.next().getId();
+    }
+  }
+
+  @Test
+  public void testIterable() throws FileNotFoundException {
+    for (Instance i : odps.instances().iterable()) {
+      i.getId();
     }
   }
 

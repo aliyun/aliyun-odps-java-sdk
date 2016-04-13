@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.HashMap;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -33,12 +33,13 @@ import org.codehaus.jackson.map.ObjectMapper;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.commons.proto.XstreamPack.XStreamPack;
+import com.aliyun.odps.commons.proto.XstreamPack.KVMapPB;
+import com.aliyun.odps.commons.proto.XstreamPack.BytesPairPB;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.rest.RestClient;
 import com.google.protobuf.ByteString;
-
 
 public class DatahubWriter {
 
@@ -55,6 +56,7 @@ public class DatahubWriter {
     this.path = path;
     this.params = params;
     this.headers = headers;
+
     try {
       this.messageDigest = MessageDigest.getInstance("MD5");
     } catch (NoSuchAlgorithmException e) {
@@ -73,7 +75,7 @@ public class DatahubWriter {
    *
    */
   public WritePackResult write(DatahubRecordPack recordPack) throws OdpsException, IOException {
-    return write(null, recordPack, null);
+    return write(null, recordPack, null, null);
   }
 
   /**
@@ -89,7 +91,41 @@ public class DatahubWriter {
    *
    */
   public WritePackResult write(DatahubRecordPack recordPack, byte [] meta) throws OdpsException, IOException {
-    return write(null, recordPack, meta);
+    return write(null, recordPack, meta, null);
+  }
+
+  /**
+   * 向ODPS hub服务的非分区表写入一个pack
+   *
+   * @param recordPack
+   *     {@link DatahubRecordPack} 对象
+   * @param meta
+   *     pack 属性
+   * @throws OdpsException, IOexception
+   *
+   * @return {@link WritePackResult}
+   *
+   */
+  public WritePackResult write(DatahubRecordPack recordPack, Map<String, String> meta) throws OdpsException, IOException {
+    return write(null, recordPack, null, meta);
+  }
+  
+  /**
+   * 向ODPS hub服务的非分区表写入一个pack
+   *
+   * @param partitionSpec
+   *     {@link com.aliyun.odps.PartitionSpec} 对象
+   * @param recordPack
+   *     {@link DatahubRecordPack} 对象
+   * @param meta
+   *     pack 属性
+   * @throws OdpsException, IOexception
+   *
+   * @return {@link WritePackResult}
+   *
+   */
+  public WritePackResult write(PartitionSpec partitionSpec, DatahubRecordPack recordPack, Map<String, String> meta) throws OdpsException, IOException {
+    return write(partitionSpec, recordPack, null, meta);
   }
 
   /**
@@ -106,7 +142,7 @@ public class DatahubWriter {
    */
   public WritePackResult write(PartitionSpec partitionSpec, DatahubRecordPack recordPack)
       throws OdpsException, IOException {
-    return write(partitionSpec, recordPack, null);
+    return write(partitionSpec, recordPack, null, null);
   }
 
   /**
@@ -118,12 +154,14 @@ public class DatahubWriter {
    *     {@link DatahubRecordPack} 对象
    * @param meta
    *     pack 属性
+   * @param kvMeta
+   *     pack 属性
    * @throws OdpsException, IOexception
    *
    * @return {@link WritePackResult}
    *
    */
-  public WritePackResult write(PartitionSpec partitionSpec, DatahubRecordPack recordPack, byte [] meta)
+  private WritePackResult write(PartitionSpec partitionSpec, DatahubRecordPack recordPack, byte [] meta, Map<String, String> kvMeta)
       throws OdpsException, IOException {
 
     HashMap<String, String> params = new HashMap<String, String>(this.params);
@@ -132,18 +170,35 @@ public class DatahubWriter {
     try {
       byte[] bytes = recordPack.getByteArray();
       
-      if ((null == bytes || 0 == bytes.length) && null == meta) {
-        throw new DatahubException("both record pack and meta are empty.");
+      if (null == bytes || 0 == bytes.length) {
+        throw new DatahubException("record pack is empty.");
       }
 
       XStreamPack.Builder pack = XStreamPack.newBuilder();
       pack.setPackData(ByteString.copyFrom(bytes));
+
       if (null != meta) {
         pack.setPackMeta(ByteString.copyFrom(meta));
       }
-      
+
+      KVMapPB.Builder kvMap = KVMapPB.newBuilder();
+      if (null != kvMeta) {
+        for (Map.Entry<String, String> entry: kvMeta.entrySet())
+        {
+          BytesPairPB.Builder kv = BytesPairPB.newBuilder();
+          String key = entry.getKey();
+          if (DatahubConstants.RESERVED_META_PARTITION.equals(key)) {
+            throw new DatahubException("Invalid PackMeta: \"__partition__\"!");
+          }
+          kv.setKey(ByteString.copyFrom(key.getBytes("UTF-8")));
+          kv.setValue(ByteString.copyFrom(entry.getValue().getBytes("UTF-8")));
+          kvMap.addItems(kv);
+        }
+      }
+      pack.setKvMeta(kvMap);
+
       bytes = pack.build().toByteArray();
-      
+
       if (partitionSpec != null && partitionSpec.toString().length() > 0) {
         params.put(DatahubConstants.RES_PARTITION, partitionSpec.toString().replaceAll("'", ""));
       }
@@ -193,5 +248,6 @@ public class DatahubWriter {
     }
     return sb.toString();
   }
+
 }
 

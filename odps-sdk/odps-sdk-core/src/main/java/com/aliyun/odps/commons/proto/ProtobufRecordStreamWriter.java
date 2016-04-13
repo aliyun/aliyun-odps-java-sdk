@@ -301,7 +301,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
   public long getTotalBytes() {
     return bou.getByteCount();
   }
-
+  
   @Deprecated
   public void write(RecordPack pack) throws IOException {
     if (pack instanceof ProtobufRecordPack) {

@@ -26,6 +26,8 @@ import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
+import com.aliyun.odps.data.Record;
+import com.aliyun.odps.tunnel.HttpHeaders;
 
 /**
  * TunnelRecordWriter支持通过Tunnel服务写入数据到ODPS表
@@ -57,6 +59,20 @@ public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
     super(schema, conn.getOutputStream(), option);
     this.conn = conn;
 
+  }
+
+  @Override
+  public void write(Record r) throws IOException{
+    try {
+      super.write(r);
+    } catch (IOException e) {
+      Response resp = conn.getResponse();
+      if (!resp.isOK()) {
+        TunnelException err = new TunnelException(conn.getInputStream());
+        err.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
+        throw new IOException(err);
+      }
+    }
   }
 
   @Override

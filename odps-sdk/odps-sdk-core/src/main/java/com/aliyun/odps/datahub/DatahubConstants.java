@@ -45,5 +45,6 @@ public interface DatahubConstants {
   public static String SEEK_TIME = "timestamp";
   public static String NORMAL_TABLE_TYPE = "normal_type";
   public static String HUB_TABLE_TYPE = "hub_type";
-  public static String META_ONLY = "metaonly";
+  public static String RESERVED_META_PARTITION = "__partition__";
+  public static String TABLE_REPLICATED_TIMESTAMP = "table_replicated_timestamp";
 }

@@ -25,13 +25,11 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.UUID;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
-import com.aliyun.odps.commons.util.JacksonParser;
 
 public class TablesTest extends TestBase {
 
@@ -90,7 +88,20 @@ public class TablesTest extends TestBase {
     assertEquals(returnSchema.getPartitionColumn("_p2").getType(), OdpsType.STRING);
     assertEquals(returnSchema.getPartitionColumn("_p2").getComment(), "_comment here");
 
+  }
 
+  @Test
+  public void testCreateTableWithLifeCycle() throws OdpsException {
+    UUID id = UUID.randomUUID();
+    String tableName = "testCreateTableWithLifeCycle" + id.toString().replace("-", "");
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("c1", OdpsType.BIGINT));
+    schema.addColumn(new Column("_c2", OdpsType.STRING, "_comment here"));
+    schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
+    schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
+    odps.tables()
+        .createTableWithLifeCycle(odps.getDefaultProject(), tableName, schema, null, false, 10L);
+    assertEquals(odps.tables().get(tableName).getLife(), 10L);
   }
 
   @Test(expected = OdpsException.class)
@@ -134,8 +145,7 @@ public class TablesTest extends TestBase {
     }
 
     tableFilter = new TableFilter();
-    String userDetail = odps.projects().get().getSecurityManager().runQuery("whoami", true);
-    String owner = JacksonParser.parse(userDetail).get("DisplayName").asText();
+    String owner = OdpsTestUtils.getCurrentUser();
     tableFilter.setOwner(owner);
     iterator = odps.tables().iterator(tableFilter);
     while (iterator.hasNext()) {
@@ -145,10 +155,35 @@ public class TablesTest extends TestBase {
   }
 
   @Test
+  public void testIterableTableFilter() throws IOException, OdpsException {
+    TableFilter tableFilter = new TableFilter();
+    tableFilter.setName("user");
+
+    for (Table table : odps.tables().iterable(tableFilter)) {
+      Assert.assertNotNull(table.getName());
+    }
+
+    tableFilter = new TableFilter();
+    String owner = OdpsTestUtils.getCurrentUser();
+    tableFilter.setOwner(owner);
+
+    for (Table table : odps.tables().iterable(tableFilter)) {
+      Assert.assertNotNull(table.getOwner());
+    }
+  }
+
+  @Test
   public void testIteratorString() {
     Iterator<Table> iterator = odps.tables().iterator();
     if (iterator.hasNext()) {
       Assert.assertNotNull(iterator.next().getName());
+    }
+  }
+
+  @Test
+  public void testIterableString() {
+    for (Table table : odps.tables().iterable()) {
+      Assert.assertNotNull(table.getName());
     }
   }
 

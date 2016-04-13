@@ -56,6 +56,10 @@ public class ProtobufRecordStreamReader implements RecordReader {
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
 
+  public ProtobufRecordStreamReader() {
+
+  }
+
   public ProtobufRecordStreamReader(TableSchema schema, InputStream in)
       throws IOException {
     this(schema, null, in, new CompressOption());

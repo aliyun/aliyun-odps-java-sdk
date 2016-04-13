@@ -25,6 +25,7 @@ import java.util.HashMap;
 
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
 /**
@@ -51,15 +52,14 @@ class TunnelServerRouter {
       throw new TunnelException("Invalid protocol: " + protocol);
     }
 
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(projectName).append("/tunnel");
+    String resource = ResourceBuilder.buildProjectResource(projectName).concat("/tunnel");
 
     HashMap<String, String> params = new HashMap<String, String>();
     params.put("service", null);
 
     Response resp = null;
     try {
-      resp = odpsServiceClient.request(resource.toString(), "GET", params, null, null);
+      resp = odpsServiceClient.request(resource, "GET", params, null, null);
     } catch (OdpsException e) {
       throw new TunnelException(e.getMessage(), e);
     }

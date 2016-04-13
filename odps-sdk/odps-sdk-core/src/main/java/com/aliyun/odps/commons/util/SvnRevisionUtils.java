@@ -38,6 +38,8 @@ public class SvnRevisionUtils {
       mavenVersion = properties.getProperty("MavenVersion");
       javaVersion = System.getProperty("java.version");
     } catch (Exception e) {
+    } finally {
+      org.apache.commons.io.IOUtils.closeQuietly(is);
     }
   }
 

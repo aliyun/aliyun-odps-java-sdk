@@ -44,9 +44,12 @@ public class ResourceBuilder {
   private static final String TOPOLOGIES = "/topologies";
   private static final String XFLOWS = "/xflows";
   private static final String STREAMJOBS = "/streamjobs";
+  private static final String SERVERS = "/servers";
   private static final String MATRICES = "/matrices";
 
   private static final String OFFLINEMODELS = "/offlinemodels";
+  private static final String USERS = "/users";
+  private static final String ROLES = "/roles";
 
   public static String buildProjectsResource() {
     return PROJECTS;
@@ -215,6 +218,24 @@ public class ResourceBuilder {
     return sb.toString();
   }
 
+  public static String buildServersResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(SERVERS);
+
+    return sb.toString();
+  }
+
+  public static String buildServerResource(String projectName, String serverName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
+    sb.append(SERVERS).append('/').append(encodeObjectName(serverName));
+
+    return sb.toString();
+  }
+
+
   public static String buildVolumePartitionResource(String projectName, String volumeName,
                                                     String partitionName) {
     StringBuilder sb = new StringBuilder();
@@ -303,4 +324,37 @@ public class ResourceBuilder {
 
     return sb.toString();
   }
+
+  public static String buildUsersResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(USERS);
+
+    return sb.toString();
+  }
+
+  public static String buildUserResource(String projectName, String userName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(USERS).append("/").append(userName);
+
+    return sb.toString();
+  }
+
+  public static String buildRolesResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(ROLES);
+
+    return sb.toString();
+  }
+
+  public static String buildRoleResource(String projectName, String roleName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(ROLES).append("/").append(roleName);
+
+    return sb.toString();
+  }
+
 }

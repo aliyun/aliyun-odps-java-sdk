@@ -34,6 +34,12 @@ import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
+/**
+ * Volumes表示ODPS中所有Volume的集合
+ * <b>暂未开放，仅限内部使用<b/>
+ *
+ * @author lu.lu@alibaba-inc.com
+ */
 public class Volumes implements Iterable<Volume> {
 
   @XmlRootElement(name = "Volumes")

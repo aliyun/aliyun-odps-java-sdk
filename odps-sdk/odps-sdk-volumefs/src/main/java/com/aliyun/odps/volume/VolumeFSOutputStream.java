@@ -50,6 +50,8 @@ public class VolumeFSOutputStream extends OutputStream {
 
   private boolean overwrite;
 
+  private boolean isClosed;
+
   /**
    * @param path
    * @param volumeClient
@@ -66,6 +68,7 @@ public class VolumeFSOutputStream extends OutputStream {
     this.path = path;
     this.volumeClient = volumeClient;
     this.volumeOutputStream = volumeClient.openOutputStream(path, overwrite, replication);
+    isClosed = false;
     this.blockSize = blockSize;
     this.overwrite = overwrite;
     this.progress = progress;
@@ -87,9 +90,13 @@ public class VolumeFSOutputStream extends OutputStream {
 
 
   @Override
-  public void close() throws IOException {
+  public synchronized void close() throws IOException {
+    if (isClosed) {
+      return;
+    }
     try {
       volumeClient.commitUploadSession(path, (VolumeOutputStream) volumeOutputStream, overwrite);
+      isClosed = true;
     } catch (VolumeException e) {
       throw new IOException("Commit upload session fails:" + e.getMessage(), e);
     }

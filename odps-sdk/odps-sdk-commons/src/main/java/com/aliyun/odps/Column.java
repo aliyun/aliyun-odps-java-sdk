@@ -98,6 +98,7 @@ public final class Column {
    * 获得列标签
    *
    * @return 列标签
+   * @see #getCategoryLabel() 替代
    */
   @Deprecated
   public Long getLabel() {

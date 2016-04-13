@@ -162,52 +162,125 @@ public class Tables implements Iterable<Table> {
    * @return {@link Table}迭代器
    */
   public Iterator<Table> iterator(final String projectName, final TableFilter filter) {
-    return new ListIterator<Table>() {
+    return new TableListIterator(projectName, filter);
+  }
 
-      Map<String, String> params = new HashMap<String, String>();
 
+  /**
+   * 获取默认{@link Project}的所有表信息迭代器 iterable
+   *
+   * @return {@link Table}迭代器
+   */
+  public Iterable<Table> iterable() {
+    return new Iterable<Table>() {
       @Override
-      protected List<Table> list() {
-        ArrayList<Table> tables = new ArrayList<Table>();
-        params.put("expectmarker", "true"); // since sprint-11
-
-        String lastMarker = params.get("marker");
-        if (params.containsKey("marker") && lastMarker.length() == 0) {
-          return null;
-        }
-
-        if (filter != null) {
-          if (filter.getName() != null) {
-            params.put("name", filter.getName());
-          }
-
-          if (filter.getOwner() != null ) {
-            params.put("owner", filter.getOwner());
-          }
-        }
-
-        String resource = ResourceBuilder.buildTablesResource(projectName);
-        try {
-
-          ListTablesResponse resp = client.request(ListTablesResponse.class, resource, "GET",
-                                                   params);
-
-          for (TableModel model : resp.tables) {
-            Table t = new Table(model, projectName, odps);
-            tables.add(t);
-          }
-
-          params.put("marker", resp.marker);
-        } catch (OdpsException e) {
-          throw new RuntimeException(e.getMessage(), e);
-        }
-
-        return tables;
+      public Iterator<Table> iterator() {
+        return new TableListIterator(getDefaultProjectName(), null);
       }
     };
   }
 
+  /**
+   * 获取表信息迭代器 iterable
+   *
+   * @param projectName
+   *     指定{@link Project}名称
+   * @return {@link Table}迭代器
+   */
+  public Iterable<Table> iterable(final String projectName) {
+    return new Iterable<Table>() {
+      @Override
+      public Iterator<Table> iterator() {
+        return new TableListIterator(projectName, null);
+      }
+    };
+  }
 
+  /**
+   * 获取默认Project的表信息迭代器 iterable
+   *
+   * @param filter
+   *     过滤条件
+   * @return {@link Table}迭代器
+   */
+  public Iterable<Table> iterable(final TableFilter filter) {
+    return new Iterable<Table>() {
+      @Override
+      public Iterator<Table> iterator() {
+        return new TableListIterator(getDefaultProjectName(), filter);
+      }
+    };
+  }
+
+  /**
+   * 获得表信息迭代器 iterable
+   *
+   * @param projectName
+   *     所在{@link Project}名称
+   * @param filter
+   *     过滤条件
+   * @return {@link Table}迭代器
+   */
+  public Iterable<Table> iterable(final String projectName, final TableFilter filter) {
+    return new Iterable<Table>() {
+      @Override
+      public Iterator<Table> iterator() {
+        return new TableListIterator(projectName, filter);
+      }
+    };
+  }
+
+  private class TableListIterator extends ListIterator<Table> {
+
+    Map<String, String> params = new HashMap<String, String>();
+
+    private TableFilter filter;
+    private String projectName;
+
+    TableListIterator(String projectName, TableFilter filter) {
+      this.filter = filter;
+      this.projectName = projectName;
+    }
+
+    @Override
+    protected List<Table> list() {
+      ArrayList<Table> tables = new ArrayList<Table>();
+      params.put("expectmarker", "true"); // since sprint-11
+
+      String lastMarker = params.get("marker");
+      if (params.containsKey("marker") && lastMarker.length() == 0) {
+        return null;
+      }
+
+      if (filter != null) {
+        if (filter.getName() != null) {
+          params.put("name", filter.getName());
+        }
+
+        if (filter.getOwner() != null ) {
+          params.put("owner", filter.getOwner());
+        }
+      }
+
+      String resource = ResourceBuilder.buildTablesResource(projectName);
+      try {
+
+        ListTablesResponse resp = client.request(ListTablesResponse.class, resource, "GET",
+                                                 params);
+
+        for (TableModel model : resp.tables) {
+          Table t = new Table(model, projectName, odps);
+          tables.add(t);
+        }
+
+        params.put("marker", resp.marker);
+      } catch (OdpsException e) {
+        throw new RuntimeException(e.getMessage(), e);
+      }
+
+      return tables;
+    }
+  }
   /**
    * 创建表
    *
@@ -251,7 +324,7 @@ public class Tables implements Iterable<Table> {
    * @param shardNum
    *     表中shard数量，小于0表示未设置
    * @param hubLifecycle
-   *     Hub表生命周期，小于0表示未设置，如果hublifecycle设置但是shardNum未设置，则返回错误
+   *     Hub表生命周期，小于0表示未设置
    * @throws OdpsException
    */
   public void create(String projectName, String tableName, TableSchema schema, boolean ifNotExists,
@@ -308,7 +381,7 @@ public class Tables implements Iterable<Table> {
    * @param shardNum
    *     表中shard数量，小于0表示未设置
    * @param hubLifecycle
-   *     Hub表生命周期，小于0表示未设置，如果hublifecycle设置但是shardNum未设置，则返回错误
+   *     Hub表生命周期，小于0表示未设置
    */
   public void create(String projectName, String tableName, TableSchema schema,
                      String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle)
@@ -318,7 +391,7 @@ public class Tables implements Iterable<Table> {
     SQLTask task = new SQLTask();
     task.setName(taskName);
     task.setQuery(
-        getSQLString(projectName, tableName, schema, comment, ifNotExists, shardNum, hubLifecycle));
+        getHubString(projectName, tableName, schema, comment, ifNotExists, shardNum, hubLifecycle));
     Instances instances = new Instances(odps);
     Instance instance = instances.create(task);
 
@@ -341,11 +414,32 @@ public class Tables implements Iterable<Table> {
   public void create(String projectName, String tableName, TableSchema schema, String comment,
                      boolean ifNotExists)
       throws OdpsException {
+    createTableWithLifeCycle(projectName, tableName, schema, comment, ifNotExists, null);
+  }
+
+
+  /**
+   * 创建表
+   *
+   * @param projectName
+   *     目标表所在{@link Project}名称
+   * @param tableName
+   *     所要创建的{@link Table}名称
+   * @param schema
+   *     表结构 {@link TableSchema}
+   * @param comment
+   *     表注释, 其中不能带有单引号
+   * @param ifNotExists
+   * @param lifeCycle
+   *     表生命周期
+   */
+  public void createTableWithLifeCycle(String projectName, String tableName, TableSchema schema, String comment, boolean ifNotExists, Long lifeCycle)
+      throws OdpsException {
     // new SQLTask
     String taskName = "SQLCreateTableTask";
     SQLTask task = new SQLTask();
     task.setName(taskName);
-    task.setQuery(getSQLString(projectName, tableName, schema, comment, ifNotExists, null, null));
+    task.setQuery(getSQLString(projectName, tableName, schema, comment, ifNotExists, lifeCycle));
     Instances instances = new Instances(odps);
     Instance instance = instances.create(task);
 
@@ -432,9 +526,30 @@ public class Tables implements Iterable<Table> {
     return project;
   }
 
+  private String getHubString(String projectName, String tableName, TableSchema schema,
+                              String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getSQLString(projectName, tableName, schema, comment, ifNotExists, null));
+    if (sb.length() > 0) {
+      sb.deleteCharAt(sb.length() -1);
+    }
+
+    if (null != shardNum) {
+      sb.append(" INTO " + String.valueOf(shardNum) + " SHARDS");
+    }
+
+    if (null != hubLifecycle) {
+      sb.append(" HUBLIFECYCLE " + String.valueOf(hubLifecycle));
+    }
+
+    sb.append(';');
+
+    return sb.toString();
+  }
+
   private String getSQLString(
       String projectName, String tableName, TableSchema schema,
-      String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle) {
+      String comment, boolean ifNotExists, Long lifeCycle) {
     if (projectName == null || tableName == null || schema == null) {
       throw new IllegalArgumentException();
     }
@@ -483,11 +598,8 @@ public class Tables implements Iterable<Table> {
       sb.append(')');
     }
 
-    if (null != shardNum) {
-      sb.append(" INTO " + String.valueOf(shardNum) + " SHARDS");
-      if (null != hubLifecycle) {
-        sb.append(" HUBLIFECYCLE " + String.valueOf(hubLifecycle));
-      }
+    if (lifeCycle != null) {
+      sb.append(" LIFECYCLE ").append(lifeCycle);
     }
 
     sb.append(';');

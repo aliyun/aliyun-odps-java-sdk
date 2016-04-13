@@ -66,7 +66,7 @@ public class WareHouse {
 
   private File warehouseDir;
 
-  private static WareHouse wareHouse;
+  private static volatile WareHouse wareHouse;
 
   private ThreadLocal<Odps> odpsThreadLocal = new ThreadLocal<Odps>();
 
@@ -82,13 +82,9 @@ public class WareHouse {
     jobDirecotry = new JobDirecotry();
   }
 
-  public static WareHouse getInstance() {
+  public static synchronized WareHouse getInstance() {
     if (wareHouse == null) {
-      synchronized (WareHouse.class) {
-        if (wareHouse == null) {
-          wareHouse = new WareHouse();
-        }
-      }
+      wareHouse = new WareHouse();
     }
     return wareHouse;
   }
@@ -240,7 +236,7 @@ public class WareHouse {
     }
 
     List<File> result = new ArrayList<File>();
-    Map<PartitionSpec, File> partitionToPathMap = wareHouse
+    Map<PartitionSpec, File> partitionToPathMap = WareHouse.getInstance()
         .getPartitionToPathMap(projName, tblName);
     for (PartitionSpec parts : partitionToPathMap.keySet()) {
       if (PartitionUtils.match(pattern, parts)) {
@@ -396,10 +392,11 @@ public class WareHouse {
   /**
    * copy resource from warehouse/__resources__/ to temp/resource/
    *
-   * @param wh
    * @param projName
    * @param resourceName
    * @param resourceRootDir
+   * @param limitDownloadRecordCount
+   * @param inputColumnSeperator
    * @throws IOException
    * @throws OdpsException
    */

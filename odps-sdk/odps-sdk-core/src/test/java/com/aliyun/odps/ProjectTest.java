@@ -40,4 +40,15 @@ public class ProjectTest extends TestBase {
     assertTrue(properties.size() > 0);
     System.out.println(properties);
   }
+
+  @Test
+  public void testGetSystemVersion() throws Exception {
+    Map<String, String> map = odps.projects().get().getSystemVersion();
+    for (Map.Entry<String, String> entry : map.entrySet()) {
+      System.out.println(entry.getKey()+ ":" + entry.getValue());
+    }
+    assertTrue(map.containsKey("WORKER_GIT_BRANCH"));
+    assertTrue(map.containsKey("WORKER_GIT_REVISION"));
+    assertTrue(map.containsKey("WORKER_GIT_URL"));
+  }
 }

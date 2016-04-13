@@ -42,6 +42,7 @@ import com.aliyun.odps.task.SqlPlanTask;
 import com.aliyun.odps.task.StreamTask;
 import com.aliyun.odps.task.XLibTask;
 import com.aliyun.odps.task.GalaxyTask;
+import com.aliyun.odps.task.CupidTask;
 
 /**
  * ODPS的Task定义
@@ -59,6 +60,7 @@ import com.aliyun.odps.task.GalaxyTask;
     StreamTask.class,
     MoyeTask.class,
     GalaxyTask.class,
+    CupidTask.class,
 })
 public abstract class Task {
 

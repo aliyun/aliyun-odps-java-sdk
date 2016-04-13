@@ -29,12 +29,15 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.aliyun.odps.security.CheckPermissionConstants.*;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.JAXBUtils;
+import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.security.CheckPermissionConstants.ActionType;
+import com.aliyun.odps.security.CheckPermissionConstants.CheckPermissionResult;
+import com.aliyun.odps.security.CheckPermissionConstants.ObjectType;
 import com.aliyun.odps.security.Role.RoleModel;
 import com.aliyun.odps.security.User.UserModel;
 
@@ -103,7 +106,9 @@ public class SecurityManager {
     @XmlElement(name = "Result")
     private String result;
 
-    public String getResult() {return result;}
+    public String getResult() {
+      return result;
+    }
   }
 
   public SecurityManager(String project, RestClient client) {
@@ -131,11 +136,10 @@ public class SecurityManager {
   }
 
   public String getProjectPolicy() throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project);
+    String resource = ResourceBuilder.buildProjectResource(project);
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
-    Response response = client.request(resource.toString(), "GET", params, null,
+    Response response = client.request(resource, "GET", params, null,
                                        null);
     try {
       return new String(response.getBody(), "UTF-8");
@@ -145,20 +149,17 @@ public class SecurityManager {
   }
 
   public void putProjectPolicy(String policy) throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project);
+    String resource = ResourceBuilder.buildProjectResource(project);
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
-    client.stringRequest(resource.toString(), "PUT", params, null, policy);
+    client.stringRequest(resource, "PUT", params, null, policy);
   }
 
   public String getRolePolicy(String roleName) throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/roles/")
-        .append(roleName);
+    String resource = ResourceBuilder.buildRoleResource(project, roleName);
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
-    Response response = client.request(resource.toString(), "GET", params, null,
+    Response response = client.request(resource, "GET", params, null,
                                        null);
     try {
       return new String(response.getBody(), "UTF-8");
@@ -169,19 +170,16 @@ public class SecurityManager {
 
   public void putRolePolicy(String roleName, String policy)
       throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/roles/")
-        .append(roleName);
+    String resource = ResourceBuilder.buildRoleResource(project, roleName);
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
-    client.stringRequest(resource.toString(), "PUT", params, null, policy);
+    client.stringRequest(resource, "PUT", params, null, policy);
   }
 
   public List<User> listUsers() throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/users");
+    String resource = ResourceBuilder.buildUsersResource(project);
     ListUsersResponse resp = client.request(ListUsersResponse.class,
-                                            resource.toString(), "GET");
+                                            resource, "GET");
     List<User> users = new ArrayList<User>();
     for (UserModel model : resp.users) {
       User t = new User(model, project, client);
@@ -191,10 +189,9 @@ public class SecurityManager {
   }
 
   public List<Role> listRoles() throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/roles");
+    String resource = ResourceBuilder.buildRolesResource(project);
     ListRolesResponse resp = client.request(ListRolesResponse.class,
-                                            resource.toString(), "GET");
+                                            resource, "GET");
     List<Role> roles = new ArrayList<Role>();
     for (RoleModel model : resp.roles) {
       Role t = new Role(model, project, client);
@@ -203,13 +200,12 @@ public class SecurityManager {
     return roles;
   }
 
-  public List<Role> listRolesForUser(String uid) throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/users/").append(uid);
+  public List<Role> listRolesForUser(String userName) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, userName);
     Map<String, String> params = new HashMap<String, String>();
     params.put("roles", null);
     ListRolesResponse resp = client.request(ListRolesResponse.class,
-                                            resource.toString(), "GET", params, null, null);
+                                            resource, "GET", params, null, null);
     List<Role> roles = new ArrayList<Role>();
     for (RoleModel model : resp.roles) {
       Role t = new Role(model, project, client);
@@ -219,13 +215,11 @@ public class SecurityManager {
   }
 
   public List<User> listUsersForRole(String roleName) throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/roles/")
-        .append(roleName);
+    String resource = ResourceBuilder.buildRoleResource(project, roleName);
     Map<String, String> params = new HashMap<String, String>();
     params.put("users", null);
     ListUsersResponse resp = client.request(ListUsersResponse.class,
-                                            resource.toString(), "GET", params, null, null);
+                                            resource, "GET", params, null, null);
     List<User> users = new ArrayList<User>();
     for (UserModel model : resp.users) {
       User t = new User(model, project, client);
@@ -242,7 +236,7 @@ public class SecurityManager {
   public CheckPermissionResult checkPermission(ObjectType type, String objectName,
                                                ActionType action, String projectName) throws OdpsException {
     StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(projectName).append("/auth/");
+    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(projectName)).append("/auth/");
 
     Map<String, String> params = new HashMap<String, String>();
     params.put("type", type.toString());
@@ -251,7 +245,7 @@ public class SecurityManager {
     CheckPermissionResponse response = client.request(CheckPermissionResponse.class,
                                                       resource.toString(), "GET", params, null, null);
     System.out.println(response.getResult());
-    return response.getResult().toUpperCase().equals("ALLOW")?
+    return response.getResult().toUpperCase().equals("ALLOW") ?
            CheckPermissionResult.Allow : CheckPermissionResult.Deny;
   }
 
@@ -262,7 +256,7 @@ public class SecurityManager {
   public String runQuery(String query, Boolean jsonOutput,
                          String supervisionToken) throws OdpsException {
     StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/authorization");
+    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(project)).append("/authorization");
     AuthorizationQueryRequest request = new AuthorizationQueryRequest(query,
                                                                       jsonOutput);
     String xmlRequest;
@@ -286,7 +280,7 @@ public class SecurityManager {
       throws OdpsException {
     if (type.equalsIgnoreCase("Bearer")) {
       StringBuilder resource = new StringBuilder();
-      resource.append("/projects/").append(project)
+      resource.append("/projects/").append(ResourceBuilder.encodeObjectName(project))
           .append("/authorization");
       HashMap<String, String> headers = new HashMap<String, String>();
       headers.put(Headers.CONTENT_TYPE, "application/json");

@@ -32,8 +32,10 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.VolumeTunnel;
@@ -75,6 +77,13 @@ public class OdpsTestUtils {
 
   public static String getGrantUser() {
     return props.getProperty("grant.user");
+  }
+
+  public static String getCurrentUser() throws OdpsException, IOException {
+    Odps odps = newDefaultOdps();
+    String userDetail = odps.projects().get().getSecurityManager().runQuery("whoami", true);
+    String owner = JacksonParser.parse(userDetail).get("DisplayName").asText();
+    return owner;
   }
 
   /**
@@ -153,6 +162,15 @@ public class OdpsTestUtils {
     return tunnel;
   }
 
+  public static InstanceTunnel newInstanceTunnel(Odps odps) {
+    InstanceTunnel tunnel = new InstanceTunnel(odps);
+    String tunnelEndpoint = props.getProperty("default.tunnel.endpoint");
+    if (!StringUtils.isNullOrEmpty(tunnelEndpoint)) {
+      tunnel.setEndpoint(tunnelEndpoint);
+    }
+    return tunnel;
+  }
+
   public static RestClient newRestClient() {
     String accessId = props.getProperty("default.access.id");
     String accessKey = props.getProperty("default.access.key");
@@ -205,12 +223,38 @@ public class OdpsTestUtils {
       schema.addColumn(new Column("c1", OdpsType.BIGINT));
       odps.tables().create(tableName, schema);
 
-      TableTunnel tunnel = new TableTunnel(odps);
+      TableTunnel tunnel = newTableTunnel(odps);
       TableTunnel.UploadSession session = tunnel.createUploadSession(odps.getDefaultProject(),
                                                                      tableName);
       TunnelRecordWriter rw = (TunnelRecordWriter) session.openRecordWriter(0L);
       Record record;
       for (int i = 0; i < 20; ++i) {
+        record = session.newRecord();
+        record.set(0, 1L);
+        rw.write(record);
+      }
+      record = session.newRecord();
+      record.set(0, 0L);
+      rw.write(record);
+      rw.close();
+      Long[] blocks = {0L};
+      session.commit(blocks);
+    }
+  }
+
+  public static void createBigTableForTest(String tableName) throws OdpsException, IOException {
+    Odps odps = newDefaultOdps();
+    if (!odps.tables().exists(tableName)) {
+      TableSchema schema = new TableSchema();
+      schema.addColumn(new Column("c1", OdpsType.BIGINT));
+      odps.tables().create(tableName, schema);
+
+      TableTunnel tunnel = newTableTunnel(odps);
+      TableTunnel.UploadSession session = tunnel.createUploadSession(odps.getDefaultProject(),
+                                                                     tableName);
+      TunnelRecordWriter rw = (TunnelRecordWriter) session.openRecordWriter(0L);
+      Record record;
+      for (int i = 0; i < 10009; ++i) {
         record = session.newRecord();
         record.set(0, 1L);
         rw.write(record);

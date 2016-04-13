@@ -218,7 +218,7 @@ public class DatahubReader {
       byte[] bytes = IOUtils.readFully(in);
       
       XStreamPack pack = XStreamPack.parseFrom(bytes);
-      if (fetchMode == "all") {
+      if (fetchMode.equals("all")) {
         bytes = pack.getPackData().toByteArray();
 
         this.protobufRecordStreamReader = new ProtobufRecordStreamReader(

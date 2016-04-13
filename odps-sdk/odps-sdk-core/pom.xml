@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.20.7-public</version>
+        <version>0.21.3-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -18,7 +18,7 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-commons</artifactId>
-            <version>0.20.7-public</version>
+            <version>0.21.3-public</version>
         </dependency>
 
         <!-- Base64 -->
@@ -58,6 +58,22 @@
             <artifactId>commons-io</artifactId>
             <version>2.4</version>
         </dependency>
+        <dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>mail</artifactId>
+            <version>1.4.7</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.stephenc.jcip</groupId>
+            <artifactId>jcip-annotations</artifactId>
+            <version>1.0-1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -91,6 +107,49 @@
                     <timestampFormat>{0,date,yyyy-MM-dd HH:mm:ss}</timestampFormat>
                     <shortRevisionLength>7</shortRevisionLength>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
+                    <execution>
+                        <id>compile-protoc</id>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <tasks>
+                                <path id="proto.path">
+                                    <fileset dir="./src/main/resources/">
+                                        <include name="xstream_pack.proto" />
+                                    </fileset>
+                                </path>
+                                <pathconvert pathsep=" " property="proto.files" refid="proto.path" />
+                                <exec executable="../protoc/protoc-2.4.1.sh" failonerror="true"
+                                    osfamily="unix">
+                                    <arg value="--java_out=${basedir}/src/main/java" />
+                                    <arg value="-I${basedir}" />
+                                    <arg line="${proto.files}" />
+                                </exec>
+                                <exec executable="../protoc/protoc-2.4.1.sh" failonerror="true"
+                                    osfamily="mac">
+                                    <arg value="--java_out=${basedir}/src/main/java" />
+                                    <arg value="-I${basedir}" />
+                                    <arg line="${proto.files}" />
+                                </exec>
+                                <exec executable="${basedir}/../protoc/protoc.exe"
+                                    failonerror="true" osfamily="windows">
+                                    <arg value="--java_out=${basedir}/src/main/java" />
+                                    <arg value="-I${basedir}" />
+                                    <arg line="${proto.files}" />
+                                </exec>
+
+                            </tasks>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
         <resources>

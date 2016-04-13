@@ -42,6 +42,7 @@ import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.commons.proto.XstreamPack.XStreamPack;
+import com.aliyun.odps.commons.proto.XstreamPack.BytesPairPB;
 
 
 public class PackReader {
@@ -155,6 +156,32 @@ public class PackReader {
   }
 
   public ReadPackResult read() throws OdpsException, IOException {
+    try {
+      return read("all");
+    } catch (DatahubException e) {
+      if (e.getErrorCode().equals("OutOfRange")) {
+        seek(PackType.FIRST_PACK_ID, PackType.ReadMode.SEEK_CUR);
+        return read("all");
+      } else {
+        throw e;
+      }
+    }
+  }
+  
+  public ReadPackResult readPackMeta() throws OdpsException, IOException {
+    return read("meta");
+}
+
+  public Map<String, String> readMeta() throws OdpsException, IOException {
+      ReadPackResult result = readPackMeta();
+      if (result != null) {
+        return result.getKvMeta();
+      } else {
+        return null;
+      }
+  }
+
+  private ReadPackResult read(String fetchMode) throws OdpsException, IOException {
     this.protobufRecordStreamReader = null;
 
     HashMap<String, String> params = new HashMap<String, String>(this.params);
@@ -171,6 +198,7 @@ public class PackReader {
       params.put(DatahubConstants.PACK_ID, this.nextPackId);
       params.put(DatahubConstants.ITERATE_MODE, strMode);
       params.put(DatahubConstants.PACK_NUM, "1");
+      params.put(DatahubConstants.PACK_FETCHMODE, fetchMode);
 
       Connection conn = datahubServiceClient.connect(path, "GET", params, headers);
       Response resp = conn.getResponse();
@@ -188,17 +216,28 @@ public class PackReader {
 
       InputStream in = conn.getInputStream();
       byte[] bytes = IOUtils.readFully(in);
-      
-      XStreamPack pack = XStreamPack.parseFrom(bytes);
-      bytes = pack.getPackData().toByteArray();
 
-      this.protobufRecordStreamReader = new ProtobufRecordStreamReader(
-        tableSchema, new ByteArrayInputStream(bytes));
+      XStreamPack pack = XStreamPack.parseFrom(bytes);
+
+      List<Record> records = new ArrayList<Record>();
+
+      if (fetchMode.equals("all")) {
+        bytes = pack.getPackData().toByteArray();
+
+        this.protobufRecordStreamReader = new ProtobufRecordStreamReader(
+                tableSchema, new ByteArrayInputStream(bytes));
+
+        Record r = null;
+        while ((r = protobufRecordStreamReader.read()) != null)
+        {
+          records.add(r);
+        }
+      }
 
       String npid = resp.getHeader(DatahubHttpHeaders.HEADER_ODPS_NEXT_PACKID);
       String cpid = resp.getHeader(DatahubHttpHeaders.HEADER_ODPS_CURRENT_PACKID);
       long timeStamp = new Long(resp.getHeader(DatahubHttpHeaders.HEADER_ODPS_PACK_TIMESTAMP));
-      
+
       if (!npid.equals(PackType.LAST_PACK_ID)) {
         nextPackId = npid;
         readMode = PackType.ReadMode.SEEK_CUR;
@@ -208,15 +247,27 @@ public class PackReader {
         readMode = PackType.ReadMode.SEEK_NEXT;
         currPackId = null;
       }
-        
-      List<Record> records = new ArrayList<Record>();
-      Record r = null;
-      while ((r = protobufRecordStreamReader.read()) != null)
+
+      HashMap<String, String> kvMap = null;
+      if (pack.hasKvMeta())
       {
-        records.add(r);
+        kvMap = new HashMap<String, String>();
+        for (int i=0; i<pack.getKvMeta().getItemsList().size(); ++i)
+        {
+          BytesPairPB kv = pack.getKvMeta().getItems(i);
+          kvMap.put(kv.getKey().toStringUtf8(), kv.getValue().toStringUtf8());
+        }
+      }
+      String partitionSpec = null;
+      if (null != kvMap) {
+        partitionSpec = kvMap.get("__partition__");
       }
 
-      return new ReadPackResult(cpid, npid, timeStamp, records, pack.hasPackMeta() ? pack.getPackMeta().toByteArray() : null);
+      if (pack.hasPackMeta()) {
+        return new ReadPackResult(cpid, npid, timeStamp, partitionSpec, records, pack.getPackMeta().toByteArray());
+      } else {
+        return new ReadPackResult(cpid, npid, timeStamp, partitionSpec, records, kvMap);
+      }
 
     } catch (DatahubException e) {
       throw e;

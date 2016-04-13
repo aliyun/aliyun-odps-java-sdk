@@ -23,7 +23,7 @@ public class SeekPackResult {
     private String packId;
 
     public SeekPackResult(String packStr) {
-        if (packStr == null) {
+        if (packStr == null || packStr.equals("")) {
             throw new IllegalArgumentException("Invalid pack string.");
         }
 

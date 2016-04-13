@@ -24,6 +24,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.LazyLoad;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
 public class User extends LazyLoad {
@@ -53,10 +54,8 @@ public class User extends LazyLoad {
 
   @Override
   public void reload() throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(project).append("/users/")
-        .append(model.id);
-    model = client.request(UserModel.class, resource.toString(), "GET");
+    String resource = ResourceBuilder.buildUserResource(project, model.displayName);
+    model = client.request(UserModel.class, resource, "GET");
     setLoaded(true);
   }
 

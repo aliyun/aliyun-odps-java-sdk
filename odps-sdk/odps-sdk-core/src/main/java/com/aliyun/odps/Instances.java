@@ -407,7 +407,7 @@ public class Instances implements Iterable<Instance> {
    *     {@link InstanceFilter}过滤器
    * @return {@link Instance}的迭代器
    */
-  public Iterator<Instance> iterator(InstanceFilter filter) {
+  public Iterator<Instance> iterator(final InstanceFilter filter) {
     return iterator(getDefaultProjectName(), filter);
   }
 
@@ -422,69 +422,129 @@ public class Instances implements Iterable<Instance> {
    */
   public Iterator<Instance> iterator(final String project,
                                      final InstanceFilter filter) {
-    return new ListIterator<Instance>() {
+    return new InstanceListIterator(project, filter);
+  }
 
-      Map<String, String> params = new HashMap<String, String>();
 
+
+  /**
+   * 获得Instance的 iterable 迭代器
+   *
+   * @return {@link Instance}的 iterable 迭代器
+   */
+  public Iterable<Instance> iterable() {
+    return iterable(getDefaultProjectName());
+  }
+
+  /**
+   * 获得指定Project下，Instance iterable迭代器
+   *
+   * @param project
+   *     Project名称
+   * @return {@link Instance}的 iterable 迭代器
+   */
+  public Iterable<Instance> iterable(final String project) {
+    return iterable(project, null);
+  }
+
+  /**
+   * 获得{@link Instance} iterable 迭代器
+   *
+   * @param filter
+   *     {@link InstanceFilter}过滤器
+   * @return {@link Instance}的 iterable 迭代器
+   */
+  public Iterable<Instance> iterable(final InstanceFilter filter) {
+    return iterable(getDefaultProjectName(), filter);
+  }
+
+  /**
+   * 获得指定{@link Project}下，{@link Instance} iterable 迭代器
+   *
+   * @param project
+   *     {@link Project}名称
+   * @param filter
+   *     {@link InstanceFilter}过滤器
+   * @return {@link Instance} iterable 迭代器
+   */
+  public Iterable<Instance> iterable(final String project,
+                                     final InstanceFilter filter) {
+    return new Iterable<Instance>() {
       @Override
-      protected List<Instance> list() {
-        ArrayList<Instance> instances = new ArrayList<Instance>();
+      public Iterator<Instance> iterator() {
+        return new InstanceListIterator(project, filter);
+      }
+    };
+  }
 
-        String lastMarker = params.get("marker");
-        if (params.containsKey("marker") && lastMarker.length() == 0) {
-          return null;
-        }
+  private class InstanceListIterator extends ListIterator<Instance> {
+    Map<String, String> params = new HashMap<String, String>();
 
-        if (filter != null) {
-          if (filter.getStatus() != null) {
-            params.put("status", filter.getStatus().toString());
-          }
+    InstanceFilter filter;
+    String project;
 
-          StringBuilder range = new StringBuilder();
-          Date from = filter.getFromTime();
-          Date end = filter.getEndTime();
+    InstanceListIterator(String projectName, InstanceFilter filter) {
+      this.filter = filter;
+      this.project = projectName;
+    }
 
-          if (from != null) {
-            range.append(from.getTime() / 1000);
-          }
+    @Override
+    protected List<Instance> list() {
+      ArrayList<Instance> instances = new ArrayList<Instance>();
 
-          if (from != null || end != null) {
-            range.append(':');
-          }
-
-          if (end != null) {
-            range.append(end.getTime() / 1000);
-          }
-
-          if (range.length() > 0) {
-            params.put("daterange", range.toString());
-          }
-
-          if (filter.getOnlyOwner() != null) {
-            params.put("onlyowner", filter.getOnlyOwner() ? "yes" : "no");
-          }
-        }
-
-        String resource = ResourceBuilder.buildInstancesResource(project);
-        try {
-
-          ListInstanceResponse resp = client.request(
-              ListInstanceResponse.class, resource, "GET", params);
-
-          for (TaskStatusModel model : resp.instances) {
-            Instance t = new Instance(project, model, null, odps);
-            instances.add(t);
-          }
-
-          params.put("marker", resp.marker);
-        } catch (OdpsException e) {
-          throw new RuntimeException(e.getMessage(), e);
-        }
-
-        return instances;
-
+      String lastMarker = params.get("marker");
+      if (params.containsKey("marker") && lastMarker.length() == 0) {
+        return null;
       }
 
-    };
+      if (filter != null) {
+        if (filter.getStatus() != null) {
+          params.put("status", filter.getStatus().toString());
+        }
+
+        StringBuilder range = new StringBuilder();
+        Date from = filter.getFromTime();
+        Date end = filter.getEndTime();
+
+        if (from != null) {
+          range.append(from.getTime() / 1000);
+        }
+
+        if (from != null || end != null) {
+          range.append(':');
+        }
+
+        if (end != null) {
+          range.append(end.getTime() / 1000);
+        }
+
+        if (range.length() > 0) {
+          params.put("daterange", range.toString());
+        }
+
+        if (filter.getOnlyOwner() != null) {
+          params.put("onlyowner", filter.getOnlyOwner() ? "yes" : "no");
+        }
+      }
+
+      String resource = ResourceBuilder.buildInstancesResource(project);
+      try {
+
+        ListInstanceResponse resp = client.request(
+            ListInstanceResponse.class, resource, "GET", params);
+
+        for (TaskStatusModel model : resp.instances) {
+          Instance t = new Instance(project, model, null, odps);
+          instances.add(t);
+        }
+
+        params.put("marker", resp.marker);
+      } catch (OdpsException e) {
+        throw new RuntimeException(e.getMessage(), e);
+      }
+
+      return instances;
+
+    }
   }
 }

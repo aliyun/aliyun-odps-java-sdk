@@ -32,6 +32,7 @@ import com.aliyun.odps.NoSuchObjectException;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.utils.StringUtils;
 
 public class SecurityConfiguration extends LazyLoad {
 
@@ -193,8 +194,7 @@ public class SecurityConfiguration extends LazyLoad {
 
   public String getProjectProtectionExceptionPolicy() throws OdpsException {
     if ((!projectProtection())
-        || (model.projectProtection.exceptionPolicy == null)
-        || (model.projectProtection.equals(""))) {
+        || StringUtils.isNullOrEmpty(model.projectProtection.exceptionPolicy)) {
       throw new NoSuchObjectException("Exception Policy dose not exist!");
     }
     return model.projectProtection.exceptionPolicy;

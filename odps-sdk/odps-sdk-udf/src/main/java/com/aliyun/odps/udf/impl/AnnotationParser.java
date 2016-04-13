@@ -32,7 +32,7 @@ import com.aliyun.odps.udf.annotation.PreferWritable;
 import com.aliyun.odps.udf.annotation.Resolve;
 
 /**
- * UDF SDK中用于内部实现的功能，这部分不属于API的一部分，接口随时可能改变，不推荐使用。
+ * UDF SDK中用于内部实现的功能，这部分不属于API，接口随时可能改变，不推荐使用。
  */
 public class AnnotationParser {
 

@@ -28,7 +28,9 @@ import org.codehaus.jackson.JsonNode;
  */
 public final class Shard {
 
+  @Deprecated
   private long hubLifecycle;
+
   private long shardNum;
   private ArrayList<String> distributeCols;
   private ArrayList<String> sortCols;
@@ -81,6 +83,7 @@ public final class Shard {
    *
    * @return lifecycle， 如果表不为hub表返回 -1
    */
+  @Deprecated
   public long getHubLifecycle() {
     return hubLifecycle;
   }
@@ -112,6 +115,7 @@ public final class Shard {
     return sortCols;
   }
 
+  @Deprecated
   private void setHubLifecycle(long lifecycle) {
     hubLifecycle = lifecycle;
   }

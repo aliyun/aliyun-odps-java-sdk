@@ -316,18 +316,18 @@ public class TableTest extends TestBase {
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_3, schema, true, 3L, 7L);
     Table t1 = odps.tables().get(HUB_TABLE_NAME_3);
     Shard s1 = t1.getShard();
+    assertTrue(t1.getHubLifecycle() == 7);
     assertTrue(s1 != null);
     assertTrue(s1.getShardNum() == 3);
-    assertTrue(s1.getHubLifecycle() == 7);
     assertTrue(s1.getDistributeColumnNames() != null && s1.getDistributeColumnNames().size() == 0);
     assertTrue(s1.getSortColumnNames() != null && s1.getSortColumnNames().size() == 0);
 
     Table t2 = odps.tables().get(HUB_TABLE_NAME_4);
     t2.createShards(2);
     Shard s2 = t2.getShard();
+    assertTrue(t2.getHubLifecycle() == -1);
     assertTrue(s2 != null);
     assertTrue(s2.getShardNum() == 2);
-    assertTrue(s2.getHubLifecycle() == -1);
     assertTrue(s2.getDistributeColumnNames() != null && s2.getDistributeColumnNames().size() == 0);
     assertTrue(s2.getSortColumnNames() != null && s2.getSortColumnNames().size() == 0);
 
@@ -344,7 +344,7 @@ public class TableTest extends TestBase {
     Shard s4 = t4.getShard();
     assertTrue(s4 != null);
     assertTrue(s4.getShardNum() == 10);
-    assertTrue(s4.getHubLifecycle() == -1);
+    assertTrue(t4.getHubLifecycle() == -1);
     assertTrue(s4.getDistributeColumnNames() != null && s4.getDistributeColumnNames().size() == 2);
     assertTrue(s4.getDistributeColumnNames().get(0).equals("c1"));
     assertTrue(s4.getDistributeColumnNames().get(1).equals("c2"));

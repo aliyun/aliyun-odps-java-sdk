@@ -104,4 +104,13 @@ public class StreamJob extends LazyLoad {
     return date;
   }
 
+  /**
+   * 获取 StreamJob 所在{@link Project}名称
+   *
+   * @return Project名称
+   */
+  public String getProject() {
+    return project;
+  }
+
 }

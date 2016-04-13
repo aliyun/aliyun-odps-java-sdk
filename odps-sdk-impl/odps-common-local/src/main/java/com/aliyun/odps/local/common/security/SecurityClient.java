@@ -42,7 +42,7 @@ import com.aliyun.odps.utils.ReflectionUtils;
 public class SecurityClient {
   private static String lineSeperator = System.getProperty("line.separator", "\n");
 
-  private static SecurityClient securityClient;
+  private static volatile SecurityClient securityClient;
   private String policyFilePath;
 
   // user parameters
@@ -61,13 +61,9 @@ public class SecurityClient {
 
   private SecurityClient() {}
 
-  private static SecurityClient getInstance() {
+  private static synchronized SecurityClient getInstance() {
     if (securityClient == null) {
-      synchronized (SecurityClient.class) {
-        if (securityClient == null) {
-          securityClient = new SecurityClient();
-        }
-      }
+      securityClient = new SecurityClient();
     }
     return securityClient;
   }

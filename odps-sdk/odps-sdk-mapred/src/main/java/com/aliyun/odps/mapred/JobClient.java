@@ -165,11 +165,7 @@ public class JobClient {
     if (ss.isLocalRun()) {
       runner = "com.aliyun.odps.mapred.LocalJobRunner";
     } else {
-      if (System.getProperty("mr.run.mode", "lot").equals("lot")) {
-        runner = "com.aliyun.odps.mapred.LotBridgeJobRunner";
-      } else {
-        runner = "com.aliyun.odps.mapred.SqlBridgeJobRunner";
-      }
+      runner = "com.aliyun.odps.mapred.LotBridgeJobRunner";
     }
     JobRunner jobrunner = null;
     try {

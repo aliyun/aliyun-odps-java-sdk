@@ -22,6 +22,9 @@ package com.aliyun.odps.mapred.utils;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 /**
  * 表达MapReduce任务行属性的工具类
  */
@@ -43,17 +46,39 @@ public class SchemaUtils {
     if (str == null || str.isEmpty()) {
       return new Column[0];
     }
-    String[] kv = str.split(SEPERATOR);
-    Column[] cols = new Column[kv.length];
-    for (int i = 0; i < kv.length; i++) {
-      String[] knv = kv[i].split(DELIMITER, 2);
+    String remain = str;
+    ArrayList<Column> cols = new ArrayList<Column>();
+    int pos;
+    while (remain.length() > 0) {
+      pos = remain.indexOf(SEPERATOR);
+      if (pos < 0) {
+        // Last one
+        pos = remain.length();
+      }
+      String tok = remain.substring(0, pos);
+      String[] knv = tok.split(DELIMITER, 2);
       if (knv.length != 2) {
         throw new IllegalArgumentException(
-            "Malformed schema definition, expecting \"name:type\" but was \"" + kv[i] + "\"");
+                "Malformed schema definition, expecting \"name:type\" but was \"" + tok + "\"");
       }
-      cols[i] = new Column(knv[0].trim(), OdpsType.valueOf(knv[1].trim().toUpperCase()));
+      if (knv[1].toUpperCase().startsWith("MAP")) {
+        // We need to find the next SEPARATOR
+        pos = remain.indexOf(SEPERATOR, pos + 1);
+        if (pos < 0) {
+          pos = remain.length();
+        }
+        tok = remain.substring(0, pos);
+        // Re-split
+        knv = tok.split(DELIMITER, 2);
+      }
+      if (pos == remain.length()) {
+        remain = "";
+      } else {
+        remain = remain.substring(pos + 1);
+      }
+      cols.add(getColumn(knv[0], knv[1]));
     }
-    return cols;
+    return cols.toArray(new Column[]{});
   }
 
   /**
@@ -76,7 +101,7 @@ public class SchemaUtils {
       if (sb.length() > 0) {
         sb.append(SEPERATOR);
       }
-      sb.append(c.getName()).append(DELIMITER).append(c.getType().toString());
+      sb.append(c.getName()).append(DELIMITER).append(getOdpsTypeString(c));
     }
     return sb.toString();
   }
@@ -109,6 +134,55 @@ public class SchemaUtils {
       types[i] = cols[i].getType();
     }
     return types;
+  }
+
+  private static String getOdpsTypeString(Column tp) {
+    StringBuilder sb = new StringBuilder();
+    if (tp.getType() == OdpsType.ARRAY) {
+      sb.append("ARRAY<");
+      sb.append(tp.getGenericTypeList().get(0).toString());
+      sb.append(">");
+    } else if (tp.getType() == OdpsType.MAP) {
+      sb.append("MAP<");
+      sb.append(tp.getGenericTypeList().get(0).toString());
+      sb.append(",");
+      sb.append(tp.getGenericTypeList().get(1).toString());
+      sb.append(">");
+    } else {
+      sb.append(tp.getType().toString());
+    }
+    return sb.toString();
+  }
+
+  private static Column getColumn(String name, String typeStr) {
+    name = name.trim();
+    typeStr = typeStr.toUpperCase().trim();
+    if (typeStr.startsWith("ARRAY<")) {
+      String remain = typeStr.substring(6);
+      if (remain.length() < 2 || remain.charAt(remain.length() -1) != '>') {
+        throw new IllegalArgumentException("Malformed schema, not a valid array type: " + typeStr);
+      }
+      OdpsType elementType = OdpsType.valueOf(remain.substring(0, remain.length()-1));
+      Column col = new Column(name, OdpsType.ARRAY);
+      col.setGenericTypeList(Arrays.asList(elementType));
+      return col;
+    } else if (typeStr.startsWith("MAP<")) {
+      String remain = typeStr.substring(4);
+      if (remain.length() < 4 || remain.charAt(remain.length() - 1) != '>') {
+        throw new IllegalArgumentException("Malformed schema, not a valid map type: " + typeStr);
+      }
+      remain = remain.substring(0, remain.length() -1);
+      String[] knv = remain.split(",", 2);
+      if (knv.length != 2) {
+        throw new IllegalArgumentException(
+                "Malformed schema , not a valid map type: " + typeStr);
+      }
+      Column col = new Column(name, OdpsType.MAP);
+      col.setGenericTypeList(Arrays.asList(OdpsType.valueOf(knv[0]), OdpsType.valueOf(knv[1])));
+      return col;
+    } else {
+      return new Column(name, OdpsType.valueOf(typeStr));
+    }
   }
 
 }

@@ -1,10 +1,19 @@
+# 0.21.3
+- add retry logic in `TunnelRecordReader`
+- add `TunnelBufferedWriter`
+- add `InstanceTunnel` for downloading result of select statement
+- default logview host change to logview.odps.aliyun-inc.com
+- default connection timeout change from 5s to 10s
+- add `Function.getProject`, `Volume.getProject` and `StreamJob.getProject`
+- add `UploadSession.writeBlock`, `ProtobufRecordStreamWriter.write(RecordPack)` is deprecated
+- add `InstanceTunnel`
+- fix `Function.getResourceNames` returning wrong resource name
+- return partition info in `PackReader.read`
+- add `ServerTask` support
+
 # 0.20.7
 - security improvement
-
-# 0.20.1
 - fix pipeline combiner
-
-# 0.20.0 
 - add ArrayRecord.clear()
 - add onInstanceCreated hook
 - array|map is supported in TableTunnel
@@ -13,14 +22,8 @@
 
 # 0.19.3
 - fix bug of table tunnel download with columns
-
-# 0.19.2
 - fix DateUtils threads bug.
-
-# 0.19.1
 - add matrix sdk
-
-# 0.19.0 
 - add volume resource sdk
 - `StreamRecordPack.clear()` do not throw exception any more
 - add `StreamClient.loadShard(long)`, deprecate `StreamClient.loadShard(int)`

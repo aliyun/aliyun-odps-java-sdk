@@ -137,6 +137,41 @@ public class ResourceTest extends TestBase {
 
   }
 
+  @Test
+  public void testResourceMetaErrorMessage() throws OdpsException {
+    String resName = "NotExists";
+    try {
+      odps.resources().get(resName).reload();
+    } catch (OdpsException e) {
+      assertTrue(e.getMessage().contains("ODPS-"));
+    }
+  }
+
+  @Test
+  public void testUpdateResouceOwnerNeg2() throws FileNotFoundException, OdpsException {
+    String filename = ResourceTest.class.getClassLoader().getResource("resource.txt").getFile();
+    FileResource rm = new FileResource();
+    String resourceName = "zheminResUpOwnerNeg1";
+    if (odps.resources().exists(resourceName)) {
+      odps.resources().delete(resourceName);
+    }
+    rm.setName(resourceName);
+    odps.resources().create(rm, new FileInputStream(new File(filename)));
+    Resource rmResult = odps.resources().get(resourceName);
+    System.err.println(rmResult.getOwner());
+    System.err.println("InvalidAccountName");
+    try {
+      rmResult.updateOwner("InvalidAccountName");
+    } catch (OdpsException e) {
+      if (e.getMessage().contains("Invalid")) {
+        return;
+      } else {
+        throw e;
+      }
+    }
+    fail("should have InavlidAccount exception.");
+  }
+
   private void addResourceFile() throws FileNotFoundException, OdpsException {
 
     String filename = ResourceTest.class.getClassLoader().getResource("resource.txt").getFile();

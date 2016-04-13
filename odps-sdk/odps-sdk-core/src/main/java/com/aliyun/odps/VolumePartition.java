@@ -31,6 +31,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.aliyun.odps.VolumeFile.VolumeFileModel;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.rest.JAXBUtils;
@@ -98,7 +99,7 @@ public class VolumePartition extends LazyLoad {
       model = JAXBUtils.unmarshal(resp, VolumePartitionModel.class);
       model.lastModifiedTime = DateUtils.parseRfc822Date(resp.getHeader("Last_Modified"));
       model.createdTime = DateUtils.parseRfc822Date(resp.getHeader("x-odps-creation-time"));
-      model.owner = resp.getHeader("x-odps-owner");
+      model.owner = resp.getHeader(Headers.ODPS_OWNER);
     } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + VolumePartitionModel.class, e);
     }

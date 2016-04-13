@@ -63,6 +63,7 @@ import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
+import com.aliyun.odps.Survey;
 import com.aliyun.odps.io.Writable;
 import com.aliyun.odps.io.WritableUtils;
 
@@ -282,6 +283,7 @@ public class Configuration implements Iterable<Map.Entry<String, String>>, Writa
    * @param name
    *     配置文件名。这个文件必须在classpath中。
    */
+  @Survey
   public void addResource(String name) {
     addResourceObject(name);
   }
@@ -294,6 +296,7 @@ public class Configuration implements Iterable<Map.Entry<String, String>>, Writa
    * @param url
    *     配置文件的url名。会从指定url的本地文件系统中获取配置文件。
    */
+  @Survey
   public void addResource(URL url) {
     addResourceObject(url);
   }
@@ -307,6 +310,7 @@ public class Configuration implements Iterable<Map.Entry<String, String>>, Writa
    * @param in
    *     配置文件的输入流。
    */
+  @Survey
   public void addResource(InputStream in) {
     addResourceObject(in);
   }
@@ -772,7 +776,7 @@ public class Configuration implements Iterable<Map.Entry<String, String>>, Writa
    *     如果找不到指定的Java类
    */
   public Class<?> getClassByName(String name) throws ClassNotFoundException {
-    return Class.forName(name, true, classLoader);
+    return Class.forName(name, false, classLoader);
   }
 
   /**

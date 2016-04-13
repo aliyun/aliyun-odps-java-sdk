@@ -61,4 +61,5 @@ public class OdpsTest {
     odps.getRestClient().setIgnoreCerts(true);
     assertFalse(odps.projects().exists("NOT_EXIST_PROJECT"));
   }
+
 }

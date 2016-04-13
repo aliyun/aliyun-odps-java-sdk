@@ -20,6 +20,7 @@
 package com.aliyun.odps;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -332,7 +333,9 @@ public class Resource extends LazyLoad {
   @Override
   public void reload() throws OdpsException {
     String resource = ResourceBuilder.buildResourceResource(project, model.name);
-    Response rp = client.request(resource, "HEAD", null, null, null);
+    HashMap<String, String> params = new HashMap<String, String>();
+    params.put("meta", null);
+    Response rp = client.request(resource, "GET", params, null, null);
     Map<String, String> headers = rp.getHeaders();
     model.owner = headers.get(ResourceHeaders.X_ODPS_OWNER);
     model.type = headers.get(ResourceHeaders.X_ODPS_RESOURCE_TYPE);
@@ -362,4 +365,23 @@ public class Resource extends LazyLoad {
     setLoaded(true);
   }
 
+  /**
+   * 更新 资源的 owner
+   *    需要是 project owner
+   *
+   * @param newOwner
+   * @throws OdpsException
+   */
+  public void updateOwner(String newOwner) throws OdpsException {
+    String method = "PUT";
+    String resource = ResourceBuilder.buildResourceResource(project, model.name);
+    HashMap<String, String> params = new HashMap<String, String>();
+    params.put("updateowner", null);
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put(ResourceHeaders.X_ODPS_OWNER, newOwner);
+
+    client.request(resource, method, params, headers, null);
+
+    model.owner = newOwner;
+  }
 }

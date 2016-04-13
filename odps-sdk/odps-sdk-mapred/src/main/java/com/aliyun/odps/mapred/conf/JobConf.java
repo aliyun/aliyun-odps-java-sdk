@@ -29,7 +29,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.Survey;
 import com.aliyun.odps.conf.Configuration;
+import com.aliyun.odps.data.RecordComparator;
+import com.aliyun.odps.io.WritableComparable;
+import com.aliyun.odps.io.WritableComparator;
 import com.aliyun.odps.mapred.JobClient;
 import com.aliyun.odps.mapred.Mapper;
 import com.aliyun.odps.mapred.MapperBase;
@@ -37,6 +41,7 @@ import com.aliyun.odps.mapred.Partitioner;
 import com.aliyun.odps.mapred.Reducer;
 import com.aliyun.odps.mapred.ReducerBase;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
+import com.aliyun.odps.utils.ReflectionUtils;
 
 /**
  * JobConf 描述了一个ODPS MapReduce 作业的配置.
@@ -145,6 +150,7 @@ public class JobConf extends Configuration {
    * @param config
    *     Configuration-format XML 配置文件
    */
+  @Survey
   public JobConf(String config) {
     this();
     addResource(config);
@@ -338,6 +344,70 @@ public class JobConf extends Configuration {
    */
   public void setOutputGroupingColumns(String[] cols) {
     set(CONF.OUTPUT_GROUP_COLUMNS, StringUtils.join(cols, ","));
+  }
+  
+  /**
+   * 获取指定的 {@link Mapper} 输出 Key 排序比较器，如果没有指定，默认使用
+   * {@link WritableComparator#get(Class)} 返回的比较函数.
+   * 
+   * @see RecordComparator
+   * @see Mapper
+   * @return {@link Mapper} 输出 Key 排序比较器.
+   * 
+   */
+  @SuppressWarnings("rawtypes")
+  public Class<? extends RecordComparator> getOutputKeyComparatorClass() {
+    return getClass(CONF.OUTPUT_KEY_COMPARATOR_CLASS, null, RecordComparator.class);
+  }
+
+  /**
+   * 设置 {@link Mapper} 输出 Key 排序比较器.
+   * 
+   * <p>
+   * 关于 Key 排序比较器在 MapReduce 总如何被使用，参见 {@link Mapper} 和 {@link Reducer} 中关于
+   * Shuffle的解释。
+   * </p>
+   * 
+   * @param theClass
+   *          用于 {@link Mapper} 输出 Key 排序的比较器，{@link RecordComparator} 子类
+   * @see #setOutputValueGroupingComparator(Class)
+   * 
+   */
+  @SuppressWarnings("rawtypes")
+  public void setOutputKeyComparatorClass(Class<? extends RecordComparator> theClass) {
+    setClass(CONF.OUTPUT_KEY_COMPARATOR_CLASS, theClass, RecordComparator.class);
+  }
+
+  /**
+   * 获取指定的 Key 分组比较器，默认为 {@link #getOutputKeyComparatorClass()}.
+   * <p>
+   * 关于 Key 分组比较器在 MapReduce 框架中如何被使用，参见 {@link Reducer}
+   * </p>
+   * 
+   * @see #setOutputValueGroupingComparator(Class)
+   * @return Key 分组比较器
+   * 
+   */
+  @SuppressWarnings("rawtypes")
+  public Class<? extends RecordComparator> getOutputKeyGroupingComparatorClass() {
+    return getClass(CONF.OUTPUT_KEY_GROUPING_COMPARATOR_CLASS, null, RecordComparator.class);
+  }
+
+  /**
+   * 设置 Key 分组比较器，如果不指定，默认使用 {@link #getOutputKeyComparatorClass()} 作为分组比较器.
+   * 
+   * <p>
+   * 关于 Key 分组比较器在 MapReduce 框架中如何被使用，参见 {@link Reducer}
+   * </p>
+   * 
+   * @param theClass
+   *          Key 分组比较器，实现 {@link RecordComparator}接口
+   * @see #setOutputKeyComparatorClass(Class)
+   * 
+   */
+  @SuppressWarnings("rawtypes")
+  public void setOutputKeyGroupingComparatorClass(Class<? extends RecordComparator> theClass) {
+    setClass(CONF.OUTPUT_KEY_GROUPING_COMPARATOR_CLASS, theClass, RecordComparator.class);
   }
 
   /**
@@ -626,6 +696,39 @@ public class JobConf extends Configuration {
    */
   public void setCombinerCacheItems(int size) {
     setInt(CONF.COMBINER_CACHE_ITEMS, size);
+  }
+
+  /**
+   * 获取Combiner的缓存spill阈值，默认为0.5, 当combine后记录数超出该阈值所定的比例，
+   * 则进行spill操作, 仅在CombinerOptimizeEnable为true的时候才生效。
+   *
+   * @return Combiner的缓存spill阈值
+   */
+  public float getCombinerCacheSpillPercent() {
+    return getFloat(CONF.COMBINER_CACHE_SPILL_PERCENT, (float)0.5);
+  }
+
+  /**
+   * 设置Combiner的缓存的spill阈值
+   */
+  public void setCombinerCacheSpillPercent(float percent) {
+    setFloat(CONF.COMBINER_CACHE_SPILL_PERCENT, percent);
+  }
+
+  /**
+   * 获取是否进行Combiner优化，默认为false
+   *
+   * @return true or false
+   */
+  public boolean getCombinerOptimizeEnable() {
+    return getBoolean(CONF.COMBINER_OPTIMIZE_ENABLE, false);
+  }
+
+  /**
+   * 设置是否对Combiner进行优化
+   */
+  public void setCombinerOptimizeEnable(boolean isCombineOpt) {
+    setBoolean(CONF.COMBINER_OPTIMIZE_ENABLE, isCombineOpt);
   }
 
   /**

@@ -39,4 +39,6 @@ public interface Headers {
   public static final String CHUNKED = "chunked";
   public static final String ACCEPT_ENCODING = "Accept-Encoding";
   public static final String USER_AGENT = "User-Agent";
+
+  public static final String ODPS_OWNER = "x-odps-owner";
 }

@@ -20,6 +20,7 @@
 package com.aliyun.odps.datahub;
 
 import java.util.List;
+import java.util.Map;
 import com.aliyun.odps.data.Record;
 
 public class ReadPackResult {
@@ -28,20 +29,33 @@ public class ReadPackResult {
     private long   timeStamp;
     private List<Record> records;
     private byte [] meta;
+    private Map<String, String> kvMeta;
+    private String partitionSpec;
 
-    public ReadPackResult(String packId, String nextPackId, long timeStamp, List<Record> records) {
-      this(packId, nextPackId, timeStamp, records, null);
+    public ReadPackResult(String packId, String nextPackId, long timeStamp, String partitionSpec, List<Record> records) {
+      this(packId, nextPackId, timeStamp, partitionSpec, records, null, null);
     }
     
-    public ReadPackResult(String packId, String nextPackId, long timeStamp, List<Record> records, byte [] meta) {
-        if (packId == null || nextPackId == null) {
+    public ReadPackResult(String packId, String nextPackId, long timeStamp, String partitionSpec, List<Record> records, byte [] meta) {
+      this(packId, nextPackId, timeStamp, partitionSpec, records, meta, null);
+    }
+
+    public ReadPackResult(String packId, String nextPackId, long timeStamp, String partitionSpec, List<Record> records, Map<String, String> kvMeta) {
+      this(packId, nextPackId, timeStamp, partitionSpec, records, null, kvMeta);
+    }
+
+    private ReadPackResult(String packId, String nextPackId, long timeStamp, String partitionSpec, List<Record> records, byte [] meta, Map<String, String> kvMeta) {
+        if (packId == null || nextPackId == null
+                || packId.equals("") || nextPackId.equals("")) {
             throw new IllegalArgumentException("Invalid pack string.");
         }
         this.currPackId = packId;
         this.nextPackId = nextPackId;
         this.timeStamp = timeStamp;
+        this.partitionSpec = partitionSpec;
         this.records = records;
         this.meta = meta;
+        this.kvMeta = kvMeta;
     }
 
     public List<Record> getRecords() {
@@ -63,4 +77,10 @@ public class ReadPackResult {
     public byte [] getMeta() {
         return this.meta;
     }
+
+    public Map<String, String> getKvMeta() {
+        return this.kvMeta;
+    }
+
+    public String getPartitionSpec() { return this.partitionSpec; }
 }

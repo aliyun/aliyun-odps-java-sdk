@@ -33,7 +33,7 @@ public class DatahubRecordPack {
   private ProtobufRecordStreamWriter protobufRecordStreamWriter;
   private TableSchema recordSchema;
   private long recordCount;
-  private int blockThreshold = 1024 * 1024 * 2;
+  private int maxPackSize = 1024 * 1024 * 8;
   private boolean packSealed = false;
 
   /**
@@ -51,22 +51,24 @@ public class DatahubRecordPack {
   }
 
   /**
-   * 向DatahubRecordPack中append一条Record。插入成功返回true, 否则返回false,代表需要通过StreamWriter将DatahubRecordPack中的数据发送到tunnel
+   * 向DatahubRecordPack中append一条Record。
    *
    * @param r
-   * @throws IOException
+   * @throws IOException 产生异常表示需要通过DatahubWriter将DatahubRecordPack中的数据发送到datahub
    */
-  public boolean append(Record r) throws IOException {
+  public void append(Record r) throws IOException {
+    if (packSealed == true) {
+      throw new IOException("Append record to a sealed pack. Please use Clear() to clear this pack or new another pack.");
+    }
     if (protobufRecordStreamWriter == null) {
       protobufRecordStreamWriter =
           new ProtobufRecordStreamWriter(recordSchema, byteArrayOutputStream);
     }
-    if (protobufRecordStreamWriter.getTotalBytes() >= this.blockThreshold || packSealed == true) {
-      return false;
+    if (protobufRecordStreamWriter.getTotalBytes() >= this.maxPackSize) {
+      throw new IOException("Pack reach max size. Please send this pack and create new pack to append.");
     }
     protobufRecordStreamWriter.write(r);
     recordCount += 1;
-    return true;
   }
 
   /**

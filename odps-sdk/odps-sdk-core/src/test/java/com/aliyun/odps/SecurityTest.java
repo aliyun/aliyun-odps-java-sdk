@@ -199,6 +199,7 @@ public class SecurityTest extends TestBase {
       String result = sm.generateAuthorizationToken(policy, "bearer");
       Assert.assertTrue(result.length() > policy.length());
     } catch (OdpsException e) {
+      e.printStackTrace();
       Assert.assertTrue(false);
     }
   }

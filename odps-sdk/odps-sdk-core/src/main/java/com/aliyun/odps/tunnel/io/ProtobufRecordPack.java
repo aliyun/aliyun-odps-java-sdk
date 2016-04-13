@@ -28,7 +28,6 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 
-
 /**
  * 用 Protobuf 序列化存储的 {@link RecordPack}
  * 和 TableTunnel 共同使用
@@ -125,7 +124,6 @@ public class ProtobufRecordPack extends RecordPack {
     ++count;
   }
 
-
   /**
    * 获取 RecordReader 对象
    * ProtobufRecordPack 不支持改方法
@@ -137,6 +135,7 @@ public class ProtobufRecordPack extends RecordPack {
     throw new UnsupportedOperationException("PBPack does not supported Read.");
   }
 
+  // 返回的并不是 probuf 的 stream，而是 protobuf 输出的那个缓冲区
   public ByteArrayOutputStream getProtobufStream() throws IOException {
     if (!isComplete) {
       writer.flush();
@@ -156,13 +155,27 @@ public class ProtobufRecordPack extends RecordPack {
   }
 
   /**
-   * 获取输出数据序列化后的总大小
+   * 获取当前 pack 在内存缓冲区中的大小
+   *
+   * 注意：由于在写到内存缓冲区前，数据会经过两个缓冲区（protobuf 和 defalter）
+   * 因此这个值的变化并不是连续的
    *
    * @return
    * @throws IOException
    */
   public long getTotalBytes() throws IOException {
-    return getProtobufStream().size();
+    return byteos.size();
+  }
+
+  /**
+   * 获取输出数据序列化后的字节数
+   *
+   * @return
+   * @throws IOException
+   */
+  protected long getTotalBytesWritten() throws IOException {
+    writer.flush();
+    return writer.getTotalBytes();
   }
 
   /**
@@ -180,7 +193,7 @@ public class ProtobufRecordPack extends RecordPack {
       byteos.reset();
     }
     count = 0;
-    this.writer = new ProtobufRecordStreamWriter(schema, byteos, null);
+    this.writer = new ProtobufRecordStreamWriter(schema, byteos, option);
     isComplete = false;
   }
 
@@ -202,6 +215,10 @@ public class ProtobufRecordPack extends RecordPack {
     }
   }
 
+  /**
+   * 返回 pack 内的 record 数量
+   * @return
+   */
   public long getSize() {
     return count;
   }

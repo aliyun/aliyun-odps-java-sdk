@@ -297,7 +297,7 @@ public class LocalGraphJobRunner implements JobRunner {
       }
       wareHouse.copyResource(projName, resName, resDir, wareHouse.getLimitDownloadRecordCount(),
                              wareHouse.getInputColumnSeperator());
-      cp.add(new File(resDir, resName).toURL());
+      cp.add(new File(resDir, resName).toURI().toURL());
       if (resourceSize > 512 * 1024 * 1024) {
         throw new IOException(ExceptionCode.ODPS_0720071
                               + " - must be <= 512M");

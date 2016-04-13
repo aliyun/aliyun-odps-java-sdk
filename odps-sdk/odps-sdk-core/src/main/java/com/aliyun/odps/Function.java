@@ -21,7 +21,9 @@ package com.aliyun.odps;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
@@ -31,6 +33,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.aliyun.odps.Resource.ResourceModel;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
@@ -186,15 +189,72 @@ public class Function extends LazyLoad {
     /* copy */
     ArrayList<Resource> resources = new ArrayList<Resource>();
     if (model.resources != null) {
-      for (String r : model.resources) {
+      Map<String, String> resourceNames = parseResourcesName(model.resources);
+
+      for (Map.Entry<String, String> entry : resourceNames.entrySet()) {
         ResourceModel rm = new ResourceModel();
-        rm.name = r;
-        Resource res = Resource.getResource(rm, project, odps);
+        rm.name = entry.getKey();
+        Resource res = Resource.getResource(rm, entry.getValue(), odps);
         resources.add(res);
       }
     }
 
     return resources;
+  }
+
+  /**
+   * 解析UDF所用到的资源的名字列表, 资源名字的格式为 <project_name>/resources/<resource_name>
+   *
+   * @param resources
+   *     function 对应资源的名字列表
+   * @return 资源名称与其所属 project 对: Map<resource_name, project_name>
+   */
+  private Map<String, String> parseResourcesName(List<String> resources) {
+    Map<String, String> resourceMap = new HashMap<String, String>();
+
+    for (String r : resources) {
+      String[] splits = r.split("/resources/");
+      String resourceProject = null;
+      String resourceName = null;
+
+      if (splits.length > 1) {
+        resourceProject = splits[0];
+        resourceName = splits[1];
+      } else {
+        resourceProject = this.project;
+        resourceName = r;
+      }
+
+      resourceMap.put(resourceName, resourceProject);
+    }
+    return resourceMap;
+  }
+
+  /**
+   * 获得函数相关的资源名称列表。
+   *
+   * @return 资源名称列表
+   *     若该资源与 UDF 在同一 project, 则返回 resourcename
+   *     若该资源与 UDF 在不同 project, 返回格式为 projectname/resourcename
+   */
+  public List<String> getResourceNames() {
+    if (model.resources == null && client != null) {
+      lazyLoad();
+    }
+    List<String> resourceNames = new ArrayList<String>();
+
+    if (model.resources != null) {
+      Map<String, String> resources = parseResourcesName(model.resources);
+
+      for (Map.Entry<String, String> entry : resources.entrySet()) {
+        if (entry.getValue().equals(this.project)) {
+          resourceNames.add(entry.getKey());
+        } else {
+          resourceNames.add(entry.getValue() + "/" + entry.getKey());
+        }
+      }
+    }
+    return resourceNames;
   }
 
   /**
@@ -208,9 +268,30 @@ public class Function extends LazyLoad {
     model.resources.addAll(resources);
   }
 
+  /**
+   * 获取函数所在{@link Project}名称
+   *
+   * @return Project名称
+   */
+  public String getProject() {
+    return project;
+  }
+
   @Override
   public void reload() throws OdpsException {
     String resource = ResourceBuilder.buildFunctionResource(project, model.name);
     model = client.request(FunctionModel.class, resource, "GET", null);
+  }
+
+  public void updateOwner(String newOwner) throws OdpsException {
+    String method = "PUT";
+    String resource = ResourceBuilder.buildFunctionResource(project, model.name);
+    HashMap<String, String> params = new HashMap<String, String>();
+    params.put("updateowner", null);
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put(Headers.ODPS_OWNER, newOwner);
+    FunctionModel model = new FunctionModel();
+    client.request(resource, method, params, headers, null);
+    this.model.owner = newOwner;
   }
 }

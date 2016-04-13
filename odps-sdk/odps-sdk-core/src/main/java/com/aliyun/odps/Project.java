@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -30,8 +31,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import org.codehaus.jackson.map.ObjectMapper;
+
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
+import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
@@ -215,7 +220,7 @@ public class Project extends LazyLoad {
     try {
       model = JAXBUtils.unmarshal(resp, ProjectModel.class);
       Map<String, String> headers = resp.getHeaders();
-      model.owner = headers.get("x-odps-owner");
+      model.owner = headers.get(Headers.ODPS_OWNER);
       model.creationTime = DateUtils.parseRfc822Date(headers
                                                          .get("x-odps-creation-time"));
       model.lastModified = DateUtils.parseRfc822Date(headers
@@ -375,5 +380,17 @@ public class Project extends LazyLoad {
       securityManager = new SecurityManager(model.name, client);
     }
     return securityManager;
+  }
+
+  public Map<String, String> getSystemVersion() throws OdpsException {
+    String resource = ResourceBuilder.buildProjectResource(model.name)  + "/system";
+    Response resp = client.request(resource, "GET", null, null, null);
+    ObjectMapper objMapper = JacksonParser.getObjectMapper();
+    try {
+      Map<String, String> map = objMapper.readValue(resp.getBody(), Map.class);
+      return map;
+    } catch (IOException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
   }
 }

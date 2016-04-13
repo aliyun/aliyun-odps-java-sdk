@@ -223,45 +223,44 @@ public class Functions implements Iterable<Function> {
   /**
    * 返回指定Project下所有函数的迭代器
    *
+   * @return {@link Function}迭代器
+   */
+
+  public Iterable<Function> iterable() {
+    return new Iterable<Function>() {
+      @Override
+      public Iterator<Function> iterator() {
+        return new FunctionListIterator(getDefaultProjectName());
+      }
+    };
+  }
+
+  /**
+   * 返回指定Project下所有函数的迭代器
+   *
+   * @param projectName
+   *     Project名称
+   * @return {@link Function}迭代器
+   */
+
+  public Iterable<Function> iterable(final String projectName) {
+    return new Iterable<Function>() {
+      @Override
+      public Iterator<Function> iterator() {
+        return new FunctionListIterator(projectName);
+      }
+    };
+  }
+
+  /**
+   * 返回指定Project下所有函数的迭代器
+   *
    * @param projectName
    *     Project名称
    * @return {@link Function}迭代器
    */
   public Iterator<Function> iterator(final String projectName) {
-    return new ListIterator<Function>() {
-
-      Map<String, String> params = new HashMap<String, String>();
-
-      @Override
-      protected List<Function> list() {
-        ArrayList<Function> functions = new ArrayList<Function>();
-
-        params.put("expectmarker", "true"); // since sprint-11
-
-        String lastMarker = params.get("marker");
-        if (params.containsKey("marker") && lastMarker.length() == 0) {
-          return null;
-        }
-
-        String resource = ResourceBuilder.buildFunctionsResource(projectName);
-        try {
-
-          ListFunctionsResponse resp = client.request(
-              ListFunctionsResponse.class, resource, "GET", params);
-
-          for (FunctionModel model : resp.functions) {
-            Function t = new Function(model, projectName, odps);
-            functions.add(t);
-          }
-
-          params.put("marker", resp.marker);
-        } catch (OdpsException e) {
-          throw new RuntimeException(e.getMessage(), e);
-        }
-
-        return functions;
-      }
-    };
+    return new FunctionListIterator(projectName);
   }
 
   private String getDefaultProjectName() {
@@ -270,5 +269,44 @@ public class Functions implements Iterable<Function> {
       throw new RuntimeException("No default project specified.");
     }
     return project;
+  }
+
+  private class FunctionListIterator extends ListIterator<Function> {
+    Map<String, String> params = new HashMap<String, String>();
+    String projectName;
+
+    public FunctionListIterator(final String projectName) {
+      this.projectName = projectName;
+    }
+
+    @Override
+    protected List<Function> list() {
+      ArrayList<Function> functions = new ArrayList<Function>();
+
+      params.put("expectmarker", "true"); // since sprint-11
+
+      String lastMarker = params.get("marker");
+      if (params.containsKey("marker") && lastMarker.length() == 0) {
+        return null;
+      }
+
+      String resource = ResourceBuilder.buildFunctionsResource(projectName);
+      try {
+
+        ListFunctionsResponse resp = client.request(
+            ListFunctionsResponse.class, resource, "GET", params);
+
+        for (FunctionModel model : resp.functions) {
+          Function t = new Function(model, projectName, odps);
+          functions.add(t);
+        }
+
+        params.put("marker", resp.marker);
+      } catch (OdpsException e) {
+        throw new RuntimeException(e.getMessage(), e);
+      }
+
+      return functions;
+    }
   }
 }

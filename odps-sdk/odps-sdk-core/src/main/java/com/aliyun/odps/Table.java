@@ -97,6 +97,7 @@ public class Table extends LazyLoad {
     Date lastMetaModifiedTime;
     boolean isVirtualView;
     long life = -1L;
+    long hubLifecycle = -1L;
     String viewText;
     long size;
     boolean isArchived;
@@ -346,6 +347,16 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * 获取表的datahub生命周期值，单位：天
+   *
+   * @return datahub生命周期值
+   */
+  public long getHubLifecycle() {
+    lazyLoad();
+    return model.hubLifecycle;
+  }
+
+  /**
    * 获取表结构定义
    *
    * @return 表示表结构的{@link TableSchema}对象
@@ -501,6 +512,11 @@ public class Table extends LazyLoad {
       node = tree.get("lifecycle");
       if (node != null && !node.isNull()) {
         model.life = node.asLong();
+      }
+
+      node = tree.get("hubLifecycle");
+      if (node != null && !node.isNull()) {
+        model.hubLifecycle = node.asLong();
       }
 
       node = tree.get("viewText");

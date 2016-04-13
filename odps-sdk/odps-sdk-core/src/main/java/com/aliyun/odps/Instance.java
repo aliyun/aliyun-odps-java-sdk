@@ -124,6 +124,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   private Status status;
 
   private RestClient client;
+
   private Odps odps;
 
   Instance(String project, TaskStatusModel model, Map<String, Result> results, Odps odps) {
@@ -218,7 +219,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   @Override
   public void reload() throws OdpsException {
     Response resp = client.request(getResource(), "GET", null, null, null);
-    model.owner = resp.getHeaders().get("x-odps-owner");
+    model.owner = resp.getHeaders().get(Headers.ODPS_OWNER);
     String startTimeStr = resp.getHeaders().get("x-odps-start-time");
     String endTimeStr = resp.getHeaders().get("x-odps-end-time");
     try {
@@ -771,6 +772,15 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     TaskProgress r = client.request(TaskProgress.class, getResource(), "GET", params);
 
     return r.getStages();
+  }
+
+  /**
+   * 获得Instance的 ODPS 对象
+   *
+   * @return Odps 对象
+   */
+  public Odps getOdps() {
+    return odps;
   }
 
   /**

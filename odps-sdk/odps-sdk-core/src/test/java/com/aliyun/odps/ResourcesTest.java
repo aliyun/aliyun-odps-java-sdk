@@ -40,6 +40,13 @@ public class ResourcesTest extends TestBase {
     }
   }
 
+  @Test
+  public void testIterable() {
+    for (Resource resource : odps.resources().iterable()) {
+      assertNotNull(resource.getName());
+    }
+  }
+
   public static <E> Collection<E> makeCollection(Iterable<E> iter) {
     Collection<E> list = new ArrayList<E>();
     for (E item : iter) {

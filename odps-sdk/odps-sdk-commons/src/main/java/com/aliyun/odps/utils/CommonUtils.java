@@ -34,12 +34,39 @@ public class CommonUtils {
 
   private final static String[] ONE_STRING_ARRAY = new String[]{""};
 
+  private final static String TIMESTAMP_FORMAT_S = "yyyyMMddHHmmss_SSS";
+
+  /**
+   * Get a date formatter for timestamp
+   * @return new SimpleDateFormat("yyyyMMddHHmmss_SSS")
+   */
+  public static SimpleDateFormat getTimestampFormat() {
+    return new SimpleDateFormat(TIMESTAMP_FORMAT_S);
+  }
+
+  /**
+   * Please consider switch to getTimeStampFormat() which is thread safe.
+   */
+  @Deprecated
   public final static SimpleDateFormat TIMESTAMP_FORMAT = new SimpleDateFormat(
-      "yyyyMMddHHmmss_SSS");
+      TIMESTAMP_FORMAT_S);
+
   private final static NullWritable nullWritable = NullWritable.get();
 
+  private final static String DATETIME_FORMAT_S = "yyyy-MM-dd HH:mm:ss";
+  /**
+   * Get a date formatter for datetime
+   * @return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+   */
+  public static SimpleDateFormat getDatetimeFormat() {
+    return new SimpleDateFormat(DATETIME_FORMAT_S);
+  }
+  /**
+   * Please consider switch to getDatetimeFormat() which is thread safe.
+   */
+  @Deprecated
   public final static SimpleDateFormat DATETIME_FORMAT = new SimpleDateFormat(
-      "yyyy-MM-dd HH:mm:ss");
+      DATETIME_FORMAT_S);
 
   public static long getPID() {
     String processName = java.lang.management.ManagementFactory
@@ -48,23 +75,23 @@ public class CommonUtils {
   }
 
   public static String generateMrTaskName() {
-    return "console_mr_" + TIMESTAMP_FORMAT.format(new Date());
+    return "console_mr_" + getTimestampFormat().format(new Date());
   }
 
   public static String generateLocalMrTaskName() {
-    return "mr_" + TIMESTAMP_FORMAT.format(new Date()) + "_" + getPID();
+    return "mr_" + getTimestampFormat().format(new Date()) + "_" + getPID();
   }
 
   public static String generateGraphTaskName() {
-    return "console_graph_" + TIMESTAMP_FORMAT.format(new Date());
+    return "console_graph_" + getTimestampFormat().format(new Date());
   }
 
   public static String generateLocalGraphTaskName() {
-    return "graph_" + TIMESTAMP_FORMAT.format(new Date()) + "_" + getPID();
+    return "graph_" + getTimestampFormat().format(new Date()) + "_" + getPID();
   }
 
   public static String getCurrentTime() {
-    return DATETIME_FORMAT.format(new Date());
+    return getDatetimeFormat().format(new Date());
   }
 
   public static void sleep(long millis) {
@@ -97,7 +124,7 @@ public class CommonUtils {
       return new DatetimeWritable(Long.parseLong(val));
     } catch (NumberFormatException e) {
       try {
-        return new DatetimeWritable(DATETIME_FORMAT.parse(val).getTime());
+        return new DatetimeWritable(getDatetimeFormat().parse(val).getTime());
       } catch (ParseException ex) {
         throw new IOException("unsupported date time format:" + val);
       }

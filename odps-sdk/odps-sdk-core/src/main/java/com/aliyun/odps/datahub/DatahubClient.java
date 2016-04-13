@@ -31,6 +31,7 @@ import com.aliyun.odps.rest.RestClient;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -261,7 +262,9 @@ public class DatahubClient {
    *     查询的分区，分区表必选, 非分区表可以为null
    * @return ReplicatorStatus
    * @throws OdpsException
+   * @deprecated 返回的packid不一定是对应partition的, 只能通过比较大小来判断, 不要使用是否相等来判断
    */
+  @Deprecated
   public ReplicatorStatus QueryReplicatorStatus(long shardId, PartitionSpec partitionSpec)
       throws OdpsException {
     HashMap<String, String> params = new HashMap<String, String>();
@@ -337,6 +340,76 @@ public class DatahubClient {
     return QueryReplicatorStatus(shardId, null);
   }
 
+  /**
+   * 返回一个写入datahub的pack的时间戳，datahub确保小于等于这个时间戳的pack都已经进入离线ODPS
+   *
+   * @param
+   * @return timestamp
+   * @throws IOException, DatahubException
+   */
+  public Date getTableReplicatedTimeStamp() throws IOException, OdpsException {
+    HashMap<String, String> params = new HashMap<String, String>();
+    HashMap<String, String> headers = new HashMap<String, String>(this.headers);
+    headers.put(DatahubHttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(DatahubConstants.VERSION));
+    params.put("query", "replicatedtimestamp");
+
+    String path = getStreamResource();
+
+    Connection conn = null;
+    conn = datahubServiceClient.connect(path, "GET", params, headers);
+
+    Response resp = conn.getResponse();
+    if (!resp.isOK()) {
+      DatahubException ex = new DatahubException(conn.getInputStream());
+      ex.setRequestId(resp.getHeader(DatahubHttpHeaders.HEADER_ODPS_REQUEST_ID));
+      throw ex;
+    }
+
+    ObjectMapper mapper = JacksonParser.getObjectMapper();
+    JsonNode tree = mapper.readTree(conn.getInputStream());
+    JsonNode node = null;
+    node = tree.get(DatahubConstants.TABLE_REPLICATED_TIMESTAMP);
+    if (node != null && !node.isNull()) {
+      return new Date(node.getLongValue());
+    } else {
+      throw new DatahubException("get table replicated timestamp fail");
+    }
+  }
+
+  /**
+   * 返回一个时间戳，datahub确保小于等于这个时间戳的pack都已经进入离线ODPS
+   *
+   * @param
+   * * @return timestamp
+   * @throws IOException, DatahubException
+   */
+  public Date getTableTimestamp() throws IOException, OdpsException {
+    HashMap<Long, ShardState> shardStatus = getShardStatus();
+    final long currentTimestamp = System.currentTimeMillis();
+    long timestamp = currentTimestamp;
+    for (Map.Entry<Long, ShardState> entry : shardStatus.entrySet()) {
+      long shardId = entry.getKey();
+      PackReader reader = null;
+      if (entry.getValue() == ShardState.LOADED) {
+        final String loaderReplicatedPackid = QueryReplicatorStatus(shardId).GetLastReplicatedPackId();
+        if (loaderReplicatedPackid.equals(PackType.FIRST_PACK_ID)) {
+          continue;
+        }
+        reader = openPackReader(shardId);
+        final String brokerLastPackid = reader.seek(currentTimestamp).getPackId();
+        if (brokerLastPackid.equals(PackType.LAST_PACK_ID)) {
+          continue;
+        }
+        if(!brokerLastPackid.equals(loaderReplicatedPackid)) {
+          reader = openPackReader(shardId, loaderReplicatedPackid);
+          ReadPackResult readPackResult = reader.readPackMeta();
+          timestamp = Math.min(timestamp, reader.readPackMeta().getTimeStamp());
+        }
+      }
+    }
+    return new Date(timestamp);
+  }
+
   private void initiate() throws OdpsException {
     HashMap<String, String> params = new HashMap<String, String>();
     params.put("query", "meta");
@@ -372,6 +445,11 @@ public class DatahubClient {
   }
 
   public TableSchema getStreamSchema() {
+    return this.schema;
+  }
+
+  public TableSchema getStreamSchemaFromServer() throws OdpsException {
+    initiate();
     return this.schema;
   }
 
@@ -438,7 +516,7 @@ public class DatahubClient {
    */
   public DatahubReader openDatahubReader(long shardId, String packId)
       throws OdpsException, IOException {
-    if (packId == null) {
+    if (packId == null || packId.equals("")) {
       throw new IllegalArgumentException("Invalid pack id.");
     }
     HashMap<String, String> params = new HashMap<String, String>();
@@ -458,7 +536,7 @@ public class DatahubClient {
 
   public PackReader openPackReader(long shardId, String packId)
       throws OdpsException, IOException {
-    if (packId == null) {
+    if (packId == null || packId.equals("")) {
       throw new IllegalArgumentException("Invalid pack id.");
     }
     HashMap<String, String> params = new HashMap<String, String>();

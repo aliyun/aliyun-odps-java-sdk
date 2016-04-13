@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.tunnel;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -31,8 +32,6 @@ import java.util.List;
 
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
-
-import org.apache.commons.io.output.CountingOutputStream;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
@@ -52,9 +51,9 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
-import com.google.protobuf.CodedOutputStream;
 
 /**
  * Tunnel 是 ODPS 的数据通道，用户可以通过 Tunnel 向 ODPS 中上传或者下载数据。<br />
@@ -66,21 +65,22 @@ import com.google.protobuf.CodedOutputStream;
  * TableTunnel 提供创建 UploadSession 对象和 DownloadSession 对象的方法.<br />
  * <br />
  * <ul>
- *     <li>典型表数据上传流程： <br />
- *          1) 创建 TunnelTable<br />
- *          2) 创建 UploadSession<br />
- *          3) 创建 RecordWriter,写入 Record<br />
- *          4）提交上传操作<br />
- *     <br />
- *     <li>典型表数据下载流程：<br />
- *          1) 创建 TunnelTable<br />
- *          2) 创建 DownloadSession<br />
- *          3) 创建 RecordReader,读取 Record<br />
+ * <li>典型表数据上传流程： <br />
+ *  1) 创建 TunnelTable<br />
+ *  2) 创建 UploadSession<br />
+ *  3) 创建 RecordWriter,写入 Record<br />
+ *  4）提交上传操作<br />
+ * <br />
+ * <li>典型表数据下载流程：<br />
+ *  1) 创建 TunnelTable<br />
+ *  2) 创建 DownloadSession<br />
+ *  3) 创建 RecordReader,读取 Record<br />
  * </ul>
  * <p>
  * 示例代码(将一张表的数据导入到另一张表)：
  * <pre>
  * public class Sample {
+
     private static String accessID = "<your access id>";
     private static String accessKey = "<your access key>";
     private static String odpsURL = "<your odps endpoint>";
@@ -89,39 +89,39 @@ import com.google.protobuf.CodedOutputStream;
     private static String table1 = "<your table1>";
     private static String table2 = "<your table2>";
 
-    public static void main(String args[]){
-        Account account = new AliyunAccount(accessID, accessKey);
-        Odps odps = new Odps(account);
-        odps.setEndpoint(odpsURL);
-        odps.setDefaultProject(project);
+    public static void main(String args[]) {
+      Account account = new AliyunAccount(accessID, accessKey);
+      Odps odps = new Odps(account);
+      odps.setEndpoint(odpsURL);
+      odps.setDefaultProject(project);
 
-        TableTunnel tunnel = new TableTunnel(odps);
-        tunnel.setEndpoint(tunnelURL);
+      TableTunnel tunnel = new TableTunnel(odps);
+      tunnel.setEndpoint(tunnelURL);
 
-        try {
-            DownloadSession downloadSession = tunnel.createDownloadSession(project, table1);
-            long count = downloadSession.getRecordCount();
-            RecordReader recordReader = downloadSession.openRecordReader(0, count);
-            Record record;
+      try {
+        DownloadSession downloadSession = tunnel.createDownloadSession(project, table1);
+        long count = downloadSession.getRecordCount();
+        RecordReader recordReader = downloadSession.openRecordReader(0, count);
+        Record record;
 
-            UploadSession uploadSession = tunnel.createUploadSession(project, table2);
-            RecordWriter recordWriter = uploadSession.openRecordWriter(0);
+        UploadSession uploadSession = tunnel.createUploadSession(project, table2);
+        RecordWriter recordWriter = uploadSession.openRecordWriter(0);
 
-            while((record = recordReader.read()) != null){
-                recordWriter.write(record);
-            }
-
-            recordReader.close();
-
-            recordWriter.close();
-            uploadSession.commit(new Long[]{0L});
-        }catch (TunnelException e){
-            e.printStackTrace();
-        }catch (IOException e1) {
-            e1.printStackTrace();
+        while ((record = recordReader.read()) != null) {
+          recordWriter.write(record);
         }
+
+        recordReader.close();
+
+        recordWriter.close();
+        uploadSession.commit(new Long[]{0L});
+      } catch (TunnelException e) {
+        e.printStackTrace();
+      } catch (IOException e1) {
+        e1.printStackTrace();
+      }
     }
-}
+  }
  * </pre>
  *
  * </p>
@@ -183,6 +183,117 @@ public class TableTunnel {
     }
     return new TableTunnel.UploadSession(projectName, tableName, partitionSpec.toString()
         .replaceAll("'", ""), null);
+  }
+
+  /**
+   * 获得在非分区表的上传会话，且该会话将要使用 {@link TunnelBufferedWriter} 进行数据上传。
+   * 当有多个这样的会话实例（多进程或多线程）共享会话 ID 时，需要同时声明此会话实例的唯一标识（shareId）和共享的会话实例个数（shares）。
+   *
+   * <h3>代码实例</h3>
+   *
+   * 两个会话实例（分别在两个线程中）共享同一个会话 ID
+   *
+   * <pre>
+   * final String sid = "<session_id>";
+   *
+   * Thread t1 = new Thread() {
+   *   @Override
+   *   public void run() {
+   *     try {
+   *       TableTunnel.UploadSession up = tunnel.getUploadSession(projectName, tableName, sid, 2, 0);
+   *       Record r = up.newRecord();
+   *       RecordWriter w = up.openBufferedWriter();
+   *       r.setBigint(0, 1L);
+   *       w.write(r);
+   *       w.close();
+   *       up.commit();
+   *     } catch (TunnelException e) {
+   *       throw new RuntimeException(e.getMessage(), e);
+   *     }
+   *   }
+   * };
+   *
+   * Thread t2 = new Thread() {
+   *   @Override
+   *   public void run() {
+   *     try {
+   *       TableTunnel.UploadSession up = tunnel.getUploadSession(projectName, tableName, sid, 2, 1);
+   *       Record r = up.newRecord();
+   *       RecordWriter w = up.openBufferedWriter();
+   *       r.setBigint(0, 2L);
+   *       w.write(r);
+   *       w.close();
+   *       up.commit();
+   *     } catch (TunnelException e) {
+   *       throw new RuntimeException(e.getMessage(), e);
+   *     }
+   *   }
+   * };
+   *
+   * t1.start();
+   * t2.start();
+   * </pre>
+   *
+   * @param projectName
+   *     Project名
+   * @param tableName
+   *     表名，非视图
+   * @param id
+   *     上传会话的ID {@link TableTunnel.UploadSession#getId()}
+   * @param shares
+   *     有多少个 UploadSession 实例共享这个会话 ID
+   * @param shareId
+   *     此 UploadSession 的唯一标识，建议为 0 开始的正整数
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession getUploadSession(String projectName, String tableName,
+                                                    String id, long shares, long shareId)
+      throws TunnelException {
+    return getUploadSession(projectName, tableName, null, id, shares, shareId);
+  }
+
+  /**
+   * 获得在分区表的上传会话，且该会话将要使用 {@link TunnelBufferedWriter} 进行数据上传。
+   * 当有多个这样的会话实例（多进程或多线程）共享会话 ID 时，需要同时声明此会话实例的唯一标识（shareId）和共享的会话实例个数（shares）。
+   *
+   * @param projectName
+   *     Project名
+   * @param tableName
+   *     表名，非视图
+   * @param partitionSpec
+   *     指定分区 {@link PartitionSpec}
+   * @param id
+   *     上传会话的ID {@link TableTunnel.UploadSession#getId()}
+   * @param shares
+   *     有多少个 UploadSession 实例共享这个会话 ID
+   * @param shareId
+   *     此 UploadSession 的唯一标识，建议为 0 开始的正整数
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession getUploadSession(String projectName, String tableName,
+                                                    PartitionSpec partitionSpec, String id,
+                                                    long shares, long shareId)
+      throws TunnelException {
+    if (!(shares >= 1)) {
+      throw new IllegalArgumentException("Invalid arguments, shares must >= 1");
+    }
+    if (!(shareId >= 0)) {
+      throw new IllegalArgumentException("Invalid arguments, shareId must >= 0");
+    }
+    if (!(shares > shareId)) {
+      throw new IllegalArgumentException("Invalid arguments, shares must > shareId");
+    }
+    TableTunnel.UploadSession session;
+    if (partitionSpec != null) {
+       session = getUploadSession(projectName, tableName, partitionSpec, id);
+    } else {
+       session = getUploadSession(projectName, tableName, id);
+    }
+    session.shares = shares;
+    session.curBlockId = shareId;
+    return session;
   }
 
   /**
@@ -418,11 +529,12 @@ public class TableTunnel {
    * 创建流式上传Writer
    *
    * @param projectName
-   *    Project名称
+   *     Project名称
    * @param tableName
-   *    Table 名称
+   *     Table 名称
    * @return {@link com.aliyun.odps.tunnel.StreamUploadWriter}
-   * @throws com.aliyun.odps.tunnel.TunnelException, java.io.IOException
+   * @throws com.aliyun.odps.tunnel.TunnelException,
+   *     java.io.IOException
    */
   public StreamUploadWriter createStreamUploadWriter(String projectName, String tableName)
       throws TunnelException, IOException {
@@ -475,19 +587,22 @@ public class TableTunnel {
    * UploadSession 通过创建 {@link RecordWriter} 来完成数据的写入操作。<br />
    * 每个 RecordWriter 对应一个 HTTP Request，单个 UploadSession 可创建多个RecordWriter。<br />
    * <br />
-   * 创建 RecordWriter 时需指定 block ID，block ID是 RecordWriter 的唯一标识符,取值范围 [0, 20000)，单个block上传的数据限制是 100G。<br />
-   * 同一 UploadSession 中，使用同一 block ID 多次打开 RecordWriter 会导致覆盖行为，最后一个调用 close() 的 RecordWriter 所上传的数据会被保留。同一RecordWriter实例不能重复调用 close().<br />
-   * RecordWriter 对应的 HTTP Request超时为 120s，若 120s 内没有数据传输，service 端会主动关闭连接。特别提醒，HTTP协议本身有8K buffer。<br />
+   * 创建 RecordWriter 时需指定 block ID，block ID是 RecordWriter 的唯一标识符,取值范围 [0, 20000)，单个block上传的数据限制是
+   * 100G。<br />
+   * 同一 UploadSession 中，使用同一 block ID 多次打开 RecordWriter 会导致覆盖行为，最后一个调用 close() 的 RecordWriter
+   * 所上传的数据会被保留。同一RecordWriter实例不能重复调用 close().<br />
+   * RecordWriter 对应的 HTTP Request超时为 120s，若 120s 内没有数据传输，service 端会主动关闭连接。特别提醒，HTTP协议本身有8K
+   * buffer。<br />
    * </p>
    * <br/>
    * <p>
    * 最后调用 {@link #commit(Long[])} 来提交本次上传的所有数据块。<br />
    * commit 操作可以重试，除非遇到以下异常：
    * <ul>
-   *     <li>CloseUploadSessionStatusConflictException
-   *     <li>DataCollisionException
-   *     <li>InternalServerError
-   *     <li>LOCAL_ERROR_CODE
+   * <li>CloseUploadSessionStatusConflictException
+   * <li>DataCollisionException
+   * <li>InternalServerError
+   * <li>LOCAL_ERROR_CODE
    * </ul>
    * </p>
    * tips：
@@ -509,6 +624,13 @@ public class TableTunnel {
     private Configuration conf;
 
     private RestClient tunnelServiceClient;
+
+    // TunnelBufferedWriter 完成对 blockId 的自动管理，UploadSession 比原来多了以下状态
+    // shares 表示有多少 TunnelBufferedWriter 在对这个表进行写
+    // 通过 createUploadSession 创建的会话，shares 是 1。通过 getUploadSession 得到的会话，shares 大于 1
+    private final Long totalBLocks = 20000L;
+    private Long shares = 1L;
+    private Long curBlockId = 0L;
 
     /**
      * 根据已有的uploadId构造一个{@link UploadSession}对象
@@ -581,22 +703,49 @@ public class TableTunnel {
           }
         }
       }
+    }
 
+    /**
+     * 多个线程中的 {@link TunnelBufferedWriter} 将通过这个接口获得写入的 blockId
+     *
+     * 为了防止 blockId 重复分配，对于 curBlockId 的访问必须加锁。
+     *
+     * @return 分配到的 blockId
+     * @throws TunnelException
+     */
+    synchronized public Long getAvailBlockId() {
+      if (curBlockId >= totalBLocks) {
+        throw new RuntimeException("No more available blockId, already " + curBlockId);
+      }
+      Long old = curBlockId;
+      curBlockId += shares;
+      return old;
+    }
+
+    /**
+     * 不进行校验的会话提交
+     *
+     * @throws TunnelException
+     * @throws IOException
+     */
+    public void commit() throws TunnelException, IOException {
+      completeUpload();
     }
 
     /**
      * 打开http链接，写入pack数据，然后关闭链接，多次向同一个block写入时会覆盖之前数据
+     *
      * @param blockId
-     *  块标识
-     *  @param pack
-     *  pack数据
-     * */
+     *     块标识
+     * @param pack
+     *     pack数据
+     */
     public void writeBlock(long blockId, RecordPack pack)
         throws IOException {
       Connection conn = null;
       try {
         if (pack instanceof ProtobufRecordPack) {
-          ProtobufRecordPack protoPack = (ProtobufRecordPack)pack;
+          ProtobufRecordPack protoPack = (ProtobufRecordPack) pack;
           conn = getConnection(blockId, protoPack.getCompressOption());
           sendBlock(protoPack, conn);
         } else {
@@ -609,6 +758,13 @@ public class TableTunnel {
           writer.close();
         }
       } catch (IOException e) {
+        if (null != conn && !(e.getCause() instanceof TunnelException)) {
+          Response response = conn.getResponse();
+          if (!response.isOK()) {
+            TunnelException err = new TunnelException(conn.getInputStream());
+            throw new IOException(err.getErrorMsg(), err.getCause());
+          }
+        }
         throw e;
       } catch (TunnelException e) {
         throw new IOException(e.getMessage(), e.getCause());
@@ -622,27 +778,22 @@ public class TableTunnel {
     }
 
     private void sendBlock(ProtobufRecordPack pack, Connection conn) throws IOException {
-      CountingOutputStream bou;
-      CodedOutputStream out;
       if (null == conn) {
         throw new IOException("Invalid connection");
       }
-      bou = new CountingOutputStream(conn.getOutputStream());
-      out = CodedOutputStream.newInstance(bou);
-
       pack.complete();
-      pack.getProtobufStream().writeTo(bou);
-      out.flush();
-      bou.close();
-
+      ByteArrayOutputStream baos = pack.getProtobufStream();
+      baos.writeTo(conn.getOutputStream());
+      conn.getOutputStream().close();
+      baos.close();
       Response response = conn.getResponse();
       if (!response.isOK()) {
         TunnelException err = new TunnelException(conn.getInputStream());
         err.setRequestId(response.getHeader("x-odps-request-id")); // XXX: hard code
-        throw new IOException(err);
+        throw new IOException(err.getMessage(), err);
       }
     }
-
+    
     /**
      * 打开{@link RecordWriter}用来写入数据
      *
@@ -667,7 +818,7 @@ public class TableTunnel {
      */
     public RecordWriter openRecordWriter(long blockId, boolean compress) throws TunnelException,
                                                                                 IOException {
-      CompressOption option = compress ? conf.getCompressOption() :
+      CompressOption option = compress ? new CompressOption() :
                               new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
       return openRecordWriter(blockId, option);
     }
@@ -702,6 +853,39 @@ public class TableTunnel {
       }
 
       return writer;
+    }
+
+    /**
+     * 打开一个无压缩 {@link TunnelBufferedWriter} 用来写入数据
+     */
+    public RecordWriter openBufferedWriter() throws TunnelException {
+      return openBufferedWriter(false);
+    }
+
+    /**
+     * 打开 {@link TunnelBufferedWriter} 用来写入数据
+     *
+     * @param compress
+     *     数据传输是否进行压缩
+     */
+    public RecordWriter openBufferedWriter(boolean compress) throws TunnelException {
+      CompressOption compressOption = compress ? conf.getCompressOption() :
+                              new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
+      return openBufferedWriter(compressOption);
+    }
+
+    /**
+     * 打开 {@link TunnelBufferedWriter} 用来写入数据
+     *
+     * @param compressOption
+     *     数据传输压缩选项
+     */
+    public RecordWriter openBufferedWriter(CompressOption compressOption) throws TunnelException {
+      try {
+        return new TunnelBufferedWriter(this, compressOption);
+      } catch (IOException e) {
+        throw new TunnelException(e.getMessage(), e.getCause());
+      }
     }
 
     private Connection getConnection(long blockId, CompressOption compress)
@@ -914,6 +1098,7 @@ public class TableTunnel {
     public RecordPack newRecordPack(CompressOption option) throws IOException {
       return new ProtobufRecordPack(schema, new Checksum(), option);
     }
+
     /**
      * 获取当前会话已经上传成功的数据块列表
      */
@@ -989,7 +1174,7 @@ public class TableTunnel {
    * <br />
    * DownloadSession 通过创建 {@link RecordReader} 来完成数据的读取,需指定读取记录的起始位置和数量<br />
    * RecordReader 对应HTTP请求的超时时间为 300S，超时后 service 端会主动关闭。<br />
-   *</p>
+   * </p>
    */
   public class DownloadSession {
 
@@ -1048,7 +1233,7 @@ public class TableTunnel {
      * @throws IOException
      */
     public TunnelRecordReader openRecordReader(long start, long count) throws TunnelException,
-                                                                        IOException {
+                                                                              IOException {
       return openRecordReader(start, count, false);
     }
 
@@ -1101,8 +1286,9 @@ public class TableTunnel {
      * @throws IOException
      */
     public TunnelRecordReader openRecordReader(long start, long count, boolean compress,
-                                         List<Column> columns) throws TunnelException, IOException {
-      CompressOption option = compress ? conf.getCompressOption() :
+                                               List<Column> columns)
+        throws TunnelException, IOException {
+      CompressOption option = compress ? new CompressOption() :
                               new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
       return openRecordReader(start, count, option, columns);
     }
@@ -1122,95 +1308,9 @@ public class TableTunnel {
      * @throws IOException
      */
     public TunnelRecordReader openRecordReader(long start, long count, CompressOption compress,
-                                         List<Column> columns) throws TunnelException, IOException {
-      HashMap<String, String> params = new HashMap<String, String>();
-      HashMap<String, String> headers = new HashMap<String, String>();
-
-      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
-
-      headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
-
-      switch (compress.algorithm) {
-        case ODPS_RAW: {
-          break;
-        }
-        case ODPS_ZLIB: {
-          headers.put(Headers.ACCEPT_ENCODING, "deflate");
-          break;
-        }
-        case ODPS_SNAPPY: {
-          headers.put(Headers.ACCEPT_ENCODING, "x-snappy-framed");
-          break;
-        }
-        default: {
-          throw new TunnelException("invalid compression option.");
-        }
-      }
-
-      if (columns != null && columns.size() != 0) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < columns.size(); ++i) {
-          sb.append(columns.get(i).getName());
-          if (i != columns.size() - 1) {
-            sb.append(",");
-          }
-        }
-        params.put(TunnelConstants.RES_COLUMNS, sb.toString());
-      }
-
-      params.put(TunnelConstants.DOWNLOADID, id);
-      params.put("data", null);
-
-      params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
-
-      if (partitionSpec != null && partitionSpec.length() > 0) {
-        params.put(TunnelConstants.RES_PARTITION, partitionSpec);
-      }
-
-      TunnelRecordReader reader = null;
-      Connection conn = null;
-      try {
-        conn = tunnelServiceClient.connect(getResource(), "GET", params, headers);
-        Response resp = conn.getResponse();
-        if (!resp.isOK()) {
-          TunnelException err = new TunnelException(conn.getInputStream());
-          err.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
-          throw err;
-        }
-
-        boolean is_compress = false;
-        String content_encoding = resp.getHeader(Headers.CONTENT_ENCODING);
-        if (content_encoding != null) {
-          if (content_encoding.equals("deflate")) {
-            conf.setCompressOption(new CompressOption(CompressOption.CompressAlgorithm.ODPS_ZLIB,
-                                                      -1, 0));
-          } else if (content_encoding.equals("x-snappy-framed")) {
-            conf.setCompressOption(new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY,
-                                                      -1, 0));
-          } else {
-            throw new TunnelException("invalid content encoding");
-          }
-          is_compress = true;
-        }
-
-        CompressOption option = is_compress ? conf.getCompressOption() : null;
-        reader = new TunnelRecordReader(schema, columns, conn, option);
-
-      } catch (IOException e) {
-        if (conn != null) {
-          conn.disconnect();
-        }
-        throw new TunnelException(e.getMessage(), e);
-      } catch (TunnelException e) {
-        throw e;
-      } catch (OdpsException e) {
-        if (conn != null) {
-          conn.disconnect();
-        }
-        throw new TunnelException(e.getMessage(), e);
-      }
-
-      return reader;
+                                               List<Column> columns)
+        throws TunnelException, IOException {
+      return new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
     }
 
     // initiate a new download session
@@ -1334,6 +1434,21 @@ public class TableTunnel {
     public DownloadStatus getStatus() throws TunnelException, IOException {
       reload();
       return status;
+    }
+
+    /**
+     * 获取 partition
+     */
+    public String getPartitionSpec() {
+      return partitionSpec;
+    }
+
+    public String getProjectName() {
+      return projectName;
+    }
+
+    public String getTableName() {
+      return tableName;
     }
 
     private String getResource() {

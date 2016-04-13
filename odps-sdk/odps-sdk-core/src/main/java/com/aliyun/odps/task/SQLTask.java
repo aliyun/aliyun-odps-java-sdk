@@ -24,6 +24,8 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -37,6 +39,9 @@ import com.aliyun.odps.Task;
 import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.tunnel.InstanceTunnel;
+import com.aliyun.odps.tunnel.io.TunnelRecordReader;
+import com.aliyun.odps.utils.StringUtils;
 import com.csvreader.CsvReader;
 
 /**
@@ -48,6 +53,8 @@ import com.csvreader.CsvReader;
 public class SQLTask extends Task {
 
   private String query;
+
+  private static final Long SQL_TASK_RESULT_LIMIT = 10000L;
 
   private static final String AnonymousSQLTaskName = "AnonymousSQLTask";
 
@@ -68,6 +75,7 @@ public class SQLTask extends Task {
 
   /**
    * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br />
+   *
    * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
    *
    * This API is used when SQLTask Instance is created with specific task name.
@@ -78,17 +86,20 @@ public class SQLTask extends Task {
    * {
    *   String taskName = "test_select_sql_task";
    *   Instance i = SQLTask.run(odps, odps.getDefaultProject(),
-                                "select * from test_select_sql_result;",
-                                taskName, null, null, 3);
-       instance.waitForSuccess();
-       List<Record> records = SQLTask.getResult(i, taskName);
+   *                            "select * from test_select_sql_result;",
+   *                            taskName, null, null, 3);
+   *   instance.waitForSuccess();
+   *   List<Record> records = SQLTask.getResult(i, taskName);
    * }
    * </pre>
    *
    * @param instance
    * @return
    * @throws OdpsException
+   *
+   * @see {@link #getResultByInstanceTunnel(Instance, String, Long)}
    */
+  @Deprecated
   public static List<Record> getResult(Instance instance, String taskName) throws OdpsException {
     Map<String, String> results = instance.getTaskResults();
     String selectResult = results.get(taskName);
@@ -127,7 +138,185 @@ public class SQLTask extends Task {
   }
 
   /**
+   *
    * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br />
+   *
+   * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
+   *
+   * This API is used when SQLTask Instance is created with specific task name.
+   *
+   * <br />
+   * Example:
+   * <pre>
+   * {
+   *   String taskName = "test_select_sql_task";
+   *   Instance i = SQLTask.run(odps, odps.getDefaultProject(),
+   *                            "select * from test_select_sql_result;",
+   *                            taskName, null, null, 3);
+   *   instance.waitForSuccess();
+   *   List<Record> records = SQLTask.getResultByInstanceTunnel(i, taskName, 1000L);
+   * }
+   * </pre>
+   *
+   *
+   * 使用 instance tunnel 的方式获取 task 结果.
+   *
+   * 本接口与 {@link #getResult(Instance, String)} 略有不同:
+   *  1) 本接口返回的 record 带有完整 schema 信息;
+   *  2) 本接口返回的 record 结果集不再有 1W 的条数限制.
+   *
+   * 注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销,
+   *       大数据量下载建议直接使用 {@see InstanceTunnel};
+   *
+   * @param instance
+   *     instance 对象
+   * @param taskName
+   *     task 名称
+   * @param limit
+   *     获取结果的数量
+   * @return record list
+   * @throws OdpsException,
+   *     IOException
+   */
+  public static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
+                                                       Long limit)
+      throws OdpsException, IOException {
+    if (StringUtils.isNullOrEmpty(taskName)) {
+      throw new OdpsException("Invalid task name.");
+    }
+
+    Long queryLimit = null;
+    boolean findTask = false;
+
+    for (Task t : instance.getTasks()) {
+      if (taskName.equals(t.getName())) {
+        SQLTask task = (SQLTask) t;
+        String query = task.getQuery().trim();
+
+        if (!StringUtils.isNullOrEmpty(query)) {
+          queryLimit = getLimitCount(query);
+        }
+
+        findTask = true;
+        break;
+      }
+    }
+
+    if (!findTask) {
+      throw new OdpsException("Invalid task: " + taskName);
+    }
+
+    if (limit == null) {
+      limit = SQL_TASK_RESULT_LIMIT;
+    }
+
+    // if query has a query limit, use the less one compared with limit;
+    // if not, use limit.
+    if (queryLimit != null) {
+      limit = queryLimit < limit ? queryLimit : limit;
+    }
+
+    InstanceTunnel tunnel = new InstanceTunnel(instance.getOdps());
+    InstanceTunnel.DownloadSession session = tunnel.createDownloadSession(instance.getProject(),
+                                                                          instance.getId());
+    long recordCount = session.getRecordCount();
+    List<Record> records = new ArrayList<Record>();
+
+    if (recordCount == 0) {
+      return records;
+    }
+
+    if (limit < recordCount) {
+      recordCount = limit;
+    }
+
+    TunnelRecordReader reader = session.openRecordReader(0, recordCount);
+
+    Record record;
+    while ((record = reader.read()) != null) {
+      records.add(record);
+    }
+
+    return records;
+  }
+
+  /**
+   * 使用 instance tunnel 的方式获取 Anonymous task 的结果
+   *
+   * @param instance
+   *     instance 对象
+   * @param limit
+   *     获取结果的数量
+   * @return record list
+   * @throws OdpsException,
+   *     IOException
+   *
+   * @see #getResultByInstanceTunnel(Instance, String, Long)
+   */
+  public static List<Record> getResultByInstanceTunnel(Instance instance, Long limit)
+      throws OdpsException, IOException {
+    return getResultByInstanceTunnel(instance, AnonymousSQLTaskName, limit);
+  }
+
+  /**
+   * 使用 instance tunnel 的方式获取 instance 结果
+   *
+   * 当数据量不大于 {@link #SQL_TASK_RESULT_LIMIT} 条时,成功;
+   * 若数据量量大于 {@link #SQL_TASK_RESULT_LIMIT} 条, 返回 SQL_TASK_RESULT_LIMIT 条结果;
+   *
+   * 可使用 {@link #getResultByInstanceTunnel(Instance, String, Long)} 接口调整 limit 参数, 来获取更多数据;
+   *
+   * @param instance
+   *     instance 对象
+   * @param taskName
+   *     task 名称
+   * @return record list
+   * @throws OdpsException,
+   *     IOException
+   */
+  public static List<Record> getResultByInstanceTunnel(Instance instance, String taskName)
+      throws OdpsException, IOException {
+    return getResultByInstanceTunnel(instance, taskName, null);
+  }
+
+  /**
+   * 使用 instance tunnel 的方式获取 Anonymous task 的结果
+   *
+   * @param instance
+   *     instance 对象
+   *
+   * @return record list
+   * @throws OdpsException,
+   *     IOException
+   *
+   * @see #getResultByInstanceTunnel(Instance, String)
+   */
+  public static List<Record> getResultByInstanceTunnel(Instance instance)
+      throws OdpsException, IOException {
+    return getResultByInstanceTunnel(instance, AnonymousSQLTaskName);
+  }
+
+  private static Pattern PATTERN =
+      Pattern.compile(".*LIMIT\\s+(\\d+)\\s*$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+  private static Long getLimitCount(String query) {
+    if (query.endsWith(";")) {
+      query = query.substring(0, query.length() - 1);
+      query = query.trim();
+    }
+
+    Matcher m = PATTERN.matcher(query);
+
+    if (m.matches()) {
+      return Long.parseLong(m.group(1));
+    }
+
+    return null;
+  }
+
+  /**
+   * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br
+   * />
    * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
    * Default task name 'AnonymousSQLTask' will be used. <br />
    *
@@ -135,9 +324,9 @@ public class SQLTask extends Task {
    * Example:
    * <pre>
    * {
-   *   Instance i = SQLTask.run(odps, "select * from test_select_sql_result;");
-       instance.waitForSuccess();
-       List<Record> records = SQLTask.getResult(i);
+   *    Instance i = SQLTask.run(odps, "select * from test_select_sql_result;");
+   *    instance.waitForSuccess();
+   *    List<Record> records = SQLTask.getResult(i);
    * }
    * </pre>
    *
@@ -166,23 +355,23 @@ public class SQLTask extends Task {
    * <br />
    * 示例代码：
    * <pre>
-   *{
-        String sql = "select ....;";
-
-        Instance instance = SQLTask.run(odps, sql);
-
-        instance.waitForSuccess();
-
-        Map<String, String> results = instance.getTaskResults();
-        Map<String, TaskStatus> taskStatus = instance.getTaskStatus();
-
-        for(Entry<String, TaskStatus> status : taskStatus.entrySet()) {
-            if (TaskStatus.Status.SUCCESS == status.getValue().getStatus()) {
-                String result = results.get(status.getKey());
-                System.out.println(result);
-            }
-        }
-    }
+   * {
+   *    String sql = "select ....;";
+   *
+   *    Instance instance = SQLTask.run(odps, sql);
+   *
+   *    instance.waitForSuccess();
+   *
+   *    Map<String, String> results = instance.getTaskResults();
+   *    Map<String, TaskStatus> taskStatus = instance.getTaskStatus();
+   *
+   *    for(Entry<String, TaskStatus> status : taskStatus.entrySet()) {
+   *        if (TaskStatus.Status.SUCCESS == status.getValue().getStatus()) {
+   *           String result = results.get(status.getKey());
+   *          System.out.println(result);
+   *        }
+   *    }
+   * }
    * </pre>
    *
    * @param {@link
@@ -270,7 +459,6 @@ public class SQLTask extends Task {
       return odps.instances().create(project, task);
     }
   }
-
 
   static Instance run(Odps odps, String project, String sql,
                       String taskName, Map<String, String> hints, Map<String, String> aliases,

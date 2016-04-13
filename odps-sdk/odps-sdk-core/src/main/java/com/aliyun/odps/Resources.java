@@ -75,7 +75,7 @@ public class Resources implements Iterable<Resource> {
     public static final String X_ODPS_COMMENT = "x-odps-comment";
     public static final String X_ODPS_RESOURCE_NAME = "x-odps-resource-name";
     public static final String X_ODPS_RESOURCE_TYPE = "x-odps-resource-type";
-    public static final String X_ODPS_OWNER = "x-odps-owner";
+    public static final String X_ODPS_OWNER = Headers.ODPS_OWNER;
     public static final String X_ODPS_IS_TEMP_RESOURCE = "x-odps-resource-istemp";
     public static final String X_ODPS_RESOURCE_LAST_UPDATOR = "x-odps-updator";
     public static final String X_ODPS_RESOURCE_SIZE = "x-odps-resource-size";
@@ -559,8 +559,8 @@ public class Resources implements Iterable<Resource> {
    *     所在{@link Project}名称
    * @return {@link Resource}迭代器
    */
-  public Iterator<Resource> iterator(String projectName) {
-    return matchResources(projectName, null);
+  public Iterator<Resource> iterator(final String projectName) {
+    return new ResourceListIterator(projectName, null);
   }
 
   /**
@@ -573,48 +573,75 @@ public class Resources implements Iterable<Resource> {
     return iterator(getDefaultProjectName());
   }
 
-  private Iterator<Resource> matchResources(final String project,
-                                            final String name) {
 
-    return new ListIterator<Resource>() {
-
-      Map<String, String> params = new HashMap<String, String>();
-
+  /**
+   * 获得资源 iterable 迭代器
+   *
+   * @param projectName
+   *     所在{@link Project}名称
+   * @return {@link Resource} iterable 迭代器
+   */
+  public Iterable<Resource> iterable(final String projectName) {
+    return new Iterable<Resource>() {
       @Override
-      protected List<Resource> list() {
-        ArrayList<Resource> resources = new ArrayList<Resource>();
+      public Iterator<Resource> iterator() {
+        return new ResourceListIterator(projectName, null);
+      }
+    };
+  }
 
-        params.put("expectmarker", "true"); // since sprint-11
+  /**
+   * 获得资源 iterable 迭代器
+   *
+   * @return {@link Resource} iterable 迭代器
+   */
+  public Iterable<Resource> iterable() {
+    return iterable(getDefaultProjectName());
+  }
 
-        String lastMarker = params.get("marker");
-        if (params.containsKey("marker") && lastMarker.length() == 0) {
-          return null;
-        }
+  private class ResourceListIterator extends ListIterator<Resource> {
 
-        if (name != null) {
-          params.put("name", name);
-        }
+    Map<String, String> params = new HashMap<String, String>();
+    String name;
+    String project;
 
-        String resource = ResourceBuilder.buildResourcesResource(project);
-        try {
-          ListResourcesResponse resp = client.request(
-              ListResourcesResponse.class, resource, "GET", params);
+    ResourceListIterator(String projectName, String resourceName) {
+      this.project = projectName;
+      this.name = resourceName;
+    }
 
-          for (ResourceModel model : resp.resources) {
-            Resource t = Resource.getResource(model, project, odps);
-            resources.add(t);
-          }
+    @Override
+    protected List<Resource> list() {
+      ArrayList<Resource> resources = new ArrayList<Resource>();
 
-          params.put("marker", resp.marker);
-        } catch (OdpsException e) {
-          throw new RuntimeException(e.getMessage(), e);
-        }
+      params.put("expectmarker", "true"); // since sprint-11
 
-        return resources;
+      String lastMarker = params.get("marker");
+      if (params.containsKey("marker") && lastMarker.length() == 0) {
+        return null;
       }
 
-    };
+      if (name != null) {
+        params.put("name", name);
+      }
 
+      String resource = ResourceBuilder.buildResourcesResource(project);
+      try {
+        ListResourcesResponse resp = client.request(
+            ListResourcesResponse.class, resource, "GET", params);
+
+        for (ResourceModel model : resp.resources) {
+          Resource t = Resource.getResource(model, project, odps);
+          resources.add(t);
+        }
+
+        params.put("marker", resp.marker);
+      } catch (OdpsException e) {
+        throw new RuntimeException(e.getMessage(), e);
+      }
+
+      return resources;
+    }
   }
 
   private String getDefaultProjectName() {

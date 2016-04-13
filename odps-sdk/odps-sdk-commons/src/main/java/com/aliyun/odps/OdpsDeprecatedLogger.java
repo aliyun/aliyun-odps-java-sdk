@@ -58,7 +58,7 @@ public class OdpsDeprecatedLogger {
 
     // if usercode is not odps calling, log it.
     try {
-      String callerClass = Thread.currentThread().getStackTrace()[4].getClassName();
+      String callerClass = Thread.currentThread().getStackTrace()[3].getClassName();
       if (!callerClass.startsWith("com.aliyun.odps.")) {
         String methodSignature = point.getSignature().toString();
         Long calledTimes = getDeprecatedCalls().get(methodSignature);
@@ -78,5 +78,9 @@ public class OdpsDeprecatedLogger {
 
   public static ConcurrentHashMap<String, Long> getDeprecatedCalls() {
     return deprecatedCalls;
+  }
+
+  public static void setDeprecatedCalls(ConcurrentHashMap<String, Long> deprecatedCalls) {
+    OdpsDeprecatedLogger.deprecatedCalls = deprecatedCalls;
   }
 }

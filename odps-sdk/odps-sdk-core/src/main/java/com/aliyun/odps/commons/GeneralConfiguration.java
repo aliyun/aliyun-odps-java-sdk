@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.account.Account;
+import com.aliyun.odps.rest.ResourceBuilder;
 
 /**
  * Created by dongxiao.dx on 2015/9/7.
@@ -116,10 +117,7 @@ public class GeneralConfiguration {
    * @return
    */
   public String getResource(String projectName, String tableName) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("/projects/").append(projectName).append("/tables/")
-      .append(tableName);
-    return sb.toString();
+    return ResourceBuilder.buildTableResource(projectName, tableName);
   }
 
   /**
@@ -132,8 +130,7 @@ public class GeneralConfiguration {
    */
   public String getStreamUploadResource(String projectName, String tableName, long shardId) {
     StringBuilder sb = new StringBuilder();
-    sb.append("/projects/").append(projectName).append("/tables/")
-      .append(tableName)
+    sb.append(getResource(projectName, tableName))
       .append("/shards/")
       .append(Long.toString(shardId));
 
@@ -149,9 +146,7 @@ public class GeneralConfiguration {
    */
   public String getStreamUploadResource(String projectName, String tableName) {
     StringBuilder sb = new StringBuilder();
-    sb.append("/projects/").append(projectName).append("/tables/")
-      .append(tableName)
-      .append("/shards");
+    sb.append(getResource(projectName, tableName)).append("/shards");
 
     return sb.toString();
   }

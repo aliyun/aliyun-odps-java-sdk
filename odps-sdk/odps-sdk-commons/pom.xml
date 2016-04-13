@@ -14,7 +14,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.20.7-public</version>
+        <version>0.21.3-public</version>
     </parent>
     <name>ODPS SDK Commons for Mapreduce/Graph</name>
     <artifactId>odps-sdk-commons</artifactId>
@@ -36,6 +36,12 @@
             <artifactId>jcabi-aspects</artifactId>
             <version>0.20.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.stephenc.jcip</groupId>
+            <artifactId>jcip-annotations</artifactId>
+            <version>1.0-1</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
@@ -48,21 +54,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
-                <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
-                    <encoding>UTF-8</encoding>
-                    <optimize>true</optimize>
-                    <debug>true</debug>
-                    <showDeprecation>true</showDeprecation>
-                    <showWarnings>true</showWarnings>
-                </configuration>
-            </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-eclipse-plugin</artifactId>

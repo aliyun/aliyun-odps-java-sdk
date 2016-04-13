@@ -32,6 +32,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 
+import javax.mail.internet.MimeUtility;
+
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.account.AuthorizationUtil;
 
@@ -135,7 +137,7 @@ public class DefaultConnection implements Connection {
       StringBuilder sb = new StringBuilder();
       String pad = "";
       for (String v : kv.getValue()) {
-        sb.append(pad).append(v);
+        sb.append(pad).append(MimeUtility.decodeText(v));
         pad = ",";
       }
       headers.put(kv.getKey(), sb.toString());

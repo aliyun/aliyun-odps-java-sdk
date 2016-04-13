@@ -28,9 +28,19 @@ public class FunctionsTest extends TestBase {
   @Test
   public void testIterator() {
     Iterator<Function> iterator = odps.functions().iterator();
-    if (iterator.hasNext()) {
+    while (iterator.hasNext()) {
       iterator.next().getName();
     }
   }
 
+  @Test
+  public void testIterable() {
+    for (Function func : odps.functions()) {
+      func.getName();
+    }
+
+    for (Function func : odps.functions().iterable()) {
+      func.getName();
+    }
+  }
 }

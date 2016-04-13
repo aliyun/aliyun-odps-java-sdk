@@ -19,12 +19,15 @@
 
 package com.aliyun.odps;
 
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
 
@@ -35,6 +38,7 @@ public class PartitionTest extends TestBase {
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
     String tableName = TABLE_NAME;
+    odps.tables().delete(TABLE_NAME, true);
     if (!odps.tables().exists(tableName)) {
       TableSchema schema = new TableSchema();
       schema.addColumn(new Column("key", OdpsType.STRING));
@@ -76,15 +80,27 @@ public class PartitionTest extends TestBase {
   }
 
   @Test
-  public void testGetExtendInfo() {
+  public void testGetExtendInfo() throws OdpsException {
     Table table = odps.tables().get(TABLE_NAME);
     Partition partition = table.getPartition(new PartitionSpec("pt='1', ds='1'"));
     Assert.assertTrue("size must > 0", partition.getSize() > 0);
     Assert.assertTrue(!partition.isArchived());
     partition.isExstore();
-    partition.getLifeCycle();
+    assertEquals(partition.getLifeCycle(), -1L);
     partition.getPhysicalSize();
     partition.getFileNum();
+    SQLTask.run(odps, "alter table " + TABLE_NAME + " set lifecycle 10;").waitForSuccess();
+    table.reload();
+    partition = table.getPartition(new PartitionSpec("pt='1', ds='1'"));
+    assertEquals(partition.getLifeCycle(), 10L);
+
+    SQLTask.run(odps, "alter table " + TABLE_NAME + " partition (" + partition.getPartitionSpec().toString() + ") disable lifecycle;").waitForSuccess();
+    partition = table.getPartition(new PartitionSpec("pt='1', ds='1'"));
+    assertEquals(partition.getLifeCycle(), -1L);
+    SQLTask.run(odps, "alter table " + TABLE_NAME + " partition (" + partition.getPartitionSpec().toString() + ") enable lifecycle;").waitForSuccess();
+    partition = table.getPartition(new PartitionSpec("pt='1', ds='1'"));
+    assertEquals(partition.getLifeCycle(), 10L);
+
   }
 
 }

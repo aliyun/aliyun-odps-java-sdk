@@ -71,9 +71,11 @@ public class RestClient {
   }
 
   /**
-   * 底层网络建立超时时间,50秒
+   * 底层网络建立超时时间,10秒
+   * magic number
+   * allow kernel retry 3 times.
    */
-  public static final int DEFAULT_CONNECT_TIMEOUT = 5; // seconds
+  public static final int DEFAULT_CONNECT_TIMEOUT = 10; // seconds
 
   /**
    * 底层网络重试次数, 3

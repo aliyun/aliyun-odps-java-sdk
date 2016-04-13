@@ -30,8 +30,8 @@
  * Odps odps = new Odps(account);
  * odps.setDefaultProject("my_project");
  *
- * DataTunnel tunnel = new DataTunnel(odps);
- * UploadSession session = tunnel.createUploadSession("my_project", "my_table");
+ * TableTunnel tunnel = new TableTunnel(odps);
+ * TableTunnel.UploadSession session = tunnel.createUploadSession("my_project", "my_table");
  * ....
  * </pre></code>
  * </li></ul>

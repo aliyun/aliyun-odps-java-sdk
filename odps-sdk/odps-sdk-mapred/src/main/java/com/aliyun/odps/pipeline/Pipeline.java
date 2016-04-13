@@ -26,6 +26,8 @@ import java.util.List;
 import org.apache.commons.lang.StringUtils;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.data.RecordComparator;
+import com.aliyun.odps.io.WritableComparator;
 import com.aliyun.odps.mapred.Job;
 import com.aliyun.odps.mapred.Mapper;
 import com.aliyun.odps.mapred.Partitioner;
@@ -84,6 +86,8 @@ public class Pipeline {
   private final static String OUTPUT_GROUP_COLUMNS = ".output.group.columns";
   private final static String PARTITION_COLUMNS = ".partition.columns";
   private final static String PARTITION_CLASS = ".partition.class";
+  private final static String OUTPUT_KEY_COMPARATOR_CLASS = ".output.key.comparator.class";
+  private final static String OUTPUT_KEY_GROUPING_COMPARATOR_CLASS = ".output.key.grouping.comparator.class";
 
   private List<TransformNode> nodes = new ArrayList<TransformNode>();
 
@@ -98,6 +102,10 @@ public class Pipeline {
     SortOrder[] order;
     String[] partCols;
     Class<? extends Partitioner> partitionerClass;
+    @SuppressWarnings("rawtypes")
+    Class<? extends RecordComparator> keyComparatorClass;
+    @SuppressWarnings("rawtypes")
+    Class<? extends RecordComparator> keyGroupingComparatorClass;
     String[] groupCols;
     String type;
     TransformNode prevNode;
@@ -251,6 +259,8 @@ public class Pipeline {
           this.getOutputKeySchema() != null) {
         order = new SortOrder[this.getOutputKeySchema().length];
         Arrays.fill(order, SortOrder.ASC);
+      } else if (order == null) {
+        order = new SortOrder[0];
       }
       return order;
     }
@@ -347,6 +357,90 @@ public class Pipeline {
       } else {
         return null;
       }
+    }
+
+    /**
+     * 获取本节点输入 Key 的排序比较器，默认返回上级节点的#getOutputKeyComparatorClass,
+     * 如果没有上级节点则返回null.
+     * 
+     * @see RecordComparator
+     * @return 输入 Key 排序比较器.
+     * 
+     */
+    @SuppressWarnings("rawtypes")
+    public Class<? extends RecordComparator> getInputKeyComparatorClass() {
+      if (this.getPreviousNode() != null) {
+        return this.getPreviousNode().getOutputKeyComparatorClass();
+      }
+      
+      return null;
+    }
+
+    /**
+     * 获取本节点输入 Key 的分组比较器，默认返回上级节点的#getOutputKeyGroupingComparatorClass,
+     * 如果没有上级节点则返回null.
+     * 
+     * @see RecordComparator
+     * @return 输入 Key 的分组比较器.
+     * 
+     */
+    @SuppressWarnings("rawtypes")
+    public Class<? extends RecordComparator> getInputKeyGroupingComparatorClass() {
+      if (this.getPreviousNode() != null) {
+        return this.getPreviousNode().getOutputKeyGroupingComparatorClass();
+      }
+      
+      return null;
+    }
+
+    /**
+     * 获取指定的节点输出 Key 排序比较器，如果没有指定，默认使用
+     * {@link WritableComparator#get(Class)} 返回的比较函数.
+     * 
+     * @see RecordComparator
+     * @return 输出 Key 排序比较器.
+     * 
+     */
+    @SuppressWarnings("rawtypes")
+    public Class<? extends RecordComparator> getOutputKeyComparatorClass() {
+      return keyComparatorClass;
+    }
+
+    /**
+     * 设置输出 Key 排序比较器.
+     * 
+     * @param theClass
+     *          用于输出 Key 排序的比较器，{@link RecordComparator} 子类
+     * 
+     */
+    @SuppressWarnings("rawtypes")
+    public void setOutputKeyComparatorClass(Class<? extends RecordComparator> theClass) {
+      keyComparatorClass = theClass;
+    }
+
+    /**
+     * 获取指定的 Key 分组比较器，默认为 {@link #getOutputKeyComparatorClass()}.
+     * 
+     * @see #setOutputKeyGroupingComparatorClass(Class)
+     * @return Key 分组比较器
+     * 
+     */
+    @SuppressWarnings("rawtypes")
+    public Class<? extends RecordComparator> getOutputKeyGroupingComparatorClass() {
+      return keyGroupingComparatorClass;
+    }
+
+    /**
+     * 设置 Key 分组比较器，如果不指定，默认使用 {@link #getOutputKeyComparatorClass()} 作为分组比较器.
+     * 
+     * @param theClass
+     *          Key 分组比较器，实现 {@link RecordComparator}接口
+     * @see #setOutputKeyComparatorClass(Class)
+     * 
+     */
+    @SuppressWarnings("rawtypes")
+    public void setOutputKeyGroupingComparatorClass(Class<? extends RecordComparator> theClass) {
+      keyGroupingComparatorClass = theClass;
     }
 
     /**
@@ -776,6 +870,38 @@ public class Pipeline {
       return this;
     }
 
+      /**
+       * 设置当前节点key比较器的Class定义
+       *
+       * @param theClass
+       *     切分class定义
+       * @return Builder对象
+       */
+      @SuppressWarnings("rawtypes")
+      public Builder setOutputKeyComparatorClass(Class<? extends RecordComparator> theClass) {
+        if (lastNode != null) {
+          lastNode.setOutputKeyComparatorClass(theClass);
+        }
+
+        return this;
+      }
+      
+      /**
+       * 设置当前节点key分组比较器的Class定义
+       *
+       * @param theClass
+       *     切分class定义
+       * @return Builder对象
+       */
+      @SuppressWarnings("rawtypes")
+      public Builder setOutputKeyGroupingComparatorClass(Class<? extends RecordComparator> theClass) {
+        if (lastNode != null) {
+          lastNode.setOutputKeyGroupingComparatorClass(theClass);
+        }
+
+        return this;
+      }
+
     /**
      * 由Pipeline Builder产生Pipeline对象
      *
@@ -836,10 +962,8 @@ public class Pipeline {
                  StringUtils.join(node.getOutputKeySortColumns(), ","));
       }
 
-      if (node.getOutputKeySortOrder() != null) {
-        conf.set(PIPELINE + i + OUTPUT_KEY_SORT_ORDER,
-                 StringUtils.join(node.getOutputKeySortOrder(), ","));
-      }
+      conf.set(PIPELINE + i + OUTPUT_KEY_SORT_ORDER,
+          StringUtils.join(node.getOutputKeySortOrder(), ","));
 
       if (node.getPartitionColumns() != null) {
         conf.set(PIPELINE + i + PARTITION_COLUMNS,
@@ -855,7 +979,17 @@ public class Pipeline {
         conf.set(PIPELINE + i + OUTPUT_GROUP_COLUMNS,
                  StringUtils.join(node.getOutputGroupingColumns(), ","));
       }
-      
+
+      if (node.getOutputKeyComparatorClass() != null) {
+        conf.set(PIPELINE + i + OUTPUT_KEY_COMPARATOR_CLASS, 
+            node.getOutputKeyComparatorClass().getName());
+      }
+
+      if (node.getOutputKeyGroupingComparatorClass() != null) {
+        conf.set(PIPELINE + i + OUTPUT_KEY_GROUPING_COMPARATOR_CLASS, 
+            node.getOutputKeyGroupingComparatorClass().getName());
+      }
+
       if (node.getNumTasks() >= 0) {
         if (i == 0) {
           conf.setInt("odps.stage.mapper.num", node.getNumTasks());
@@ -965,7 +1099,7 @@ public class Pipeline {
           Class<?> cls = conf.getClassByName(partClass);
           if (cls != null) {
             if (!Partitioner.class.isAssignableFrom(cls)) {
-              throw new RuntimeException(cls + " not Reducer");
+              throw new RuntimeException(cls + " not Partitioner");
             } else {
               builder.setPartitionerClass(cls.asSubclass(Partitioner.class));
             }
@@ -980,6 +1114,42 @@ public class Pipeline {
       String groupCols = conf.get(PIPELINE + i + OUTPUT_GROUP_COLUMNS);
       if (groupCols != null && !groupCols.isEmpty()) {
         builder.setOutputGroupingColumns(groupCols.split(","));
+      }
+
+      String keyCmpClass = conf.get(PIPELINE + i + OUTPUT_KEY_COMPARATOR_CLASS);
+      if (keyCmpClass != null && !keyCmpClass.isEmpty()) {
+        try {
+          Class<?> cls = conf.getClassByName(keyCmpClass);
+          if (cls != null) {
+            if (!RecordComparator.class.isAssignableFrom(cls)) {
+              throw new RuntimeException(cls + " not RecordComparator");
+            } else {
+              builder.setOutputKeyComparatorClass(cls.asSubclass(RecordComparator.class));
+            }
+          } else {
+            throw new RuntimeException("Class " + keyCmpClass + " not found");
+          }
+        } catch (ClassNotFoundException e) {
+          throw new RuntimeException("Class " + keyCmpClass + " not found");
+        }
+      }
+
+      String keyGrpCmpClass = conf.get(PIPELINE + i + OUTPUT_KEY_GROUPING_COMPARATOR_CLASS);
+      if (keyGrpCmpClass != null && !keyGrpCmpClass.isEmpty()) {
+        try {
+          Class<?> cls = conf.getClassByName(keyGrpCmpClass);
+          if (cls != null) {
+            if (!RecordComparator.class.isAssignableFrom(cls)) {
+              throw new RuntimeException(cls + " not RecordComparator");
+            } else {
+              builder.setOutputKeyGroupingComparatorClass(cls.asSubclass(RecordComparator.class));
+            }
+          } else {
+            throw new RuntimeException("Class " + keyGrpCmpClass + " not found");
+          }
+        } catch (ClassNotFoundException e) {
+          throw new RuntimeException("Class " + keyGrpCmpClass + " not found");
+        }
       }
 
       int numTasks = 1;

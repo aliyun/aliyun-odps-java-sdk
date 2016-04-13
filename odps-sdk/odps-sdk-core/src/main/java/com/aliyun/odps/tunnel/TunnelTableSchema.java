@@ -35,27 +35,39 @@ class TunnelTableSchema extends TableSchema {
     if (columns.isArray()) {
       Iterator<JsonNode> it = columns.getElements();
       while (it.hasNext()) {
-
         JsonNode column = it.next();
-        JsonNode name = column.get("name");
-        JsonNode type = column.get("type");
-        Column col = null;
-
-        if (type.asText().toUpperCase().startsWith("MAP")) {
-          col = new Column(name.asText(), OdpsType.MAP);
-          col.setGenericTypeList(Arrays.asList(parseMapType(type.asText().toUpperCase())));
-        } else if (type.asText().toUpperCase().startsWith("ARRAY")) {
-          col = new Column(name.asText(), OdpsType.ARRAY);
-          col.setGenericTypeList(Arrays.asList(parseArrayType(type.asText().toUpperCase())));
-        } else {
-          col = new Column(name.asText(), OdpsType.valueOf(type.asText().toUpperCase()));
-        }
-
+        Column col = parseColumn(column);
         addColumn(col);
+      }
+    }
+
+    columns = node.get("partitionKeys");
+    if (columns.isArray()) {
+      Iterator<JsonNode> it = columns.getElements();
+      while (it.hasNext()) {
+        JsonNode column = it.next();
+        Column col = parseColumn(column);
+        addPartitionColumn(col);
       }
     }
   }
 
+  private Column parseColumn(JsonNode column) {
+    JsonNode name = column.get("name");
+    JsonNode type = column.get("type");
+    Column col = null;
+
+    if (type.asText().toUpperCase().startsWith("MAP")) {
+      col = new Column(name.asText(), OdpsType.MAP);
+      col.setGenericTypeList(Arrays.asList(parseMapType(type.asText().toUpperCase())));
+    } else if (type.asText().toUpperCase().startsWith("ARRAY")) {
+      col = new Column(name.asText(), OdpsType.ARRAY);
+      col.setGenericTypeList(Arrays.asList(parseArrayType(type.asText().toUpperCase())));
+    } else {
+      col = new Column(name.asText(), OdpsType.valueOf(type.asText().toUpperCase()));
+    }
+    return col;
+  }
 
   private OdpsType parseArrayType(String typeLiteral) throws IllegalArgumentException {
     if (!typeLiteral.startsWith("ARRAY<")) {

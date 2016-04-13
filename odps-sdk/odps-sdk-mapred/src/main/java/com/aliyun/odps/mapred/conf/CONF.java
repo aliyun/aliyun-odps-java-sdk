@@ -194,6 +194,16 @@ class CONF {
   public final static String COMBINER_CACHE_ITEMS = "odps.mapred.combiner.cache.items";
 
   /**
+   * Combiner缓存的Spill阈值
+   */
+  public final static String COMBINER_CACHE_SPILL_PERCENT = "odps.mapred.combiner.cache.spill.percent";
+
+  /**
+   * Combiner优化开关
+   */
+  public final static String COMBINER_OPTIMIZE_ENABLE = "odps.mapred.combiner.optimize.enable";
+
+  /**
    * 子任务超时时间（秒）
    */
   public final static String FUNCTION_TIMEOUT = "odps.function.timeout";
@@ -202,4 +212,8 @@ class CONF {
    * Instance优先级设定
    */
   public final static String INSTANCE_PRIORITY = "odps.instance.priority";
+
+  public static final String OUTPUT_KEY_COMPARATOR_CLASS = "odps.stage.mapred.output.key.comparator.class";
+
+  public static final String OUTPUT_KEY_GROUPING_COMPARATOR_CLASS = "odps.mapred.output.key.grouping.comparator.class";
 }
