@@ -24,6 +24,18 @@
     <description>Aliyun ODPS SDK for Java Developers</description>
     <url>http://odps.aliyun.com</url>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>sonatype-nexus-snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>nexus-releases</id>
+            <name>Nexus Release Repository</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
     <organization>
         <name>Alibaba Cloud Computing</name>
         <url>http://www.aliyun.com</url>
