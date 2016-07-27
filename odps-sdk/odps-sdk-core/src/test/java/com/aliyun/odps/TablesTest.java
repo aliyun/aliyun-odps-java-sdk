@@ -20,26 +20,38 @@
 package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 
+import net.jcip.annotations.NotThreadSafe;
+
+@NotThreadSafe
 public class TablesTest extends TestBase {
 
   private String tableName = this.getClass().getSimpleName() + "_table_name_for_testTables";
+  private TableSchema schema;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() throws OdpsException {
     odps = OdpsTestUtils.newDefaultOdps();
 
-    TableSchema schema = new TableSchema();
+    schema = new TableSchema();
     schema.addColumn(new Column("c1", OdpsType.BIGINT));
     schema.addColumn(new Column("c2", OdpsType.BOOLEAN));
     schema.addColumn(new Column("c3", OdpsType.DATETIME));
@@ -48,14 +60,24 @@ public class TablesTest extends TestBase {
     schema.addPartitionColumn(new Column("p1", OdpsType.BIGINT));
     schema.addPartitionColumn(new Column("p2", OdpsType.STRING));
 
-    tearDown();
-    odps.tables().create(odps.getDefaultProject(), tableName, schema);
+    createTable(tableName);
   }
 
-  public void tearDown() throws Exception {
-    if (odps.tables().exists(odps.getDefaultProject(), tableName)) {
-      odps.tables().delete(tableName);
+  private void createTable(String name) throws OdpsException {
+    deleteTable(name);
+
+    odps.tables().create(odps.getDefaultProject(), name, schema);
+  }
+
+  private void deleteTable(String name) throws OdpsException {
+    if (odps.tables().exists(name)) {
+      odps.tables().delete(name);
     }
+  }
+
+  @After
+  public void tearDown() throws OdpsException {
+    deleteTable(tableName);
   }
 
   @Test
@@ -87,7 +109,6 @@ public class TablesTest extends TestBase {
     assertEquals(returnSchema.getPartitionColumn("_p2").getName(), "_p2");
     assertEquals(returnSchema.getPartitionColumn("_p2").getType(), OdpsType.STRING);
     assertEquals(returnSchema.getPartitionColumn("_p2").getComment(), "_comment here");
-
   }
 
   @Test
@@ -102,6 +123,7 @@ public class TablesTest extends TestBase {
     odps.tables()
         .createTableWithLifeCycle(odps.getDefaultProject(), tableName, schema, null, false, 10L);
     assertEquals(odps.tables().get(tableName).getLife(), 10L);
+    deleteTable(tableName);
   }
 
   @Test(expected = OdpsException.class)
@@ -192,4 +214,96 @@ public class TablesTest extends TestBase {
     //Already Test in method tearDown() ,please don't delete again
   }
 
+  @Test
+  public void testLoadTablesPositive_Normal() throws OdpsException {
+    List<Table> tables = getTables(odps, 100);
+
+    List<String> tableNames = new ArrayList<String>();
+    for (Table t : tables) {
+      tableNames.add(t.getName());
+    }
+    List<Table> reloadedTables = odps.tables().reloadTables(tables);
+    assertEquals(tables.size(), reloadedTables.size());
+    checkReloadResult(reloadedTables);
+
+    List<Table> reloadedTables1 = odps.tables().loadTables(tableNames);
+    assertEquals(tableNames.size(), reloadedTables1.size());
+    checkReloadResult(reloadedTables1);
+  }
+
+
+  @Test
+  public void testLoadTablesPositive_DuplicateTables() throws OdpsException {
+    // duplicate tables
+    int duplicateNumber = 4;
+    List<Table> tables = getTables(odps, 10);
+    int i = 0;
+    while (i++ < duplicateNumber) {
+      tables.add(tables.get(i));
+    }
+
+    List<Table> loadedTables = odps.tables().reloadTables(tables);
+    assertEquals(tables.size() - duplicateNumber, loadedTables.size());
+    checkReloadResult(loadedTables);
+  }
+
+
+  @Test(expected = NoSuchObjectException.class)
+  public void testLoadTablesNeg_TableNotExists() throws OdpsException {
+    List<String> tables = new ArrayList<String>();
+    String name = OdpsTestUtils.getRandomTableName("TABLE_RELOAD_TEST_NOT_EXIST");
+    deleteTable(name);
+
+    tables.add(name);
+    odps.tables().loadTables(tables);
+
+    fail();
+  }
+
+  @Test(expected = OdpsException.class)
+  public void testLoadTablesNeg_OverHeadTables() throws OdpsException {
+    List<Table> tables = getTables(odps, 101);
+    List<String> tableNames = new ArrayList<String>(); // for tear down
+    String name = null;
+    if (tables.size() < 100) {
+      int number = 101 - tables.size();
+      while (number-- > 0) {
+        name = OdpsTestUtils.getRandomTableName("testReloadTables_OverHead");
+        tableNames.add(name);
+        createTable(name);
+        tables.add(odps.tables().get(name));
+      }
+    }
+
+    try {
+      odps.tables().reloadTables(tables);
+    } catch (OdpsException e) {
+      assertTrue(e.getMessage().contains("limit"));
+
+      for (String n : tableNames) {
+        deleteTable(n);
+      }
+      throw e;
+    }
+
+    fail();
+  }
+
+  private void checkReloadResult(List<Table> reloadedTables) {
+    for (Table t : reloadedTables) {
+      assertTrue(t.isLoaded());
+      assertNotNull(t.getSchema());
+      assertEquals(odps.tables().get(t.getName()).getJsonSchema(), t.getJsonSchema());
+      assertEquals(odps.getDefaultProject(), t.getProject());
+    }
+  }
+
+  private List<Table> getTables(Odps odps, int limit) {
+    List<Table> tables = new ArrayList<Table>();
+    Iterator<Table> tableIterator = odps.tables().iterator();
+    while (tableIterator.hasNext() && tables.size() < limit) {
+      tables.add(tableIterator.next());
+    }
+    return tables;
+  }
 }

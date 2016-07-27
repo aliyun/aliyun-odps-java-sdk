@@ -27,13 +27,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
@@ -174,11 +173,11 @@ public class StreamWriter {
 
   private void loadFromJson(InputStream is) throws TunnelException {
     try {
-      ObjectMapper mapper = JacksonParser.getObjectMapper();
-      JsonNode tree = mapper.readTree(is);
-      JsonNode node = tree.get("PackId");
-      if (node != null && !node.isNull()) {
-        this.lastPackResult = new WritePackResult(node.asText());
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSON.parseObject(json);
+      String node = tree.getString("PackId");
+      if (node != null) {
+        this.lastPackResult = new WritePackResult(node);
       } else {
         throw new TunnelException("get pack id fail");
       }

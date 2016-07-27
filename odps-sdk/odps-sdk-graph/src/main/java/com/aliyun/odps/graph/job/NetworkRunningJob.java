@@ -30,6 +30,7 @@ import com.aliyun.odps.Instance.TaskStatus;
 import com.aliyun.odps.Instance.TaskSummary;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
+import com.aliyun.odps.commons.util.CostResultParser;
 import com.aliyun.odps.counter.Counters;
 import com.aliyun.odps.graph.utils.LogUtils;
 import com.aliyun.odps.mapred.JobStatus;
@@ -53,6 +54,7 @@ public class NetworkRunningJob implements RunningJob {
   private boolean hasPrintSummary = false;
   private boolean hasPrintResult = false;
   protected String diagnostics = "";
+  private boolean isCostMode = false;
 
   public NetworkRunningJob(Task task, Instance instance) {
     this.task = task;
@@ -249,6 +251,9 @@ public class NetworkRunningJob implements RunningJob {
 
         if (state == JobStatus.SUCCEEDED) {
           if (!StringUtils.isNullOrEmpty(result)) {
+            if (isCostMode) {
+              result = CostResultParser.parse(result, "Graph");
+            }
             System.err.println(result);
           }
           System.err.println("OK");
@@ -273,5 +278,13 @@ public class NetworkRunningJob implements RunningJob {
   public float reduceProgress() throws IOException {
     // TODO Auto-generated method stub
     return 0;
+  }
+
+  public boolean isCostMode() {
+    return isCostMode;
+  }
+
+  public void setIsCostMode(boolean isCostMode) {
+    this.isCostMode = isCostMode;
   }
 }

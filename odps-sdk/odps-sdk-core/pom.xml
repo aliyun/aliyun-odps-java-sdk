@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.21.3-public</version>
+        <version>0.23.3-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -18,7 +18,7 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-commons</artifactId>
-            <version>0.21.3-public</version>
+            <version>0.23.3-public</version>
         </dependency>
 
         <!-- Base64 -->
@@ -34,14 +34,14 @@
             <version>1.9.13</version>
         </dependency>
         <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.8</version>
+        </dependency>
+        <dependency>
             <groupId>net.sourceforge.javacsv</groupId>
             <artifactId>javacsv</artifactId>
             <version>2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>1.52</version>
         </dependency>
         <dependency>
             <groupId>org.xerial.snappy</groupId>
@@ -58,6 +58,7 @@
             <artifactId>commons-io</artifactId>
             <version>2.4</version>
         </dependency>
+        <!--  -->
         <dependency>
             <groupId>javax.mail</groupId>
             <artifactId>mail</artifactId>
@@ -67,6 +68,7 @@
             <groupId>commons-lang</groupId>
             <artifactId>commons-lang</artifactId>
             <version>2.4</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.github.stephenc.jcip</groupId>
@@ -170,3 +172,4 @@
         </plugins>
     </reporting>
 </project>
+

@@ -29,9 +29,8 @@ import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.codehaus.jackson.JsonNode;
-
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -223,25 +222,25 @@ public class Partition extends LazyLoad {
                                         resource.toString(), "GET", params);
 
     try {
-      JsonNode tree = JacksonParser.parse(meta.schema);
-      JsonNode node = tree.get("createTime");
-      if (node != null && !node.isNull()) {
-        createdTime = new Date(node.asLong() * 1000);
+      JSONObject tree = JSON.parseObject(meta.schema);
+      Long node = tree.getLong("createTime");
+      if (node != null) {
+        createdTime = new Date(node * 1000);
       }
 
-      node = tree.get("lastDDLTime");
-      if (node != null && !node.isNull()) {
-        lastMetaModifiedTime = new Date(node.asLong() * 1000);
+      node = tree.getLong("lastDDLTime");
+      if (node != null) {
+        lastMetaModifiedTime = new Date(node * 1000);
       }
 
-      node = tree.get("lastModifiedTime");
-      if (node != null && !node.isNull()) {
-        lastDataModifiedTime = new Date(node.asLong() * 1000);
+      node = tree.getLong("lastModifiedTime");
+      if (node != null) {
+        lastDataModifiedTime = new Date(node * 1000);
       }
 
-      node = tree.get("partitionSize");
-      if (node != null && !node.isNull()) {
-        size = node.asLong();
+      node = tree.getLong("partitionSize");
+      if (node != null) {
+        size = node;
       }
 
       setLoaded(true);
@@ -262,31 +261,31 @@ public class Partition extends LazyLoad {
             meta =
             client.request(PartitionMeta.class, resource.toString(), "GET", params);
 
-        JsonNode tree = JacksonParser.parse(meta.schema);
+        JSONObject tree = JSON.parseObject(meta.schema);
 
-        JsonNode node = tree.get("IsArchived");
-        if (node != null && !node.isNull()) {
-          isArchived = node.asBoolean();
+        Boolean node = tree.getBoolean("IsArchived");
+        if (node != null) {
+          isArchived = node;
         }
 
-        node = tree.get("IsExstore");
-        if (node != null && !node.isNull()) {
-          isExstore = node.asBoolean();
+        node = tree.getBoolean("IsExstore");
+        if (node != null) {
+          isExstore = node;
         }
 
-        node = tree.get("LifeCycle");
-        if (node != null && !node.isNull()) {
-          lifeCycle = node.asLong();
+        Long node2 = tree.getLong("LifeCycle");
+        if (node2 != null) {
+          lifeCycle = node2;
         }
 
-        node = tree.get("PhysicalSize");
-        if (node != null && !node.isNull()) {
-          physicalSize = node.asLong();
+        node2 = tree.getLong("PhysicalSize");
+        if (node2 != null) {
+          physicalSize = node2;
         }
 
-        node = tree.get("FileNum");
-        if (node != null && !node.isNull()) {
-          fileNum = node.asLong();
+        node2 = tree.getLong("FileNum");
+        if (node2 != null) {
+          fileNum = node2;
         }
       } catch (Exception e) {
         throw new ReloadException(e.getMessage(), e);

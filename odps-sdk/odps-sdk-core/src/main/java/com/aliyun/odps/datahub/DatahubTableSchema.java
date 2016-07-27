@@ -19,27 +19,37 @@
 
 package com.aliyun.odps.datahub;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
-import org.codehaus.jackson.JsonNode;
-
-import java.util.Iterator;
 
 class DatahubTableSchema extends TableSchema {
 
-  public DatahubTableSchema(JsonNode node) {
-    JsonNode columns = node.get("columns");
-    if (columns.isArray()) {
-      Iterator<JsonNode> it = columns.getElements();
-      while (it.hasNext()) {
+  public DatahubTableSchema(JSONObject node) {
+    Object columns = node.get("columns");
+    if (columns instanceof JSONArray) {
+      JSONArray list = (JSONArray) columns;
+      for (int i = 0; i < list.size(); ++i) {
 
-        JsonNode column = it.next();
-        JsonNode name = column.get("name");
-        JsonNode type = column.get("type");
+        JSONObject column = list.getJSONObject(i);
+        String name = column.getString("name");
+        String type = column.getString("type");
 
-        addColumn(new Column(name.asText(), OdpsType.valueOf(type.asText()
-                                                                 .toUpperCase())));
+        addColumn(new Column(name, OdpsType.valueOf(type.toUpperCase())));
+      }
+    }
+    Object partitions = node.get("partitionKeys");
+    if (partitions instanceof JSONArray) {
+      JSONArray list = (JSONArray) partitions;
+      for (int i = 0; i < list.size(); ++i) {
+
+        JSONObject column = list.getJSONObject(i);
+        String name = column.getString("name");
+        String type = column.getString("type");
+
+        addPartitionColumn(new Column(name, OdpsType.valueOf(type.toUpperCase())));
       }
     }
   }

@@ -18,7 +18,7 @@
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps</artifactId>
-    <version>0.21.3-public</version>
+    <version>0.23.3-public</version>
     <packaging>pom</packaging>
     <name>odps-sdk-java</name>
     <description>Aliyun ODPS SDK for Java Developers</description>

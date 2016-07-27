@@ -7,22 +7,17 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.apache.commons.io.IOUtils;
 
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.commons.proto.XstreamPack.XStreamPack;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.datahub.DatahubRecordPack;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.TunnelConstants;
-import com.aliyun.odps.tunnel.TunnelException;
-import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.google.protobuf.ByteString;
 
 /**
@@ -108,11 +103,11 @@ public class StreamUploadWriter {
   private void loadFromJson(InputStream is)
     throws TunnelException {
     try {
-      ObjectMapper mapper = JacksonParser.getObjectMapper();
-      JsonNode tree = mapper.readTree(is);
+      String json = IOUtils.toString(is);
+      JSONObject tree = JSONObject.parseObject(json);
 
-      JsonNode node = tree.get("Schema");
-      if (null != node && !node.isNull()) {
+      JSONObject node = tree.getJSONObject("Schema");
+      if (null != node) {
         schema = new TunnelTableSchema(node);
       } else {
         throw new TunnelException("Get table type failed");

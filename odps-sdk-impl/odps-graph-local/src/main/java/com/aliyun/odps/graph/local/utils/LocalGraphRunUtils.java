@@ -27,10 +27,12 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.conf.Configuration;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.graph.Aggregator;
@@ -53,9 +55,7 @@ import com.aliyun.odps.local.common.utils.LocalRunUtils;
 import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.ReflectionUtils;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.aliyun.odps.utils.StringUtils;
 
 import sun.misc.BASE64Decoder;
 
@@ -66,7 +66,6 @@ public class LocalGraphRunUtils {
   private final static BASE64Decoder baseDecoder = new BASE64Decoder();
   private final static SimpleDateFormat DATETIME_FORMAT = new SimpleDateFormat(
       "yyyy-MM-dd HH:mm:ss");
-  private static final JsonParser parser = new JsonParser();
 
   public static String generateGraphTaskName() {
     return "console_graph_" + LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_1)
@@ -169,7 +168,12 @@ public class LocalGraphRunUtils {
           if (val.startsWith("ODPS-BASE64")) {
             return new Text(baseDecoder.decodeBuffer(val.substring("ODPS-BASE64".length())));
           } else {
-            return new Text(val);
+            try {
+              byte[] v = LocalRunUtils.fromReadableString(val);
+              return new Text(v);
+            } catch (Exception e) {
+              throw new RuntimeException("from readable string failed!" + e);
+            }
           }
         case DataType.DOUBLE:
           return new DoubleWritable(Double.parseDouble(val));
@@ -200,30 +204,30 @@ public class LocalGraphRunUtils {
   private static TableInfo[] getTables(JobConf conf, String descKey) throws IOException {
     String inputDesc = conf.get(descKey, "[]");
     if (inputDesc != "[]") {
-      JsonArray inputs = parser.parse(inputDesc).getAsJsonArray();
+      JSONArray inputs = JSON.parseArray(inputDesc);
       TableInfo[] infos = new TableInfo[inputs.size()];
       for (int i = 0; i < inputs.size(); i++) {
-        JsonObject input = inputs.get(i).getAsJsonObject();
-        String projName = input.get("projName").getAsString();
+        JSONObject input = inputs.getJSONObject(i);
+        String projName = input.getString("projName");
         if (StringUtils.isEmpty(projName)) {
           projName = SessionState.get().getOdps().getDefaultProject();
         }
-        String tblName = input.get("tblName").getAsString();
+        String tblName = input.getString("tblName");
         if (StringUtils.isEmpty(tblName)) {
           throw new IOException(ExceptionCode.ODPS_0720001
                                 + " - input table name cann't be empty: " + input);
         }
 
-        JsonArray parts = input.getAsJsonArray("partSpec");
+        JSONArray parts = input.getJSONArray("partSpec");
         LinkedHashMap<String, String> partSpec = new LinkedHashMap<String, String>();
         for (int j = 0; j < parts.size(); j++) {
-          String part = parts.get(j).getAsString();
+          String part = parts.getString(j);
           String[] part_val = part.split("=");
           partSpec.put(part_val[0], part_val[1]);
         }
         String[] cols = null;
         if (input.get("cols") != null) {
-          String readCols = input.get("cols").getAsString();
+          String readCols = input.getString("cols");
 
           // check column duplicate
           cols = readCols.split("\\,");
@@ -238,7 +242,7 @@ public class LocalGraphRunUtils {
         }
         String label = TableInfo.DEFAULT_LABEL;
         if (input.get("label") != null) {
-          String tmpLabel = input.get("label").getAsString();
+          String tmpLabel = input.getString("label");
           if (!StringUtils.isEmpty(tmpLabel)) {
             label = tmpLabel;
           }

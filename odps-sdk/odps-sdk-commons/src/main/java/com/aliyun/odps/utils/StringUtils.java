@@ -383,6 +383,10 @@ public class StringUtils {
     }
     return strList.toArray(new String[strList.size()]);
   }
+  
+  public static String[] split(String str, char separatorChar) {
+      return splitWorker(str, separatorChar, false);
+  }
 
   /**
    * Finds the first occurrence of the separator character ignoring the escaped
@@ -734,9 +738,188 @@ public class StringUtils {
   public static synchronized String limitDecimalTo2(double d) {
     return decimalFormat.format(d);
   }
+  
+  public static boolean isEmpty(String str) {
+      return str == null || str.length() == 0;
+  }
 
   public static boolean isNullOrEmpty(String str) {
     return (str == null) || str.trim().isEmpty();
   }
+  
+  public static boolean isBlank(String str) {
+      int strLen;
+      if (str == null || (strLen = str.length()) == 0) {
+          return true;
+      }
+      for (int i = 0; i < strLen; i++) {
+          if ((Character.isWhitespace(str.charAt(i)) == false)) {
+              return false;
+          }
+      }
+      return true;
+  }
+  
+  public static boolean isNotBlank(String str) {
+      return !StringUtils.isBlank(str);
+  }
 
+  public static String join(Object[] array, char separator) {
+      if (array == null) {
+          return null;
+      }
+
+      return join(array, separator, 0, array.length);
+  }
+  
+  public static String join(Object[] array, char separator, int startIndex, int endIndex) {
+      if (array == null) {
+          return null;
+      }
+      int bufSize = (endIndex - startIndex);
+      if (bufSize <= 0) {
+          return "";
+      }
+
+      bufSize *= ((array[startIndex] == null ? 16 : array[startIndex].toString().length()) + 1);
+      StringBuffer buf = new StringBuffer(bufSize);
+
+      for (int i = startIndex; i < endIndex; i++) {
+          if (i > startIndex) {
+              buf.append(separator);
+          }
+          if (array[i] != null) {
+              buf.append(array[i]);
+          }
+      }
+      return buf.toString();
+  }
+  
+  public static String join(Object[] array, String separator) {
+      if (array == null) {
+          return null;
+      }
+      return join(array, separator, 0, array.length);
+  }
+  
+  public static String join(Object[] array, String separator, int startIndex, int endIndex) {
+      if (array == null) {
+          return null;
+      }
+      if (separator == null) {
+          separator = "";
+      }
+
+      // endIndex - startIndex > 0:   Len = NofStrings *(len(firstString) + len(separator))
+      //           (Assuming that all Strings are roughly equally long)
+      int bufSize = (endIndex - startIndex);
+      if (bufSize <= 0) {
+          return "";
+      }
+
+      bufSize *= ((array[startIndex] == null ? 16 : array[startIndex].toString().length())
+                      + separator.length());
+
+      StringBuilder buf = new StringBuilder(bufSize);
+
+      for (int i = startIndex; i < endIndex; i++) {
+          if (i > startIndex) {
+              buf.append(separator);
+          }
+          if (array[i] != null) {
+              buf.append(array[i]);
+          }
+      }
+      return buf.toString();
+  }
+  
+  public static String[] splitPreserveAllTokens(String str, char separatorChar) {
+      return splitWorker(str, separatorChar, true);
+  }
+  
+  private static String[] splitWorker(String str, char separatorChar, boolean preserveAllTokens) {
+      // Performance tuned for 2.0 (JDK1.4)
+
+      if (str == null) {
+          return null;
+      }
+      int len = str.length();
+      if (len == 0) {
+          return new String[0];
+      }
+      List list = new ArrayList();
+      int i = 0, start = 0;
+      boolean match = false;
+      boolean lastMatch = false;
+      while (i < len) {
+          if (str.charAt(i) == separatorChar) {
+              if (match || preserveAllTokens) {
+                  list.add(str.substring(start, i));
+                  match = false;
+                  lastMatch = true;
+              }
+              start = ++i;
+              continue;
+          }
+          lastMatch = false;
+          match = true;
+          i++;
+      }
+      if (match || (preserveAllTokens && lastMatch)) {
+          list.add(str.substring(start, i));
+      }
+      return (String[]) list.toArray(new String[list.size()]);
+  }
+  
+  public static String strip(String str, String stripChars) {
+      if (isEmpty(str)) {
+          return str;
+      }
+      str = stripStart(str, stripChars);
+      return stripEnd(str, stripChars);
+  }
+  
+  public static String stripStart(String str, String stripChars) {
+      int strLen;
+      if (str == null || (strLen = str.length()) == 0) {
+          return str;
+      }
+      int start = 0;
+      if (stripChars == null) {
+          while ((start != strLen) && Character.isWhitespace(str.charAt(start))) {
+              start++;
+          }
+      } else if (stripChars.length() == 0) {
+          return str;
+      } else {
+          while ((start != strLen) && (stripChars.indexOf(str.charAt(start)) != -1)) {
+              start++;
+          }
+      }
+      return str.substring(start);
+  }
+  
+  public static String stripEnd(String str, String stripChars) {
+      int end;
+      if (str == null || (end = str.length()) == 0) {
+          return str;
+      }
+
+      if (stripChars == null) {
+          while ((end != 0) && Character.isWhitespace(str.charAt(end - 1))) {
+              end--;
+          }
+      } else if (stripChars.length() == 0) {
+          return str;
+      } else {
+          while ((end != 0) && (stripChars.indexOf(str.charAt(end - 1)) != -1)) {
+              end--;
+          }
+      }
+      return str.substring(0, end);
+  }
+  
+  public static boolean equals(String str1, String str2) {
+      return str1 == null ? str2 == null : str1.equals(str2);
+  }
 }

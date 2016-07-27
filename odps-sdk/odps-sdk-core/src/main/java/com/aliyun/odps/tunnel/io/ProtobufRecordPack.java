@@ -135,7 +135,7 @@ public class ProtobufRecordPack extends RecordPack {
     throw new UnsupportedOperationException("PBPack does not supported Read.");
   }
 
-  // 返回的并不是 probuf 的 stream，而是 protobuf 输出的那个缓冲区
+  // FIXME: 返回的并不是 probuf 的 stream，而是 protobuf 输出的那个缓冲区
   public ByteArrayOutputStream getProtobufStream() throws IOException {
     if (!isComplete) {
       writer.flush();

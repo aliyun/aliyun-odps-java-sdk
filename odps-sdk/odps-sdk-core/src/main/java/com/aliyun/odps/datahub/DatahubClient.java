@@ -19,24 +19,29 @@
 
 package com.aliyun.odps.datahub;
 
-import com.aliyun.odps.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.*;
 
 public class DatahubClient {
 
@@ -365,12 +370,11 @@ public class DatahubClient {
       throw ex;
     }
 
-    ObjectMapper mapper = JacksonParser.getObjectMapper();
-    JsonNode tree = mapper.readTree(conn.getInputStream());
-    JsonNode node = null;
-    node = tree.get(DatahubConstants.TABLE_REPLICATED_TIMESTAMP);
-    if (node != null && !node.isNull()) {
-      return new Date(node.getLongValue());
+    String json = IOUtils.readStreamAsString(conn.getInputStream());
+    JSONObject tree = JSON.parseObject(json);
+    Long node = tree.getLong(DatahubConstants.TABLE_REPLICATED_TIMESTAMP);
+    if (node != null) {
+      return new Date(node.longValue());
     } else {
       throw new DatahubException("get table replicated timestamp fail");
     }
@@ -560,23 +564,19 @@ public class DatahubClient {
 
   private void loadFromJson(InputStream is) throws OdpsException {
     try {
-      ObjectMapper mapper = JacksonParser.getObjectMapper();
-      JsonNode tree = mapper.readTree(is);
-      JsonNode node = tree.get("Schema");
-      if (node != null && !node.isNull()) {
-        schema = new DatahubTableSchema(node);
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSON.parseObject(json);
+      JSONObject schemaNode = tree.getJSONObject("Schema");
+      if (schemaNode != null) {
+        schema = new DatahubTableSchema(schemaNode);
       } else {
         throw new DatahubException("get table schema fail");
       }
-      node = tree.get("Shards");
-      if (node != null && !node.isNull()) {
-        if (node.isArray()) {
-          Iterator<JsonNode> it = node.getElements();
-          while (it.hasNext()) {
-
-            JsonNode shardId = it.next();
-            shards.add(shardId.asLong());
-          }
+      JSONArray node = tree.getJSONArray("Shards");
+      if (node != null) {
+        for (int i = 0; i < node.size(); ++i) {
+           long shardId = node.getLongValue(i);
+           shards.add(shardId);
         }
       } else {
         throw new DatahubException("get shard fail");
@@ -590,19 +590,15 @@ public class DatahubClient {
     try {
       HashMap<Long, ShardState> shardStatus = new HashMap<Long, ShardState>();
 
-      ObjectMapper mapper = JacksonParser.getObjectMapper();
-      JsonNode tree = mapper.readTree(is);
-      JsonNode node = tree.get("ShardStatus");
-      if (node != null && !node.isNull()) {
-        if (node.isArray()) {
-          Iterator<JsonNode> it = node.getElements();
-          while (it.hasNext()) {
-
-            JsonNode status = it.next();
-            ShardState state = ShardState.valueOf(status.get("State").asText().toUpperCase());
-            shardStatus.put(Long.parseLong(status.get("ShardId").asText()), state);
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSON.parseObject(json);
+      JSONArray node = tree.getJSONArray("ShardStatus");
+      if (node != null) {
+          for (int i = 0; i < node.size(); ++i) {
+            JSONObject status = node.getJSONObject(i);
+            ShardState state = ShardState.valueOf(status.getString("State").toUpperCase());
+            shardStatus.put(Long.parseLong(status.getString("ShardId")), state);
           }
-        }
       }
 
       return shardStatus;

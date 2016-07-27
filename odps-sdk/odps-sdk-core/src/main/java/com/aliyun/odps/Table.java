@@ -35,11 +35,11 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.codehaus.jackson.JsonNode;
-
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Partition.PartitionModel;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.DefaultRecordReader;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.JAXBUtils;
@@ -83,8 +83,14 @@ public class Table extends LazyLoad {
     @XmlElement(name = "Owner")
     String owner;
 
+    @XmlElement(name = "Project")
+    String projectName;
+
     @XmlElement(name = "TableLabel")
     String tableLabel;
+
+    @XmlElement(name = "CryptoAlgo")
+    String cryptoAlgoName;
 
     @XmlElement(name = "CreationTime")
     @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
@@ -108,7 +114,6 @@ public class Table extends LazyLoad {
 
   private TableModel model;
   private TableSchema tableSchema;
-  private String project;
   private RestClient client;
   private boolean isExtendInfoLoaded;
   private boolean isShardInfoLoaded;
@@ -116,7 +121,7 @@ public class Table extends LazyLoad {
 
   Table(TableModel model, String project, Odps odps) {
     this.model = model;
-    this.project = project;
+    this.model.projectName = project;
     this.odps = odps;
     this.client = odps.getRestClient();
     this.isExtendInfoLoaded = false;
@@ -125,14 +130,17 @@ public class Table extends LazyLoad {
 
   @Override
   public void reload() throws OdpsException {
-    String resource = ResourceBuilder.buildTableResource(project, model.name);
-    model = client.request(TableModel.class, resource, "GET");
-
-    tableSchema = loadSchemaFromJson(model.schema.content);
-
-    setLoaded(true);
+    String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+    reload(client.request(TableModel.class, resource, "GET"));
   }
 
+  public void reload(TableModel model) throws OdpsException {
+    this.model = model;
+    if (model.schema != null) {
+      tableSchema = loadSchemaFromJson(model.schema.content);
+    }
+    setLoaded(true);
+  }
   /**
    * 获取表名
    *
@@ -196,6 +204,19 @@ public class Table extends LazyLoad {
     }
 
     return model.ID;
+  }
+
+  /**
+   * 获取表加密算法名称
+   *
+   * @return 算法名称
+   */
+  public String getCryptoAlgoName() {
+    if(model.cryptoAlgoName == null) {
+      lazyLoad();
+    }
+
+    return model.cryptoAlgoName;
   }
 
   /**
@@ -289,7 +310,7 @@ public class Table extends LazyLoad {
    * @return Project名称
    */
   public String getProject() {
-    return project;
+    return model.projectName;
   }
 
   /**
@@ -469,7 +490,7 @@ public class Table extends LazyLoad {
       params.put("linenum", String.valueOf(limit));
     }
 
-    String resource = ResourceBuilder.buildTableResource(project, getName());
+    String resource = ResourceBuilder.buildTableResource(model.projectName, getName());
     Response resp = client.request(resource, "GET", params, null, null);
     return new DefaultRecordReader(new ByteArrayInputStream(resp.getBody()), getSchema());
   }
@@ -477,105 +498,107 @@ public class Table extends LazyLoad {
   private TableSchema loadSchemaFromJson(String json) {
     TableSchema s = new TableSchema();
     try {
-      JsonNode tree = JacksonParser.parse(json);
-      JsonNode node = tree.get("comment");
+      JSONObject tree = JSON.parseObject(json);
+      String node = tree.getString("comment");
 
-      if (node != null && !node.isNull() && node.isTextual()) {
-        model.comment = node.asText();
+      if (node != null) {
+        model.comment = node;
       }
 
-      node = tree.get("owner");
-      if (node != null && !node.isNull() && node.isTextual()) {
-        model.owner = node.asText();
+      node = tree.getString("owner");
+      if (node != null) {
+        model.owner = node;
       }
 
-      node = tree.get("createTime");
-      if (node != null && !node.isNull()) {
-        model.createdTime = new Date(node.asLong() * 1000);
+      Long node2 = tree.getLong("createTime");
+      if (node2 != null) {
+        model.createdTime = new Date(node2 * 1000);
       }
 
-      node = tree.get("lastModifiedTime");
-      if (node != null && !node.isNull()) {
-        model.lastModifiedTime = new Date(node.asLong() * 1000);
+      node2 = tree.getLong("lastModifiedTime");
+      if (node2 != null) {
+        model.lastModifiedTime = new Date(node2 * 1000);
       }
 
-      node = tree.get("lastDDLTime");
-      if (node != null && !node.isNull()) {
-        model.lastMetaModifiedTime = new Date(node.asLong() * 1000);
+      node2 = tree.getLong("lastDDLTime");
+      if (node2 != null) {
+        model.lastMetaModifiedTime = new Date(node2 * 1000);
       }
 
-      node = tree.get("isVirtualView");
-      if (node != null && !node.isNull() && node.isBoolean()) {
-        model.isVirtualView = node.asBoolean();
+      Boolean node3 = tree.getBoolean("isVirtualView");
+      if (node3 != null) {
+        model.isVirtualView = node3;
       }
 
-      node = tree.get("lifecycle");
-      if (node != null && !node.isNull()) {
-        model.life = node.asLong();
+      node2 = tree.getLong("lifecycle");
+      if (node2 != null) {
+        model.life = node2;
       }
 
-      node = tree.get("hubLifecycle");
-      if (node != null && !node.isNull()) {
-        model.hubLifecycle = node.asLong();
+      node2 = tree.getLong("hubLifecycle");
+      if (node2 != null) {
+        model.hubLifecycle = node2;
       }
 
-      node = tree.get("viewText");
-      if (node != null && !node.isNull() && node.isTextual()) {
-        model.viewText = node.asText();
+      node = tree.getString("viewText");
+      if (node != null) {
+        model.viewText = node;
       }
 
-      node = tree.get("size");
-      if (node != null && !node.isNull()) {
-        model.size = node.asLong();
+      node2 = tree.getLong("size");
+      if (node2 != null) {
+        model.size = node2;
       }
 
-      node = tree.get("IsArchived");
-      if (node != null && !node.isNull() && node.isBoolean()) {
-        model.isArchived = node.asBoolean();
+      node3 = tree.getBoolean("IsArchived");
+      if (node3 != null) {
+        model.isArchived = node3;
       }
 
-      node = tree.get("PhysicalSize");
-      if (node != null && !node.isNull()) {
-        model.physicalSize = node.asLong();
+      node2 = tree.getLong("PhysicalSize");
+      if (node2 != null) {
+        model.physicalSize = node2;
       }
 
-      node = tree.get("FileNum");
-      if (node != null && !node.isNull()) {
-        model.fileNum = node.asLong();
+      node2 = tree.getLong("FileNum");
+      if (node2 != null) {
+        model.fileNum = node2;
       }
 
-      node = tree.get("shardExist");
-      if (node != null && !node.isNull()) {
-        boolean shardExist = node.asBoolean();
+      node3 = tree.getBoolean("shardExist");
+      if (node3 != null) {
+        boolean shardExist = node3;
 
-        node = tree.get("shardInfo");
-        if (shardExist && node != null && !node.isNull()) {
-          model.shard = Shard.parseShard(node);
+        JSONObject node4 = tree.getJSONObject("shardInfo");
+        if (shardExist && node4 != null) {
+          model.shard = Shard.parseShard(node4);
         } else {
           model.shard = null;
         }
       }
 
-      node = tree.get("tableLabel");
-      if (node != null && !node.isNull()) {
-        model.tableLabel = node.asText();
+      node = tree.getString("tableLabel");
+      if (node != null) {
+        model.tableLabel = node;
         // Service will return 0 if nothing set
         if (model.tableLabel.equals("0")) {
           model.tableLabel = "";
         }
       }
 
-      JsonNode columnsNode = tree.get("columns");
-      if (columnsNode != null && !columnsNode.isNull() && columnsNode.isArray()) {
-        for (JsonNode n : columnsNode) {
+      JSONArray columnsNode = tree.getJSONArray("columns");
+      if (columnsNode != null) {
+        for (int i = 0; i < columnsNode.size(); ++i) {
+          JSONObject n = columnsNode.getJSONObject(i);
           s.addColumn(parseColumn(n));
         }
       }
 
-      columnsNode = tree.get("partitionKeys");
-      if (columnsNode != null && !columnsNode.isNull() && columnsNode.isArray()) {
-        for (JsonNode n : columnsNode) {
-          s.addPartitionColumn(parseColumn(n));
+      columnsNode = tree.getJSONArray("partitionKeys");
+      if (columnsNode != null) {
+          for (int i = 0; i < columnsNode.size(); ++i) {
+             JSONObject n = columnsNode.getJSONObject(i);
+             s.addPartitionColumn(parseColumn(n));
         }
       }
 
@@ -743,15 +766,15 @@ public class Table extends LazyLoad {
           return null;
         }
 
-        String resource = ResourceBuilder.buildTableResource(project, getName());
+        String resource = ResourceBuilder.buildTableResource(model.projectName, getName());
         try {
 
           ListPartitionsResponse
               resp =
               client.request(ListPartitionsResponse.class, resource, "GET", params);
 
-          for (PartitionModel model : resp.partitions) {
-            Partition t = new Partition(model, project, getName(), client);
+          for (PartitionModel partitionModel : resp.partitions) {
+            Partition t = new Partition(partitionModel, model.projectName, getName(), client);
             partitions.add(t);
           }
 
@@ -787,7 +810,7 @@ public class Table extends LazyLoad {
    * @return 分区信息 {@link Partition}
    */
   public Partition getPartition(PartitionSpec spec) {
-    return new Partition(spec, project, getName(), client);
+    return new Partition(spec, model.projectName, getName(), client);
   }
 
   /**
@@ -844,9 +867,9 @@ public class Table extends LazyLoad {
   }
 
   /* private */
-  private Column parseColumn(JsonNode node) {
-    String name = node.get("name").asText();
-    String typeString = node.get("type").asText().toUpperCase();
+  private Column parseColumn(JSONObject node) {
+    String name = node.getString("name");
+    String typeString = node.getString("type").toUpperCase();
     List<OdpsType> genericTypeList = null;
     if (typeString.contains("<")) {
       String[] result = typeString.split("<", 2);
@@ -860,10 +883,10 @@ public class Table extends LazyLoad {
       }
     }
     OdpsType type = OdpsType.valueOf(typeString);
-    String comment = node.get("comment").asText();
+    String comment = node.getString("comment");
     String label = null;
-    if (node.has("label") && (!node.get("label").asText().isEmpty())) {
-      label = node.get("label").asText();
+    if (node.containsKey("label") && (!node.getString("label").isEmpty())) {
+      label = node.getString("label");
     }
     return new Column(name, type, comment, label, genericTypeList);
   }
@@ -873,7 +896,7 @@ public class Table extends LazyLoad {
       Map<String, String> params = new LinkedHashMap<String, String>();
       params.put("extended", null);
 
-      String resource = ResourceBuilder.buildTableResource(project, model.name);
+      String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
       TableModel response;
       try {
         response = client.request(TableModel.class, resource, "GET", params);

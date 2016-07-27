@@ -26,7 +26,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 import com.aliyun.odps.VolumePartition.VolumePartitionModel;
 import com.aliyun.odps.commons.transport.Headers;

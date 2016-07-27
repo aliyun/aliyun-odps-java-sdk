@@ -360,6 +360,7 @@ public class Instances implements Iterable<Instance> {
     TaskStatusModel model = new TaskStatusModel();
     model.name = instanceId;
     Instance instance = new Instance(project, model, results, odps);
+
     instance.setOdpsHooks(hooks);
 
     if (OdpsHooks.isEnabled()) {

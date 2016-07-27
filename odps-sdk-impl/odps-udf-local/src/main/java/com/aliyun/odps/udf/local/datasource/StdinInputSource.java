@@ -22,7 +22,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 public class StdinInputSource extends InputSource {
 

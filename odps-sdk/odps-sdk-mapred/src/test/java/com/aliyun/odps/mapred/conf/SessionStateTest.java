@@ -66,6 +66,23 @@ public class SessionStateTest {
     assertEquals(ss.getOdps().instances().getDefaultRunningCluster(), "test_cluster");
   }
 
+  @Test
+  public void testHttpsCheck() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    SessionState ss = SessionState.get();
+    ss.setOdps(new Odps((Account)null));
+    assertEquals(ss.getOdps().instances().getDefaultRunningCluster(), null);
+
+    Properties properties = new Properties();
+    URL resource = this.getClass().getClassLoader().getResource("console_conf.json");
+    assertNotNull(resource);
+
+    properties.setProperty("odps.exec.context.file", resource.getFile());
+
+    Method loadContextFile = SessionState.class.getDeclaredMethod("loadContextFile", Properties.class);
+    loadContextFile.setAccessible(true);
+    loadContextFile.invoke(ss, properties);
+    assertEquals(ss.getOdps().getRestClient().isIgnoreCerts(), false);
+  }
 
   @Test
   public void testSetCommandText() throws InterruptedException {

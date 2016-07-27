@@ -40,6 +40,7 @@ import com.aliyun.odps.security.CheckPermissionConstants.CheckPermissionResult;
 import com.aliyun.odps.security.CheckPermissionConstants.ObjectType;
 import com.aliyun.odps.security.Role.RoleModel;
 import com.aliyun.odps.security.User.UserModel;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * ODPS安全管理类
@@ -200,10 +201,38 @@ public class SecurityManager {
     return roles;
   }
 
-  public List<Role> listRolesForUser(String userName) throws OdpsException {
-    String resource = ResourceBuilder.buildUserResource(project, userName);
+  @Deprecated
+  public List<Role> listRolesForUser(String uid) throws OdpsException {
+    return listRolesForUserID(uid);
+  }
+
+  /**
+   * 获取指定用户 id 的角色列表
+   * @param uid
+   * @return
+   * @throws OdpsException
+   */
+  public List<Role> listRolesForUserID(String uid) throws OdpsException {
+    return listRolesForUserInternal(uid, null);
+  }
+
+  /**
+   * 获取制定用户名的角色列表
+   * @param userName
+   * @return
+   * @throws OdpsException
+   */
+  public List<Role> listRolesForUserName(String userName) throws OdpsException {
+    return listRolesForUserInternal(userName, "displayname");
+  }
+
+  private List<Role> listRolesForUserInternal(String user, String type) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, user);
     Map<String, String> params = new HashMap<String, String>();
     params.put("roles", null);
+    if (!StringUtils.isNullOrEmpty(type)) {
+      params.put("type", type);
+    }
     ListRolesResponse resp = client.request(ListRolesResponse.class,
                                             resource, "GET", params, null, null);
     List<Role> roles = new ArrayList<Role>();

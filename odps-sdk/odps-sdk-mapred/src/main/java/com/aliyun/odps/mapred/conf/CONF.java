@@ -213,6 +213,16 @@ class CONF {
    */
   public final static String INSTANCE_PRIORITY = "odps.instance.priority";
 
+  /**
+   * 设置是否覆盖输出表
+   */
+  public final static String OUTPUT_OVERWRITE = "odps.mapred.output.overwrite";
+
+  /**
+   * 设置是否在中间节点进行输出
+   */
+  public final static String INNER_OUTPUT_ENABLE = "odps.mapred.inner.output.enable";
+
   public static final String OUTPUT_KEY_COMPARATOR_CLASS = "odps.stage.mapred.output.key.comparator.class";
 
   public static final String OUTPUT_KEY_GROUPING_COMPARATOR_CLASS = "odps.mapred.output.key.grouping.comparator.class";

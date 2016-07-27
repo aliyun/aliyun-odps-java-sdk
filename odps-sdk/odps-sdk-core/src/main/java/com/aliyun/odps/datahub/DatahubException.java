@@ -23,11 +23,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.codehaus.jackson.JsonNode;
-
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.util.IOUtils;
-import com.aliyun.odps.commons.util.JacksonParser;
 
 /**
  * 该异常在DataHub服务访问失败时抛出。
@@ -154,15 +153,16 @@ public class DatahubException extends OdpsException {
    */
   private void loadFromJson(InputStream is) throws DatahubException, IOException {
     try {
-      JsonNode tree = JacksonParser.getObjectMapper().readTree(is);
-      JsonNode node = tree.get("Code");
-      if (node != null && !node.isNull()) {
-        errorCode = node.asText();
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSON.parseObject(json);
+      String code = tree.getString("Code");
+      if (code != null) {
+        errorCode = code;
       }
 
-      node = tree.get("Message");
-      if (node != null && !node.isNull()) {
-        errorMsg = node.asText();
+      String msg = tree.getString("Message");
+      if (msg != null) {
+        errorMsg = msg;
       }
     } catch (Exception e) {
       throw new DatahubException("Parse response failed", e);

@@ -23,6 +23,7 @@ import java.util.Arrays;
 
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.data.VolumeInfo;
+import com.aliyun.odps.mapred.Mapper;
 import com.aliyun.odps.mapred.conf.JobConf;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -55,6 +56,11 @@ public class InputUtils {
     }
     tableInfos[tableInfos.length - 1] = table;
     conf.set(INPUT_DESC, gson.toJson(tableInfos));
+    if (table.getMapperClass() != null
+        && conf.get("odps.mapred.map.class") == null) {
+      // to make sure odps.mapred.map.class is not empty
+      conf.setMapperClass((Class<? extends Mapper>) table.getMapperClass());
+    }
   }
 
   /**

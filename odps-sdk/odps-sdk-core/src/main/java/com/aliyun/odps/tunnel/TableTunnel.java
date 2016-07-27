@@ -27,12 +27,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -41,7 +39,7 @@ import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
@@ -66,13 +64,13 @@ import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
  * <br />
  * <ul>
  * <li>典型表数据上传流程： <br />
- *  1) 创建 TunnelTable<br />
+ *  1) 创建 TableTunnel<br />
  *  2) 创建 UploadSession<br />
  *  3) 创建 RecordWriter,写入 Record<br />
  *  4）提交上传操作<br />
  * <br />
  * <li>典型表数据下载流程：<br />
- *  1) 创建 TunnelTable<br />
+ *  1) 创建 TableTunnel<br />
  *  2) 创建 DownloadSession<br />
  *  3) 创建 RecordReader,读取 Record<br />
  * </ul>
@@ -1116,36 +1114,34 @@ public class TableTunnel {
      */
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
-        ObjectMapper mapper = JacksonParser.getObjectMapper();
-
-        JsonNode tree = mapper.readTree(is);
+        String json = IOUtils.readStreamAsString(is);
+        JSONObject tree = JSONObject.parseObject(json);
 
         // session id
-        JsonNode node = tree.get("UploadID");
-        if (node != null && !node.isNull()) {
-          id = node.asText();
+        String node = tree.getString("UploadID");
+        if (node != null) {
+          id = node;
         }
 
         // status
-        node = tree.get("Status");
-        if (node != null && !node.isNull()) {
-          status = UploadStatus.valueOf(node.asText().toUpperCase());
+        node = tree.getString("Status");
+        if (node != null) {
+          status = UploadStatus.valueOf(node.toUpperCase());
         }
 
         // blocks
         blocks.clear();
-        node = tree.get("UploadedBlockList");
-        if (node != null && !node.isNull() && node.isArray()) {
-          Iterator<JsonNode> it = node.getElements();
-          while (it.hasNext()) {
-            blocks.add(it.next().get("BlockID").asLong());
+        JSONArray node2 = tree.getJSONArray("UploadedBlockList");
+        if (node2 != null) {
+          for (int i = 0; i < node2.size(); ++i) {
+            blocks.add(node2.getJSONObject(i).getLong("BlockID"));
           }
         }
 
         // schema
-        node = tree.get("Schema");
-        if (node != null && !node.isNull()) {
-          schema = new TunnelTableSchema(node);
+        JSONObject node3 = tree.getJSONObject("Schema");
+        if (node != null) {
+          schema = new TunnelTableSchema(node3);
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
@@ -1457,32 +1453,31 @@ public class TableTunnel {
 
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
-        ObjectMapper mapper = JacksonParser.getObjectMapper();
-
-        JsonNode tree = mapper.readTree(is);
+        String json = IOUtils.readStreamAsString(is);
+        JSONObject tree = JSONObject.parseObject(json);
 
         // session id
-        JsonNode node = tree.get("DownloadID");
-        if (node != null && !node.isNull()) {
-          id = node.asText();
+        String node = tree.getString("DownloadID");
+        if (node != null) {
+          id = node;
         }
 
         // status
-        node = tree.get("Status");
-        if (node != null && !node.isNull()) {
-          status = DownloadStatus.valueOf(node.asText().toUpperCase());
+        node = tree.getString("Status");
+        if (node != null) {
+          status = DownloadStatus.valueOf(node.toUpperCase());
         }
 
         // record count
-        node = tree.get("RecordCount");
-        if (node != null && !node.isNull()) {
-          count = node.asLong();
+        Long node2 = tree.getLong("RecordCount");
+        if (node2 != null) {
+          count = node2;
         }
 
         // schema
-        node = tree.get("Schema");
-        if (node != null && !node.isNull()) {
-          schema = new TunnelTableSchema(node);
+        JSONObject node3 = tree.getJSONObject("Schema");
+        if (node3 != null) {
+          schema = new TunnelTableSchema(node3);
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);

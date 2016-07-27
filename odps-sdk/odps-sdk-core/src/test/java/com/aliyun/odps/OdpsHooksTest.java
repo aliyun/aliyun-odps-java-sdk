@@ -86,7 +86,7 @@ public class OdpsHooksTest extends TestBase {
   @BeforeClass
   public static void setup() throws TunnelException, OdpsException, IOException {
     OdpsTestUtils.createTableForTest(TABLE_NAME);
-    OdpsHooks.getRegisteredHooks().clear();
+    OdpsHooks.clearRegisteredHooks();
   }
 
   @AfterClass

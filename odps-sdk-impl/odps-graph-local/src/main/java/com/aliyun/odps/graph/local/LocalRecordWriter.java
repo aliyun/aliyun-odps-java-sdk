@@ -23,10 +23,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
+import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.counter.Counter;
 import com.aliyun.odps.io.NullWritable;
+import com.aliyun.odps.io.Text;
 import com.aliyun.odps.io.Writable;
 import com.aliyun.odps.io.WritableRecord;
+import com.aliyun.odps.local.common.utils.LocalRunUtils;
 import com.csvreader.CsvWriter;
 
 public class LocalRecordWriter {
@@ -53,9 +56,18 @@ public class LocalRecordWriter {
     Writable[] fields = record.getAll();
     String[] vals = new String[fields.length];
     for (int i = 0; i < fields.length; i++) {
-      String rawVal = (fields[i] == null || fields[i] instanceof NullWritable) ? null
-                                                                               : fields[i]
-                          .toString();
+      String rawVal = null;
+      if ((fields[i] == null || fields[i] instanceof NullWritable)) {
+        rawVal = null;
+      } else if (record.getFields()[i].getType() == OdpsType.STRING) {
+        try {
+          rawVal = LocalRunUtils.toReadableString(((Text)fields[i]).getBytes());
+        } catch (Exception e) {
+          throw new RuntimeException("to readable string failed!" + e);
+        }
+      } else {
+        rawVal = fields[i].toString();
+      }
       vals[i] = encodeColumnValue(rawVal);
     }
     writer.writeRecord(vals);

@@ -39,6 +39,7 @@ public abstract class ExecutionContext {
   protected String stageID;
   protected int workerID;
   protected String tableInfo;
+  protected String localResourceDirectory;
 
   /**
    * 获取运行时StageID
@@ -84,6 +85,8 @@ public abstract class ExecutionContext {
 
   private final static int MAX_COUNTERS_NUM = 64;
   private final static int MAX_COUNTERS_LEN = 100;
+  
+  protected int countersNumberLimit = MAX_COUNTERS_NUM;
   protected Counters counters = new Counters();
   protected HashMap<String, Counter> userCounters = new HashMap<String, Counter>();
 
@@ -164,10 +167,10 @@ public abstract class ExecutionContext {
                                          + "' and counter name '" + shortenName(counterName)
                                          + "' exceeded limit " + maxLength);
     }
-    if (userCounters.size() >= MAX_COUNTERS_NUM) {
+    if (userCounters.size() >= countersNumberLimit) {
       throw new IllegalArgumentException(
           "Total num of user defined counters exceeded limit "
-          + MAX_COUNTERS_NUM);
+          + countersNumberLimit);
     }
   }
 

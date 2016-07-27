@@ -34,6 +34,14 @@ import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.utils.StringUtils;
 
+/**
+ * 本类用于获取和设置 ODPS Project 的安全相关选项。
+ *
+ * 目前，ODPS 中存在两种互斥的授权模型：
+ * 经典的授权模型由 supportAcl、supportPolicy 和 supportPackage 构成；
+ * V2 版的授权模型由 supportAclV2 和 supportPackageV2 构成；
+ * 两种授权模型不能同时开启。
+ */
 public class SecurityConfiguration extends LazyLoad {
 
   @XmlRootElement(name = "SecurityConfiguration")
@@ -66,6 +74,36 @@ public class SecurityConfiguration extends LazyLoad {
 
     @XmlElement(name = "ProjectProtection")
     ProjectProtection projectProtection;
+
+    @XmlElement(name = "CheckPermissionUsingAclV2")
+    boolean checkPermissionUsingAclV2;
+
+    @XmlElement(name = "CheckPermissionUsingPackageV2")
+    boolean checkPermissionUsingPackageV2;
+
+    @XmlElement(name = "SupportACL")
+    boolean supportAcl;
+
+    @XmlElement(name = "SupportPolicy")
+    boolean supportPolicy;
+
+    @XmlElement(name = "SupportPackage")
+    boolean supportPackage;
+
+    @XmlElement(name = "SupportACLV2")
+    boolean supportAclV2;
+
+    @XmlElement(name = "SupportPackageV2")
+    boolean supportPackageV2;
+
+    @XmlElement(name = "CheckPermissionUsingPackage")
+    boolean checkPermissionUsingPackage;
+
+    @XmlElement(name = "CreatePackage")
+    boolean createPackage;
+
+    @XmlElement(name = "CreatePackageV2")
+    boolean createPackageV2;
   }
 
   private SecurityConfigurationModel model;
@@ -199,4 +237,45 @@ public class SecurityConfiguration extends LazyLoad {
     }
     return model.projectProtection.exceptionPolicy;
   }
+
+  public boolean checkPermissionUsingAclV2() {
+    return model.checkPermissionUsingAclV2;
+  }
+
+  public boolean checkPermissionUsingPackageV2() {
+    return model.checkPermissionUsingPackageV2;
+  }
+
+  public boolean supportAcl() {
+    return model.supportAcl;
+  }
+
+  public boolean supportPolicy() {
+    return model.supportPolicy;
+  }
+
+  public boolean supportPackage() {
+    return model.supportPackage;
+  }
+
+  public boolean supportAclV2() {
+    return model.supportAclV2;
+  }
+
+  public boolean supportPackageV2() {
+    return model.supportPackageV2;
+  }
+
+  public boolean checkPermissionUsingPackage() {
+    return model.checkPermissionUsingPackage;
+  }
+
+  public boolean createPackage() {
+    return model.createPackage;
+  }
+
+  public boolean createPackageV2() {
+    return model.createPackageV2;
+  }
+
 }

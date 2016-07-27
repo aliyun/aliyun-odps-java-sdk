@@ -21,13 +21,12 @@ package com.aliyun.odps.graph.utils;
 
 import java.util.Map.Entry;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.counter.Counter;
 import com.aliyun.odps.counter.CounterGroup;
 import com.aliyun.odps.counter.Counters;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 /**
  * 与 Counter 相关的静态工具类，包含一些工具方法
@@ -46,7 +45,7 @@ public class CounterUtils {
    * @return JSON字符串
    */
   public static String toJsonString(Counters counters) {
-    JsonObject js = toJson(counters);
+    JSONObject js = toJson(counters);
     return js.toString();
   }
 
@@ -60,55 +59,54 @@ public class CounterUtils {
    * @see #toJsonString(Counters)
    */
   public static Counters createFromJsonString(String json) {
-    JsonParser parser = new JsonParser();
-    JsonElement el = parser.parse(json);
-    return createFromJson(el.getAsJsonObject());
+    JSONObject el = JSON.parseObject(json);
+    return createFromJson(el);
   }
 
-  private static Counters createFromJson(JsonObject obj) {
+  private static Counters createFromJson(JSONObject obj) {
     Counters counters = new Counters();
-    for (Entry<String, JsonElement> entry : obj.entrySet()) {
+    for (Entry<String, Object> entry : obj.entrySet()) {
       String key = entry.getKey();
       CounterGroup group = counters.getGroup(key);
-      fromJson(group, entry.getValue().getAsJsonObject());
+      fromJson(group, (JSONObject) entry.getValue());
     }
     return counters;
   }
 
-  private static void fromJson(CounterGroup group, JsonObject obj) {
-    JsonArray counterArray = obj.get("counters").getAsJsonArray();
+  private static void fromJson(CounterGroup group, JSONObject obj) {
+    JSONArray counterArray = obj.getJSONArray("counters");
     for (int i = 0; i < counterArray.size(); i++) {
-      JsonObject subObj = counterArray.get(i).getAsJsonObject();
-      String counterName = subObj.get("name").getAsString();
+      JSONObject subObj = counterArray.getJSONObject(i);
+      String counterName = subObj.getString("name");
       Counter counter = group.findCounter(counterName);
-      long value = subObj.get("value").getAsLong();
+      long value = subObj.getLongValue("value");
       counter.increment(value);
     }
   }
 
-  private static JsonObject toJson(Counters counters) {
-    JsonObject obj = new JsonObject();
+  private static JSONObject toJson(Counters counters) {
+    JSONObject obj = new JSONObject(true);
     for (CounterGroup group : counters) {
-      obj.add(group.getName(), toJson(group));
+      obj.put(group.getName(), toJson(group));
     }
     return obj;
   }
 
-  private static JsonObject toJson(CounterGroup counterGroup) {
-    JsonObject obj = new JsonObject();
-    obj.addProperty("name", counterGroup.getName());
-    JsonArray counterArray = new JsonArray();
+  private static JSONObject toJson(CounterGroup counterGroup) {
+    JSONObject obj = new JSONObject(true);
+    obj.put("name", counterGroup.getName());
+    JSONArray counterArray = new JSONArray();
     for (Counter entry : counterGroup) {
       counterArray.add(toJson(entry));
     }
-    obj.add("counters", counterArray);
+    obj.put("counters", counterArray);
     return obj;
   }
 
-  private static JsonObject toJson(Counter counter) {
-    JsonObject js = new JsonObject();
-    js.addProperty("name", counter.getName());
-    js.addProperty("value", counter.getValue());
+  private static JSONObject toJson(Counter counter) {
+    JSONObject js = new JSONObject(true);
+    js.put("name", counter.getName());
+    js.put("value", counter.getValue());
     return js;
   }
 

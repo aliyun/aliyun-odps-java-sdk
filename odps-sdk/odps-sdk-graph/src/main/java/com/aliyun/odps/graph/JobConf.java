@@ -25,15 +25,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang.StringUtils;
-
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.conf.Configuration;
+import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.TableInfo;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * JobConf 描述了一个ODPS Graph 作业的配置.
@@ -54,8 +52,6 @@ public class JobConf extends Configuration {
   }
 
   ;
-  private static final JsonParser parser = new JsonParser();
-  private static final Gson gson = new Gson();
 
   protected JobState state = JobState.DEFINE;
 
@@ -269,9 +265,9 @@ public class JobConf extends Configuration {
     tbl.validate();
     
     String inputDesc = get(GRAPH_CONF.INPUT_DESC, "[]");
-    JsonArray array = parser.parse(inputDesc).getAsJsonArray();
+    JSONArray array = JSON.parseArray(inputDesc);
     array.add(toJson(tbl, cols));
-    set(GRAPH_CONF.INPUT_DESC, gson.toJson(array));
+    set(GRAPH_CONF.INPUT_DESC, JSON.toJSONString(array));
   }
 
 
@@ -990,51 +986,51 @@ public class JobConf extends Configuration {
     }
   }
 
-  private static JsonObject toJson(TableInfo tbl, String[] cols) {
-    JsonObject obj = new JsonObject();
+  private static JSONObject toJson(TableInfo tbl, String[] cols) {
+    JSONObject obj = new JSONObject(true);
     String projectName = tbl.getProjectName();
     if (projectName == null) {
       projectName = "";
     }
-    obj.addProperty("projName", projectName);
-    obj.addProperty("tblName", tbl.getTableName());
-    JsonArray array = new JsonArray();
+    obj.put("projName", projectName);
+    obj.put("tblName", tbl.getTableName());
+    JSONArray array = new JSONArray();
     LinkedHashMap<String, String> partSpec = tbl.getPartSpec();
     for (Map.Entry<String, String> entry : partSpec.entrySet()) {
       String key = StringUtils.strip(entry.getKey(), "'\"");
       String value = StringUtils.strip(entry.getValue(), "'\"");
-      array.add(new JsonPrimitive(key + "=" + value));
+      array.add(key + "=" + value);
     }
-    obj.add("partSpec", array);
-    obj.addProperty("cols", cols == null ? "" : StringUtils.join(cols, ','));
+    obj.put("partSpec", array);
+    obj.put("cols", cols == null ? "" : StringUtils.join(cols, ','));
     return obj;
   }
 
 
   private void processOutput(TableInfo tbl, String label, boolean overwrite) {
     String outputDesc = get(GRAPH_CONF.OUTPUT_DESC, "[]");
-    JsonArray array = parser.parse(outputDesc).getAsJsonArray();
+    JSONArray array = JSON.parseArray(outputDesc);
     array.add(toJson(tbl, label, overwrite));
-    set(GRAPH_CONF.OUTPUT_DESC, gson.toJson(array));
+    set(GRAPH_CONF.OUTPUT_DESC, JSON.toJSONString(array));
   }
 
-  private JsonObject toJson(TableInfo tbl, String label, boolean overwrite) {
-    JsonObject obj = new JsonObject();
+  private JSONObject toJson(TableInfo tbl, String label, boolean overwrite) {
+    JSONObject obj = new JSONObject(true);
     String projectName = tbl.getProjectName();
     if (projectName == null) {
       projectName = "";
     }
-    obj.addProperty("projName", projectName);
-    obj.addProperty("tblName", tbl.getTableName());
-    JsonArray array = new JsonArray();
+    obj.put("projName", projectName);
+    obj.put("tblName", tbl.getTableName());
+    JSONArray array = new JSONArray();
     LinkedHashMap<String, String> partSpec = tbl.getPartSpec();
     for (Map.Entry<String, String> entry : partSpec.entrySet()) {
-      array.add(new JsonPrimitive(entry.getKey() + "=" + entry.getValue()));
+      array.add(entry.getKey() + "=" + entry.getValue());
     }
-    obj.add("partSpec", array);
+    obj.put("partSpec", array);
     String lab = (label == null) ? "" : label;
-    obj.addProperty("label", lab);
-    obj.addProperty("overwrite", overwrite);
+    obj.put("label", lab);
+    obj.put("overwrite", overwrite);
     return obj;
   }
 

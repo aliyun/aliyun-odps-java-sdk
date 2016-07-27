@@ -51,4 +51,10 @@ public class ProjectTest extends TestBase {
     assertTrue(map.containsKey("WORKER_GIT_REVISION"));
     assertTrue(map.containsKey("WORKER_GIT_URL"));
   }
+
+  @Test
+  public void testGetBuid() throws OdpsException {
+    Project p = odps.projects().get();
+    assertTrue(p.getProperties().containsKey("buid"));
+  }
 }

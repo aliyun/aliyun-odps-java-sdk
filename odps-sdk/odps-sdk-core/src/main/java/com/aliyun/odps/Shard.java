@@ -21,6 +21,9 @@ package com.aliyun.odps;
 
 import java.util.ArrayList;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+
 import org.codehaus.jackson.JsonNode;
 
 /**
@@ -39,6 +42,50 @@ public final class Shard {
     hubLifecycle = -1;
   }
 
+  public static Shard parseShard(JSONObject tree) {
+    try {
+      Shard shard = new Shard();
+
+      Long node = tree.getLong("ShardNum");
+      if (node != null) {
+        shard.setShardNum(node);
+      }
+
+      node = tree.getLong("HubLifecycle");
+      if (node != null) {
+        shard.setHubLifecycle(node);
+      }
+
+      JSONArray distributeCols = tree.getJSONArray("DistributeCols");
+      if (distributeCols != null) {
+        ArrayList<String> shardDistributeCols = new ArrayList<String>();
+        for (int i = 0; i < distributeCols.size(); ++i) {
+          String col = distributeCols.getString(i);
+          shardDistributeCols.add(col);
+        }
+        shard.setDistributeColumnNames(shardDistributeCols);
+      }
+
+      JSONArray sortCols = tree.getJSONArray("SortCols");
+      if (sortCols != null) {
+        ArrayList<String> shardSortCols = new ArrayList<String>();
+        for (int i = 0; i < sortCols.size(); ++i) {
+          String col = sortCols.getString(i);
+          shardSortCols.add(col);
+        }
+        shard.setSortColumnNames(shardSortCols);
+      }
+
+      return shard;
+
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+  }
+  
+  /**
+   * @deprecated use another method parseShard(JSONObject tree)
+   */
   public static Shard parseShard(JsonNode tree) {
     try {
       Shard shard = new Shard();

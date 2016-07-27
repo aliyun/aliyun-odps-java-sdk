@@ -22,7 +22,7 @@ package com.aliyun.odps.graph.local;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 import com.aliyun.odps.counter.Counters;
 import com.aliyun.odps.graph.JobConf;

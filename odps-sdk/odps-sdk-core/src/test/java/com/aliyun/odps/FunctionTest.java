@@ -31,6 +31,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.aliyun.odps.commons.transport.OdpsTestUtils;
+
 public class FunctionTest extends TestBase {
 
   public static final String FUNCTION_TEST = "function_test";
@@ -39,6 +41,7 @@ public class FunctionTest extends TestBase {
   private static final String UPDATE_RESOURCE_NAME = "update_function_resource.jar";
   private static final String FUNCTION_UPDATE_TEST = "function_update_test";
   private static final String UPDATE_CLASS_PATH = "update_function_test.update_class_path";
+  private static String grantUser;
 
   @BeforeClass
   public static void createFunction() throws FileNotFoundException, OdpsException {
@@ -51,6 +54,15 @@ public class FunctionTest extends TestBase {
     resources.add(RESOURCE_NAME);
     fm.setResources(resources);
     odps.functions().create(fm);
+    grantUser = OdpsTestUtils.getGrantUser();
+    if (!grantUser.toUpperCase().startsWith("ALIYUN$")) {
+      grantUser = "ALIYUN$" + grantUser;
+    }
+    try {
+      odps.projects().get().getSecurityManager().runQuery("grant admin to " + grantUser, false);
+    } catch (OdpsException e) {
+    }
+
   }
 
   private static void prepareResource() throws FileNotFoundException, OdpsException {
@@ -75,7 +87,11 @@ public class FunctionTest extends TestBase {
     Function function = odps.functions().get(FUNCTION_TEST);
     assertEquals(function.getClassPath(), CLASS_PATH);
     assertEquals(function.getResources().size(), 1);
-    assertTrue(function.getResources().get(0).getName().endsWith(RESOURCE_NAME));
+    assertEquals(function.getResources().get(0).getType(), Resource.Type.JAR);
+    assertEquals(function.getResources().get(0).getName(), RESOURCE_NAME);
+
+    assertEquals(function.getResourceNames().size(), 1);
+    assertEquals(function.getResourceNames().get(0), RESOURCE_NAME);
   }
 
   @Test(expected = NoSuchObjectException.class)
@@ -110,9 +126,10 @@ public class FunctionTest extends TestBase {
     Function ret = odps.functions().get(FUNCTION_UPDATE_TEST);
     assertEquals(ret.getClassPath(), UPDATE_CLASS_PATH);
     assertEquals(ret.getResources().size(), 1);
+    assertEquals(ret.getResourceNames().size(), 1);
     System.out.println(ret.getResources().get(0).getName());
     assertTrue(ret.getResources().get(0).getName().endsWith(UPDATE_RESOURCE_NAME));
-
+    assertTrue(ret.getResourceNames().get(0).endsWith(UPDATE_RESOURCE_NAME));
   }
 
   @Test

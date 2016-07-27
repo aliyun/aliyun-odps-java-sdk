@@ -21,6 +21,7 @@ package com.aliyun.odps;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.FileNotFoundException;
@@ -78,6 +79,20 @@ public class InstancesTest extends TestBase {
     String details = i.getTaskDetailJson("testsqlcase");
     assertTrue("contains stage", details.contains("Stages"));
     assertTrue("contains stage", details.contains("Instance"));
+  }
+
+  @Test
+  public void testGetTaskCost() throws OdpsException{
+    Instance.TaskCost cost = i.getTaskCost("testsqlcase");
+    if (cost != null) {
+      // external project env
+      assertNotNull(cost.getCPUCost());
+      assertNotNull(cost.getInputSize());
+      assertNotNull(cost.getMemoryCost());
+    } else {
+      // inner project has not enable metering
+      assertNull(cost);
+    }
   }
 
   @Test

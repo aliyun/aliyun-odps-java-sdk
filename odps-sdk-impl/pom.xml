@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps</artifactId>
-        <version>0.21.3-public</version>
+        <version>0.23.3-public</version>
     </parent>
 
     <artifactId>odps-sdk-impl</artifactId>
@@ -16,6 +16,7 @@
     <modules>
         <module>odps-graph-local</module>
         <module>odps-udf-local</module>
+        <module>odps-udf-example</module>
         <module>odps-common-local</module>
     </modules>
 

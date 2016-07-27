@@ -19,6 +19,9 @@
 
 package com.aliyun.odps.security;
 
+import static org.junit.Assert.assertEquals;
+
+import java.io.IOException;
 import java.util.List;
 
 import org.junit.Assert;
@@ -40,6 +43,19 @@ public class SecurityManagerTest extends TestBase {
   public void setUp() throws Exception {
     odps = OdpsTestUtils.newDefaultOdps();
     sm = odps.projects().get().getSecurityManager();
+    String grantUser = OdpsTestUtils.getGrantUser();
+    if (!grantUser.toUpperCase().startsWith("ALIYUN$")) {
+      grantUser = "ALIYUN$" + grantUser;
+    }
+    try {
+      sm.runQuery("add user " + grantUser, false);
+    } catch (OdpsException e) {
+    }
+
+    try {
+      sm.runQuery("grant admin to " + grantUser, false);
+    } catch (OdpsException e) {
+    }
   }
 
   @Test(expected = OdpsException.class)
@@ -68,8 +84,32 @@ public class SecurityManagerTest extends TestBase {
   }
 
   @Test
-  public void testListRolesForUser() {
+  public void testListRolesForUser() throws OdpsException, IOException {
+    List<User> list = sm.listUsers();
+    Assert.assertNotEquals(0, list.size());
+    User u = list.get(0);
+    System.err.println("list roles for uid " + u.getID());
+    List<Role> r1 = sm.listRolesForUserID(u.getID());
+    for (Role role : r1) {
+      System.err.println(role.getName());
+    }
+    System.err.println("list roles for username " + u.getDisplayname());
+    List<Role> r2 = sm.listRolesForUserName(u.getDisplayname());
+    for (Role role : r2) {
+      System.err.println(role.getName());
+    }
+    Assert.assertEquals(r1.size(), r2.size());
+    for (int i = 0; i < r1.size(); i++) {
+      Assert.assertEquals(r1.get(i).getName(), r2.get(i).getName());
+    }
+  }
 
+  @Test
+  public void testListRolesForUserName() throws OdpsException, IOException {
+    List<Role> roles = sm.listRolesForUserName(OdpsTestUtils.getGrantUser());
+    for (Role role : roles) {
+      System.err.println(role.getName());
+    }
   }
 
   @Test
@@ -81,6 +121,7 @@ public class SecurityManagerTest extends TestBase {
   public void testCheckPermission() throws OdpsException {
     CheckPermissionResult r;
     r = sm.checkPermission(ObjectType.Project, "", ActionType.List);
-    Assert.assertEquals(CheckPermissionResult.Allow, r);
+    assertEquals(CheckPermissionResult.Allow, r);
   }
+
 }

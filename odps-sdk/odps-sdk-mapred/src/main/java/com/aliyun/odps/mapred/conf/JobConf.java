@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -370,7 +370,7 @@ public class JobConf extends Configuration {
    * 
    * @param theClass
    *          用于 {@link Mapper} 输出 Key 排序的比较器，{@link RecordComparator} 子类
-   * @see #setOutputValueGroupingComparator(Class)
+   * @see #setOutputKeyGroupingComparatorClass(Class)
    * 
    */
   @SuppressWarnings("rawtypes")
@@ -384,7 +384,7 @@ public class JobConf extends Configuration {
    * 关于 Key 分组比较器在 MapReduce 框架中如何被使用，参见 {@link Reducer}
    * </p>
    * 
-   * @see #setOutputValueGroupingComparator(Class)
+   * @see #setOutputKeyGroupingComparatorClass(Class)
    * @return Key 分组比较器
    * 
    */
@@ -757,6 +757,46 @@ public class JobConf extends Configuration {
    */
   public int getInstancePriority() {
     return getInt(CONF.INSTANCE_PRIORITY, 9);
+  }
+
+  /**
+   * 获取是否覆盖输出表
+   *
+   * @return 是否覆盖输出表
+   *
+   */
+  public boolean getOutputOverwrite() {
+    return getBoolean(CONF.OUTPUT_OVERWRITE, true);
+  }
+
+  /**
+   * 设置对输出表是否进行覆盖。
+   *
+   * @param isOverwrite
+   *     是否覆盖输出表
+   */
+  public void setOutputOverwrite(boolean isOverwrite) {
+    setBoolean(CONF.OUTPUT_OVERWRITE, isOverwrite);
+  }
+
+  /**
+   * 获取是否在中间节点输出记录
+   *
+   * @return 是否中间节点输出记录
+   *
+   */
+  public boolean getInnerOutputEnable() {
+    return getBoolean(CONF.INNER_OUTPUT_ENABLE, false);
+  }
+
+  /**
+   * 设置是否在中间节点输出记录。
+   *
+   * @param isInnerOutput
+   *     是否中间节点输出
+   */
+  public void setInnerOutputEnable(boolean isInnerOutput) {
+    setBoolean(CONF.INNER_OUTPUT_ENABLE, isInnerOutput);
   }
 
   /**

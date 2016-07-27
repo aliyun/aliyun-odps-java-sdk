@@ -25,11 +25,11 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
-import com.aliyun.odps.commons.util.JacksonParser;
 
 /**
  * LOTTask的定义
@@ -159,7 +159,7 @@ public class LOTTask extends Task {
 
     if (hints != null) {
       try {
-        String json = JacksonParser.getObjectMapper().writeValueAsString(hints);
+        String json = JSON.toJSONString(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -169,7 +169,7 @@ public class LOTTask extends Task {
 
     if (aliases != null) {
       try {
-        String json = JacksonParser.getObjectMapper().writeValueAsString(aliases);
+        String json = JSON.toJSONString(aliases);
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);

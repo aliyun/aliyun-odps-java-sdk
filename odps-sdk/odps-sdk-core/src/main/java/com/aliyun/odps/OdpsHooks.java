@@ -20,6 +20,7 @@
 package com.aliyun.odps;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -39,13 +40,17 @@ public class OdpsHooks {
 
   private List<OdpsHook> runningHooks = new ArrayList<OdpsHook>();
 
+  private static final Object lock = new Object();
+
   /**
    * 新建一个 OdpsHooks 对象
    */
   public OdpsHooks() {
     try {
-      for (Class<? extends OdpsHook> hookClass : registeredHooks) {
-        runningHooks.add(hookClass.newInstance());
+      synchronized (lock) {
+        for (Class<? extends OdpsHook> hookClass : registeredHooks) {
+          runningHooks.add(hookClass.newInstance());
+        }
       }
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage(), e);
@@ -56,7 +61,9 @@ public class OdpsHooks {
    * 调用 Hook 的 before
    *
    * @param job
+   *     调用 hook 的 job
    * @param odps
+   *     odps 实例
    * @throws OdpsException
    */
   public void before(Job job, Odps odps) throws OdpsException {
@@ -67,8 +74,11 @@ public class OdpsHooks {
 
   /**
    * 调用 Hook 的 ready
+   *
    * @param instance
+   *     创建的 instance
    * @param odps
+   *     odps 实例
    * @throws OdpsException
    */
   public void onInstanceCreated(Instance instance, Odps odps) throws OdpsException {
@@ -81,7 +91,9 @@ public class OdpsHooks {
    * 调用 Hook 的 after
    *
    * @param instance
+   *     创建的 instance
    * @param odps
+   *     odps 实例
    * @throws OdpsException
    */
   public void after(Instance instance, Odps odps) throws OdpsException {
@@ -91,16 +103,41 @@ public class OdpsHooks {
   }
 
   /**
+   * 注册多个 hook
+   *
+   * @param hooks
+   *     注册的 hook 列表
+   */
+  public static void registerHooks(Collection<Class<? extends OdpsHook>> hooks) {
+    synchronized (lock) {
+      registeredHooks.addAll(hooks);
+    }
+  }
+
+  /**
    * 注册一个 hook
    *
    * @param hook
+   *     注册的 hook 名字列表
    */
   public static void registerHook(Class<? extends OdpsHook> hook) {
-    registeredHooks.add(hook);
+    synchronized (lock) {
+      registeredHooks.add(hook);
+    }
   }
 
+  @Deprecated
   public static List<Class<? extends OdpsHook>> getRegisteredHooks() {
     return registeredHooks;
+  }
+
+  /**
+   * 清空 hooks
+   */
+  public static void clearRegisteredHooks() {
+    synchronized (lock) {
+      registeredHooks.clear();
+    }
   }
 
   /**

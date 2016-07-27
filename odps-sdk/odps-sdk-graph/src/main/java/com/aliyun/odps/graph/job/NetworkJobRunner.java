@@ -23,12 +23,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task.Properties;
 import com.aliyun.odps.Task.Property;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.conf.Configured;
 import com.aliyun.odps.graph.GRAPH_CONF;
 import com.aliyun.odps.graph.JobConf;
@@ -102,7 +102,7 @@ public class NetworkJobRunner extends Configured implements JobRunner {
 
     // handle settings
     try {
-      String json = JacksonParser.getObjectMapper().writeValueAsString(settings);
+      String json = JSON.toJSONString(settings);
       task.setProperty("settings", json);
     } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
@@ -112,7 +112,7 @@ public class NetworkJobRunner extends Configured implements JobRunner {
     Map<String, String> aliases = SessionState.get().getAliases();
     if (aliases != null) {
       try {
-        String json = JacksonParser.getObjectMapper().writeValueAsString(aliases);
+        String json = JSON.toJSONString(aliases);
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -129,6 +129,9 @@ public class NetworkJobRunner extends Configured implements JobRunner {
     }
 
     NetworkRunningJob rJob = new NetworkRunningJob(task, instance);
+    if (SessionState.get().isCostMode()) {
+      rJob.setIsCostMode(true);
+    }
 
     System.err.println();
     System.err.println("ID = " + rJob.getInstanceID());

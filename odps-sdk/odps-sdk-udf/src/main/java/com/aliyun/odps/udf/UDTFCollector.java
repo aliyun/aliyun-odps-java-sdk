@@ -23,7 +23,7 @@ package com.aliyun.odps.udf;
  * 从{@link UDTF}数据源收集数据
  * 通常 {@link UDTF#forward(Object...)}会把每一行数据传入{@link UDTFCollector}
  */
-public interface UDTFCollector {
+public interface UDTFCollector extends DataCollector {
 
   /**
    * 其它类（{@link UDTF}）会调用此方法，以收集每一行数据

@@ -27,18 +27,17 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.VolumeInputStream;
@@ -551,31 +550,29 @@ public class VolumeTunnel {
      */
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
-        ObjectMapper mapper = JacksonParser.getObjectMapper();
-
-        JsonNode tree = mapper.readTree(is);
+        String json = IOUtils.readStreamAsString(is);
+        JSONObject tree = JSONObject.parseObject(json);
 
         // session id
-        JsonNode node = tree.get("UploadID");
-        if (node != null && !node.isNull()) {
-          id = node.asText();
+        String node = tree.getString("UploadID");
+        if (node != null) {
+          id = node;
         }
 
         // status
-        node = tree.get("Status");
-        if (node != null && !node.isNull()) {
-          status = UploadStatus.valueOf(node.asText().toUpperCase());
+        node = tree.getString("Status");
+        if (node != null) {
+          status = UploadStatus.valueOf(node.toUpperCase());
         }
 
         // fileList
         fileLists.clear();
-        node = tree.get("FileList");
-        if (node != null && !node.isNull() && node.isArray()) {
-          Iterator<JsonNode> it = node.getElements();
-          while (it.hasNext()) {
-            JsonNode fileNode = it.next();
-            String fileName = fileNode.get("FileName").asText();
-            Long fileLength = fileNode.get("FileLength").getLongValue();
+        JSONArray node2 = tree.getJSONArray("FileList");
+        if (node2 != null) {
+          for (int i = 0; i < node2.size(); ++i) {
+            JSONObject fileNode = node2.getJSONObject(i);
+            String fileName = fileNode.getString("FileName");
+            Long fileLength = fileNode.getLong("FileLength");
             fileLists.put(fileName, fileLength);
           }
         }
@@ -896,34 +893,33 @@ public class VolumeTunnel {
 
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
-        ObjectMapper mapper = JacksonParser.getObjectMapper();
-
-        JsonNode tree = mapper.readTree(is);
+        String json = IOUtils.readStreamAsString(is);
+        JSONObject tree = JSON.parseObject(json);
 
         // session id
-        JsonNode node = tree.get("DownloadID");
-        if (node != null && !node.isNull()) {
-          id = node.asText();
+        String node = tree.getString("DownloadID");
+        if (node != null) {
+          id = node;
         }
 
         // status
-        node = tree.get("Status");
-        if (node != null && !node.isNull()) {
-          status = DownloadStatus.valueOf(node.asText().toUpperCase());
+        node = tree.getString("Status");
+        if (node != null) {
+          status = DownloadStatus.valueOf(node.toUpperCase());
         }
 
         // file
-        node = tree.get("File");
-        if (node != null && !node.isNull()) {
-          fileName = node.get("FileName").asText();
-          fileLength = node.get("FileLength").getLongValue();
+        JSONObject node2 = tree.getJSONObject("File");
+        if (node2 != null) {
+          fileName = node2.getString("FileName");
+          fileLength = node2.getLong("FileLength");
         }
 
         // partition
-        node = tree.get("Partition");
-        if (node != null && !node.isNull()) {
-          volumeName = node.get("Volume").asText();
-          partitionSpec = node.get("Partition").asText();
+        node2 = tree.getJSONObject("Partition");
+        if (node2 != null) {
+          volumeName = node2.getString("Volume");
+          partitionSpec = node2.getString("Partition");
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);

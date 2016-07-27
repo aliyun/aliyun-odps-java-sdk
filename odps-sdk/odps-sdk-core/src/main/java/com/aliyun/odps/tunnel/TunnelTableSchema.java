@@ -20,51 +20,44 @@
 package com.aliyun.odps.tunnel;
 
 import java.util.Arrays;
-import java.util.Iterator;
 
-import org.codehaus.jackson.JsonNode;
-
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
 
 class TunnelTableSchema extends TableSchema {
 
-  public TunnelTableSchema(JsonNode node) {
-    JsonNode columns = node.get("columns");
-    if (columns.isArray()) {
-      Iterator<JsonNode> it = columns.getElements();
-      while (it.hasNext()) {
-        JsonNode column = it.next();
-        Column col = parseColumn(column);
-        addColumn(col);
-      }
+  public TunnelTableSchema(JSONObject node) {
+    JSONArray columns = node.getJSONArray("columns");
+    for (int i = 0; i < columns.size(); ++i) {
+      JSONObject column = columns.getJSONObject(i);
+      Column col = parseColumn(column);
+      addColumn(col);
     }
 
-    columns = node.get("partitionKeys");
-    if (columns.isArray()) {
-      Iterator<JsonNode> it = columns.getElements();
-      while (it.hasNext()) {
-        JsonNode column = it.next();
-        Column col = parseColumn(column);
-        addPartitionColumn(col);
-      }
+    columns = node.getJSONArray("partitionKeys");
+    for (int i = 0; i < columns.size(); ++i) {
+      JSONObject column = columns.getJSONObject(i);
+      Column col = parseColumn(column);
+      addPartitionColumn(col);
     }
   }
 
-  private Column parseColumn(JsonNode column) {
-    JsonNode name = column.get("name");
-    JsonNode type = column.get("type");
+  private Column parseColumn(JSONObject column) {
+    String name = column.getString("name");
+    String type = column.getString("type");
     Column col = null;
 
-    if (type.asText().toUpperCase().startsWith("MAP")) {
-      col = new Column(name.asText(), OdpsType.MAP);
-      col.setGenericTypeList(Arrays.asList(parseMapType(type.asText().toUpperCase())));
-    } else if (type.asText().toUpperCase().startsWith("ARRAY")) {
-      col = new Column(name.asText(), OdpsType.ARRAY);
-      col.setGenericTypeList(Arrays.asList(parseArrayType(type.asText().toUpperCase())));
+    if (type.toUpperCase().startsWith("MAP")) {
+      col = new Column(name, OdpsType.MAP);
+      col.setGenericTypeList(Arrays.asList(parseMapType(type.toUpperCase())));
+    } else if (type.toUpperCase().startsWith("ARRAY")) {
+      col = new Column(name, OdpsType.ARRAY);
+      col.setGenericTypeList(Arrays.asList(parseArrayType(type.toUpperCase())));
     } else {
-      col = new Column(name.asText(), OdpsType.valueOf(type.asText().toUpperCase()));
+      col = new Column(name, OdpsType.valueOf(type.toUpperCase()));
     }
     return col;
   }

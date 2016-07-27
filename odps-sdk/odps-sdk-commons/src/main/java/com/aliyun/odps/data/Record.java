@@ -47,6 +47,24 @@ public interface Record {
   public Column[] getColumns();
 
   /**
+   * 判断某列是否为NULL值，如果该列为null，则返回true
+   * 
+   * @param idx
+   *          列序号，0起始
+   * @return 如果该列为null，则返回true，否则false
+   */
+  public boolean isNull(int idx);
+
+  /**
+   * 判断某列是否为NULL值，如果该列为null，则返回true
+   * 
+   * @param columnName
+   *          列名
+   * @return 如果该列为null，则返回true，否则false
+   */
+  public boolean isNull(String columnName);
+
+  /**
    * 设置列的值
    *
    * @param idx
@@ -397,4 +415,11 @@ public interface Record {
    * 返回当前所有列值的数组
    */
   public Object[] toArray();
+
+  /**
+   * 生成当前Record的拷贝
+   * 
+   * @return 当前Record的拷贝
+   */
+  public Record clone();
 }

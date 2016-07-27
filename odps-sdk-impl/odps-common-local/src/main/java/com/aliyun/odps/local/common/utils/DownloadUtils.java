@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -47,6 +47,9 @@ import com.aliyun.odps.TableResource;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.TableInfo;
+import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.tunnel.TableTunnel.DownloadSession;
+
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.DownloadMode;
 import com.aliyun.odps.local.common.ExceptionCode;
@@ -188,9 +191,14 @@ public class DownloadUtils {
 
     Table table = odps.tables().get(projectName, tableName);
     tableMeta = TableMeta.fromTable(table);
-
+    TableTunnel tunnel = new TableTunnel(odps);
     try {
-      RecordReader reader = table.read(partition, null, limitDownloadRecordCount);
+      DownloadSession downloadSession = (partition == null) ?
+          tunnel.createDownloadSession(projectName, tableName):
+          tunnel.createDownloadSession(projectName, tableName, partition);
+      LOG.info("Tunnel DownloadSession ID is : " + downloadSession.getId());
+
+      RecordReader reader = downloadSession.openRecordReader(0, limitDownloadRecordCount);
       Record record = null;
       columnCount = tableMeta.getCols().length;
       while ((record = reader.read()) != null) {
@@ -372,8 +380,12 @@ public class DownloadUtils {
         break;
       }
       case STRING: {
-        String v = record.getString(col.getName());
-        colValue = v == null ? null : v.toString();
+        byte[] v = record.getBytes(col.getName());
+        try {
+          colValue = v == null ? null : LocalRunUtils.toReadableString(v);
+        } catch (Exception e) {
+          throw new RuntimeException("convert to readable string failed!" + e);
+        }
         break;
       }
       case DATETIME: {

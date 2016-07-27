@@ -28,11 +28,12 @@ import java.util.Calendar;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.StreamJob.StreamJobModel;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.GalaxyTask;
-import com.aliyun.odps.commons.util.JacksonParser;
 
 /**
  * StreamJobs表示ODPS中所有StreamJob的集合
@@ -149,7 +150,7 @@ public class StreamJobs implements Iterable<StreamJob> {
 
     if (hints != null) {
       try {
-        String json = JacksonParser.getObjectMapper().writeValueAsString(hints);
+        String json = JSON.toJSONString(hints);
         task.setSettings(json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -294,7 +295,7 @@ public class StreamJobs implements Iterable<StreamJob> {
 
     if (hints != null) {
       try {
-        String json = JacksonParser.getObjectMapper().writeValueAsString(hints);
+        String json = JSON.toJSONString(hints);
         task.setSettings(json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -342,7 +343,7 @@ public class StreamJobs implements Iterable<StreamJob> {
     //TODO check hints must include odps.streamjob.worker.num & odps.streamjob.worker.mem
     if (hints != null) {
       try {
-        String json = JacksonParser.getObjectMapper().writeValueAsString(hints);
+        String json = JSON.toJSONString(hints);
         task.setSettings(json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);

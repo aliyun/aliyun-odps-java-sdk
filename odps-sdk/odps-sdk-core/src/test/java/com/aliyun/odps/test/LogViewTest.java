@@ -20,6 +20,8 @@
 package com.aliyun.odps.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Iterator;
 
@@ -42,13 +44,24 @@ public class LogViewTest extends TestBase {
     System.out.println(logview);
   }
 
+
+
   @Test
-  public void testLogViewNull() throws OdpsException {
+  public void testLogViewNotNull() {
     LogView log = odps.logview();
-    log.setLogViewHost("");
+    System.out.println(log.getLogViewHost());
+    assertNotNull(log.getLogViewHost());
+  }
+
+
+  @Test
+  public void testLogViewHost() throws OdpsException {
+    LogView log = odps.logview();
+    log.setLogViewHost("http://test.a.b.c");
     Iterator<Instance> instIter = odps.instances().iterator();
     instIter.hasNext();
     Instance i = instIter.next();
-    assertEquals(log.generateLogView(i, 7 * 24), "");
+    assertTrue(
+        log.generateLogView(i, 7 * 24).startsWith("http://test.a.b.c/logview"));
   }
 }

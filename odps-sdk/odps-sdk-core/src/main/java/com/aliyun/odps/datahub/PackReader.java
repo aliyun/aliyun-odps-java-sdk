@@ -30,15 +30,14 @@ import java.util.List;
 import java.util.ArrayList;
 
 import com.aliyun.odps.commons.proto.ProtobufRecordStreamReader;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
 
 import com.aliyun.odps.TableSchema;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.commons.proto.XstreamPack.XStreamPack;
@@ -136,13 +135,11 @@ public class PackReader {
         ex.setRequestId(resp.getHeader(DatahubHttpHeaders.HEADER_ODPS_REQUEST_ID));
         throw ex;
       } else {
-        byte[] bytes = IOUtils.readFully(conn.getInputStream());
-        ByteArrayInputStream in = new ByteArrayInputStream(bytes);
-        ObjectMapper mapper = JacksonParser.getObjectMapper();
-        JsonNode tree = mapper.readTree(in);
-        JsonNode node = tree.get("PackId");
-        if (node != null && !node.isNull()) {
-          SeekPackResult startPack = new SeekPackResult(node.asText());
+        String json = IOUtils.readStreamAsString(conn.getInputStream());
+        JSONObject tree = JSON.parseObject(json);
+        String node = tree.getString("PackId");
+        if (node != null) {
+          SeekPackResult startPack = new SeekPackResult(node);
           return startPack;
         } else {
           throw new DatahubException("get pack id fail");

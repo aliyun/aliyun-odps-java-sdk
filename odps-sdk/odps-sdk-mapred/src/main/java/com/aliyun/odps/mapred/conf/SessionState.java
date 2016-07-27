@@ -20,21 +20,26 @@
 package com.aliyun.odps.mapred.conf;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.security.AccessControlException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import org.codehaus.jackson.map.ObjectMapper;
+import org.apache.commons.io.FileUtils;
 
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsHook;
 import com.aliyun.odps.OdpsHooks;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.Account.AccountProvider;
 import com.aliyun.odps.account.AliyunAccount;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
@@ -71,13 +76,28 @@ public class SessionState {
   private Odps odps;
   private JobConf defaultJob;
   private boolean isLocalRun;
+  private boolean isCostMode;
   private Map<String, String> aliases;
+  // if use internal cli
+  private boolean internalCli = false;
   private String commandText = "";
 
   private SessionState() {
-    aliases = new HashMap<String, String>();
-    defaultJob = new JobConf(false);
-    parseOldCli(defaultJob); // Try to be compatible with old console
+    try {
+      aliases = new HashMap<String, String>();
+      defaultJob = new JobConf(false);
+      String conf = System.getProperties().getProperty(MR_JOB_CONF);
+      if (conf != null && !conf.isEmpty()) {
+        try {
+          defaultJob.addResource(new FileInputStream(new File(conf)));
+        } catch (FileNotFoundException e) {
+          System.err.print("conf file " + conf + " not found, ignored!");
+        }
+      }
+      parseOldCli(defaultJob); // Try to be compatible with old console
+    } catch (AccessControlException e) {
+      // just ignore it for it maybe called by user code indirectly through JobConf constructors 
+    }
   }
 
   public SessionState(SessionState ss) {
@@ -118,12 +138,17 @@ public class SessionState {
   public static final String LOCAL_SECURITY_JNI_ENABLE = "odps.local.security.jni.enable";
   public static final String LOCAL_USER_DEFINE_POLICY = "odps.local.user.define.policy";
 
+  public static final String COST = "cost";
+  public static final String ODPS_JOB_COST_ESTIMATE = "odps.task.cost.estimate";
+
   private final static String
       LOCAL_INPUT_COLUMN_SEPERATOR =
       "odps.mapred.local.input.column.seperator";
   private final static String
       LOCAL_OUTPUT_COLUMN_SEPERATOR =
       "odps.mapred.local.output.column.seperator";
+
+  private static final String MR_JOB_CONF = "odps.mr.job.conf";
 
   /**
    * From old Console load context file , include settings & aliases
@@ -137,8 +162,14 @@ public class SessionState {
       return;
     }
 
-    ObjectMapper mapper = JacksonParser.getObjectMapper();
-    Map context = mapper.readValue(new File(fileName), Map.class);
+    String jsonStr = FileUtils.readFileToString(new File(fileName));
+    Map context = JSON.parseObject(jsonStr, Map.class);
+    if (context == null) {
+      return;
+    }
+    // client set ignore certs to true when request from internal-cli
+    internalCli = true;
+    getOdps().getRestClient().setIgnoreCerts(true);
     if (context.containsKey("settings")) {
       Map<String, String> settings = (Map<String, String>) context.get("settings");
       for (Entry<String, String> setting : settings.entrySet()) {
@@ -154,15 +185,17 @@ public class SessionState {
       // extract info from execution context
       Map<String, Object> ctx = (Map<String, Object>) context.get("context");
       defaultJob.setInstancePriority((Integer) ctx.get("priority"));
-      OdpsHooks.getRegisteredHooks().clear();
+      OdpsHooks.clearRegisteredHooks();
       String hookString = (String) ctx.get("odpsHooks");
       if (!StringUtils.isNullOrEmpty(hookString)) {
         try {
           String[] hooks = hookString.split(",");
+          List<Class<? extends OdpsHook>> hookList = new ArrayList<Class<? extends OdpsHook>>();
           for (String hook : hooks) {
-            Class<? extends OdpsHook> hookClass = (Class<? extends OdpsHook>) Class.forName(hook);
-            OdpsHooks.registerHook(hookClass);
+            hookList.add((Class<? extends OdpsHook>) Class.forName(hook));
           }
+          OdpsHooks.registerHooks(hookList);
+
         } catch (ClassNotFoundException e) {
           throw new IOException(e.getMessage(), e);
         }
@@ -178,6 +211,10 @@ public class SessionState {
         odps.setLogViewHost(logViewHost);
       }
 
+      if (ctx.containsKey("https_check")) {
+        odps.getRestClient().setIgnoreCerts(!(Boolean) ctx.get("https_check"));
+      }
+
     }
 
     if (context.containsKey("commandText")) {
@@ -190,6 +227,14 @@ public class SessionState {
    */
   private void parseOldCli(JobConf conf) {
     Properties prop = System.getProperties();
+
+    //check for cost mode
+    String cost = prop.getProperty(COST);
+    if (cost != null && "true".equals(cost)) {
+      defaultJob.setBoolean(ODPS_JOB_COST_ESTIMATE, true);
+      setCostMode(true);
+    }
+
     if (prop.getProperty(OLD_ENDPOINT_KEY) != null) {
       String endpoint = prop.getProperty(OLD_ENDPOINT_KEY);
       String project = prop.getProperty(OLD_PROJNAME_KEY);
@@ -272,6 +317,9 @@ public class SessionState {
    */
   public void setOdps(Odps odps) {
     this.odps = odps;
+    if (internalCli) {
+      odps.getRestClient().setIgnoreCerts(true);
+    }
   }
 
   /**
@@ -301,6 +349,25 @@ public class SessionState {
    */
   public void setLocalRun(boolean b) {
     isLocalRun = b;
+  }
+
+  /**
+   * 设置是否是计费预估模式
+   *
+   * @param b
+   *     true如果是计费预估模式
+   */
+  public void setCostMode(boolean b) {
+    isCostMode = b;
+  }
+
+  /**
+   * 返回是否是计费预估模式
+   *
+   * @return true如果是计费预估模式
+   */
+  public boolean isCostMode() {
+    return isCostMode;
   }
 
   /**

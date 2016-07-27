@@ -70,6 +70,16 @@ public class Utils {
     return "tunnel_aliyunsdk_";
   }
 
+  public static String getTestUser() {
+    String user = OdpsTestUtils.getGrantUser();
+    if (user.toLowerCase().indexOf("aliyun") > 0) {
+      user = "ALIYUN$" + user;
+    } else if (user.toLowerCase().indexOf("taobao") > 0) {
+      user = "TAOBAO$" + user;
+    }
+    return user;
+  }
+
   public static void setDefaultSecurity(String projectName) throws OdpsException {
     Project project = odps.projects().get(projectName);
     SecurityManager sm = project.getSecurityManager();

@@ -27,16 +27,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.PackReader;
 import com.aliyun.odps.tunnel.io.ReplicatorStatus;
@@ -436,23 +435,19 @@ public class StreamClient {
 
   private void loadFromJson(InputStream is) throws TunnelException {
     try {
-      ObjectMapper mapper = JacksonParser.getObjectMapper();
-      JsonNode tree = mapper.readTree(is);
-      JsonNode node = tree.get("Schema");
-      if (node != null && !node.isNull()) {
-        schema = new TunnelTableSchema(node);
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSONObject.parseObject(json);
+      JSONObject schemaNode = tree.getJSONObject("Schema");
+      if (schemaNode != null) {
+        schema = new TunnelTableSchema(schemaNode);
       } else {
         throw new TunnelException("get table schema fail");
       }
-      node = tree.get("Shards");
-      if (node != null && !node.isNull()) {
-        if (node.isArray()) {
-          Iterator<JsonNode> it = node.getElements();
-          while (it.hasNext()) {
-
-            JsonNode shardId = it.next();
-            shards.add(shardId.asLong());
-          }
+      JSONArray node = tree.getJSONArray("Shards");
+      if (node != null) {
+        for (int i = 0; i < node.size(); ++i) {
+          long shardId = node.getLongValue(i);
+          shards.add(shardId);
         }
       } else {
         throw new TunnelException("get shard fail");
@@ -466,18 +461,14 @@ public class StreamClient {
     try {
       HashMap<Long, ShardState> shardStatus = new HashMap<Long, ShardState>();
 
-      ObjectMapper mapper = JacksonParser.getObjectMapper();
-      JsonNode tree = mapper.readTree(is);
-      JsonNode node = tree.get("ShardStatus");
-      if (node != null && !node.isNull()) {
-        if (node.isArray()) {
-          Iterator<JsonNode> it = node.getElements();
-          while (it.hasNext()) {
-
-            JsonNode status = it.next();
-            ShardState state = ShardState.valueOf(status.get("State").asText().toUpperCase());
-            shardStatus.put(Long.parseLong(status.get("ShardId").asText()), state);
-          }
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSONObject.parseObject(json);
+      JSONArray node = tree.getJSONArray("ShardStatus");
+      if (node != null) {
+        for (int i = 0; i < node.size(); ++i) {
+            JSONObject status = node.getJSONObject(i);
+          ShardState state = ShardState.valueOf(status.getString("State").toUpperCase());
+          shardStatus.put(Long.parseLong(status.getString("ShardId")), state);
         }
       }
 

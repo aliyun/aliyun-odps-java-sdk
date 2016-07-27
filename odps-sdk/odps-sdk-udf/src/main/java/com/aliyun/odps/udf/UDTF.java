@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.udf;
 
+import java.io.IOException;
+
 /**
  * {@link UDTF} 是 User Defined Table-generating Function 缩写，用来解决一次函数调用输出多行数据的场景，也是唯一能返回多个字段的自定义函数。<br />
  * <p>
@@ -106,7 +108,7 @@ public abstract class UDTF implements ContextFunction {
    * @throws UDFException
    *     通用{@link UDF}异常
    */
-  public abstract void process(Object[] args) throws UDFException;
+  public abstract void process(Object[] args) throws UDFException,IOException;
 
   /**
    * 在{@link UDTF}运行期，{@link #process(Object[])}把全部记录处理完以之后，

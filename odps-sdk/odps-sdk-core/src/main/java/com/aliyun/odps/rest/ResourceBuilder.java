@@ -333,10 +333,11 @@ public class ResourceBuilder {
     return sb.toString();
   }
 
-  public static String buildUserResource(String projectName, String userName) {
+  public static String buildUserResource(String projectName, String user) {
     StringBuilder sb = new StringBuilder();
 
-    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(USERS).append("/").append(userName);
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(USERS).append("/")
+        .append(encodeObjectName(user));
 
     return sb.toString();
   }
@@ -352,7 +353,8 @@ public class ResourceBuilder {
   public static String buildRoleResource(String projectName, String roleName) {
     StringBuilder sb = new StringBuilder();
 
-    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(ROLES).append("/").append(roleName);
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(ROLES).append("/")
+        .append(roleName);
 
     return sb.toString();
   }

@@ -103,7 +103,7 @@ public class InstanceTunnelTest extends TestBase {
 
   @Ignore("limit operator not work yet")
   @Test
-  public void testPostive2() throws OdpsException, IOException {
+  public void testPositive2() throws OdpsException, IOException {
     //limit operator
     Instance id = SQLTask.run(odps, "select * from instance_tunnel_test limit 2;");
     System.err.println(id.getId());
@@ -122,7 +122,7 @@ public class InstanceTunnelTest extends TestBase {
 
 
   @Test
-  public void testPostive3() throws OdpsException, IOException {
+  public void testPositive3() throws OdpsException, IOException {
     //order by must has order in tunnel download
     Instance id = SQLTask.run(odps, "select row_number() over (partition by 1 order by rand()) as id from instance_tunnel_test order by id limit 25;");
     System.err.println(id.getId());
@@ -142,7 +142,7 @@ public class InstanceTunnelTest extends TestBase {
   }
 
   @Test
-  public void testPostive4() throws OdpsException, IOException {
+  public void testPositive4() throws OdpsException, IOException {
     //big data table
     TableSchema schema = new TableSchema();
     schema.addColumn(new Column("id", OdpsType.STRING));
@@ -187,8 +187,48 @@ public class InstanceTunnelTest extends TestBase {
 
   }
 
+  @Test
+  public void testPositive5() throws OdpsException {
+    //Empty normal table
+    odps.tables().delete("instance_tunnel_empty", true);
+    Instance instance = SQLTask.run(odps, "create table instance_tunnel_empty(key string);");
+    instance.waitForSuccess();
+    Instance id = SQLTask.run(odps, "select * from instance_tunnel_empty;");
+    InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
+    id.waitForSuccess();
+
+    InstanceTunnel.DownloadSession session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
+    assertEquals(0, session.getRecordCount());
+  }
+
+  @Test
+  public void testPositive6() throws OdpsException {
+    //direct download from partition table
+    odps.tables().delete("instance_tunnel_pt", true);
+    Instance instance = SQLTask.run(odps, "create table instance_tunnel_pt(key string) partitioned by (pt string);");
+    instance.waitForSuccess();
+    instance = SQLTask.run(odps, "insert overwrite table instance_tunnel_pt partition(pt='a') select 'a' from (select count(1) from instance_tunnel_pt) t;");
+    instance.waitForSuccess();
+    instance = SQLTask.run(odps, "insert overwrite table instance_tunnel_pt partition(pt='b') select 'a' from instance_tunnel_pt;");
+    instance.waitForSuccess();
+
+    Instance id = SQLTask.run(odps, "select * from instance_tunnel_pt;");
+    id.waitForSuccess();
+    InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
+
+    InstanceTunnel.DownloadSession session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
+    assertEquals(2, session.getRecordCount());
+
+    id = SQLTask.run(odps, "select * from instance_tunnel_pt where pt='a';");
+    id.waitForSuccess();
+    instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
+
+    session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
+    assertEquals(1, session.getRecordCount());
+  }
+
   @Test(expected = TunnelException.class)
-  public void testNegetive1() throws TunnelException {
+  public void testNegative1() throws TunnelException {
     // not exist instance id
     InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
     try {
@@ -199,29 +239,15 @@ public class InstanceTunnelTest extends TestBase {
     }
   }
 
-  @Test(expected = TunnelException.class)
-  public void testNegetive2() throws OdpsException {
-    //Empty normal table
-    odps.tables().delete("instance_tunnel_empty", true);
-    Instance instance = SQLTask.run(odps, "create table instance_tunnel_empty(key string);");
-    instance.waitForSuccess();
-    Instance id = SQLTask.run(odps, "select * from instance_tunnel_empty;");
-    InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
-    try {
-      InstanceTunnel.DownloadSession session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
-    } catch (TunnelException e) {
-      e.printStackTrace();
-      throw e;
-    }
-  }
 
   @Test(expected = TunnelException.class)
-  public void testNegetive3() throws OdpsException {
+  public void testNegative2() throws OdpsException {
     //Empty Partition Table
     odps.tables().delete("instance_tunnel_pt_empty", true);
     Instance instance = SQLTask.run(odps, "create table instance_tunnel_pt_empty(key string) partitioned by (pt string);");
     instance.waitForSuccess();
     Instance id = SQLTask.run(odps, "select * from instance_tunnel_pt_empty;");
+    id.waitForSuccess();
     InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
     try {
       InstanceTunnel.DownloadSession session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
@@ -233,7 +259,7 @@ public class InstanceTunnelTest extends TestBase {
 
 
   @Test(expected = TunnelException.class)
-  public void testNegetive4() throws OdpsException {
+  public void testNegative3() throws OdpsException {
     //failed instance
     Instance id = SQLTask.run(odps, "select * from not_exists;");
     InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
@@ -251,7 +277,7 @@ public class InstanceTunnelTest extends TestBase {
   }
 
   @Test(expected = TunnelException.class)
-  public void testNegetive7() throws OdpsException {
+  public void testNegative4() throws OdpsException {
     //ddl sql
     Instance id = SQLTask.run(odps, "drop table if exists not_exists;");
     InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
@@ -265,14 +291,17 @@ public class InstanceTunnelTest extends TestBase {
   }
 
   @Test(expected = TunnelException.class)
-  public void testNegetive8() throws OdpsException {
+  public void testNegative5() throws OdpsException {
     //sqlplantask
     Instance id = SQLCostTask.run(odps, "select count(*) from instance_tunnel_test;");
     InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
-    id.waitForSuccess();
     try {
+      id.waitForSuccess();
       InstanceTunnel.DownloadSession session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
     } catch (TunnelException e) {
+      e.printStackTrace();
+      throw e;
+    } catch (OdpsException e) {
       e.printStackTrace();
       throw e;
     }
@@ -280,33 +309,11 @@ public class InstanceTunnelTest extends TestBase {
 
 
   @Test(expected = TunnelException.class)
-  public void testNegetive5() throws OdpsException {
+  public void testNegative6() throws OdpsException {
     //running instance
     Instance id = SQLTask.run(odps, "select count(*) from instance_tunnel_test;");
     InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
 
-    try {
-      InstanceTunnel.DownloadSession session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
-    } catch (TunnelException e) {
-      e.printStackTrace();
-      throw e;
-    }
-  }
-
-  @Test(expected = TunnelException.class)
-  public void testNegative6() throws OdpsException {
-    //direct download from partition table
-    odps.tables().delete("instance_tunnel_pt", true);
-    Instance instance = SQLTask.run(odps, "create table instance_tunnel_pt(key string) partitioned by (pt string);");
-    instance.waitForSuccess();
-    instance = SQLTask.run(odps, "insert overwrite table instance_tunnel_pt partition(pt='a') select 'a' from instance_tunnel_test;");
-    instance.waitForSuccess();
-    instance = SQLTask.run(odps, "insert overwrite table instance_tunnel_pt partition(pt='b') select 'a' from instance_tunnel_test;");
-    instance.waitForSuccess();
-
-
-    Instance id = SQLTask.run(odps, "select * from instance_tunnel_pt;");
-    InstanceTunnel instanceTunnel = OdpsTestUtils.newInstanceTunnel(odps);
     try {
       InstanceTunnel.DownloadSession session = instanceTunnel.createDownloadSession(odps.getDefaultProject(), id.getId());
     } catch (TunnelException e) {

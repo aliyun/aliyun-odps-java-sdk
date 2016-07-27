@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 import com.aliyun.odps.PartitionSpec;
 
@@ -33,12 +33,14 @@ import com.aliyun.odps.PartitionSpec;
 public class TableInfo {
 
   public static final String DEFAULT_LABEL = "__default__";
+  public static final String INNER_OUTPUT_LABEL = "INNER_OUTPUT";
 
   private String projectName;
   private String tblName;
   private LinkedHashMap<String, String> partSpec = new LinkedHashMap<String, String>();
   private String[] cols;
   private String label = DEFAULT_LABEL;
+  private String mapperClassName;
 
   public static class TableInfoBuilder {
 
@@ -46,6 +48,11 @@ public class TableInfo {
 
     public TableInfoBuilder projectName(String projectName) {
       table.setProjectName(projectName);
+      return this;
+    }
+
+    public TableInfoBuilder mapperClass(@SuppressWarnings("rawtypes") Class mapperClass) {
+      table.setMapperClass(mapperClass);
       return this;
     }
 
@@ -117,6 +124,7 @@ public class TableInfo {
 
   public TableInfo(TableInfo table) {
     this(table.projectName, table.tblName, table.partSpec, table.cols, table.label);
+    this.mapperClassName = table.mapperClassName;
   }
 
   public static TableInfoBuilder builder() {
@@ -263,6 +271,33 @@ public class TableInfo {
    */
   public void setLable(String lable) {
     this.label = lable;
+  }
+
+  /**
+   * 获取输入表对应的mapper类
+   * 
+   * @return mapper类
+   */
+  public Class<?> getMapperClass() {
+    if (StringUtils.isEmpty(mapperClassName)) {
+      return null;
+    }
+    Class<?> mapperClass = null;
+    try {
+      mapperClass = Class.forName(mapperClassName, false, this.getClass().getClassLoader());
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("ODPS-0730001: ClassNotFoundException - " + e.getMessage());
+    }
+    return mapperClass;
+  }
+
+  /**
+   * 设置输入表对应的mapper类
+   * 
+   * @param mapperClass
+   */
+  public void setMapperClass(Class<?> mapperClass) {
+    mapperClassName = mapperClass.getName();
   }
 
   /**

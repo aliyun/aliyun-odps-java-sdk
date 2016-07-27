@@ -25,14 +25,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Instance.TaskSummary;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.counter.Counters;
 import com.aliyun.odps.graph.counters.MemoryCounter;
 import com.aliyun.odps.graph.counters.StatsCounter;
 import com.aliyun.odps.utils.StringUtils;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 /**
  * Graph作业LOG日志工具类
@@ -106,6 +106,11 @@ public class LogUtils {
       Set<Entry<String, Map<String, Object>>> groups = ts.entrySet();
       for (Entry<String, Map<String, Object>> entry : groups) {
         String group = entry.getKey();
+
+        if (!(entry.getValue() instanceof Map)) {
+          continue;
+        }
+
         Map<String, Object> groupValues = entry.getValue();
         for (Entry<String, Object> counterItem : groupValues.entrySet()) {
           // counter value in tasksummary may be Integer or Long
@@ -133,11 +138,11 @@ public class LogUtils {
     }
   }
 
-  static void addIfExists(JsonObject group, String counterName,
+  static void addIfExists(JSONObject group, String counterName,
                           String key, StringBuilder progress) {
-    if (group.has(counterName)) {
+    if (group.containsKey(counterName)) {
       progress.append(key + "=");
-      String value = group.get(counterName).getAsString();
+      String value = group.getString(counterName);
       if (counterName.equals(MemoryCounter.MAX_USED_MEMORY.toString())) {
         value = String.valueOf(Long.parseLong(value) / 1000000) + "M";
       }
@@ -155,15 +160,14 @@ public class LogUtils {
       return progress.toString();
     }
 
-    JsonParser parser = new JsonParser();
-    JsonObject jsonSummary = parser.parse(ts.getJsonSummary()).getAsJsonObject();
+    JSONObject jsonSummary = JSON.parseObject(ts.getJsonSummary());
 
-    if (jsonSummary.has(StatsCounter.class.getName())) {
-      JsonObject graphStats = jsonSummary.getAsJsonObject(
+    if (jsonSummary.containsKey(StatsCounter.class.getName())) {
+      JSONObject graphStats = jsonSummary.getJSONObject(
           StatsCounter.class.getName());
 
       String name = StatsCounter.FINAL_STAGE.toString();
-      GraphStage stage = GraphStage.values()[graphStats.get(name).getAsInt()];
+      GraphStage stage = GraphStage.values()[graphStats.getIntValue(name)];
       progress.append(stage.getName());
       if (stage.equals(GraphStage.GRAPH_STAGE_SUPERSTEP)
           && graphStats.entrySet().size() > 1) {
@@ -175,11 +179,11 @@ public class LogUtils {
         addIfExists(graphStats, StatsCounter.TOTAL_SENT_MESSAGES.toString(), "messages", progress);
         addIfExists(graphStats, StatsCounter.TOTAL_WORKERS.toString(), "workers", progress);
         addIfExists(graphStats, StatsCounter.TOTAL_RUNNING_WORKERS.toString(), "running", progress);
-        if (jsonSummary.has(MemoryCounter.class.getName())) {
-          addIfExists(jsonSummary.getAsJsonObject(MemoryCounter.class.getName()),
+        if (jsonSummary.containsKey(MemoryCounter.class.getName())) {
+          addIfExists(jsonSummary.getJSONObject(MemoryCounter.class.getName()),
                       MemoryCounter.MAX_USED_MEMORY_WORKER.toString(), "max_mem_workerid",
                       progress);
-          addIfExists(jsonSummary.getAsJsonObject(MemoryCounter.class.getName()),
+          addIfExists(jsonSummary.getJSONObject(MemoryCounter.class.getName()),
                       MemoryCounter.MAX_USED_MEMORY.toString(), "max_mem", progress);
         }
         progress.deleteCharAt(progress.length() - 1);

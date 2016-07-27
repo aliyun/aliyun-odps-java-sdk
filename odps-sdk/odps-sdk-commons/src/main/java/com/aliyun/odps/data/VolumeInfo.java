@@ -36,6 +36,10 @@ public class VolumeInfo {
   private String partSpec;
 
   private String label;
+  
+  public VolumeInfo() {
+      
+  }
 
   public VolumeInfo(String volumeName, String partSpec) {
     this(null, volumeName, partSpec, DEFAULT_LABEL);

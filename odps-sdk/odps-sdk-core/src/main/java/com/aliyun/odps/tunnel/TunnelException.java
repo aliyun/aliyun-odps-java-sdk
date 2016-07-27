@@ -23,11 +23,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.codehaus.jackson.JsonNode;
-
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.util.IOUtils;
-import com.aliyun.odps.commons.util.JacksonParser;
 
 /**
  * 该异常在DataTunnel服务访问失败时抛出。
@@ -157,15 +155,16 @@ public class TunnelException extends OdpsException {
    */
   public void loadFromJson(InputStream is) throws TunnelException, IOException {
     try {
-      JsonNode tree = JacksonParser.getObjectMapper().readTree(is);
-      JsonNode node = tree.get("Code");
-      if (node != null && !node.isNull()) {
-        errorCode = node.asText();
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSONObject.parseObject(json);
+      String node = tree.getString("Code");
+      if (node != null) {
+        errorCode = node;
       }
 
-      node = tree.get("Message");
-      if (node != null && !node.isNull()) {
-        errorMsg = node.asText();
+      node = tree.getString("Message");
+      if (node != null) {
+        errorMsg = node;
       }
     } catch (Exception e) {
       throw new TunnelException("Parse response failed", e);

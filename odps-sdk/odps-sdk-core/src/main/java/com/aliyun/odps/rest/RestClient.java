@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLHandshakeException;
 import javax.xml.bind.JAXBException;
 
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.NoSuchObjectException;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
@@ -47,7 +48,6 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.transport.Transport;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.commons.util.IOUtils;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
 
 /**
@@ -354,7 +354,7 @@ public class RestClient {
       if (deprecatedMaps.isEmpty()) {
         return;
       }
-      String deprecatedLogs = JacksonParser.getObjectMapper().writeValueAsString(deprecatedMaps);
+      String deprecatedLogs = JSON.toJSONString(deprecatedMaps);
       OdpsDeprecatedLogger.getDeprecatedCalls().clear();
 
       String project = getDefaultProject();

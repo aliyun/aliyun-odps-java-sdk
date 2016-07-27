@@ -19,9 +19,10 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import java.io.IOException;
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.local.common.security.SecurityClient;
@@ -144,6 +145,8 @@ public class UDTFRunner extends BaseRunner {
       SecurityClient.open();
       tf.process(input);
     } catch (UDFException e) {
+      throw new LocalRunException(e);
+    } catch (IOException e) {
       throw new LocalRunException(e);
     } finally {
       SecurityClient.close();

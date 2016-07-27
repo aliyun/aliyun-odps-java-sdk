@@ -42,15 +42,14 @@ import javax.xml.bind.annotation.XmlValue;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.apache.commons.codec.binary.Base64;
-import org.codehaus.jackson.map.ObjectMapper;
 
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
 import com.aliyun.odps.Instance.TaskStatusModel.InstanceTaskModel;
 import com.aliyun.odps.Job.JobModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
@@ -301,6 +300,37 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     return result;
   }
 
+  public static class TaskCost {
+
+    public Integer getCPUCost() {
+      return cpuCost;
+    }
+
+    public void setCPUCost(Integer cpuCost) {
+      this.cpuCost = cpuCost;
+    }
+
+    public Integer getMemoryCost() {
+      return memoryCost;
+    }
+
+    public void setMemoryCost(Integer memoryCost) {
+      this.memoryCost = memoryCost;
+    }
+
+    public Integer getInputSize() {
+      return inputSize;
+    }
+
+    public void setInputSize(Integer inputSize) {
+      this.inputSize = inputSize;
+    }
+
+    private Integer cpuCost = 0;  // 100core*second
+    private Integer memoryCost = 0; // MB*second
+    private Integer inputSize = 0; // bytes
+  }
+
   /**
    * TaskSummary包含{@link Task}运行结束后的汇总信息
    *
@@ -360,6 +390,48 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   }
 
   /**
+   * 获得 Instance 中 Task 的运行资源消耗信息
+   * 当且仅当 Task 产生计量信息时，返回资源消耗信息，否则返回 null
+   *
+   * @param taskName
+   *     指定的TaskName
+   * @return 资源消耗信息 {@link com.aliyun.odps.Instance.TaskCost}
+   * @throws OdpsException
+   */
+  public TaskCost getTaskCost(String taskName) throws OdpsException {
+    TaskSummary summary = getTaskSummary(taskName);
+    if (summary == null) {
+      return null;
+    }
+
+    try {
+      if (summary.get("Cost") != null) {
+        Map<String, Integer> taskCostMap = (Map)summary.get("Cost");
+
+        TaskCost cost = new TaskCost();
+
+        if (taskCostMap.get("CPU") != null) {
+          cost.setCPUCost(taskCostMap.get("CPU"));
+        }
+
+        if (taskCostMap.get("Memory") != null) {
+          cost.setMemoryCost(taskCostMap.get("Memory"));
+        }
+
+        if (taskCostMap.get("Input") != null) {
+          cost.setInputSize(taskCostMap.get("Input"));
+        }
+
+        return cost;
+      }
+    } catch (Exception e) {
+      // ignore
+    }
+
+    return null;
+  }
+
+  /**
    * 获得Instance中Task的运行汇总信息 当 Server 端返回信息，但是信息格式错误时，返回 null
    *
    * @param taskName
@@ -376,13 +448,12 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     TaskSummary summary = null;
     try {
-      ObjectMapper objMapper = JacksonParser.getObjectMapper();
-      Map<Object, Object> map = objMapper.readValue(result.getBody(), Map.class);
+      Map<Object, Object> map = JSON.parseObject(result.getBody(), Map.class);
       if (map.get("Instance") != null) {
         Map mapReduce = (Map) map.get("Instance");
         String jsonSummary = (String) mapReduce.get("JsonSummary");
         if (jsonSummary != null) {
-          summary = (TaskSummary) objMapper.readValue(jsonSummary, TaskSummary.class);
+          summary = (TaskSummary) JSON.parseObject(jsonSummary, TaskSummary.class);
         }
         if (summary != null) {
           summary.setSummaryText((String) mapReduce.get("Summary"));
@@ -623,8 +694,23 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   @XmlAccessorType(XmlAccessType.FIELD)
   public static class StageProgress {
 
+
+    public static enum Status {
+      READY,
+      WAITING,
+      RUNNING,
+      SUSPENDED,
+      FAILED,
+      TERMINATED,
+      CANCELLED,
+      CANCELLING,
+    }
+
     @XmlAttribute(name = "ID")
     String name;
+
+    @XmlElement(name = "Status")
+    String status;
 
     @XmlElement(name = "BackupWorkers")
     int backupSysInstances;
@@ -646,6 +732,13 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     @XmlElement(name = "FinishedPercentage")
     int finishedPercentage;
+
+    public Status getStatus() {
+      if (status == null) {
+        return null;
+      }
+      return Status.valueOf(status.toUpperCase());
+    }
 
     /**
      * 获得backup的Worker数，对应于original worker，backup会在长尾时被启动，同时运行。

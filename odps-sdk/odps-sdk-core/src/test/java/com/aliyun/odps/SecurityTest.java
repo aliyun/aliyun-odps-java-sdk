@@ -30,7 +30,6 @@ public class SecurityTest extends TestBase {
 
   private Odps odps = OdpsTestUtils.newSecurityOdps();
 
-
   public void securityConfigrationTest() {
     try {
       SecurityManager sm = odps.projects().get().getSecurityManager();

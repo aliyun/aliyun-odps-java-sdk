@@ -30,6 +30,7 @@ import org.codehaus.jackson.map.ObjectMapper;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
+@Deprecated
 public class JacksonParser {
 
   private static ObjectMapper mapper = new ObjectMapper();

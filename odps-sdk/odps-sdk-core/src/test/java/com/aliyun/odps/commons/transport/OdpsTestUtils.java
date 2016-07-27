@@ -24,7 +24,9 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
+import java.util.UUID;
 
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -32,7 +34,6 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
-import com.aliyun.odps.commons.util.JacksonParser;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.InstanceTunnel;
@@ -82,7 +83,7 @@ public class OdpsTestUtils {
   public static String getCurrentUser() throws OdpsException, IOException {
     Odps odps = newDefaultOdps();
     String userDetail = odps.projects().get().getSecurityManager().runQuery("whoami", true);
-    String owner = JacksonParser.parse(userDetail).get("DisplayName").asText();
+    String owner = JSON.parseObject(userDetail).getString("DisplayName");
     return owner;
   }
 
@@ -275,5 +276,13 @@ public class OdpsTestUtils {
       tunnel.setEndpoint(tunnelEndpoint);
     }
     return tunnel;
+  }
+
+  public static String getRandomTableName(String prefix) {
+    return prefix + getRandomTableName();
+  }
+
+  public static String getRandomTableName() {
+    return UUID.randomUUID().toString().replace("-", "");
   }
 }

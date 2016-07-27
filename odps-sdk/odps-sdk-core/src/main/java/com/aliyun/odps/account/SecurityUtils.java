@@ -22,7 +22,6 @@ package com.aliyun.odps.account;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
-import java.security.Security;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Arrays;
@@ -33,8 +32,6 @@ import java.util.TreeMap;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 
@@ -44,7 +41,6 @@ public class SecurityUtils {
 
   protected static void init() {
     //解决多线程并发问题
-    InitBouncyCastleProvider.init();
   }
 
   protected static String buildCanonicalString(String resource, Request request, String prefix) {
@@ -195,13 +191,3 @@ public class SecurityUtils {
 }
 
 
-class InitBouncyCastleProvider {
-
-  static {
-    Security.addProvider(new BouncyCastleProvider());
-  }
-
-  public static void init() {
-
-  }
-}

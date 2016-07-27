@@ -67,8 +67,13 @@ public class AliyunRequestSigner implements RequestSigner {
       log.fine("String to sign: " + strToSign);
     }
 
-    byte[] crypto = SecurityUtils.hmacsha1Signature(strToSign.getBytes(),
-                                                    accessKey.getBytes());
+    byte[] crypto = new byte[0];
+    try {
+      crypto = SecurityUtils.hmacsha1Signature(strToSign.getBytes("UTF-8"),
+                                               accessKey.getBytes());
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
 
     String signature = Base64.encodeBase64String(crypto).trim();
 

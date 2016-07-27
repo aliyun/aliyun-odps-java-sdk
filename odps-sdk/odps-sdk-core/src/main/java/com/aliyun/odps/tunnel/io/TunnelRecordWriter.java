@@ -37,6 +37,7 @@ import com.aliyun.odps.tunnel.HttpHeaders;
 public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
 
   private Connection conn;
+  private boolean isClosed;
 
   /**
    * 构造此类对象
@@ -58,11 +59,15 @@ public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
 
     super(schema, conn.getOutputStream(), option);
     this.conn = conn;
-
+    this.isClosed = false;
   }
 
   @Override
   public void write(Record r) throws IOException{
+    if (isClosed) {
+      throw new IOException("Writer has been closed.");
+    }
+
     try {
       super.write(r);
     } catch (IOException e) {
@@ -89,6 +94,7 @@ public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
       }
     } finally {
       conn.disconnect();
+      isClosed = true;
     }
   }
 }

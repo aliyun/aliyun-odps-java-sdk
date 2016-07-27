@@ -22,11 +22,11 @@ package com.aliyun.odps.datahub;
 import java.io.IOException;
 import java.io.InputStream;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.commons.util.IOUtils;
+import com.aliyun.odps.tunnel.TunnelException;
 
 public class ReplicatorStatus {
 
@@ -34,20 +34,24 @@ public class ReplicatorStatus {
   private long lastReplicatedPackTimeStamp;
 
   public ReplicatorStatus(InputStream is) throws OdpsException, IOException {
-    ObjectMapper mapper = JacksonParser.getObjectMapper();
-    JsonNode tree = mapper.readTree(is);
-    JsonNode node = null;
+    JSONObject tree;
+    try {
+      String json = IOUtils.readStreamAsString(is);
+      tree = JSON.parseObject(json);
+    } catch (Exception e) {
+      throw new TunnelException("get last replicated pack id fail");
+    }
 
-    node = tree.get("LastReplicatedPackId");
-    if (node != null && !node.isNull()) {
-      lastReplicatedPackId = node.getTextValue();
+    String node = tree.getString("LastReplicatedPackId");
+    if (node != null) {
+      lastReplicatedPackId = node;
     } else {
       throw new DatahubException("get last replicated packid fail");
     }
 
-    node = tree.get("LastReplicatedPackTimeStamp");
-    if (node != null && !node.isNull()) {
-      lastReplicatedPackTimeStamp = node.getLongValue();
+    Long node2 = tree.getLong("LastReplicatedPackTimeStamp");
+    if (node2 != null) {
+      lastReplicatedPackTimeStamp = node2.longValue();
     } else {
       throw new DatahubException("get last replicated pack timestamp fail");
     }

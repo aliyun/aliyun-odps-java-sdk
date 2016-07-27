@@ -4,15 +4,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.JacksonParser;
+import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
 
 /**
@@ -91,11 +89,11 @@ public class StreamUploadClient {
   private void loadFromJson(InputStream is)
     throws TunnelException {
     try {
-      ObjectMapper mapper = JacksonParser.getObjectMapper();
-      JsonNode tree = mapper.readTree(is);
+      String json = IOUtils.readStreamAsString(is);
+      JSONObject tree = JSONObject.parseObject(json);
 
-      JsonNode node = tree.get("Schema");
-      if (null != node && !node.isNull()) {
+      JSONObject node = tree.getJSONObject("Schema");
+      if (null != node) {
         schema = new TunnelTableSchema(node);
       } else {
         throw new TunnelException("Get table type failed");

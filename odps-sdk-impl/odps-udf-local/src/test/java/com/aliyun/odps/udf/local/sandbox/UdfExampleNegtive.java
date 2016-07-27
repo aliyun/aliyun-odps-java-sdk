@@ -30,7 +30,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;

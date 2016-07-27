@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.udf;
 
+import java.io.IOException;
+
 /**
  * 具有拉数据功能的UDTF，可以主动调用getNextRow()获取一条记录。
  * 仅在LOT中才能使用，并且有如下限制：
@@ -41,7 +43,7 @@ public abstract class StandaloneUDTF extends UDTF {
    *
    * @throws UDFException
    */
-  public void run() throws UDFException {
+  public void run() throws UDFException,IOException {
     Object[] args;
     while ((args = getNextRow()) != null) {
       process(args);

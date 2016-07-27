@@ -568,5 +568,22 @@ public class ArrayRecord implements Record {
       throw new IllegalArgumentException("Column " + idx + " is not a map column");
     }
   }
+
+  @Override
+  public boolean isNull(int idx) {
+    return values[idx] == null;
+  }
+
+  @Override
+  public boolean isNull(String columnName) {
+    return isNull(getColumnIndex(columnName));
+  }
+
+  @Override
+  public Record clone() {
+    ArrayRecord record = new ArrayRecord(getColumns());
+    record.set(values);
+    return record;
+  }
 }
 

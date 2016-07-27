@@ -19,13 +19,18 @@
 
 package com.aliyun.odps;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -34,16 +39,53 @@ import org.junit.Test;
 
 import com.aliyun.odps.Resource.Type;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.commons.util.IOUtils;
+import com.aliyun.odps.tunnel.VolumeTunnel;
 
 public class ResourceTest extends TestBase {
 
-  static String tableName = ResourceTest.class.getSimpleName() +  "_table_for_test_abc";
-  private static String TABLE_NAME = ResourceTest.class.getSimpleName() + "_test_resource_test";
+  private static final String VOLUME_ARCHIVE_NAME = ResourceTest.class.getSimpleName() + "_volume_archive_for_test";
+  private static final String tableName = ResourceTest.class.getSimpleName() + "_table_for_test_abc";
+  private static final String TABLE_NAME = ResourceTest.class.getSimpleName() + "_test_resource_test";
+  private static final String VOLUME_ARCHIVE_RESOURCE = "volume_archive_resource.jar";
+  private static final String VOLUME_NAME = ResourceTest.class.getSimpleName() + "_volume_for_test";
+  private static final String VOLUME_FILE_NAME = "volume_file_name.jar";
+  private static final String VOLUME_UPDATE_FILE_NAME = "volume_update_file_name.jar";
+  private static final String VOLUME_FILE_RESOURCE = "volume_resource";
+  private static final String CHINESE_COMMENT_FILE = "chinese_comment_file";
 
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
     OdpsTestUtils.createTableForTest(TABLE_NAME);
+    String grantUser = OdpsTestUtils.getGrantUser();
+    if (!grantUser.toUpperCase().startsWith("ALIYUN$")) {
+      grantUser = "ALIYUN$" + grantUser;
+    }
+    try {
+      odps.projects().get().getSecurityManager().runQuery("grant admin to " + grantUser, false);
+    } catch (OdpsException e) {
+    }
   }
+
+  @Test
+  public void testUTF8Header() throws OdpsException, FileNotFoundException {
+
+    if (odps.resources().exists(CHINESE_COMMENT_FILE)) {
+      odps.resources().delete(CHINESE_COMMENT_FILE);
+    }
+
+    String filename = ResourceTest.class.getClassLoader().getResource("resource.txt").getFile();
+    FileResource rm = new FileResource();
+
+    rm.setName(CHINESE_COMMENT_FILE);
+    rm.setComment("中文哈哈哈123");
+    odps.resources().create(rm, new FileInputStream(new File(filename)));
+
+    Resource r = odps.resources().get(CHINESE_COMMENT_FILE);
+    assertEquals(r.getComment(), "中文哈哈哈123");
+
+  }
+
 
   @Test
   public void testResourceFile() throws IOException, OdpsException {
@@ -147,30 +189,6 @@ public class ResourceTest extends TestBase {
     }
   }
 
-  @Test
-  public void testUpdateResouceOwnerNeg2() throws FileNotFoundException, OdpsException {
-    String filename = ResourceTest.class.getClassLoader().getResource("resource.txt").getFile();
-    FileResource rm = new FileResource();
-    String resourceName = "zheminResUpOwnerNeg1";
-    if (odps.resources().exists(resourceName)) {
-      odps.resources().delete(resourceName);
-    }
-    rm.setName(resourceName);
-    odps.resources().create(rm, new FileInputStream(new File(filename)));
-    Resource rmResult = odps.resources().get(resourceName);
-    System.err.println(rmResult.getOwner());
-    System.err.println("InvalidAccountName");
-    try {
-      rmResult.updateOwner("InvalidAccountName");
-    } catch (OdpsException e) {
-      if (e.getMessage().contains("Invalid")) {
-        return;
-      } else {
-        throw e;
-      }
-    }
-    fail("should have InavlidAccount exception.");
-  }
 
   private void addResourceFile() throws FileNotFoundException, OdpsException {
 
@@ -183,6 +201,7 @@ public class ResourceTest extends TestBase {
     Resource r = odps.resources().get("zhemin_res.file");
     assertEquals("type must be file", r.getType(), Type.FILE);
   }
+
 
   private void updateResourceFile() throws FileNotFoundException, OdpsException {
 

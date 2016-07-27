@@ -20,18 +20,25 @@
 package com.aliyun.odps;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.Table.TableModel;
+import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Tables表示ODPS中所有{@link Table}的集合
@@ -51,6 +58,32 @@ public class Tables implements Iterable<Table> {
 
     @XmlElement(name = "MaxItems")
     private Integer maxItems;
+  }
+
+  @XmlRootElement(name = "Tables")
+  private static class QueryTables {
+
+    @XmlAccessorType(XmlAccessType.FIELD)
+    @XmlRootElement(name = "Table")
+    private static class QueryTable {
+
+      @XmlElement(name = "Project")
+      private String projectName;
+
+      @XmlElement(name = "Name")
+      private String tableName;
+
+      QueryTable() {
+      }
+
+      QueryTable(String projectName, String tableName) {
+        this.projectName = projectName;
+        this.tableName = tableName;
+      }
+    }
+
+    @XmlElement(name = "Table")
+    private List<QueryTable> tables = new ArrayList<QueryTable>();
   }
 
   private RestClient client;
@@ -257,7 +290,7 @@ public class Tables implements Iterable<Table> {
           params.put("name", filter.getName());
         }
 
-        if (filter.getOwner() != null ) {
+        if (filter.getOwner() != null) {
           params.put("owner", filter.getOwner());
         }
       }
@@ -281,6 +314,7 @@ public class Tables implements Iterable<Table> {
       return tables;
     }
   }
+
   /**
    * 创建表
    *
@@ -433,7 +467,8 @@ public class Tables implements Iterable<Table> {
    * @param lifeCycle
    *     表生命周期
    */
-  public void createTableWithLifeCycle(String projectName, String tableName, TableSchema schema, String comment, boolean ifNotExists, Long lifeCycle)
+  public void createTableWithLifeCycle(String projectName, String tableName, TableSchema schema,
+                                       String comment, boolean ifNotExists, Long lifeCycle)
       throws OdpsException {
     // new SQLTask
     String taskName = "SQLCreateTableTask";
@@ -517,6 +552,132 @@ public class Tables implements Iterable<Table> {
     instance.waitForSuccess();
   }
 
+  /**
+   * 批量加载表信息
+   *
+   * @param tableNames
+   *     表名
+   * @return 加载后的 {@link Table} 列表
+   * @throws OdpsException
+   */
+  public List<Table> loadTables(final Collection<String> tableNames) throws OdpsException {
+    return loadTables(getDefaultProjectName(), tableNames);
+  }
+
+  /**
+   * 批量加载表信息
+   *
+   * @param projectName
+   *     指定{@link Project}名称
+   * @param tableNames
+   *     表名
+   * @return 加载后的 {@link Table} 列表
+   * @throws OdpsException
+   */
+  public List<Table> loadTables(final String projectName, final Collection<String> tableNames)
+      throws OdpsException {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Invalid project name.");
+    }
+    if (tableNames == null) {
+      throw new IllegalArgumentException("Invalid table names.");
+    }
+
+    QueryTables queryTables = new QueryTables();
+    for (String name : tableNames) {
+      queryTables.tables.add(new QueryTables.QueryTable(projectName, name));
+    }
+
+    return loadTablesInternal(queryTables);
+  }
+
+  /**
+   * 批量加载表信息<br />
+   *
+   * @param tables
+   *     请求表的容器
+   * @return 加载后的 {@link Table} 列表
+   * @throws OdpsException
+   */
+  public List<Table> reloadTables(final Collection<Table> tables) throws OdpsException {
+    if (tables == null) {
+      throw new IllegalArgumentException("Invalid tables.");
+    }
+
+    return reloadTables(tables.iterator());
+  }
+
+  /**
+   * 批量加载表信息<br />
+   *
+   * rest api 对请求数量有限制, 目前一次操作最多可请求 100 张表信息; <br />
+   * 返回的表数据,与操作权限有关.<br />
+   *
+   * @param tables
+   *     请求表的迭代器
+   * @return 加载后的 {@link Table} 列表
+   * @throws OdpsException
+   */
+  public List<Table> reloadTables(final Iterator<Table> tables) throws OdpsException {
+    if (tables == null) {
+      throw new IllegalArgumentException("Invalid tables.");
+    }
+
+    List<Table> loadedTables = new ArrayList<Table>();
+    if (!tables.hasNext()) {
+      return loadedTables;
+    }
+
+    QueryTables queryTables = new QueryTables();
+    while (tables.hasNext()) {
+      Table t = tables.next();
+
+      if (t.isLoaded()) {
+        // table is loaded, do not need to request again
+        loadedTables.add(t);
+      } else {
+        queryTables.tables.add(new QueryTables.QueryTable(t.getProject(), t.getName()));
+      }
+    }
+
+    if (!queryTables.tables.isEmpty()) {
+      loadedTables.addAll(loadTablesInternal(queryTables));
+    }
+
+    return loadedTables;
+  }
+
+  private List<Table> loadTablesInternal(QueryTables queryTables) throws OdpsException {
+    ArrayList<Table> reloadTables = new ArrayList<Table>();
+    if (queryTables.tables.isEmpty()) {
+      return reloadTables;
+    }
+
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("query", null);
+
+    String resource = ResourceBuilder.buildTablesResource(getDefaultProjectName());
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
+
+    String xml = null;
+    try {
+      xml = JAXBUtils.marshal(queryTables, QueryTables.class);
+    } catch (JAXBException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+
+    ListTablesResponse resp =
+        client.stringRequest(ListTablesResponse.class, resource, "POST", params, headers, xml);
+    for (TableModel model : resp.tables) {
+      Table t = new Table(model, model.projectName, odps);
+      t.reload(model);
+      reloadTables.add(t);
+    }
+
+    return reloadTables;
+  }
+
   /* private */
   private String getDefaultProjectName() {
     String project = client.getDefaultProject();
@@ -527,11 +688,12 @@ public class Tables implements Iterable<Table> {
   }
 
   private String getHubString(String projectName, String tableName, TableSchema schema,
-                              String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle) {
+                              String comment, boolean ifNotExists, Long shardNum,
+                              Long hubLifecycle) {
     StringBuilder sb = new StringBuilder();
     sb.append(getSQLString(projectName, tableName, schema, comment, ifNotExists, null));
     if (sb.length() > 0) {
-      sb.deleteCharAt(sb.length() -1);
+      sb.deleteCharAt(sb.length() - 1);
     }
 
     if (null != shardNum) {

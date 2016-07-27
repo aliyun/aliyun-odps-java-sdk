@@ -19,6 +19,10 @@
 
 package com.aliyun.odps;
 
+import java.util.HashMap;
+
+import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.security.SecurityManager;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -26,18 +30,41 @@ public class LogView {
 
   private static final String POLICY_TYPE = "BEARER";
   private static final String HOST_DEFAULT = "http://logview.odps.aliyun.com";
-  private String logViewHost = HOST_DEFAULT;
+  private String logViewHost = "";
 
   Odps odps;
 
   public LogView(Odps odps) {
     this.odps = odps;
+  }
+
+  private String getLogviewHost() {
     if (odps.getLogViewHost() != null) {
-      logViewHost = odps.getLogViewHost();
+      return odps.getLogViewHost();
+    } else {
+      RestClient restClient = odps.clone().getRestClient();
+      try {
+        String resource = "/logview/host";
+        HashMap<String, String> params = new HashMap<String, String>();
+        Response resp = restClient.request(resource, "GET", params, null, null);
+        String logViewHost = new String(resp.getBody());
+        if (StringUtils.isNullOrEmpty(logViewHost)) {
+          return HOST_DEFAULT;
+        } else
+        {
+          return logViewHost;
+        }
+      } catch (Exception e) {
+        return HOST_DEFAULT;
+      }
     }
   }
 
   public String getLogViewHost() {
+    if (StringUtils.isNullOrEmpty(logViewHost)) {
+      logViewHost = getLogviewHost();
+    }
+
     return logViewHost;
   }
 
@@ -47,7 +74,7 @@ public class LogView {
 
   public String generateLogView(Instance instance, long hours) throws OdpsException {
     if (StringUtils.isNullOrEmpty(logViewHost)) {
-      return "";
+      logViewHost = getLogviewHost();
     }
 
     SecurityManager sm = odps.projects().get(instance.getProject()).getSecurityManager();

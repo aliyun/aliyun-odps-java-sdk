@@ -19,8 +19,6 @@
 
 package com.aliyun.odps.volume;
 
-import org.apache.commons.lang.StringUtils;
-
 /**
  * Volume分区下文件和目录的路径.
  * 仅用于表示volume partition下的文件和目录, 根目录表示相应的volume partition目录.
@@ -112,7 +110,7 @@ public class Path implements Comparable {
    */
   private static String normalizePath(String path) {
     // Remove double forward slashes.
-    path = StringUtils.replace(path, "//", "/");
+    path = path.replaceAll("//", "/");
 
     // trim trailing slash from non-root path
     int minLength = 1;

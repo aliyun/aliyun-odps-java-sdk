@@ -21,7 +21,7 @@ package com.aliyun.odps.udf.local.datasource;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.data.TableInfo;

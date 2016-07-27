@@ -485,6 +485,9 @@ public final class WritableUtils {
    * @throws IOException
    */
   public static <T extends Writable> T clone(T orig, Configuration conf) {
+    if (orig == null) {
+      return null;
+    }
     DataOutputBuffer out = new DataOutputBuffer();
     DataInputBuffer in = new DataInputBuffer();
     try {

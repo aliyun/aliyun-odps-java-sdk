@@ -38,7 +38,7 @@ public class JobConfTest {
     conf.addInput(t);
     
     String input = conf.get(GRAPH_CONF.INPUT_DESC);
-    String jsonStr = "[{\"projName\":\"\",\"tblName\":\"bbb\",\"partSpec\":[\"ds\\u003d20140511\"],\"cols\":\"\"}]";
+    String jsonStr = "[{\"projName\":\"\",\"tblName\":\"bbb\",\"partSpec\":[\"ds=20140511\"],\"cols\":\"\"}]";
     assertEquals(jsonStr, input);
   }
 }

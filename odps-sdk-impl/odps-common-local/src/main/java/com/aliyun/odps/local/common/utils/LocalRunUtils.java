@@ -19,9 +19,16 @@
 
 package com.aliyun.odps.local.common.utils;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -32,8 +39,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.SimpleTimeZone;
 
+import javax.mail.internet.MimeUtility;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.HiddenFileFilter;
+import org.apache.commons.io.filefilter.IOFileFilter;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
@@ -69,8 +79,7 @@ public class LocalRunUtils {
     }
   }
 
-  public static Object fromString(OdpsType type, String val, String nullIndicator)
-      throws IOException {
+  public static Object fromString(OdpsType type, String val, String nullIndicator, boolean isBinary) throws IOException {
     if (val == null) {
       return null;
     }
@@ -83,7 +92,12 @@ public class LocalRunUtils {
         case BIGINT:
           return Long.parseLong(val);
         case STRING:
-          return val;
+          try {
+            byte[] v = fromReadableString(val);
+            return isBinary ? v : new String(v, Charset.forName("UTF-8")); 
+          } catch (Exception e1) {
+            throw new RuntimeException("from readable string failed!" + e1);
+          }
         case DOUBLE:
           return Double.parseDouble(val);
         case BOOLEAN:
@@ -100,6 +114,11 @@ public class LocalRunUtils {
     } else {
       return null;
     }
+  }
+
+  public static Object fromString(OdpsType type, String val, String nullIndicator)
+      throws IOException {
+    return fromString(type, val, nullIndicator, false);
   }
 
   public static DateFormat getDateFormat(String formateStr) {
@@ -279,5 +298,113 @@ public class LocalRunUtils {
            + "3. Local warehouse table __schema__ file infomation.\n"
            + "4. If remote server has this table.\n"
            + "Download Mode:" + WareHouse.getInstance().getDownloadMode().toString();
+  }
+
+  /**
+   * 检查 relativePath是否为parent的子目录或者子文件，并且判断路径中是否存在软链接
+   * 文件相等必须先CanoncialFile归一化后做判断，否则可能统一个文件两个不同路径表示，最后为不相等
+   * 通过child不停的getParentFile之后和parent做比较判断来执行是否为子节点的逻辑
+   * 如果child不是子节点，最后会为null
+   * 
+   * 
+   * @param parent
+   *          父目录
+   * @param realativePath
+   *          子目录相对路径
+   * @throws IOException
+   *           资源未声明、资源类型不匹配以及其他错误抛异常
+   */
+  private static void checkParent(File parent, String relativePath) {
+    try {
+      File child = new File(parent, relativePath);
+      if (!child.exists()) {
+        throw new IOException("ODPS-0140171: must set a correct realtive path:"  + relativePath);
+      }
+      while (child != null && !child.getCanonicalFile().equals(parent.getCanonicalFile())) {
+        if (FileUtils.isSymlink(child)) {
+          throw new IOException("ODPS-0140171: not allow symlink in archive files:" + child.getName());
+        }
+        child = child.getParentFile();
+      }
+      if (child == null) {
+        throw new IOException("ODPS-0140171: not correct parameter of relative path in getCacheArchive... :" + relativePath);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    } catch (SecurityException e) {
+      IOException tmp_e = new IOException("ODPS-0140171: permission denied to read archive resource '" + parent.getName() + "' with relative path :" + relativePath);
+      throw new RuntimeException(tmp_e);
+    }
+  }
+
+  @SuppressWarnings({ "unchecked", "rawtypes" })
+  public static Collection<File> listFiles(final File dir, final String relativePath) throws IOException {
+    // privileged code, for this method may be invoked by user code
+    try {
+      return (Collection<File>) AccessController
+        .doPrivileged(new PrivilegedAction() {
+            public Object run() {
+              File relativeDir = new File(dir, relativePath);
+              checkParent(dir, relativePath);
+              if (relativeDir.isDirectory()) {
+                return FileUtils.listFiles(relativeDir, new InternalIOFilter(),
+                    new InternalIOFilter());
+              } else {
+                Collection<File> files = new java.util.LinkedList<File>();
+                files.add(relativeDir);
+                return files;
+              }
+            }
+          }); 
+    } catch (RuntimeException e) {
+      if (e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  private static class InternalIOFilter implements IOFileFilter {
+    
+    public InternalIOFilter() {
+      super();
+    }
+
+    @Override
+    public boolean accept(File dir, String name) {
+      return accept(new File(dir,name));
+    }
+
+    @Override
+    public boolean accept(File file) {
+      try {
+        if (FileUtils.isSymlink(file)) {
+          throw new IOException("ODPS-0140171: not allow symlink in archive files:" + file.getName());
+        }
+        return true;
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  public static String toReadableString(byte[] b) throws Exception {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    OutputStream printableos = MimeUtility.encode(baos, "quoted-printable");
+    printableos.write(b);
+    printableos.close();
+    return new String(baos.toByteArray(), Charset.forName("UTF-8"));
+  }
+
+  public static byte[] fromReadableString(String str) throws Exception {
+    byte[] b = str.getBytes();
+    ByteArrayInputStream bais = new ByteArrayInputStream(b);
+    InputStream printableis = MimeUtility.decode(bais, "quoted-printable");
+    byte[] tmp = new byte[b.length];
+    int n = printableis.read(tmp);
+    byte[] res = new byte[n];
+    System.arraycopy(tmp, 0, res, 0, n);
+    return res;
   }
 }
