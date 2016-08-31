@@ -8,14 +8,14 @@ The program will read a input file, treat each 100 bytes as a record and upload 
 
 ### Requirement
 
-- java 1.6+
+- Java 1.6+
 - maven 3.2.5+
 
 ### Get source code and compile
 
 ```
-git clone git@github.com:aliyun/aliyun-odps-java-sdk.git
-cd aliyun-odps-java-sdk
+git clone https://github.com/aliyun/aliyun-odps-java-sdk.git
+cd aliyun-odps-java-sdk/odps-examples/cloudsort-upload
 mvn clean package
 ```
 
@@ -37,17 +37,17 @@ Tunnel_End_Point: https://dt.odps.aliyun.com
 Project: xxxxxxxx
 ```
 
-## Usage
+### Usage
 
 `java -classpath target/cloudsort-upload-1.0-jar-with-dependencies.jar CloudSortUploadExample inputfile accessid accesskey project table [partition]`
 
-### Simple Table
+#### Simple Table
 
 Run `bin/odpscmd -e "create table foo (s string);"` to create target table.
 
 Run `java -classpath target/cloudsort-upload-1.0-jar-with-dependencies.jar CloudSortUploadExample 2records.txt <accessid> <accesskey> <project> foo` to upload 2records.txt to table foo.
 
-### Partitioned Table
+#### Partitioned Table
 
 Run `bin/odpscmd -e "create table foo (s string) partitoned by (p string)";` to create target table.
 
@@ -55,6 +55,6 @@ Run `bin/odpscmd -e "alter table foo add partition (p=bar)";` to add target part
 
 Run `java -classpath target/cloudsort-upload-1.0-jar-with-dependencies.jar CloudSortUploadExample 2records.txt <accessid> <accesskey> <project> foo p=bar` to upload 2records.txt to partition p=bar of table foo.
 
-### Check uploaded data
+#### Check uploaded data
 
 Run `bin/odpscmd -e "select * from foo"` to check uploaded data.
