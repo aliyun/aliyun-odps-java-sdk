@@ -80,6 +80,26 @@ public class OdpsTestUtils {
     return props.getProperty("grant.user");
   }
 
+  public static String getRamUser() {
+    return props.getProperty("test.ram.user");
+  }
+
+  public static String getMultiIDUser() {
+    return props.getProperty("test.multi.id.user");
+  }
+
+  public static String getMultiIDNickname() {
+    return props.getProperty("test.multi.id.nickname");
+  }
+
+  public static String getMultiIDKp() {
+    return props.getProperty("test.muiti.id.kp");
+  }
+
+  public static String getNickerNickname() {
+    return props.getProperty("test.nicker.nickname");
+  }
+
   public static String getCurrentUser() throws OdpsException, IOException {
     Odps odps = newDefaultOdps();
     String userDetail = odps.projects().get().getSecurityManager().runQuery("whoami", true);
@@ -147,6 +167,26 @@ public class OdpsTestUtils {
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
 
+    return odps;
+  }
+
+  /**
+   * 根据test.properties的设置创建一个新的Odps对象
+   *
+   * @return
+   */
+  public static Odps newTestOdps() {
+    Odps odps = null;
+
+    String accessId = props.getProperty("test.access.id");
+    String accessKey = props.getProperty("test.access.key");
+    String endpoint = props.getProperty("test.endpoint");
+    String project = props.getProperty("test.project");
+
+    Account account = new AliyunAccount(accessId, accessKey);
+    odps = new Odps(account);
+    odps.setDefaultProject(project);
+    odps.setEndpoint(endpoint);
     return odps;
   }
 

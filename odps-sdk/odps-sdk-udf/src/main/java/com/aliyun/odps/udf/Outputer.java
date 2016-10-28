@@ -6,7 +6,7 @@ import com.aliyun.odps.io.SinkOutputStream;
 import java.io.IOException;
 
 /**
- * Base outputer class, user-defined outputers shall extend from this class
+ * Base outputer class, custom outputer shall extend from this class
  **/
 public abstract class Outputer{
 
@@ -29,8 +29,8 @@ public abstract class Outputer{
   public abstract void output(Record record) throws IOException;
 
   /**
-   * Interface for cleaning up outputer before exit. The system will keep the physical output stream
-   * open until AFTER the close() call, therefore if there is anything in-memory that the user wish to
+   * Interface for cleaning up outputer before exit. The system will not attempt to close the physical output stream
+   * until AFTER the close() call, therefore if there is anything in-memory that the user wish to
    * output, it can still be done by invoking one of the write methods in SinkOutputStream
    **/
   public abstract void close();

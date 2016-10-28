@@ -107,6 +107,7 @@ public class SQLTask extends Task {
 
     if (selectResult != null) {
       CsvReader reader = new CsvReader(new StringReader(selectResult));
+      reader.setSafetySwitch(false);
       List<Record> records = new ArrayList<Record>();
       int lineCount = 0;
       String[] newline;
@@ -131,7 +132,7 @@ public class SQLTask extends Task {
           lineCount++;
         }
       } catch (IOException e) {
-        throw new OdpsException("Error when parse sql results.");
+        throw new OdpsException("Error when parse sql results.", e);
       }
       return records;
     }
@@ -335,6 +336,7 @@ public class SQLTask extends Task {
    * @return
    * @throws OdpsException
    */
+  @Deprecated
   public static List<Record> getResult(Instance instance) throws OdpsException {
     return getResult(instance, AnonymousSQLTaskName);
   }

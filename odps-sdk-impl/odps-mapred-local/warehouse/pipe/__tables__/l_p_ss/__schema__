@@ -1,0 +1,4 @@
+project=pipe
+table=l_p_ss
+columns=key:STRING,value:STRING
+partitions=p1:STRING,p2:STRING

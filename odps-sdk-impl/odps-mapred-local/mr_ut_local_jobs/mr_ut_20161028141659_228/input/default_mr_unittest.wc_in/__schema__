@@ -1,0 +1,3 @@
+project=default_mr_unittest
+table=wc_in
+columns=a:STRING,b:STRING

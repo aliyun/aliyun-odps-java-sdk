@@ -1,0 +1,3 @@
+project=odps_test_mrtask
+table=getTableInfo_out
+columns=table_info:STRING,type:STRING,colNum:BIGINT,cols:STRING,stage:STRING

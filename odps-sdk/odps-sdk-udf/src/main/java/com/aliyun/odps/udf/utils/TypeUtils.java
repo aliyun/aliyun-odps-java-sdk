@@ -16,6 +16,6 @@ public class TypeUtils{
   }
   // Note: We have two versions of OdpsType, we are getting com.aliyun.odps.OdpsType here
   public static com.aliyun.odps.OdpsType getOdpsType(String typeStr) {
-    return OdpsTypesMap.get(typeStr);
+    return OdpsTypesMap.get(typeStr.toLowerCase());
   }
 }

@@ -1,0 +1,6 @@
+<configuration>
+    <property>
+        <name>foo</name>
+        <value>bar</value>
+    </property>
+</configuration>

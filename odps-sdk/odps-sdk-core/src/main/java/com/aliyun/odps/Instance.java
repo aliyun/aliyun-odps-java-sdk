@@ -169,6 +169,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
       @XmlElement(name = "Result")
       Result result;
+
+      @XmlElement(name = "Status")
+      String status;
     }
 
     @XmlElementWrapper(name = "Tasks")
@@ -215,9 +218,21 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
   }
 
+
   @Override
   public void reload() throws OdpsException {
-    Response resp = client.request(getResource(), "GET", null, null, null);
+    reload(false);
+  }
+
+  private void reload(boolean isBlock) throws OdpsException {
+    Map<String, String> params = null;
+
+    if (isBlock) {
+      params = new HashMap<String, String>();
+      params.put("instancestatus", null);
+    }
+
+    Response resp = client.request(getResource(), "GET", params, null, null);
     model.owner = resp.getHeaders().get(Headers.ODPS_OWNER);
     String startTimeStr = resp.getHeaders().get("x-odps-start-time");
     String endTimeStr = resp.getHeaders().get("x-odps-end-time");
@@ -599,19 +614,39 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @throws OdpsException
    */
   public Map<String, TaskStatus> getTaskStatus() throws OdpsException {
+
     HashMap<String, TaskStatus> taskStatus = new HashMap<String, Instance.TaskStatus>();
 
-    HashMap<String, String> params = new HashMap<String, String>();
-    params.put("taskstatus", null);
+    // the model has enough values for task status in sync instance
+    TaskStatusModel taskStatusModel = model;
 
-    TaskStatusModel resp = client.request(TaskStatusModel.class, getResource(), "GET", params);
+    if (!isSync || !hasTaskStatus(taskStatusModel)) {
+      // async instance get task status directly
+      // task status in sync instance model may be null, get task status to keep compatibility
+      HashMap<String, String> params = new HashMap<String, String>();
+      params.put("taskstatus", null);
 
-    for (InstanceTaskModel model : resp.tasks) {
-      TaskStatus status = new TaskStatus(model);
+      // cannot assign to model, the resp below do not has such field such as model.name and so on
+      taskStatusModel = client.request(TaskStatusModel.class, getResource(), "GET", params);
+    }
+
+    for (InstanceTaskModel taskModel : taskStatusModel.tasks) {
+      TaskStatus status = new TaskStatus(taskModel);
       taskStatus.put(status.getName(), status);
     }
 
     return taskStatus;
+  }
+
+  private boolean hasTaskStatus(TaskStatusModel model) {
+    for (InstanceTaskModel taskModel : model.tasks) {
+      TaskStatus status = new TaskStatus(taskModel);
+      if (status.model.status == null) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -885,8 +920,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     return model.name;
   }
 
+
   /**
    * 获得Instance状态
+   *
    *
    * <p>
    * Instance状态如下:<br />
@@ -896,12 +933,16 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * <li>TERMINATED: 执行结束, 包括成功、失败、取消等</li>
    * </p>
    *
+   * @param isBlock 是否使用 block 模式
+   *    若启用 block 模式， 请求会被 block 住一定时间 （一般是 5s），随后再返回 instance 的状态。
+   *    若不启用，请求将会立即返回。与接口 {@link #getStatus()} 的行为一致。
+   *
    * @return 返回{@link Status.TERMINATED}
    */
-  public Status getStatus() {
+  public Status getStatus(boolean isBlock) {
     if (status != Status.TERMINATED) {
       try {
-        reload(); // always reload status until terminated
+        reload(isBlock); // always reload status until terminated
       } catch (OdpsException e) {
         throw new ReloadException(e.getMessage(), e);
       }
@@ -920,6 +961,23 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       throw new ReloadException(e.getMessage(), e);
     }
     return status;
+  }
+
+  /**
+   * 获得Instance状态
+   *
+   * <p>
+   * Instance状态如下:<br />
+   * <ul>
+   * <li>RUNNING: 正在执行</li>
+   * <li>SUSPENDED: 被挂起</li>
+   * <li>TERMINATED: 执行结束, 包括成功、失败、取消等</li>
+   * </p>
+   *
+   * @return 返回{@link Status.TERMINATED}
+   */
+  public Status getStatus() {
+   return getStatus(false);
   }
 
   /**

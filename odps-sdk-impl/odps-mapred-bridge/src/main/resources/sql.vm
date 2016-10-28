@@ -1,0 +1,87 @@
+## Hate the indentation issue! http://wiki.apache.org/velocity/VelocityWhitespaceGobbling
+## macro collist: generate comma seperated column list, with label prefix if $withLabel is true
+#macro(collist $tableInfo $prefix)
+#foreach($col in ${tableInfo.Cols})
+#if(${prefix})${prefix}#end${col}#if(${foreach.hasNext}),#end
+#end ## end foreach
+#end ## collist macro
+#macro(selist $tableInfo $aslist)
+#foreach($col in ${tableInfo.Cols})
+${col}#if(${aslist}) as ${aslist[${foreach.index}]}#end#if(${foreach.hasNext}),#end
+#end ## end foreach
+#end ## selist macro
+#macro(tblname $tableInfo)
+#if(${tableInfo.ProjectName})${tableInfo.ProjectName}.#end${tableInfo.TableName}
+#end ## selist tblname
+## macro outputColsJoined: joined output columns.
+#macro(outputColsJoined)
+#if(${ctx.isNilOutput()})nil#else
+#foreach($output_table in ${ctx.OutputTableInfos})
+#if(${ctx.multiInsert()})
+#collist($output_table "${output_table.Label}_")
+#else
+#collist($output_table)
+#end
+#if(${foreach.hasNext}),#end
+#end
+#if(${ctx.multiInsert()}),${ctx.MultidestLabel}#end ##
+#end
+#end ## outputColsJoined macro
+## macro: inputColsJoined
+#macro(inputColsJoined)
+#foreach($input_table in ${ctx.InputTableInfos})
+#collist($input_table)#break
+#end
+#end ## inputColsJoined macro
+## macro partfilter
+#macro(partfilter $tableInfo)
+#foreach ($entry in ${tableInfo.PartSpec.entrySet()})
+${entry.Key} = "${entry.Value}" #if(${foreach.hasNext}) AND #end
+#end##
+#end##
+
+FROM (
+#if(!${ctx.mapOnly()})
+    SELECT reducer_${ctx.Id}(${ctx.IntermediateColsJoined}) as (#outputColsJoined())
+    FROM (
+        SELECT ${ctx.IntermediateColsJoined}
+        FROM
+        (
+            SELECT mapper_${ctx.Id}(#inputColsJoined()) as (${ctx.IntermediateColsJoined})
+#else
+            SELECT mapper_${ctx.Id}(#inputColsJoined()) as (#outputColsJoined())
+#end##
+            FROM
+            (
+            #foreach ( $input_table in ${ctx.InputTableInfos} )
+                SELECT #selist($input_table ${ctx.InputTableInfos[0].Cols}) FROM #tblname($input_table)
+                #if (${input_table.PartSpec} && ${input_table.PartSpec.size()} > 0)
+                WHERE #partfilter($input_table)
+                #end##
+                #if(${foreach.hasNext})UNION ALL#end##
+            #end##
+
+            ) open_mr_alias1
+#if (!${ctx.mapOnly()})	
+        ) open_mr_alias2
+        DISTRIBUTE BY ${ctx.PartitionColsJoined} SORT BY ${ctx.SortColsJoined}
+    ) open_mr_alias3
+#end
+) open_mr_alias4
+#if(!${ctx.isNilOutput()})
+#foreach($output_table in ${ctx.OutputTableInfos})
+INSERT OVERWRITE TABLE #tblname($output_table)
+#if (${output_table.PartSpec} && ${output_table.PartSpec.size()} > 0)
+PARTITION(#foreach ($entry in ${output_table.PartSpec.entrySet()}) ${entry.Key} = "${entry.Value}" #if(${foreach.hasNext}),#end#end)
+#end
+#if(${ctx.multiInsert()})
+SELECT #collist($output_table "${output_table.Label}_") 
+WHERE ${ctx.MultidestLabel} = "${output_table.Label}"
+#else
+SELECT #collist($output_table) 
+#end	
+#end
+#else
+SELECT *
+#end
+;

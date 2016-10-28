@@ -89,9 +89,9 @@ public class ArgumentConverterUtils {
 
     @Override
     public void check(Object o) {
-      if (o != null && !(o instanceof Date)) {
+      if (o != null && !(o instanceof Long)) {
         throw new RuntimeException("Input data type '" + o.getClass().getName()
-                                   + "' can't cast to '" + Date.class.getName() + "'");
+                                   + "' can't cast to '" + Long.class.getName() + "'");
       }
     }
   }

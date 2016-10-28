@@ -19,39 +19,37 @@
 
 package com.aliyun.odps.task.copy;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.*;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.aliyun.odps.commons.util.TrimmedStringXmlAdapter;
 
+@XmlAccessorType(XmlAccessType.PROPERTY)
 @XmlRootElement(name = "Tunnel")
 @XmlType(name = "",
-    propOrder = {"endPoint", "odpsEndPoint", "signature", "accountType"})
+    propOrder = {"version", "odpsEndPoint", "signature", "accountType"})
 public class TunnelDatasource extends Datasource {
 
-  private String endPoint;
   private String odpsEndPoint;
   private String signature;
   private String accountType;
+  private String version = "1";
 
   TunnelDatasource() {
-
   }
 
   public TunnelDatasource(Direction direction, String project, String table, String partition) {
     super(direction == Direction.IMPORT ? "Source" : "Destination", project, table, partition);
   }
 
-  public String getEndPoint() {
-    return endPoint;
+  public String getVersion() {
+    return version;
   }
 
-  @XmlElement(name = "EndPoint")
+  @XmlElement(name = "Version")
   @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
-  public void setEndPoint(String endPoint) {
-    this.endPoint = endPoint;
+  private void setVersion(String version) {
+    this.version = version;
   }
 
   public String getSignature() {
@@ -82,6 +80,17 @@ public class TunnelDatasource extends Datasource {
   @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
   public void setOdpsEndPoint(String endPoint) {
     this.odpsEndPoint = endPoint;
+  }
+
+  @Deprecated
+  public String getEndPoint() {
+    return "";
+  }
+
+  @Deprecated
+  @XmlTransient
+  public void setEndPoint(String endPoint) {
+
   }
 }
 

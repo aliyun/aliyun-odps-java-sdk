@@ -53,7 +53,9 @@ public class SpeechSentenceSnrExtractor extends Extractor {
     }
     this.sampleRateInKHz = Double.parseDouble(sampleRateInKHzStr);
     try {
-      loadMlfLabelsFromResource(ctx.readResourceFileAsStream(mlfFileName));
+      BufferedInputStream inputStream = ctx.readResourceFileAsStream(mlfFileName);
+      loadMlfLabelsFromResource(inputStream);
+      inputStream.close();
     } catch (IOException e) {
       throw new RuntimeException("reading model from mlf failed with exception " + e.getMessage());
     }
@@ -87,6 +89,7 @@ public class SpeechSentenceSnrExtractor extends Extractor {
       throw new IllegalArgumentException("Expecting output to of schema double|string.");
     }
     int readSize = inputStream.readToEnd(buffer);
+    inputStream.close();
     double snr = computeSnr(id, buffer, readSize);
     record.setDouble(0, snr);
     record.setString(1, id);
@@ -106,7 +109,7 @@ public class SpeechSentenceSnrExtractor extends Extractor {
     String id = "";
     // here we relies on the particular format of the mlf to load labels from the file
     while ((line = br.readLine()) != null) {
-      if (line.trim() == ""){
+      if (line.trim().isEmpty()){
         continue;
       }
       if (line.startsWith("id:")){

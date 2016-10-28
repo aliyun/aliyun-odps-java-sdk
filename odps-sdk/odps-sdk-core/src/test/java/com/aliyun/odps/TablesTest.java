@@ -222,13 +222,17 @@ public class TablesTest extends TestBase {
     for (Table t : tables) {
       tableNames.add(t.getName());
     }
-    List<Table> reloadedTables = odps.tables().reloadTables(tables);
-    assertEquals(tables.size(), reloadedTables.size());
-    checkReloadResult(reloadedTables);
+    try {
+      List<Table> reloadedTables = odps.tables().reloadTables(tables);
+      assertEquals(tables.size(), reloadedTables.size());
+      checkReloadResult(reloadedTables);
 
-    List<Table> reloadedTables1 = odps.tables().loadTables(tableNames);
-    assertEquals(tableNames.size(), reloadedTables1.size());
-    checkReloadResult(reloadedTables1);
+      List<Table> reloadedTables1 = odps.tables().loadTables(tableNames);
+      assertEquals(tableNames.size(), reloadedTables1.size());
+      checkReloadResult(reloadedTables1);
+    } catch (OdpsException e) {
+      assertTrue(e.getMessage(), e.getMessage().contains("Request timeout"));
+    }
   }
 
 

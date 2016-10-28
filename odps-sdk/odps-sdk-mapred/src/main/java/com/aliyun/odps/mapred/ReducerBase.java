@@ -46,6 +46,14 @@ public class ReducerBase implements Reducer {
 
   }
 
+  public void run(TaskContext context) throws IOException {
+    setup(context);
+    while (context.nextKeyValue()) {
+      reduce(context.getCurrentKey(), context.getValues(), context);
+    }
+    cleanup(context);
+  }
+
   /**
    * @Deprecated Use {@link #setup(com.aliyun.odps.mapred.Reducer.TaskContext)} instead.
    */

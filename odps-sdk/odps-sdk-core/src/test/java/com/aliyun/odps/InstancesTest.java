@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -81,19 +82,7 @@ public class InstancesTest extends TestBase {
     assertTrue("contains stage", details.contains("Instance"));
   }
 
-  @Test
-  public void testGetTaskCost() throws OdpsException{
-    Instance.TaskCost cost = i.getTaskCost("testsqlcase");
-    if (cost != null) {
-      // external project env
-      assertNotNull(cost.getCPUCost());
-      assertNotNull(cost.getInputSize());
-      assertNotNull(cost.getMemoryCost());
-    } else {
-      // inner project has not enable metering
-      assertNull(cost);
-    }
-  }
+
 
   @Test
   public void testGetTasks() throws OdpsException {
@@ -149,6 +138,16 @@ public class InstancesTest extends TestBase {
     }
   }
 
+  @Test (expected = IllegalArgumentException.class)
+  public void testDateIllegal() throws OdpsException {
+    InstanceFilter filter = new InstanceFilter();
+    filter.setOnlyOwner(true);
+    filter.setFromTime(new Date());
+    filter.setEndTime(new Date());
+
+    odps.instances().iterator(filter).hasNext();
+  }
+
   @Test
   public void testTaskResultsWithFormat() throws OdpsException {
     int max = 50;
@@ -192,4 +191,43 @@ public class InstancesTest extends TestBase {
     i.getTaskDetailJson("testsqlcase");
   }
 
+
+  @Test
+  public void testCreateSyncInstance() throws OdpsException {
+    // suppose create table is a sync instance
+    String name = OdpsTestUtils.getRandomTableName();
+    String taskname = "testSyncInstance";
+
+    // success instance
+    SQLTask task = new SQLTask();
+    task.setQuery("create table if not exists " + name + " (test string);");
+    task.setName(taskname);
+    Instance i = odps.instances().create(task);
+
+    assertTrue(i.isSuccessful());
+    assertTrue(i.isSync());
+    assertFalse(i.getTaskResults().isEmpty());
+    assertTrue(i.isSuccessful()); // test hasTaskStatus
+
+    String result = i.getTaskResults().get(taskname);
+    assertNotNull(result);
+    System.out.println(result);
+
+    // failed instance
+    task = new SQLTask();
+    task.setQuery("create table " + name + " (test string);");
+    task.setName(taskname);
+    i = odps.instances().create(task);
+
+    assertFalse(i.isSuccessful());
+    assertTrue(i.isSync());
+    assertFalse(i.getTaskResults().isEmpty());
+    assertFalse(i.isSuccessful()); // test hasTaskStatus
+
+    result = i.getTaskResults().get(taskname);
+    assertNotNull(result);
+    System.out.println(result);
+
+    odps.tables().delete(name, true);
+  }
 }

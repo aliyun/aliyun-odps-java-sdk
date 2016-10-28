@@ -1,0 +1,4 @@
+project=odps_test_mrtask
+table=mr_srcpart
+columns=key:STRING,value:STRING
+partitions=pt:STRING,ds:STRING

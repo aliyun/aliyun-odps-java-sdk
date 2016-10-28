@@ -1,0 +1,3 @@
+project=pipe
+table=pipe_tasknum_out
+columns=key:STRING

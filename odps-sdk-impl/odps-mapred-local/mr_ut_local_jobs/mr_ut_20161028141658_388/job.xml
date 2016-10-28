@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><configuration>
+<property><name>odps.pipeline.0.output.key.sort.order</name><value>ASC</value></property>
+<property><name>odps.pipeline.0.output.key.sort.columns</name><value>word</value></property>
+<property><name>odps.pipeline.1.output.key.sort.columns</name><value>word,cnt</value></property>
+<property><name>odps.mapred.output.desc</name><value>[{"tblName":"wc_out","partSpec":{},"label":"__default__"}]</value></property>
+<property><name>odps.mapred.local.temp.dir</name><value>mr_ut_local_jobs</value></property>
+<property><name>odps.pipeline.2.output.key.sort.order</name><value/></property>
+<property><name>odps.pipeline.0.output.key.schema</name><value>word:STRING</value></property>
+<property><name>odps.mapred.output.schema.__default__</name><value>k:string,v:bigint</value></property>
+<property><name>odps.pipeline.1.output.value.schema</name><value>count:BIGINT</value></property>
+<property><name>odps.mapred.job.name</name><value>mr_ut_20161028141658_388</value></property>
+<property><name>odps.pipeline.0.output.group.columns</name><value>word</value></property>
+<property><name>odps.pipeline.list</name><value>map:com.aliyun.odps.mapred.local.pipeline.PipeLine$TokenizerMapper,reduce:com.aliyun.odps.mapred.local.pipeline.PipeLine$SumIReducer,reduce:com.aliyun.odps.mapred.local.pipeline.PipeLine$IdentityReducer</value></property>
+<property><name>odps.pipeline.0.partition.columns</name><value>word</value></property>
+<property><name>odps.pipeline.0.output.value.schema</name><value>count:BIGINT</value></property>
+<property><name>odps.pipeline.1.partition.columns</name><value>word,cnt</value></property>
+<property><name>odps.pipeline.1.output.group.columns</name><value>word,cnt</value></property>
+<property><name>odps.pipeline.1.output.key.schema</name><value>word:STRING,cnt:BIGINT</value></property>
+<property><name>odps.mapred.input.desc</name><value>[{"tblName":"wc_in","partSpec":{},"label":"__default__"}]</value></property>
+<property><name>odps.pipeline.1.output.key.sort.order</name><value>ASC,ASC</value></property>
+<property><name>odps.mapred.combine.class</name><value>com.aliyun.odps.mapred.local.pipeline.PipeLine$SumCombiner</value></property>
+</configuration>

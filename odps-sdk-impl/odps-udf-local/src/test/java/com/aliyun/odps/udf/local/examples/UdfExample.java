@@ -38,9 +38,9 @@ public class UdfExample extends UDF {
     return "sss2s:" + a + "," + b + "," + c;
   }
 
-  public String evaluate(String a, Date b) {
+  public String evaluate(String a, Long b) {
 
-    return "sss2s:" + a + "|" + TestUtils.getDateFormat(TestUtils.DATE_FORMAT_2).format(b);
+    return "sss2s:" + a + "|" + TestUtils.getDateFormat(TestUtils.DATE_FORMAT_2).format(new Date(b));
   }
 
   public Long evaluate(Long a, Long b) {

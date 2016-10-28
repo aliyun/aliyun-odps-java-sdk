@@ -60,6 +60,11 @@ public class LogView {
     }
   }
 
+  /**
+   * 获取 logview host 地址
+   *
+   * @return logview host 地址
+   */
   public String getLogViewHost() {
     if (StringUtils.isNullOrEmpty(logViewHost)) {
       logViewHost = getLogviewHost();
@@ -68,21 +73,50 @@ public class LogView {
     return logViewHost;
   }
 
+  /**
+   * 设置 logview host 地址
+   * @param logViewHost
+   *          host 地址
+   */
   public void setLogViewHost(String logViewHost) {
     this.logViewHost = logViewHost;
   }
 
+  /**
+   * 生成 logview 链接
+   *
+   * @param instance
+   *          instance 对象
+   * @param hours
+   *           token 有效时间
+   * @return  logview
+   * @throws OdpsException
+   */
   public String generateLogView(Instance instance, long hours) throws OdpsException {
     if (StringUtils.isNullOrEmpty(logViewHost)) {
       logViewHost = getLogviewHost();
     }
 
-    SecurityManager sm = odps.projects().get(instance.getProject()).getSecurityManager();
-    String policy = generatePolicy(instance, hours);
-    String token = sm.generateAuthorizationToken(policy, POLICY_TYPE);
+    String token = generateInstanceToken(instance, hours);
     String logview = logViewHost + "/logview/?h=" + odps.getEndpoint() + "&p="
                      + instance.getProject() + "&i=" + instance.getId() + "&token=" + token;
     return logview;
+  }
+
+  /**
+   * 生成带有 instance 访问权限的 token
+   *
+   * @param instance
+   *          instance 对象
+   * @param hours
+   *           token 有效时间
+   * @return  token
+   * @throws OdpsException
+   */
+  public String generateInstanceToken(Instance instance, long hours) throws OdpsException {
+    SecurityManager sm = odps.projects().get(instance.getProject()).getSecurityManager();
+
+    return sm.generateAuthorizationToken(generatePolicy(instance, hours), POLICY_TYPE);
   }
 
   private String generatePolicy(Instance instance, long hours) {

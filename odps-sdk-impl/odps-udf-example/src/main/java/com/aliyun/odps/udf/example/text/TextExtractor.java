@@ -60,42 +60,43 @@ public class TextExtractor extends Extractor {
   {
     Column[] outputColumns = this.attributes.getRecordColumns();
     ArrayRecord record = new ArrayRecord(outputColumns);
-    // string copies are needed, not the most efficient one, but suffice as an example here
-    String[] parts = line.split(columnDelimiter);
-    int[] outputIndexes = this.attributes.getNeededIndexes();
-    // when no outputIndexes are specified, will extract all columns
-    if (outputIndexes == null){
-      throw new IllegalArgumentException("No outputIndexes supplied.");
-    }
-    if (outputIndexes.length != outputColumns.length){
-      throw new IllegalArgumentException("Mismatched output schema: Expecting "
-          + outputColumns.length + " columns but get " + parts.length);
-    }
-    int index = 0;
-    for(int i = 0; i < parts.length; i++){
-      // only parse data in columns indexed by output indexes
-      if (index < outputIndexes.length && i == outputIndexes[index]){
-        switch (outputColumns[index].getType()) {
-        case STRING:
-          record.setString(index, parts[i]);
-          break;
-        case BIGINT:
-          record.setBigint(index, Long.parseLong(parts[i]));
-          break;
-        case BOOLEAN:
-          record.setBoolean(index, Boolean.parseBoolean(parts[i]));
-          break;
-        case DOUBLE:
-          record.setDouble(index, Double.parseDouble(parts[i]));
-          break;
-        case DATETIME:
-        case DECIMAL:
-        case ARRAY:
-        case MAP:
-        default:
-          throw new IllegalArgumentException("Type " + outputColumns[index].getType() + " not supported for now.");
+    if (this.attributes.getRecordColumns().length != 0){
+      // string copies are needed, not the most efficient one, but suffice as an example here
+      String[] parts = line.split(columnDelimiter);
+      int[] outputIndexes = this.attributes.getNeededIndexes();
+      if (outputIndexes == null){
+        throw new IllegalArgumentException("No outputIndexes supplied.");
+      }
+      if (outputIndexes.length != outputColumns.length){
+        throw new IllegalArgumentException("Mismatched output schema: Expecting "
+            + outputColumns.length + " columns but get " + parts.length);
+      }
+      int index = 0;
+      for(int i = 0; i < parts.length; i++){
+        // only parse data in columns indexed by output indexes
+        if (index < outputIndexes.length && i == outputIndexes[index]){
+          switch (outputColumns[index].getType()) {
+          case STRING:
+            record.setString(index, parts[i]);
+            break;
+          case BIGINT:
+            record.setBigint(index, Long.parseLong(parts[i]));
+            break;
+          case BOOLEAN:
+            record.setBoolean(index, Boolean.parseBoolean(parts[i]));
+            break;
+          case DOUBLE:
+            record.setDouble(index, Double.parseDouble(parts[i]));
+            break;
+          case DATETIME:
+          case DECIMAL:
+          case ARRAY:
+          case MAP:
+          default:
+            throw new IllegalArgumentException("Type " + outputColumns[index].getType() + " not supported for now.");
+          }
+          index++;
         }
-        index++;
       }
     }
     return record;
@@ -126,7 +127,7 @@ public class TextExtractor extends Extractor {
     return null;
   }
 
-  private BufferedReader moveToNextStream() {
+  private BufferedReader moveToNextStream() throws IOException {
     InputStream stream = inputs.next();
     if (stream == null) {
       return null;

@@ -7,13 +7,15 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps</artifactId>
-        <version>0.23.3-public</version>
+        <version>0.24.0-public</version>
     </parent>
 
     <artifactId>odps-sdk-impl</artifactId>
     <packaging>pom</packaging>
 
     <modules>
+        <module>odps-mapred-bridge</module>
+        <module>odps-mapred-local</module>
         <module>odps-graph-local</module>
         <module>odps-udf-local</module>
         <module>odps-udf-example</module>

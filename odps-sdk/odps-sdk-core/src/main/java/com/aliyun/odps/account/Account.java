@@ -43,7 +43,9 @@ public interface Account {
     // 阿里云账号
     ALIYUN,
     //LDAP账号
-    LDAP
+    LDAP,
+    // logview token
+    BEARER_TOKEN,
   }
 
   /**

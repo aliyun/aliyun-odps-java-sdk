@@ -43,6 +43,14 @@ public class MapperBase implements Mapper {
 
   }
 
+  public void run(TaskContext context) throws IOException {
+    setup(context);
+    while (context.nextRecord()) {
+      map(context.getCurrentRecordNum(), context.getCurrentRecord(), context);
+    }
+    cleanup(context);
+  }
+
   /**
    * @Deprecated Use {@link #setup(com.aliyun.odps.mapred.Mapper.TaskContext)} instead.
    */

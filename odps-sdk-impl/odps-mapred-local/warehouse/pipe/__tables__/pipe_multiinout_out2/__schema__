@@ -1,0 +1,3 @@
+project=pipe
+table=pipe_multiinout_out2
+columns=key:STRING,value:BIGINT

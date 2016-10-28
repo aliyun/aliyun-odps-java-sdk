@@ -74,6 +74,7 @@ public class SecurityManagerTest extends TestBase {
     List<User> list = sm.listUsers();
     for (User user : list) {
       Assert.assertNotNull(user.getID());
+      user.reload(); // reload user
     }
   }
 

@@ -1,0 +1,3 @@
+project=odps_test_mrtask
+table=nullsort_in
+columns=cola:BIGINT,colb:BIGINT

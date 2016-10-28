@@ -54,7 +54,7 @@ public class User extends LazyLoad {
 
   @Override
   public void reload() throws OdpsException {
-    String resource = ResourceBuilder.buildUserResource(project, model.displayName);
+    String resource = ResourceBuilder.buildUserResource(project, model.id);
     model = client.request(UserModel.class, resource, "GET");
     setLoaded(true);
   }

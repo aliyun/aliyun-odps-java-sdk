@@ -1,0 +1,3 @@
+project=odps_test_mrtask
+table=grep_temp
+columns=word:STRING,count:BIGINT

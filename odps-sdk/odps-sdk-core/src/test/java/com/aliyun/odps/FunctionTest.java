@@ -94,6 +94,7 @@ public class FunctionTest extends TestBase {
     assertEquals(function.getResourceNames().get(0), RESOURCE_NAME);
   }
 
+
   @Test(expected = NoSuchObjectException.class)
   public void getFunctionNotExist() throws OdpsException {
     Function function = odps.functions().get("NOT_EXISTS");

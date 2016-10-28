@@ -102,14 +102,22 @@ public class Table extends LazyLoad {
 
     Date lastMetaModifiedTime;
     boolean isVirtualView;
+    boolean isExternalTable;
     long life = -1L;
     long hubLifecycle = -1L;
     String viewText;
     long size;
+
     boolean isArchived;
     long physicalSize;
     long fileNum;
     Shard shard;
+
+    // for external table extended info
+    String storageHandler;
+    String location;
+    String resources;
+    Map<String, String> serDeProperties;
   }
 
   private TableModel model;
@@ -324,6 +332,16 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * 判断表是否为外部表
+   *
+   * @return 如果是外部表返回true, 否则返回false
+   */
+  public boolean isExternalTable() {
+    lazyLoad();
+    return model.isExternalTable;
+  }
+
+  /**
    * 获取视图的文本内容
    *
    * @return 文本内容
@@ -424,6 +442,58 @@ public class Table extends LazyLoad {
   public long getFileNum() {
     lazyLoadExtendInfo();
     return model.fileNum;
+  }
+
+  /**
+   * 返回外部表数据存储位置
+   *
+   * @return 外部表数据存储位置
+   */
+  public String getLocation() {
+    if (model.location == null) {
+      lazyLoadExtendInfo();
+    }
+
+    return model.location;
+  }
+
+  /**
+   * 返回外部表数据处理句柄
+   *
+   * @return 外部表数据处理句柄
+   */
+  public String getStorageHandler() {
+    if (model.storageHandler == null) {
+      lazyLoadExtendInfo();
+    }
+
+    return model.storageHandler;
+  }
+
+  /**
+   * 返回外部表使用的资源
+   *
+   * @return 外部表使用的资源
+   */
+  public String getResources() {
+    if (model.resources == null) {
+      lazyLoadExtendInfo();
+    }
+
+    return model.resources;
+  }
+
+  /**
+   * 返回外部表序列化和反序列化属性
+   *
+   * @return 外部表序列化和反序列化属性
+   */
+  public Map<String, String> getSerDeProperties() {
+    if (model.serDeProperties == null) {
+      lazyLoadExtendInfo();
+    }
+
+    return model.serDeProperties;
   }
 
   /**
@@ -530,6 +600,11 @@ public class Table extends LazyLoad {
         model.isVirtualView = node3;
       }
 
+      node3 = tree.getBoolean("isExternal");
+      if (node3 != null) {
+        model.isExternalTable = node3;
+      }
+
       node2 = tree.getLong("lifecycle");
       if (node2 != null) {
         model.life = node2;
@@ -563,6 +638,26 @@ public class Table extends LazyLoad {
       node2 = tree.getLong("FileNum");
       if (node2 != null) {
         model.fileNum = node2;
+      }
+
+      node = tree.getString("storageHandler");
+      if (node != null) {
+        model.storageHandler = node;
+      }
+
+      node = tree.getString("location");
+      if (node != null) {
+        model.location = node;
+      }
+
+      node = tree.getString("resources");
+      if (node != null) {
+        model.resources = node;
+      }
+
+      node = tree.getString("serDeProperties");
+      if (node != null) {
+        model.serDeProperties = (Map)JSON.parse(node);
       }
 
       node3 = tree.getBoolean("shardExist");

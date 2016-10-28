@@ -1,0 +1,3 @@
+project=bug
+table=iii
+columns=a1:bigint,b1:bigint,c1:bigint

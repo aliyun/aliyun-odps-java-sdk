@@ -1,15 +1,23 @@
+# 0.24.0 
+- improve sync instance
+- support external table
+- copy task support tunnel endpoint router 
+- fix `user.reload` bug, mk it work
+- add instance.getStatus(boolean )
+- optimize mr multi output
+
 # 0.23.2
 - make `OdpsHooks` thread safe
 
 # 0.23.1
 - add `tables.loadTables` and `tables.reloadTables`
 
-# 0.22.3
-- add `listRolesForUserName` and `listRolesForUserID`
-- refine `OnlineModel`
+# 0.22.3                                                                            
+- add `listRolesForUserName` and `listRolesForUserID`                               
+- refine `OnlineModel`                                                              
 
-# 0.22.2
-- fix mr get summary hang
+# 0.22.2                                                                            
+- fix mr get summary hang  
 
 # 0.22.1
 - revert instance retry, rm guid in job model

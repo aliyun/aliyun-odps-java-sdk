@@ -1,0 +1,4 @@
+project=odps_test_mrtask
+table=my_in
+columns=cola:STRING,colb:STRING,colc:STRING
+

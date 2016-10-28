@@ -69,7 +69,7 @@ public class LocalWritableUtils {
       return new DatetimeWritable(((Date) arg0).getTime());
     }
 
-    throw new LocalRunException("unsupport data type:" + arg0.getClass().getName());
+    throw new LocalRunException("unsupported data type:" + arg0.getClass().getName());
   }
 
   public static Object convert(Writable arg0) throws LocalRunException {
@@ -103,7 +103,7 @@ public class LocalWritableUtils {
       return new Date(((DatetimeWritable) arg0).get());
     }
 
-    throw new LocalRunException("unssuport date type:" + arg0.getClass().getName());
+    throw new LocalRunException("unsupported data type:" + arg0.getClass().getName());
   }
 
 }

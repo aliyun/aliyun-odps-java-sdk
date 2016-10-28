@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><configuration>
+<property><name>odps.mapred.output.schema.__default__</name><value>k:string,v:bigint</value></property>
+<property><name>odps.mapred.reduce.class</name><value>com.aliyun.odps.mapred.local.pipeline.MultiInOut$SumReducer</value></property>
+<property><name>reduce.output.num</name><value>3</value></property>
+<property><name>odps.mapred.map.class</name><value>com.aliyun.odps.mapred.local.pipeline.MultiInOut$TokenizerMapper</value></property>
+<property><name>odps.mapred.output.desc</name><value>[{"tblName":"multi_out_t1","partSpec":{},"label":"__default__"},{"tblName":"multi_out_t2","partSpec":{"a":"1","b":"1"},"label":"out1"},{"tblName":"multi_out_t2","partSpec":{"a":"2","b":"2"},"label":"out2"}]</value></property>
+<property><name>odps.stage.reducer.num</name><value>1</value></property>
+<property><name>odps.mapred.mapoutput.key.schema</name><value>key:STRING</value></property>
+<property><name>odps.mapred.job.name</name><value>mr_ut_20161028141654_970</value></property>
+<property><name>odps.mapred.mapoutput.value.schema</name><value>value:BIGINT</value></property>
+<property><name>odps.mapred.local.temp.dir</name><value>mr_ut_local_jobs</value></property>
+<property><name>odps.mapred.input.desc</name><value>[{"tblName":"multi_in_t1","partSpec":{},"label":"__default__"}]</value></property>
+<property><name>odps.mapred.output.schema.out2</name><value>k:string,v:bigint</value></property>
+<property><name>odps.mapred.output.schema.out1</name><value>k:string,v:bigint</value></property>
+</configuration>

@@ -345,20 +345,23 @@ public class Instances implements Iterable<Instance> {
 
     Map<String, Instance.Result> results = new HashMap<String, Instance.Result>();
 
+    TaskStatusModel model = new TaskStatusModel();
+    model.name = instanceId;
+
     if (resp.getStatus() == 200 && resp.getBody() != null
         && resp.getBody().length > 0) {
       try {
         InstanceResultModel result = JAXBUtils.unmarshal(resp,
                                                          InstanceResultModel.class);
-        for (TaskResult r : result.taskResults) {
-          results.put(r.name, r.result);
+        for (TaskResult taskResult : result.taskResults) {
+          model.tasks.add(createInstanceTaskModel(taskResult));
+          results.put(taskResult.name, taskResult.result);
         }
       } catch (JAXBException e) {
         throw new OdpsException("Invalid create instance response.", e);
       }
     }
-    TaskStatusModel model = new TaskStatusModel();
-    model.name = instanceId;
+
     Instance instance = new Instance(project, model, results, odps);
 
     instance.setOdpsHooks(hooks);
@@ -371,6 +374,16 @@ public class Instances implements Iterable<Instance> {
     }
 
     return instance;
+  }
+
+  private TaskStatusModel.InstanceTaskModel createInstanceTaskModel(
+      TaskResult taskResult) {
+    TaskStatusModel.InstanceTaskModel taskModel =  new TaskStatusModel.InstanceTaskModel();
+    taskModel.name = taskResult.name;
+    taskModel.status = taskResult.status;
+    taskModel.type = taskResult.type;
+
+    return taskModel;
   }
 
   private String getDefaultProjectName() {
@@ -506,6 +519,13 @@ public class Instances implements Iterable<Instance> {
         StringBuilder range = new StringBuilder();
         Date from = filter.getFromTime();
         Date end = filter.getEndTime();
+
+        if (from != null && end != null) {
+          if (from.getTime() / 1000 >= end.getTime() / 1000) {
+            throw new IllegalArgumentException(
+                "invalid query range, end value must be greater than begin value and they could not be in the same second!");
+          }
+        }
 
         if (from != null) {
           range.append(from.getTime() / 1000);

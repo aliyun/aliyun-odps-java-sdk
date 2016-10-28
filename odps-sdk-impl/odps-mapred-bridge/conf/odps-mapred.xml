@@ -1,0 +1,6 @@
+<configuration>
+    <property>
+        <name>odps.mapred.jobrunner.class</name>
+        <value>com.aliyun.openservices.odps.mapreduce.bridge.BridgeJobRunner</value>
+    </property>
+</configuration>

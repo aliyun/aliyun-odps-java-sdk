@@ -22,9 +22,12 @@ package com.aliyun.odps;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -35,6 +38,7 @@ import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.task.SQLTask;
+import com.sun.org.apache.xml.internal.utils.URI;
 
 public class TableTest extends TestBase {
 
@@ -147,6 +151,11 @@ public class TableTest extends TestBase {
     assertFalse(a.hasPartition(new PartitionSpec("p1=2,p2=3")));
     a.createPartition(new PartitionSpec("p1=2,p2=3"));
     assertTrue(a.hasPartition(new PartitionSpec("p1=2,p2=3")));
+  }
+
+  @Test
+  public void testIsExternalTable() throws OdpsException {
+    assertFalse(odps.tables().get(TABLE_NAME).isExternalTable());
   }
 
   @Test(expected = IOException.class)
@@ -365,4 +374,6 @@ public class TableTest extends TestBase {
     assertEquals("C4", Table.calculateMaxLabel(Arrays.asList(new String[]{"C4", "S2"})));
     assertEquals("L4", Table.calculateMaxLabel(Arrays.asList(new String[]{"C4", "B4", "S2"})));
   }
+
+
 }

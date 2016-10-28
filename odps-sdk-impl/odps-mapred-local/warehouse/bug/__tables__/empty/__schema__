@@ -1,0 +1,5 @@
+project=bug
+table=empty
+columns=cola:STRING,colb:STRING,colc:STRING
+partitions=p1:STRING,p2:STRING
+

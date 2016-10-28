@@ -1,0 +1,3 @@
+project=pipe
+table=pipe_plcounter_out
+columns=key:STRING,value:BIGINT
