@@ -194,12 +194,16 @@ public abstract class AbstractMapWritable implements Writable, Configurable {
 
     // Then read in the class names and add them to our tables
 
+    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     for (int i = 0; i < newClasses; i++) {
       byte id = in.readByte();
       String className = in.readUTF();
       try {
-        addToMap(Class.forName(className), id);
-
+        if (classLoader != null) {
+          addToMap(Class.forName(className, false, classLoader), id);
+        } else {
+          addToMap(Class.forName(className), id);
+        }
       } catch (ClassNotFoundException e) {
         throw new IOException("can't find class: " + className + " because "
                               + e.getMessage());

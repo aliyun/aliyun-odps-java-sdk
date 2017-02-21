@@ -25,14 +25,13 @@ import java.util.List;
  * ODPS表支持的字段类型
  */
 public enum OdpsType {
-
   /**
    * 8字节有符号整型
    */
   BIGINT,
 
   /**
-   * 8字节有符号整型
+   * 双精度浮点
    */
   DOUBLE,
 
@@ -64,8 +63,74 @@ public enum OdpsType {
   /**
    * ARRAY类型
    */
-  ARRAY;
+  ARRAY,
 
+  /**
+   * 空
+   */
+  VOID,
+
+  /**
+   * 1字节有符号整型
+   */
+  TINYINT,
+
+  /**
+   * 2字节有符号整型
+   */
+  SMALLINT,
+
+  /**
+   * 4字节有符号整型
+   */
+  INT,
+
+  /**
+   * 单精度浮点
+   */
+  FLOAT,
+
+  /**
+   * 固定长度字符串
+   */
+  CHAR,
+
+  /**
+   * 可变长度字符串
+   */
+  VARCHAR,
+
+  /**
+   * 时间类型
+   */
+  DATE,
+
+  /**
+   * 时间戳
+   */
+  TIMESTAMP,
+
+  /**
+   * 字节数组
+   */
+  BINARY,
+
+  /**
+   *  日期间隔
+   */
+  INTERVAL_DAY_TIME,
+
+  /**
+   * 年份间隔
+   */
+  INTERVAL_YEAR_MONTH,
+
+  /**
+   *
+   */
+  STRUCT;
+
+  @Deprecated
   public static String getFullTypeString(OdpsType type, List<OdpsType> genericTypeList) {
     StringBuilder sb = new StringBuilder();
     sb.append(type.toString());

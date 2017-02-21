@@ -688,7 +688,8 @@ public class TableTunnel {
           throw e;
         }
       } catch (IOException e) {
-        throw new TunnelException(e.getMessage(), e);
+        throw new TunnelException("Failed to create upload session with tunnel endpoint "
+                                  + tunnelServiceClient.getEndpoint(), e);
       } catch (TunnelException e) {
         throw e;
       } catch (OdpsException e) {
@@ -1338,7 +1339,8 @@ public class TableTunnel {
           throw e;
         }
       } catch (IOException e) {
-        throw new TunnelException(e.getMessage(), e);
+        throw new TunnelException("Failed to create download session with tunnel endpoint "
+                                  + tunnelServiceClient.getEndpoint(), e);
       } catch (TunnelException e) {
         throw e;
       } catch (OdpsException e) {

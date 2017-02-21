@@ -13,6 +13,6 @@ public class SpeechStorageHandler extends OdpsStorageHandler {
 
   @Override
   public Class<? extends Outputer> getOutputerClass() {
-    return SpeechSentenceSnrOutputer.class;
+    throw new UnsupportedOperationException();
   }
 }

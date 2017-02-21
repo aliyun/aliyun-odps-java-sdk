@@ -58,14 +58,11 @@ public class InstanceTunnel {
 
   /**
    * 在 Instance 上创建下载会话
-   * 特殊情况
-   * 1. sql 中的 limit operator 不会生效
+   *
    * 非法情况:
-   * 1. select * from 多 partition 表
-   * 2. select * from 空表
-   * 3. 非 SQlTask
-   * 4. 非 select sql
-   * 5. Task 非 Success 状态
+   * 1. 非 SQlTask
+   * 2. 非 select sql
+   * 3. Task 非 Success 状态
    *
    * @param projectName
    *     Project名
@@ -77,6 +74,26 @@ public class InstanceTunnel {
   public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID)
       throws TunnelException {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, null);
+  }
+  
+  /**
+   * 在 Instance 上创建下载会话
+   *
+   * 非法情况:
+   * 1. 非 SQlTask
+   * 2. 非 select sql
+   * 3. Task 非 Success 状态
+   *
+   * @param projectName
+   *     Project名
+   * @param instanceID
+   *     Instance ID
+   * @return {@link InstanceTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, boolean limitEnabled )
+      throws TunnelException {
+    return new InstanceTunnel.DownloadSession(projectName, instanceID, null, limitEnabled);
   }
 
   /**
@@ -145,6 +162,7 @@ public class InstanceTunnel {
     private String id;
     private String projectName;
     private long count;
+    private boolean limitEnabled;
     private TableSchema schema = new TableSchema();
     private DownloadStatus status = DownloadStatus.UNKNOWN;
     private Configuration conf;
@@ -161,11 +179,17 @@ public class InstanceTunnel {
      * @param downloadId
      *     Download的唯一标识符
      */
-    DownloadSession(String projectName, String instanceID, String downloadId) throws TunnelException {
+    public DownloadSession(String projectName, String instanceID, String downloadId) throws TunnelException {
+      this(projectName, instanceID, downloadId, false);
+    }
+    
+    private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled)
+        throws TunnelException {
       this.conf = InstanceTunnel.this.config;
       this.projectName = projectName;
       this.instanceID = instanceID;
       this.id = downloadId;
+      this.limitEnabled = limitEnabled;
 
       tunnelServiceClient = conf.newRestClient(projectName);
 
@@ -273,6 +297,10 @@ public class InstanceTunnel {
       headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
 
       params.put(TunnelConstants.DOWNLOADS, null);
+      
+      if (limitEnabled) {
+        params.put(TunnelConstants.INSTANCE_TUNNEL_LIMIT_ENABLED, null);
+      }
 
       Connection conn = null;
       try {
@@ -287,7 +315,8 @@ public class InstanceTunnel {
           throw e;
         }
       } catch (IOException e) {
-        throw new TunnelException(e.getMessage(), e);
+        throw new TunnelException("Failed to create download session with tunnel endpoint "
+                                  + tunnelServiceClient.getEndpoint(), e);
       } catch (TunnelException e) {
         throw e;
       } catch (OdpsException e) {

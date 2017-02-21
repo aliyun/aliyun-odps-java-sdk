@@ -169,7 +169,7 @@ public class TableInfo {
   }
 
   /**
-   * 获取分区路径. 分区路径是一个由/分隔,=对应的字符串. 例如ds=20131230/hr=10
+   * 获取分区路径. 分区路径是一个由/分隔,=对应的字符串, 会以／结尾. 例如ds=20131230/hr=10/
    *
    * @return 分区路径
    */
@@ -284,7 +284,11 @@ public class TableInfo {
     }
     Class<?> mapperClass = null;
     try {
-      mapperClass = Class.forName(mapperClassName, false, this.getClass().getClassLoader());
+      ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+      if (classLoader == null) {
+        classLoader = getClass().getClassLoader();
+      }
+      mapperClass = Class.forName(mapperClassName, false, classLoader);
     } catch (ClassNotFoundException e) {
       throw new RuntimeException("ODPS-0730001: ClassNotFoundException - " + e.getMessage());
     }

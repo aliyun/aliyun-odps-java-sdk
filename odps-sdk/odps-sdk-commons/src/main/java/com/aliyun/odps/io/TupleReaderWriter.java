@@ -272,8 +272,13 @@ public class TupleReaderWriter {
       case UNKNOWN:
         String clsName = in.readUTF();
         try {
-          Class<? extends Writable> cls = (Class<? extends Writable>) Class
-              .forName(clsName);
+          Class<? extends Writable> cls;
+          ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+          if (classLoader != null) {
+            cls = (Class<? extends Writable>) Class.forName(clsName, true, classLoader);
+          } else {
+            cls = (Class<? extends Writable>) Class.forName(clsName);
+          }
           Writable w = (Writable) ReflectionUtils.newInstance(cls, null);
           w.readFields(in);
           return w;

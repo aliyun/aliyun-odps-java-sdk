@@ -728,7 +728,7 @@ public class Tables implements Iterable<Table> {
     for (int i = 0; i < columns.size(); i++) {
       Column c = columns.get(i);
       sb.append("`").append(c.getName()).append("` ")
-          .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
+          .append(c.getTypeInfo().getTypeName());
       if (c.getComment() != null) {
         sb.append(" COMMENT '").append(c.getComment()).append("'");
       }
@@ -749,7 +749,7 @@ public class Tables implements Iterable<Table> {
       for (int i = 0; i < pcolumns.size(); i++) {
         Column c = pcolumns.get(i);
         sb.append(c.getName()).append(" ")
-            .append(OdpsType.getFullTypeString(c.getType(), c.getGenericTypeList()));
+            .append(c.getTypeInfo().getTypeName());
         if (c.getComment() != null) {
           sb.append(" COMMENT '").append(c.getComment()).append("'");
         }

@@ -28,6 +28,7 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
@@ -79,5 +80,12 @@ public class RestClientTest extends TestBase {
     assertTrue(odps.getRestClient().getUserAgent().contains("JavaVersion"));
     assertTrue(odps.getRestClient().getUserAgent().contains("Version"));
     assertTrue(odps.getRestClient().getUserAgent().contains("Revision"));
+  }
+
+  @Test (expected = RuntimeException.class)
+  public void testError() throws OdpsException {
+    Odps errorOdps = odps.clone();
+    errorOdps.setEndpoint("http://error");
+    errorOdps.projects().get().getCreatedTime();
   }
 }

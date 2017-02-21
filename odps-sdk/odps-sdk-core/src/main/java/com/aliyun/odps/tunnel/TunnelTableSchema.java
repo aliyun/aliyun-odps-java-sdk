@@ -19,13 +19,12 @@
 
 package com.aliyun.odps.tunnel;
 
-import java.util.Arrays;
-
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoParser;
 
 class TunnelTableSchema extends TableSchema {
 
@@ -48,46 +47,11 @@ class TunnelTableSchema extends TableSchema {
   private Column parseColumn(JSONObject column) {
     String name = column.getString("name");
     String type = column.getString("type");
+    String comment = column.getString("comment");
     Column col = null;
+    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(type);
+    col = new Column(name, typeInfo, comment);
 
-    if (type.toUpperCase().startsWith("MAP")) {
-      col = new Column(name, OdpsType.MAP);
-      col.setGenericTypeList(Arrays.asList(parseMapType(type.toUpperCase())));
-    } else if (type.toUpperCase().startsWith("ARRAY")) {
-      col = new Column(name, OdpsType.ARRAY);
-      col.setGenericTypeList(Arrays.asList(parseArrayType(type.toUpperCase())));
-    } else {
-      col = new Column(name, OdpsType.valueOf(type.toUpperCase()));
-    }
     return col;
   }
-
-  private OdpsType parseArrayType(String typeLiteral) throws IllegalArgumentException {
-    if (!typeLiteral.startsWith("ARRAY<")) {
-      throw new IllegalArgumentException("Array type should start with ARRAY<, now is " + typeLiteral);
-    }
-
-    String subTypeLiteral = typeLiteral.substring("ARRAY<".length(), typeLiteral.length() - 1);
-    OdpsType type = OdpsType.valueOf(subTypeLiteral);
-    return type;
-  }
-
-  private OdpsType[] parseMapType(String typeLiteral) throws IllegalArgumentException {
-    if (!typeLiteral.startsWith("MAP<")) {
-      throw new IllegalArgumentException("Map type should start with Map<, now is " + typeLiteral);
-    }
-
-    String subTypeLiteral = typeLiteral.substring("Map<".length(), typeLiteral.length() - 1);
-
-    String[] subTypes = subTypeLiteral.split(",");
-    if (subTypes.length != 2) {
-      throw new IllegalArgumentException("Map type's format is Map<keyType,valueType> , now is " + typeLiteral);
-    }
-
-    OdpsType[] types = new OdpsType[2];
-    types[0] = OdpsType.valueOf(subTypes[0]);
-    types[1] = OdpsType.valueOf(subTypes[1]);
-    return types;
-  }
-
 }

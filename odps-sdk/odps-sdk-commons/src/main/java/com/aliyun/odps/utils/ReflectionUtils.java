@@ -191,6 +191,7 @@ public class ReflectionUtils {
    *     Method name to search for
    * @return Method or will return null.
    */
+  @Deprecated
   public static Method findUserClassMethod(final Class<?> inClass, final String methodName) {
     Method retMethod = AccessController.doPrivileged(new PrivilegedAction<Method>() {
       public Method run() {
@@ -206,6 +207,36 @@ public class ReflectionUtils {
       }
     });
     checkMemberAccess(inClass, retMethod);
+    return retMethod;
+  }
+
+  /**
+   * Find declared methods in a class by method name
+   *
+   * @param inClass
+   *     Class to search for declared field.
+   * @param methodName
+   *     Method name to search for
+   * @return list of Methods, empty if not found.
+   */
+  public static List<Method> findUserClassMethods(final Class<?> inClass, final String methodName) {
+    List<Method> retMethod = AccessController.doPrivileged(new PrivilegedAction<List<Method>>() {
+      public List<Method> run() {
+        List<Method> methods = new ArrayList<Method>();
+        for (final Method method : inClass.getDeclaredMethods()) {
+          if (method.getName().equals(methodName)) {
+            if (!method.isAccessible()) {
+              method.setAccessible(true);
+            }
+            methods.add(method);
+          }
+        }
+        return methods;
+      }
+    });
+    for (final Method m : retMethod) {
+      checkMemberAccess(inClass, m);
+    }
     return retMethod;
   }
 

@@ -28,9 +28,11 @@ import java.util.Map;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -44,6 +46,18 @@ public class Partition extends LazyLoad {
 
     @XmlElement(name = "Column")
     private List<ColumnModel> columns = new ArrayList<ColumnModel>();
+
+    @XmlElement(name = "CreationTime")
+    @XmlJavaTypeAdapter(EpochBinding.class)
+    Date createdTime;
+
+    @XmlElement(name = "LastDDLTime")
+    @XmlJavaTypeAdapter(EpochBinding.class)
+    Date lastMetaModifiedTime;
+
+    @XmlElement(name = "LastModifiedTime")
+    @XmlJavaTypeAdapter(EpochBinding.class)
+    Date lastDataModifiedTime;
   }
 
   @XmlRootElement(name = "Column")
@@ -55,15 +69,22 @@ public class Partition extends LazyLoad {
     private String columnValue;
   }
 
+  static class EpochBinding extends JAXBUtils.DateBinding {
+    @Override
+    public Date unmarshal(String v) {
+      try {
+        return new Date(Long.parseLong(v) * 1000);
+      } catch (Exception e) {
+        return null;
+      }
+    }
+  }
+
   private PartitionModel model;
   private PartitionSpec spec;
   private String project;
   private String table;
   private RestClient client;
-
-  private Date createdTime;
-  private Date lastMetaModifiedTime;
-  private Date lastDataModifiedTime;
   private long size;
 
   private boolean isExtendInfoLoaded;
@@ -72,6 +93,9 @@ public class Partition extends LazyLoad {
   private long lifeCycle;
   private long physicalSize;
   private long fileNum;
+  // reserved json string in extended info
+  private String reserved;
+  private Table.ClusterInfo clusterInfo;
 
   Partition(PartitionModel model, String projectName, String tableName,
             RestClient client) {
@@ -101,6 +125,7 @@ public class Partition extends LazyLoad {
     this.lifeCycle = -1;
     this.physicalSize = 0;
     this.fileNum = 0;
+    this.model = new PartitionModel();
   }
 
   /**
@@ -125,8 +150,11 @@ public class Partition extends LazyLoad {
    * @return 分区创建时间
    */
   public Date getCreatedTime() {
-    lazyLoad();
-    return createdTime;
+    if (model == null || model.createdTime == null) {
+      lazyLoad();
+    }
+
+    return model.createdTime;
   }
 
   /**
@@ -135,8 +163,10 @@ public class Partition extends LazyLoad {
    * @return 分区Meta修改时间
    */
   public Date getLastMetaModifiedTime() {
-    lazyLoad();
-    return lastMetaModifiedTime;
+    if (model == null || model.lastMetaModifiedTime == null) {
+      lazyLoad();
+    }
+    return model.lastMetaModifiedTime;
   }
 
   /**
@@ -145,8 +175,10 @@ public class Partition extends LazyLoad {
    * @return 分区最后修改时间
    */
   public Date getLastDataModifiedTime() {
-    lazyLoad();
-    return lastDataModifiedTime;
+    if (model == null || model.lastDataModifiedTime == null) {
+      lazyLoad();
+    }
+    return model.lastDataModifiedTime;
   }
 
   /**
@@ -204,6 +236,32 @@ public class Partition extends LazyLoad {
     return size;
   }
 
+  /**
+   * 返回扩展信息的保留字段
+   * json 字符串
+   *
+   * @return 保留字段
+   */
+  public String getReserved() {
+    if (reserved == null) {
+      lazyLoadExtendInfo();
+    }
+    return reserved;
+  }
+
+  /**
+   * 返回 cluster range partition 的 cluster 信息
+   *
+   * @return cluster info
+   */
+  public Table.ClusterInfo getClusterInfo() {
+    if (clusterInfo == null) {
+      lazyLoadExtendInfo();
+    }
+
+    return clusterInfo;
+  }
+
   @XmlRootElement(name = "Partition")
   private static class PartitionMeta {
 
@@ -224,18 +282,19 @@ public class Partition extends LazyLoad {
     try {
       JSONObject tree = JSON.parseObject(meta.schema);
       Long node = tree.getLong("createTime");
+
       if (node != null) {
-        createdTime = new Date(node * 1000);
+        model.createdTime = new Date(node * 1000);
       }
 
       node = tree.getLong("lastDDLTime");
       if (node != null) {
-        lastMetaModifiedTime = new Date(node * 1000);
+        model.lastMetaModifiedTime = new Date(node * 1000);
       }
 
       node = tree.getLong("lastModifiedTime");
       if (node != null) {
-        lastDataModifiedTime = new Date(node * 1000);
+        model.lastDataModifiedTime = new Date(node * 1000);
       }
 
       node = tree.getLong("partitionSize");
@@ -287,10 +346,23 @@ public class Partition extends LazyLoad {
         if (node2 != null) {
           fileNum = node2;
         }
+
+        String node3 = tree.getString("Reserved");
+        if (node3 != null) {
+          reserved = node3;
+          loadReservedJson(node3);
+        }
       } catch (Exception e) {
         throw new ReloadException(e.getMessage(), e);
       }
       isExtendInfoLoaded = true;
     }
+  }
+
+  private void loadReservedJson(String reserved) {
+    JSONObject reservedJson = JSON.parseObject(reserved);
+
+    // load cluster info
+    clusterInfo = Table.parseClusterInfo(reservedJson);
   }
 }

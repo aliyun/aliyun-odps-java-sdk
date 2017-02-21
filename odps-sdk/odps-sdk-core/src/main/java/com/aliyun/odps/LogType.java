@@ -37,7 +37,17 @@ public enum LogType {
   /**
    * 标准错误日志。
    */
-  STDERR("stderr");
+  STDERR("stderr"),
+
+  WATERFALL_SUMMARY("waterfall_summary"),
+
+  HS_ERR_LOG("hs_err_*.log"),
+
+  COREINFO("coreinfo.tmp"),
+
+  JSTACK("jstack"),
+
+  PSTACK("pstack");
 
   private static final Map<String, LogType> strToEnum = new HashMap<String, LogType>();
 

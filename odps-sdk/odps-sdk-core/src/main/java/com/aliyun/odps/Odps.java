@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.commons.transport.DefaultTransport;
+import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
 
 /**
@@ -76,6 +77,8 @@ public class Odps {
   private Volumes volumes;
   private Topologies topologies;
   private StreamJobs streamJobs;
+  private XFlows xflows;
+  private OfflineModels offlineModels;
 
   /* RestClient instance */
   protected RestClient client;
@@ -112,6 +115,8 @@ public class Odps {
     volumes = new Volumes(client);
     topologies = new Topologies(this);
     streamJobs = new StreamJobs(this);
+    xflows = new XFlows(this);
+    offlineModels = new OfflineModels(this);
   }
 
   public Odps(Odps odps) {
@@ -279,6 +284,14 @@ public class Odps {
    */
   public LogView logview() {
     return new LogView(this);
+  }
+
+  public XFlows xFlows() {
+    return xflows;
+  }
+
+  public OfflineModels offlineModels() {
+    return offlineModels;
   }
 
   @Override

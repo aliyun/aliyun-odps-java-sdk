@@ -18,6 +18,7 @@
 
 package com.aliyun.odps.utils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetAddress;
@@ -29,6 +30,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -42,10 +44,27 @@ public class StringUtils {
 
   private static final DecimalFormat decimalFormat;
 
+  private static final BitSet PRINTABLE_CHARS = new BitSet(256);
+
+  private static final byte PRINTABLE_ESCAPE_CHAR = '=';
+
   static {
     NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.ENGLISH);
     decimalFormat = (DecimalFormat) numberFormat;
     decimalFormat.applyPattern("#.##");
+
+    // Static initializer for printable chars collection
+    for (int i = 33; i <= 60; i++) {
+      // alpha characters
+      PRINTABLE_CHARS.set(i);
+    }
+    // ignore 61(=)
+    for (int i = 62; i <= 123; i++) {
+      PRINTABLE_CHARS.set(i);
+    }
+    // ignore 127(DEL) and 124(|)
+    PRINTABLE_CHARS.set(125);
+    PRINTABLE_CHARS.set(126);
   }
 
   /**
@@ -94,16 +113,16 @@ public class StringUtils {
     double result = number;
     String suffix = "";
     if (absNumber < 1024) {
-      // nothing
+      return String.valueOf(number);
     } else if (absNumber < 1024 * 1024) {
       result = number / 1024.0;
-      suffix = "k";
+      suffix = "K";
     } else if (absNumber < 1024 * 1024 * 1024) {
       result = number / (1024.0 * 1024);
-      suffix = "m";
+      suffix = "M";
     } else {
       result = number / (1024.0 * 1024 * 1024);
-      suffix = "g";
+      suffix = "G";
     }
     return oneDecimal.format(result) + suffix;
   }
@@ -921,5 +940,30 @@ public class StringUtils {
   
   public static boolean equals(String str1, String str2) {
       return str1 == null ? str2 == null : str1.equals(str2);
+  }
+
+  public static final byte[] encodeQuotedPrintable(final byte[] bytes) {
+    if (bytes == null) {
+      return null;
+    }
+
+    final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    for (final byte c : bytes) {
+      int b = c;
+      if (b < 0) {
+        b = 256 + b;
+      }
+      if (PRINTABLE_CHARS.get(b)) {
+        buffer.write(b);
+      } else {
+        buffer.write(PRINTABLE_ESCAPE_CHAR);
+        final char hex1 = Character.toUpperCase(Character.forDigit((b >> 4) & 0xF, 16));
+        final char hex2 = Character.toUpperCase(Character.forDigit(b & 0xF, 16));
+        buffer.write(hex1);
+        buffer.write(hex2);
+      }
+    }
+
+    return buffer.toByteArray();
   }
 }

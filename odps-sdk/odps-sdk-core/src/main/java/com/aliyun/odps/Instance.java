@@ -20,6 +20,7 @@
 package com.aliyun.odps;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -149,6 +150,16 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     @XmlElement(name = "Status")
     String status;
+  }
+
+  @XmlRootElement
+  private static class InstanceDebugModel {
+
+    @XmlElement(name = "LogId")
+    String logId;
+
+    @XmlElement(name = "DebugId")
+    String debugId;
   }
 
   /**
@@ -444,6 +455,30 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
 
     return null;
+  }
+
+  /**
+   * 获得 Instance 中 Task 运行时的指定相关信息
+   *
+   * @param taskName
+   *     指定的TaskName
+   * @param infoKey
+   *     指定相关信息的标志符
+   * @return 相关信息
+   * @throws OdpsException
+   */
+  public String getTaskInfo(String taskName, String infoKey) throws OdpsException {
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("info", null);
+    params.put("taskname", taskName);
+    params.put("key", infoKey);
+
+    Response result = client.request(getResource(), "GET", params, null, null);
+    try {
+      return new String(result.getBody(), "utf-8");
+    } catch (UnsupportedEncodingException e) {
+      throw new OdpsException(e);
+    }
   }
 
   /**
@@ -1147,5 +1182,94 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     params.put("taskname", taskName);
     Response result = client.request(getResource(), "GET", params, null, null);
     return new String(result.getBody());
+  }
+
+  /**
+   * 获取 task 运行 quota group 信息以及 quota group 中作业排队情况
+   *
+   * 注意，此接口的调用频率受限，两次调用间隔不能少于 30s, 否则返回字符串为 {}。
+   *
+   * @param taskName
+   * @return task quota 相关信息
+   *
+   * 返回的字符串为 json 格式，下面给出一个例子：
+   * {"quotaInfos": {   // 格式为 [ odps task 中 fuxi job 名称, fuxi job quota infos]
+   *      "job0":       // fuxi job 名称
+   *          "{
+   *             "AmWaitingResInfo":   // 本 fuxi job 中 fuxi task 的资源使用情况 [taskId, info]
+   *             [[0,                  // fuxi task id
+   *                {
+   *                  "RunningInstanceNum": 1, // fuxi task  中正在运行的 instance 数量
+   *                  "SlotDesc": {},          // 一个最小资源单元的描述
+   *                  "SuId": 0,               // fuxi task id
+   *                  "TotalInstanceNum": 1,   // fuxi task 中运行的 fuxi instance 数量
+   *                  "totalAheadResourceDesire": {}, // 等待队列中，排在本 fuxi task 之前的 task 所需资源总和，资源包括 CPU 和 memory
+   *                  "totalAheadTaskNum": 0,         // 等待队列中，排在本 fuxi task 之前的 task 数量
+   *                  "waitingQueueItemInfo": {}   // 排在本 fuxi task 之前的等待的 job 队列所需资源信息 [jobname, info(cpu,mem)]
+   *              }]],
+   *              "GroupAlias": "ttt",      // odps task 运行所在 quota 组名称
+   *              "GroupId": 1,                // odps task 运行所在 quota 组 id
+   *              "GroupMaxQuota": {           // quota 组可用资源上限
+   *                  "CPU": 67200,
+   *                  "Memory": 2437512},
+   *              "GroupRequest": {            // 当前 quota 组中 job 申请资源的总和
+   *                  "CPU": 100,
+   *                  "Memory": 2068},
+   *              "RuntimeQuota": {            // quota 组当前可被使用的资源总值
+   *                  "CPU": 100,
+   *                  "Memory": 2068},
+   *              "UsedQuota": {               // quota 组当前已经被使用的资源总值
+   *                  "CPU": 100,
+   *                  "Memory": 2068}}"        // 空闲 quota = RuntimeQuota - UsedQuota
+   *       }
+   * }
+   *
+   * @throws OdpsException
+   */
+
+  public String getTaskQuotaJson(String taskName) throws OdpsException {
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("instancequota", null);
+    params.put("taskname", taskName);
+    Response result = client.request(getResource(), "GET", params, null, null);
+    return new String(result.getBody());
+  }
+
+  /**
+   * 以 debug 模式，启动 instance
+   *
+   * 本接口是提供给内部 debug 工具使用的，不建议用户直接使用
+   *
+   * @param workerId
+   *     Worker ID，{@link Task} 内Worker的唯一标示。
+   * @param debugId
+   *     Debug ID, 标志此次 debug
+   * @return 启动的结果
+   * @throws OdpsException
+   */
+  public String startDebug(String workerId, String debugId) throws OdpsException {
+
+    if (workerId == null) {
+      throw new OdpsException("Missing argument: workerId");
+    }
+
+    if (debugId == null) {
+      throw new OdpsException("Missing argument: debugId");
+    }
+
+    InstanceDebugModel model = new InstanceDebugModel();
+    model.debugId = debugId;
+    model.logId = workerId;
+
+    try {
+      String body = JAXBUtils.marshal(model, InstanceDebugModel.class);
+      HashMap<String, String> headers = new HashMap<String, String>();
+      headers.put(Headers.CONTENT_TYPE, "application/xml");
+
+      Response resp = client.stringRequest(getResource() + "/debug", "POST", null, headers, body);
+      return new String(resp.getBody());
+    } catch (Exception e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
   }
 }

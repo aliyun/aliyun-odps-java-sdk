@@ -46,6 +46,8 @@ import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoParser;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
@@ -111,6 +113,8 @@ public class Table extends LazyLoad {
     boolean isArchived;
     long physicalSize;
     long fileNum;
+    // reserved json string in extended info
+    String reserved;
     Shard shard;
 
     // for external table extended info
@@ -118,6 +122,55 @@ public class Table extends LazyLoad {
     String location;
     String resources;
     Map<String, String> serDeProperties;
+
+    // for clustered info
+    ClusterInfo clusterInfo;
+  }
+
+  public static class ClusterInfo {
+    long bucketNum = -1;
+
+    String clusterType;
+    List<String> clusterCols;
+    List<SortColumn> sortCols;
+
+    public String getClusterType() {
+      return clusterType;
+    }
+
+    public long getBucketNum() {
+      return bucketNum;
+    }
+
+    public List<String> getClusterCols() {
+      return clusterCols;
+    }
+
+    public List<SortColumn> getSortCols() {
+      return sortCols;
+    }
+  }
+
+  static class SortColumn {
+    private String name;
+    private  String order;
+
+    SortColumn(String name, String order) {
+      this.name = name;
+      this.order = order;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getOrder() {
+      return order;
+    }
+
+    public String toString() {
+      return String.format("%s %s", name, order);
+    }
   }
 
   private TableModel model;
@@ -496,6 +549,33 @@ public class Table extends LazyLoad {
     return model.serDeProperties;
   }
 
+
+  /**
+   * 返回扩展信息的保留字段
+   * json 字符串
+   *
+   * @return 保留字段
+   */
+  public String getReserved() {
+    if (model.reserved == null) {
+      lazyLoadExtendInfo();
+    }
+    return model.reserved;
+  }
+
+  /**
+   * 返回 cluster range 表的 cluster 信息
+   *
+   * @return cluster info
+   */
+  public ClusterInfo getClusterInfo() {
+    if (model.clusterInfo == null) {
+      lazyLoadExtendInfo();
+    }
+
+    return model.clusterInfo;
+  }
+
   /**
    * 返回Shard
    *
@@ -697,11 +777,54 @@ public class Table extends LazyLoad {
         }
       }
 
+      node = tree.getString("Reserved");
+      if (node != null) {
+        model.reserved = node;
+        loadReservedJson(node);
+      }
+
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage(), e);
     }
 
     return s;
+  }
+
+  private void loadReservedJson(String reserved) {
+    JSONObject reservedJson = JSON.parseObject(reserved);
+
+    // load cluster info
+    model.clusterInfo = parseClusterInfo(reservedJson);
+  }
+
+  public static ClusterInfo parseClusterInfo(JSONObject jsonObject) {
+    if (jsonObject.getString("ClusterType") == null) {
+      return null;
+    }
+
+    ClusterInfo clusterInfo = new ClusterInfo();
+    clusterInfo.clusterType = jsonObject.getString("ClusterType");
+    clusterInfo.bucketNum = jsonObject.getLong("BucketNum");
+    JSONArray array = jsonObject.getJSONArray("ClusterCols");
+    if (array != null) {
+      clusterInfo.clusterCols = new ArrayList<String>();
+      for (int i = 0; i < array.size(); ++i) {
+        clusterInfo.clusterCols.add(array.getString(i));
+      }
+    }
+
+    array = jsonObject.getJSONArray("SortCols");
+    if (array != null) {
+      clusterInfo.sortCols = new ArrayList<SortColumn>();
+      for (int i = 0; i < array.size(); ++i) {
+        JSONObject obj = array.getJSONObject(i);
+        if (obj != null) {
+          clusterInfo.sortCols.add(new SortColumn(obj.getString("col"), obj.getString("order")));
+        }
+      }
+    }
+
+    return clusterInfo;
   }
 
   /**
@@ -965,25 +1088,15 @@ public class Table extends LazyLoad {
   private Column parseColumn(JSONObject node) {
     String name = node.getString("name");
     String typeString = node.getString("type").toUpperCase();
-    List<OdpsType> genericTypeList = null;
-    if (typeString.contains("<")) {
-      String[] result = typeString.split("<", 2);
-      typeString = result[0];
-      String genericTypeListString = result[1];
+    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
 
-      genericTypeListString = genericTypeListString.replace(">", "");
-      genericTypeList = new ArrayList<OdpsType>();
-      for (String st : genericTypeListString.split(",")) {
-        genericTypeList.add(OdpsType.valueOf(st));
-      }
-    }
-    OdpsType type = OdpsType.valueOf(typeString);
     String comment = node.getString("comment");
     String label = null;
     if (node.containsKey("label") && (!node.getString("label").isEmpty())) {
       label = node.getString("label");
     }
-    return new Column(name, type, comment, label, genericTypeList);
+
+    return new Column(name, typeInfo, comment, label);
   }
 
   private void lazyLoadExtendInfo() {

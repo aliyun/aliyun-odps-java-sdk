@@ -20,6 +20,7 @@
 package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
@@ -57,4 +58,19 @@ public class ProjectTest extends TestBase {
     Project p = odps.projects().get();
     assertTrue(p.getProperties().containsKey("buid"));
   }
+
+  @Test
+  public void testGetTunnelEndpoint() throws Exception {
+    String server = odps.projects().get().getTunnelEndpoint();
+    assertNotNull(server);
+    System.out.println(server);
+
+    try {
+      odps.projects().get("not_exists").getTunnelEndpoint();
+      assertNotNull("Expect exception when project not found", null);
+    } catch (OdpsException e) {
+      assertTrue(e.getMessage().contains("not found"));
+    }
+  }
+
 }

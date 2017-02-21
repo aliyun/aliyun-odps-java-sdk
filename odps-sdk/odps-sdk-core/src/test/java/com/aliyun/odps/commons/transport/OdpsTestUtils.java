@@ -31,6 +31,7 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
@@ -254,11 +255,29 @@ public class OdpsTestUtils {
     odps.setEndpoint(props.getProperty("https.endpoint"));
     return odps;
   }
-
-  // return table name
+  
+  public static void createEmptyTableWithEmptyPartitionForTest(String tableName, String partValue)
+      throws TunnelException, OdpsException, IOException {
+    createEmptyTableWithEmptyPartitionForTest(newDefaultOdps(), tableName, partValue);
+  }
+ 
+  public static void createEmptyTableWithEmptyPartitionForTest(Odps odps,String tableName, String partValue) throws TunnelException, OdpsException,                                                              IOException {
+   if (!odps.tables().exists(tableName)) {
+     TableSchema schema = new TableSchema();
+     schema.addColumn(new Column("c1", OdpsType.BIGINT));
+     schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
+     odps.tables().create(tableName, schema);
+     odps.tables().get(tableName).createPartition(new PartitionSpec("p1='"+partValue+"'"));    
+   }
+  }
+  
   public static void createTableForTest(String tableName) throws TunnelException, OdpsException,
+      IOException {
+    createTableForTest(newDefaultOdps(), tableName);
+  }
+
+  public static void createTableForTest(Odps odps, String tableName) throws TunnelException, OdpsException,
                                                                  IOException {
-    Odps odps = newDefaultOdps();
     if (!odps.tables().exists(tableName)) {
       TableSchema schema = new TableSchema();
       schema.addColumn(new Column("c1", OdpsType.BIGINT));
@@ -282,9 +301,13 @@ public class OdpsTestUtils {
       session.commit(blocks);
     }
   }
-
+  
   public static void createBigTableForTest(String tableName) throws OdpsException, IOException {
-    Odps odps = newDefaultOdps();
+    createBigTableForTest(newDefaultOdps(), tableName);
+  }
+
+
+  public static void createBigTableForTest(Odps odps, String tableName) throws OdpsException, IOException {
     if (!odps.tables().exists(tableName)) {
       TableSchema schema = new TableSchema();
       schema.addColumn(new Column("c1", OdpsType.BIGINT));
@@ -297,11 +320,11 @@ public class OdpsTestUtils {
       Record record;
       for (int i = 0; i < 10009; ++i) {
         record = session.newRecord();
-        record.set(0, 1L);
+        record.set(0, Long.valueOf(i));
         rw.write(record);
       }
       record = session.newRecord();
-      record.set(0, 0L);
+      record.set(0, 10009L);
       rw.write(record);
       rw.close();
       Long[] blocks = {0L};

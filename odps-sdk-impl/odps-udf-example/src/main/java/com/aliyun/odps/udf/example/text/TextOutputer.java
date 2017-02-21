@@ -1,6 +1,7 @@
 package com.aliyun.odps.udf.example.text;
 
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.io.OutputStreamSet;
 import com.aliyun.odps.io.SinkOutputStream;
 import com.aliyun.odps.udf.DataAttributes;
 import com.aliyun.odps.udf.ExecutionContext;
@@ -25,10 +26,10 @@ public class TextOutputer extends Outputer {
 
   // no particular usage of execution context in this example
   @Override
-  public void setup(ExecutionContext ctx, SinkOutputStream outputStream, DataAttributes attributes) {
-    this.outputStream = outputStream;
+  public void setup(ExecutionContext ctx, OutputStreamSet outputStreamSet, DataAttributes attributes) {
+    this.outputStream = outputStreamSet.next();
     this.attributes = attributes;
-    }
+  }
 
   @Override
   public void close() {

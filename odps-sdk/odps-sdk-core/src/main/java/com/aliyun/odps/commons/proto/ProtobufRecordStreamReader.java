@@ -23,6 +23,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,13 +34,25 @@ import org.xerial.snappy.SnappyFramedInputStream;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.Survey;
 import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.tunnel.io.Checksum;
-import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.ArrayRecord;
+import com.aliyun.odps.data.Binary;
+import com.aliyun.odps.data.Char;
+import com.aliyun.odps.data.IntervalDayTime;
+import com.aliyun.odps.data.IntervalYearMonth;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
+import com.aliyun.odps.data.SimpleStruct;
+import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.data.Varchar;
+import com.aliyun.odps.tunnel.io.Checksum;
+import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.MapTypeInfo;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 
@@ -162,83 +175,130 @@ public class ProtobufRecordStreamReader implements RecordReader {
 
       crc.update(i);
 
-      switch (columns[i - 1].getType()) {
-        case DOUBLE: {
-          double v = in.readDouble();
-          crc.update(v);
-          reuseRecord.setDouble(i - 1, v);
-          break;
-        }
-        case BOOLEAN: {
-          boolean v = in.readBool();
-          crc.update(v);
-          reuseRecord.setBoolean(i - 1, v);
-          break;
-        }
-        case BIGINT: {
-          long v = in.readSInt64();
-          crc.update(v);
-          reuseRecord.setBigint(i - 1, v);
-          break;
-        }
-        case STRING: {
-          int size = in.readRawVarint32();
-          byte[] bytes = in.readRawBytes(size);
-          crc.update(bytes, 0, bytes.length);
-          reuseRecord.setString(i - 1, bytes);
-          bytesReaded += in.getTotalBytesRead();
-          in.resetSizeCounter();
-          break;
-        }
-        case DATETIME: {
-          long v = in.readSInt64();
-          crc.update(v);
-          reuseRecord.setDatetime(i - 1, DateUtils.ms2date(v));
-          break;
-        }
-        case DECIMAL: {
-          int size = in.readRawVarint32();
-          byte[] bytes = in.readRawBytes(size);
-          crc.update(bytes, 0, bytes.length);
-          BigDecimal decimal = new BigDecimal(new String(bytes, "UTF-8"));
-          reuseRecord.setDecimal(i - 1, decimal);
-          break;
-        }
-        case ARRAY: {
-          List<OdpsType> genericTypeList = columns[i - 1].getGenericTypeList();
-          if ((genericTypeList == null) || (genericTypeList.isEmpty())) {
-            throw new IOException("Failed to get OdpsType inside Array of column index: " + (i - 1));
-          }
-
-          if (reuseRecord instanceof ArrayRecord) {
-            ((ArrayRecord) reuseRecord).setArray(i - 1, readArray(genericTypeList.get(0)));
-          } else {
-            throw new IOException("Only ArrayRecord support Array type: " + reuseRecord.getClass().getName());
-          }
-          break;
-        }
-        case MAP: {
-          List<OdpsType> genericTypeList = columns[i - 1].getGenericTypeList();
-          if ((genericTypeList == null) || (genericTypeList.isEmpty()) || (genericTypeList.size() < 2)) {
-            throw new IOException("Failed to get OdpsType inside Map of column index: " + (i - 1));
-          }
-
-          if (reuseRecord instanceof ArrayRecord) {
-            ((ArrayRecord) reuseRecord)
-                .setMap(i - 1, readMap(genericTypeList.get(0), genericTypeList.get(1)));
-          } else {
-            throw new IOException("Only ArrayRecord support Map type: " + reuseRecord.getClass().getName());
-          }
-          break;
-        }
-        default:
-          throw new IOException("Unsupported type " + columns[i - 1].getType());
-      }
+      reuseRecord.set(i - 1, readField(columns[i - 1].getTypeInfo()));
     }
     bytesReaded += in.getTotalBytesRead();
     in.resetSizeCounter();
     count++;
     return reuseRecord;
+  }
+
+  private Object readField(TypeInfo type) throws IOException {
+    switch (type.getOdpsType()) {
+      case DOUBLE: {
+        double v = in.readDouble();
+        crc.update(v);
+        return v;
+      }
+      case FLOAT: {
+        float v = in.readFloat();
+        crc.update(v);
+        return v;
+      }
+      case BOOLEAN: {
+        boolean v = in.readBool();
+        crc.update(v);
+        return v;
+      }
+      case BIGINT: {
+        long v = in.readSInt64();
+        crc.update(v);
+        return v;
+      }
+      case INTERVAL_YEAR_MONTH: {
+        long v = in.readSInt64();
+        crc.update(v);
+        return new IntervalYearMonth((int) v);
+      }
+      case INT: {
+        long v = in.readSInt64();
+        crc.update(v);
+        return (int)v;
+      }
+      case SMALLINT: {
+        long v = in.readSInt64();
+        crc.update(v);
+        return (short) v;
+      }
+      case TINYINT: {
+        long v = in.readSInt64();
+        crc.update(v);
+        return (byte) v;
+      }
+      case STRING: {
+        return readString();
+      }
+      case VARCHAR: {
+        return new Varchar(readString());
+      }
+      case CHAR: {
+        return new Char(readString());
+      }
+      case BINARY:{
+        return new Binary(readBytes());
+      }
+      case DATETIME:{
+        long v = in.readSInt64();
+        crc.update(v);
+        return DateUtils.ms2date(v);
+      }
+      case DATE: {
+        long v = in.readSInt64();
+        crc.update(v);
+        // translate to sql.date
+        return DateUtils.fromDayOffset(v);
+      }
+      case INTERVAL_DAY_TIME: {
+        long time = in.readSInt64();
+        int nano = in.readSInt32();
+        crc.update(time);
+        crc.update(nano);
+        return new IntervalDayTime(time, nano);
+      }
+      case TIMESTAMP: {
+        long time = in.readSInt64();
+        int nano = in.readSInt32();
+        crc.update(time);
+        crc.update(nano);
+        Timestamp t = new Timestamp(time * 1000);
+        t.setNanos(nano);
+        return t;
+      }
+      case DECIMAL: {
+        int size = in.readRawVarint32();
+        byte[] bytes = in.readRawBytes(size);
+        crc.update(bytes, 0, bytes.length);
+        BigDecimal decimal = new BigDecimal(new String(bytes, "UTF-8"));
+        return decimal;
+      }
+      case ARRAY: {
+        return readArray(((ArrayTypeInfo) type).getElementTypeInfo());
+      }
+      case MAP: {
+        MapTypeInfo mapTypeInfo = (MapTypeInfo) type;
+        return readMap(mapTypeInfo.getKeyTypeInfo(), mapTypeInfo.getValueTypeInfo());
+      }
+      case STRUCT: {
+        return readStruct(type);
+      }
+      default:
+        throw new IOException("Unsupported type " + type.getTypeName());
+    }
+  }
+
+  private String readString() throws IOException {
+    byte[] bytes = readBytes();
+    return new String(bytes, "utf-8");
+  }
+
+  private byte[] readBytes() throws IOException {
+    int size = in.readRawVarint32();
+    byte[] bytes = in.readRawBytes(size);
+    crc.update(bytes, 0, bytes.length);
+    bytesReaded += in.getTotalBytesRead();
+    in.resetSizeCounter();
+
+    return bytes;
   }
 
   static int getTagFieldNumber(CodedInputStream in) throws IOException {
@@ -265,6 +325,63 @@ public class ProtobufRecordStreamReader implements RecordReader {
     return bytesReaded;
   }
 
+  public Struct readStruct(TypeInfo type) throws IOException {
+    StructTypeInfo typeInfo = (StructTypeInfo) type;
+    List<Object> values = new ArrayList<Object>();
+    List<TypeInfo> fieldTypeInfos = typeInfo.getFieldTypeInfos();
+
+    for (int i = 0; i < typeInfo.getFieldCount(); ++i) {
+      if (in.readBool()) {
+        values.add(null);
+      } else {
+        values.add(readField(fieldTypeInfos.get(i)));
+      }
+    }
+
+    return new SimpleStruct(typeInfo, values);
+  }
+
+  public List readArray(TypeInfo type) throws IOException {
+    OdpsType t = type.getOdpsType();
+    if ((t == OdpsType.ARRAY) ||  (t == OdpsType.MAP) || (t == OdpsType.STRUCT)) {
+      throw new IOException("Unsupported array type: " + t);
+    }
+
+    int arraySize = in.readUInt32();
+    List list = new ArrayList();
+
+    for (int i = 0; i < arraySize; i++) {
+      if (in.readBool()) {
+        list.add(null);
+      } else {
+        list.add(readField(type));
+      }
+    }
+
+    return list;
+  }
+
+  public Map readMap(TypeInfo keyType, TypeInfo valueType) throws IOException {
+    List keyArray = readArray(keyType);
+    List valueArray = readArray(valueType);
+    if (keyArray.size() != valueArray.size()) {
+      throw new IOException("Read Map error: key value does not match.");
+    }
+
+    Map map = new HashMap();
+    for (int i = 0; i < keyArray.size(); i++) {
+      map.put(keyArray.get(i), valueArray.get(i));
+    }
+
+    return map;
+  }
+
+  /**
+   * remain this func to keep compatibility
+   * The func param is OdpsType, so it cannot support complex types
+   * @see #readArray(TypeInfo), it supports all types
+   */
+  @Survey
   public List readArray(OdpsType type) throws IOException {
     int arraySize = in.readUInt32();
     List list = null;
@@ -334,6 +451,12 @@ public class ProtobufRecordStreamReader implements RecordReader {
     return list;
   }
 
+  /**
+   * Remain this func to keep compatibility
+   * The func param is OdpsType, so it cannot support complex types
+   * @see #readMap(TypeInfo, TypeInfo), it supports all types
+   */
+  @Survey
   public Map readMap(OdpsType keyType, OdpsType valueType) throws IOException {
     List keyArray = readArray(keyType);
     List valueArray = readArray(valueType);

@@ -20,12 +20,15 @@
 package com.aliyun.odps.task;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.aliyun.odps.Column;
@@ -35,7 +38,6 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.TestBase;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
-import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.TunnelException;
 
@@ -43,6 +45,21 @@ import com.aliyun.odps.tunnel.TunnelException;
  * Created by nizheming on 15/4/24.
  */
 public class SQLTaskTest extends TestBase {
+  
+  @BeforeClass
+  public static void testInstanceTunnel() throws OdpsException, IOException {
+//    Map<String, String> hints = new HashMap<String, String>();
+//    hints.put("odps.sql.preparse.odps2", "true");
+//    hints.put("odps.sql.planner.parser.odps2", "true");
+//    hints.put("odps.sql.planner.mode", "lot");
+//    hints.put("odps.compiler.output.format", "lot,pot");
+//    hints.put("odps.compiler.playback", "true");
+//    hints.put("odps.compiler.warning.disable", "false");
+//    hints.put("odps.sql.ddl.odps2", "true");
+//    hints.put("odps.sql.runtime.mode", "EXECUTIONENGINE");
+//    hints.put("odps.sql.sqltask.new", "true");
+//    SQLTask.setDefaultHints(hints);
+  }
 
   @Test
   public void testCreatePriority() throws OdpsException {
@@ -88,6 +105,7 @@ public class SQLTaskTest extends TestBase {
                              "select * from test_select_sql_test_from_tunnel;", taskName, null,
                              null);
     i.waitForSuccess();
+    System.out.println(i.getId());
     List<Record> records = SQLTask.getResultByInstanceTunnel(i, taskName);
     // get all res
     assertEquals(21, records.size());
@@ -112,44 +130,79 @@ public class SQLTaskTest extends TestBase {
 
     i = SQLTask.run(odps, odps.getDefaultProject(), "select * from " + tableName + ";", null, null);
     i.waitForSuccess();
-
+    
+    records = SQLTask.getResult(i);
+    assertEquals(10000, records.size());
+    
+    assertEquals(OdpsType.STRING, records.get(0).getColumns()[0].getType());
+    
     records = SQLTask.getResultByInstanceTunnel(i);
     assertEquals(10000, records.size());
+    
+    assertEquals(OdpsType.BIGINT, records.get(0).getColumns()[0].getType());
 
-    records = SQLTask.getResultByInstanceTunnel(i, 10003L);
+    Iterator<Record> it = SQLTask.getResultSet(i);
+    records = new ArrayList<Record>();
+    while(it.hasNext()){
+      records.add(it.next());
+    }
+    
+    assertEquals(OdpsType.BIGINT, records.get(0).getColumns()[0].getType()); 
+    assertEquals(10010, records.size());
+    assertEquals(1l, records.get(1).get(0));
+    assertEquals(5000l, records.get(5000).get(0));   
+    assertEquals(10008l, records.get(10008).get(0));   
+    assertEquals(10009l, records.get(10009).get(0));   
+
+    it = SQLTask.getResultSet(i,10003L);
+    records = new ArrayList<Record>();
+    while(it.hasNext()){
+      records.add(it.next());
+    }
     assertEquals(10003, records.size());
 
-    records = SQLTask.getResultByInstanceTunnel(i, 10011L);
+    
+    it = SQLTask.getResultSet(i,10011L);
+    records = new ArrayList<Record>();
+    while(it.hasNext()){
+      records.add(it.next());
+    }
     assertEquals(10010, records.size());
 
-    records = SQLTask.getResultByInstanceTunnel(i, 10L);
-    assertEquals(10, records.size());
-  }
-
-  @Test
-  public void testQueryLimit() throws Exception {
-    Method getQueryLimit = SQLTask.class.getDeclaredMethod("getLimitCount", String.class);
-    getQueryLimit.setAccessible(true);
-
-    String positive [] =
-        {"select * from a limit\t 3 \r\n;", "select xxx from xxx limit 3;",
-         "select xxx from xxx limit 3", "select xxx from xxx \rlimit\n 3\t\r\n"};
-
-    for (String pos : positive) {
-      assertEquals(getQueryLimit.invoke(SQLTask.class, pos), 3L);
+    it = SQLTask.getResultSet(i,10L);
+    records = new ArrayList<Record>();
+    while(it.hasNext()){
+      records.add(it.next());
     }
-
-    String negative = "select * from (select name, num from test1 limit 3) t1 join test2 t2 on t1.name== t2.name;";
-    assertNull(getQueryLimit.invoke(SQLTask.class, negative));
+    assertEquals(10, records.size());
   }
 
   @Test(expected = TunnelException.class)
   public void testInstanceTunnelResultNeg() throws OdpsException, IOException {
     String taskName = "test_select_sql_task_tunnel_neg";
     Instance i = SQLTask.run(odps, odps.getDefaultProject(),
-                             "create table if not exists test_select_sql_test_from_tunnel;",
+                             "create table if not exists  test_select_sql_test_from_tunnel (name string) ;",
                              taskName, null, null);
     i.waitForSuccess();
     SQLTask.getResultByInstanceTunnel(i, taskName);
+  }
+
+  @Test
+  public void testGetSqlWarning() throws OdpsException {
+    Map<String, String> hints = new HashMap<String, String>();
+    hints.put("odps.sql.preparse.odps2", "lot");
+    hints.put("odps.sql.planner.parser.odps2", "true");
+    hints.put("odps.sql.planner.mode", "lot");
+    hints.put("odps.compiler.warning.disable", "false");
+
+    Instance i = SQLTask.run(odps, odps.getDefaultProject(), "select 1 +'1' from src;", hints, null);
+    List<String> res = SQLTask.getSqlWarning(i);
+//    Assert.assertNotNull(res);
+    if (res != null) {
+      for (String r : res) {
+        System.out.println(r);
+      }
+    }
+
   }
 }

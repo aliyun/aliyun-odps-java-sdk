@@ -22,6 +22,7 @@ package com.aliyun.odps.commons.proto;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -30,22 +31,30 @@ import java.util.Map;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
-import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
-
 import org.apache.commons.io.output.CountingOutputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.tunnel.io.Checksum;
-import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.commons.util.DateUtils;
+import com.aliyun.odps.data.AbstractChar;
+import com.aliyun.odps.data.Binary;
+import com.aliyun.odps.data.IntervalDayTime;
+import com.aliyun.odps.data.IntervalYearMonth;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
+import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.tunnel.io.Checksum;
+import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.MapTypeInfo;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.WireFormat;
 
 /**
  * @author chao.liu
@@ -89,9 +98,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
     this.out = CodedOutputStream.newInstance(bou);
   }
 
-  static void writeRawBytes(int fieldNumber, byte[] value, CodedOutputStream out)
+  static void writeRawBytes(byte[] value, CodedOutputStream out)
       throws IOException {
-    out.writeTag(fieldNumber, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
     out.writeRawVarint32(value.length);
     out.writeRawBytes(value);
   }
@@ -117,73 +125,9 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
 
       crc.update(pbIdx);
 
-      OdpsType type = columns[i].getType();
-      switch (type) {
-        case BOOLEAN: {
-          boolean value = (Boolean) v;
-          crc.update(value);
-          out.writeBool(pbIdx, value);
-          break;
-        }
-        case DATETIME: {
-          Date value = (Date) v;
-          Long longValue = DateUtils.date2ms(value);
-          crc.update(longValue);
-          out.writeSInt64(pbIdx, longValue);
-          break;
-        }
-        case STRING: {
-          byte[] bytes;
-          if (v instanceof String) {
-            String value = (String) v;
-            bytes = value.getBytes("UTF-8");
-          } else {
-            bytes = (byte[]) v;
-          }
-          crc.update(bytes, 0, bytes.length);
-          writeRawBytes(pbIdx, bytes, out);
-          break;
-        }
-        case DOUBLE: {
-          double value = (Double) v;
-          crc.update(value);
-          out.writeDouble(pbIdx, value);
-          break;
-        }
-        case BIGINT: {
-          long value = (Long) v;
-          crc.update(value);
-          out.writeSInt64(pbIdx, value);
-          break;
-        }
-        case DECIMAL: {
-          String value = ((BigDecimal) v).toPlainString();
-          byte[] bytes = value.getBytes("UTF-8");
-          crc.update(bytes, 0, bytes.length);
-          writeRawBytes(pbIdx, bytes, out);
-          break;
-        }
-        case ARRAY: {
-          List<OdpsType> genericTypeList = columns[i].getGenericTypeList();
-          if ((genericTypeList == null) || (genericTypeList.isEmpty())) {
-            throw new IOException("Failed to get OdpsType inside Array of column index: " + i);
-          }
-          out.writeTag(pbIdx, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
-          writeArray((List) v, genericTypeList.get(0));
-          break;
-        }
-        case MAP: {
-          List<OdpsType> genericTypeList = columns[i].getGenericTypeList();
-          if ((genericTypeList == null) || (genericTypeList.isEmpty()) || (genericTypeList.size() < 2)) {
-            throw new IOException("Failed to get OdpsType inside Map of column index: " + i);
-          }
-          out.writeTag(pbIdx, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
-          writeMap((Map) v, genericTypeList.get(0), genericTypeList.get(1));
-          break;
-        }
-        default:
-          throw new IOException("Invalid data type: " + type);
-      }
+      TypeInfo typeInfo = columns[i].getTypeInfo();
+      writeFieldTag(pbIdx, typeInfo);
+      writeField(v, typeInfo);
     }
 
     int checksum = (int) crc.getValue();
@@ -195,37 +139,212 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
     count++;
   }
 
+  private void writeFieldTag(int pbIdx, TypeInfo typeInfo) throws IOException {
+    switch (typeInfo.getOdpsType()) {
+      case DATETIME:
+      case BOOLEAN:
+      case BIGINT:
+      case TINYINT:
+      case SMALLINT:
+      case INT:
+      case DATE:
+      case INTERVAL_YEAR_MONTH: {
+        out.writeTag(pbIdx, WireFormat.WIRETYPE_VARINT);
+        break;
+      }
+      case DOUBLE: {
+        out.writeTag(pbIdx, WireFormat.WIRETYPE_FIXED64);
+        break;
+      }
+      case FLOAT: {
+        out.writeTag(pbIdx, WireFormat.WIRETYPE_FIXED32);
+        break;
+      }
+      case INTERVAL_DAY_TIME:
+      case TIMESTAMP:
+      case STRING:
+      case CHAR:
+      case VARCHAR:
+      case BINARY:
+      case DECIMAL:
+      case ARRAY:
+      case MAP:
+      case STRUCT:{
+        out.writeTag(pbIdx, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
+        break;
+      }
+      default:
+        throw new IOException("Invalid data type: " + typeInfo);
+    }
+  }
 
-  private void writeArray(List v, OdpsType type) throws IOException {
+  private void writeField(Object v, TypeInfo typeInfo) throws IOException {
+    switch (typeInfo.getOdpsType()) {
+      case BOOLEAN: {
+        boolean value = (Boolean) v;
+        crc.update(value);
+        out.writeBoolNoTag(value);
+        break;
+      }
+      case DATETIME: {
+        Date value = (Date) v;
+        Long longValue = DateUtils.date2ms(value);
+        crc.update(longValue);
+        out.writeSInt64NoTag(longValue);
+        break;
+      }
+      case DATE: {
+        Long longValue = DateUtils.getDayOffset((java.sql.Date) v);
+        crc.update(longValue);
+        out.writeSInt64NoTag(longValue);
+        break;
+      }
+      case TIMESTAMP: {
+        Long value = ((Timestamp) v).getTime() / 1000;
+        Integer nano = ((Timestamp) v).getNanos();
+        crc.update(value);
+        crc.update(nano);
+        out.writeSInt64NoTag(value);
+        out.writeSInt32NoTag(nano);
+        break;
+      }
+      case INTERVAL_DAY_TIME: {
+        Long value = ((IntervalDayTime) v).getTotalSeconds();
+        Integer nano = ((Timestamp) v).getNanos();
+        crc.update(value);
+        crc.update(nano);
+        out.writeSInt64NoTag(value);
+        out.writeSInt32NoTag(nano);
+        break;
+      }
+      case VARCHAR:
+      case CHAR: {
+        byte [] bytes;
+        bytes = ((AbstractChar) v).getValue().getBytes("UTF-8");
+        crc.update(bytes, 0, bytes.length);
+        writeRawBytes(bytes, out);
+        break;
+      }
+      case STRING: {
+        byte[] bytes;
+        if (v instanceof String) {
+          String value = (String) v;
+          bytes = value.getBytes("UTF-8");
+        } else {
+          bytes = (byte[]) v;
+        }
+        crc.update(bytes, 0, bytes.length);
+        writeRawBytes(bytes, out);
+        break;
+      }
+      case BINARY: {
+        byte[] bytes = ((Binary) v).data();
+
+        crc.update(bytes, 0, bytes.length);
+        writeRawBytes(bytes, out);
+        break;
+      }
+      case DOUBLE: {
+        double value = (Double) v;
+        crc.update(value);
+        out.writeDoubleNoTag(value);
+        break;
+      }
+      case FLOAT: {
+        float value = (Float) v;
+        crc.update(value);
+        out.writeFloatNoTag(value);
+        break;
+      }
+      case BIGINT: {
+        long value = (Long) v;
+        crc.update(value);
+        out.writeSInt64NoTag(value);
+        break;
+      }
+      case INTERVAL_YEAR_MONTH: {
+        long value = ((IntervalYearMonth) v).getTotalMonths();
+        crc.update(value);
+        out.writeSInt64NoTag(value);
+        break;
+      }
+      case INT: {
+        long value = ((Integer) v).longValue();
+        crc.update(value);
+        out.writeSInt64NoTag(value);
+        break;
+      }
+      case SMALLINT: {
+        long value = ((Short) v).longValue();
+        crc.update(value);
+        out.writeSInt64NoTag(value);
+        break;
+      }
+      case TINYINT: {
+        long value = ((Byte) v).longValue();
+        crc.update(value);
+        out.writeSInt64NoTag(value);
+        break;
+      }
+      case DECIMAL: {
+        String value = ((BigDecimal) v).toPlainString();
+        byte[] bytes = value.getBytes("UTF-8");
+        crc.update(bytes, 0, bytes.length);
+        writeRawBytes(bytes, out);
+        break;
+      }
+      case ARRAY: {
+        writeArray((List) v, ((ArrayTypeInfo) typeInfo).getElementTypeInfo());
+        break;
+      }
+      case MAP: {
+        MapTypeInfo mapTypeInfo = (MapTypeInfo) typeInfo;
+
+        writeMap((Map) v, mapTypeInfo.getKeyTypeInfo(),
+                 mapTypeInfo.getValueTypeInfo());
+        break;
+      }
+      case STRUCT: {
+        writeStruct((Struct) v, (StructTypeInfo) typeInfo);
+        break;
+      }
+      default:
+        throw new IOException("Invalid data type: " + typeInfo);
+    }
+  }
+
+  private void writeStruct(Struct object, StructTypeInfo typeInfo) throws IOException {
+    List<TypeInfo> fieldTypeInfos = typeInfo.getFieldTypeInfos();
+
+    for (int i = 0; i < fieldTypeInfos.size(); ++i) {
+      if (object.getFieldValue(i) == null) {
+        out.writeBoolNoTag(true);
+      } else {
+        out.writeBoolNoTag(false);
+        writeField(object.getFieldValue(i), fieldTypeInfos.get(i));
+      }
+    }
+  }
+
+  private void writeArray(List v, TypeInfo type) throws IOException {
     out.writeInt32NoTag(v.size());
     for (int i = 0; i < v.size(); i++) {
       if (v.get(i) == null) {
         out.writeBoolNoTag(true);
       } else {
         out.writeBoolNoTag(false);
-        writePrimitiveObject(v.get(i), type);
+        writeField(v.get(i), type);
       }
     }
   }
 
-  private void writeMap(Map v, OdpsType keyType, OdpsType valueType) throws IOException {
-    if ((keyType == OdpsType.BOOLEAN) || (keyType == OdpsType.DOUBLE)) {
-      throw new IOException(keyType + " is not supported as key in MAP");
-    }
-
-    if (valueType == OdpsType.BOOLEAN) {
-      throw new IOException(valueType + "is not supported as value in MAP");
-    }
-
+  private void writeMap(Map v, TypeInfo keyType, TypeInfo valueType) throws IOException {
+    // note: storage will check the availability of key and value
     List keyList = new ArrayList();
     List valueList = new ArrayList();
     Iterator iter = v.entrySet().iterator();
     while (iter.hasNext()) {
       Map.Entry entry = (Map.Entry) iter.next();
-
-      if (entry.getKey() == null) {
-        throw new IOException("SQLMap's key can't be null.");
-      }
 
       keyList.add(entry.getKey());
       valueList.add(entry.getValue());
@@ -235,49 +354,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
     writeArray(valueList, valueType);
   }
 
-  private void writePrimitiveObject(Object v, OdpsType type) throws IOException {
-
-    switch (type) {
-      case STRING: {
-        byte[] bytes;
-        if (v instanceof String) {
-          String value = (String) v;
-          bytes = value.getBytes();
-        } else {
-          bytes = (byte[]) v;
-        }
-
-        out.writeRawVarint32(bytes.length);
-        out.writeRawBytes(bytes);
-        crc.update(bytes, 0, bytes.length);
-        break;
-      }
-      case BIGINT: {
-        long value = (Long) v;
-        out.writeSInt64NoTag(value);
-        crc.update(value);
-        break;
-      }
-      case DOUBLE: {
-        double value = (Double) v;
-        out.writeDoubleNoTag(value);
-        crc.update(value);
-        break;
-      }
-      case BOOLEAN: {
-        boolean value = (Boolean) v;
-        out.writeBoolNoTag(value);
-        crc.update(value);
-        break;
-      }
-      default:
-        throw new IOException("Not a primitive type in array. type :" + type);
-    }
-  }
-
   @Override
   public void close() throws IOException {
-
     try {
       out.writeSInt64(ProtoWireConstant.TUNNEL_META_COUNT, count);
       out.writeUInt32(ProtoWireConstant.TUNNEL_META_CHECKSUM, (int) crccrc.getValue());

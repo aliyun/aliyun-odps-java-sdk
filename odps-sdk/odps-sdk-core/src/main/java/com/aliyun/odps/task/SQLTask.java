@@ -22,15 +22,15 @@ package com.aliyun.odps.task;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONException;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
@@ -38,9 +38,11 @@ import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.Project;
 import com.aliyun.odps.Task;
+import com.aliyun.odps.commons.util.EmptyIterator;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.InstanceTunnel;
+import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.StringUtils;
 import com.csvreader.CsvReader;
@@ -54,13 +56,21 @@ import com.csvreader.CsvReader;
 public class SQLTask extends Task {
 
   private String query;
-
-  private static final Long SQL_TASK_RESULT_LIMIT = 10000L;
+  
+  private static Map<String,String> defaultHints;
 
   private static final String AnonymousSQLTaskName = "AnonymousSQLTask";
 
   public String getQuery() {
     return query;
+  }
+  
+  public static void setDefaultHints(Map<String,String> hints){
+    SQLTask.defaultHints = hints;
+  }
+  
+  public static void removeDefaultHints(){
+    SQLTask.defaultHints = null;
   }
 
   /**
@@ -73,8 +83,10 @@ public class SQLTask extends Task {
   public void setQuery(String query) {
     this.query = query;
   }
-
+  
   /**
+   * Return 1W records at most. <br />
+   *
    * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br />
    *
    * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
@@ -140,8 +152,7 @@ public class SQLTask extends Task {
   }
 
   /**
-   *
-   * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br />
+   * Return 1W records with completed schema info at most. No data size limit.<br />
    *
    * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
    *
@@ -165,10 +176,10 @@ public class SQLTask extends Task {
    *
    * 本接口与 {@link #getResult(Instance, String)} 略有不同:
    *  1) 本接口返回的 record 带有完整 schema 信息;
-   *  2) 本接口返回的 record 结果集不再有 1W 的条数限制.
+   *  2) 本接口返回的 record 结果集有 1W 的条数限制，但不再有 10M 的大小限制
    *
    * 注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销,
-   *       大数据量下载建议直接使用 {@see InstanceTunnel};
+   *       大数据量下载建议直接使用 {@see InstanceTunnel} 或 {@link #getResultSet(Instance, String)};
    *
    * @param instance
    *     instance 对象
@@ -183,44 +194,19 @@ public class SQLTask extends Task {
   public static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
                                                        Long limit)
       throws OdpsException, IOException {
-    if (StringUtils.isNullOrEmpty(taskName)) {
-      throw new OdpsException("Invalid task name.");
-    }
-
-    Long queryLimit = null;
-    boolean findTask = false;
-
-    for (Task t : instance.getTasks()) {
-      if (taskName.equals(t.getName())) {
-        SQLTask task = (SQLTask) t;
-        String query = task.getQuery().trim();
-
-        if (!StringUtils.isNullOrEmpty(query)) {
-          queryLimit = getLimitCount(query);
-        }
-
-        findTask = true;
-        break;
-      }
-    }
-
-    if (!findTask) {
-      throw new OdpsException("Invalid task: " + taskName);
-    }
-
-    if (limit == null) {
-      limit = SQL_TASK_RESULT_LIMIT;
-    }
-
-    // if query has a query limit, use the less one compared with limit;
-    // if not, use limit.
-    if (queryLimit != null) {
-      limit = queryLimit < limit ? queryLimit : limit;
-    }
+    return getResultByInstanceTunnel(instance, taskName, limit, true);
+  }
+     
+  private static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
+                                                       Long limit, boolean limitEnabled)
+      throws OdpsException, IOException {
+    
+    checkTaskName(instance, taskName);
 
     InstanceTunnel tunnel = new InstanceTunnel(instance.getOdps());
-    InstanceTunnel.DownloadSession session = tunnel.createDownloadSession(instance.getProject(),
-                                                                          instance.getId());
+    InstanceTunnel.DownloadSession session =
+        tunnel.createDownloadSession(instance.getProject(), instance.getId(), limitEnabled);
+    
     long recordCount = session.getRecordCount();
     List<Record> records = new ArrayList<Record>();
 
@@ -228,7 +214,7 @@ public class SQLTask extends Task {
       return records;
     }
 
-    if (limit < recordCount) {
+    if (limit != null && limit < recordCount) {
       recordCount = limit;
     }
 
@@ -241,6 +227,7 @@ public class SQLTask extends Task {
 
     return records;
   }
+  
 
   /**
    * 使用 instance tunnel 的方式获取 Anonymous task 的结果
@@ -298,25 +285,9 @@ public class SQLTask extends Task {
     return getResultByInstanceTunnel(instance, AnonymousSQLTaskName);
   }
 
-  private static Pattern PATTERN =
-      Pattern.compile(".*LIMIT\\s+(\\d+)\\s*$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-
-  private static Long getLimitCount(String query) {
-    if (query.endsWith(";")) {
-      query = query.substring(0, query.length() - 1);
-      query = query.trim();
-    }
-
-    Matcher m = PATTERN.matcher(query);
-
-    if (m.matches()) {
-      return Long.parseLong(m.group(1));
-    }
-
-    return null;
-  }
-
   /**
+   * Return 1W records at most. <br />
+   *
    * Columns of each record in result are ALL OdpsType.STIRNG, ignore their real type in odps <br
    * />
    * Return value is valid only when SQL query is select, otherwise, result will be empty. <br />
@@ -340,15 +311,147 @@ public class SQLTask extends Task {
   public static List<Record> getResult(Instance instance) throws OdpsException {
     return getResult(instance, AnonymousSQLTaskName);
   }
+  
+  /**
+   * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
+   * 
+   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
+   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   * 
+   * @param instance
+   * @return
+   * @throws OdpsException
+   */
+  public static Iterator<Record> getResultSet(Instance instance) throws OdpsException, IOException {
+    return getResultSet(instance, AnonymousSQLTaskName);
+  }
+
+  /**
+   * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
+   * 
+   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
+   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   * 
+   * @param instance
+   * @param taskName
+   * @return
+   * @throws OdpsException
+   */
+  public static Iterator<Record> getResultSet(Instance instance, String taskName)
+      throws OdpsException, IOException {
+    return getResultSet(instance, taskName, null);
+  }
+
+  /**
+   * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
+   * 
+   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
+   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   * 
+   * @param instance
+   * @param limit
+   * @return
+   * @throws OdpsException
+   */
+  public static Iterator<Record> getResultSet(Instance instance, Long limit) throws OdpsException, IOException {
+    return getResultSet(instance, AnonymousSQLTaskName, limit);
+  }
+
+  /**
+   * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
+   * 
+   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
+   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   * 
+   * @param instance
+   * @param taskName
+   * @param limit
+   * @return
+   * @throws OdpsException
+   */
+  public static Iterator<Record> getResultSet(Instance instance, String taskName, Long limit)
+      throws OdpsException {
+
+    checkTaskName(instance, taskName);
+
+    InstanceTunnel tunnel = new InstanceTunnel(instance.getOdps());
+    InstanceTunnel.DownloadSession session =
+        tunnel.createDownloadSession(instance.getProject(), instance.getId(), false);
+
+    long recordCount = session.getRecordCount();
+
+    if (recordCount == 0) {
+      return EmptyIterator.emptyIterator();
+    }
+
+    if (limit != null && limit < recordCount) {
+      recordCount = limit;
+    }
+
+    return new RecordSetIterator(session, recordCount);
+  }
+
+
+  private static void checkTaskName(Instance instance, String taskName) throws OdpsException {
+
+    if (StringUtils.isNullOrEmpty(taskName)) {
+      throw new OdpsException("Invalid task name.");
+    }
+
+    boolean findTask = false;
+
+    for (String n : instance.getTaskNames()) {
+      if (taskName.equals(n)) {
+        findTask = true;
+        break;
+      }
+    }
+
+    if (!findTask) {
+      throw new OdpsException("Invalid task: " + taskName);
+    }
+  }
 
   @Override
   public String getCommandText() {
     return query;
   }
 
+
+  /**
+   * 获取运行 SQL 的编译警告信息，可能有多条.<br />
+   *
+   * @param instance
+   *     instance 对象
+   * @return 编译警告信息
+   * @throws OdpsException
+   */
+  public static List<String> getSqlWarning(Instance instance) throws OdpsException {
+    return getSqlWarning(instance, AnonymousSQLTaskName);
+  }
+
+  /**
+   * 获取运行 SQL 的编译警告信息，可能有多条.<br />
+   *
+   * @param instance
+   *     instance 对象
+   * @param taskName
+   *     task 名称
+   * @return 编译警告信息
+   * @throws OdpsException
+   */
+  public static List<String> getSqlWarning(Instance instance, String taskName) throws OdpsException {
+    String warnings = instance.getTaskInfo(taskName, "warnings");
+
+    try {
+      return JSON.parseArray(JSON.parseObject(warnings).getString("warnings"), String.class);
+    } catch (JSONException e) {
+      return null;
+    }
+  }
+
   /**
    * 运行 SQL.<br />
-   * 执行读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
    *
    * 特别注意，在执行数据读取操作时：<br />
    * 正常情况下的 task 执行后，task 的状态为 SUCCESS，并正常返回数据结果。<br />
@@ -435,6 +538,10 @@ public class SQLTask extends Task {
     task.setQuery(sql);
     task.setName(taskName);
     task.setProperty("type", type);
+    
+    if (hints == null) {
+      hints = defaultHints;
+    }
 
     if (hints != null) {
       try {
@@ -443,7 +550,6 @@ public class SQLTask extends Task {
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
       }
-
     }
 
     if (aliases != null) {
@@ -468,4 +574,67 @@ public class SQLTask extends Task {
                       String type) throws OdpsException {
     return run(odps, project, sql, taskName, hints, aliases, null, type);
   }
+}
+
+
+class RecordSetIterator implements Iterator<Record> {
+
+  private static final Long FETCH_SIZE = 1000l;
+
+  private InstanceTunnel.DownloadSession session;
+  private long recordCount;
+  private long cursor = 0;
+  private long fetchSize = 0;
+  private int idx = 0;
+  private List<Record> buffer;
+
+  public RecordSetIterator(InstanceTunnel.DownloadSession session, long recordCount) {
+    this.session = session;
+    this.recordCount = recordCount;
+  }
+
+  @Override
+  public boolean hasNext() {
+    return cursor < recordCount;
+  }
+
+  @Override
+  public Record next() {
+    if (buffer == null || idx == buffer.size()) {
+      fillBuffer();
+    }
+    cursor++;
+    return buffer.get(idx++);
+  }
+  
+  @Override
+  public void remove() {
+    throw new UnsupportedOperationException("remove");
+  }
+
+  private void fillBuffer() {
+    idx = 0;
+    TunnelRecordReader reader = openNewReader();
+    buffer = new ArrayList<Record>();
+    Record r = null;
+    try {
+      while ((r = reader.read()) != null) {
+        buffer.add(r);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Read from reader failed:", e);
+    }
+  }
+
+  private TunnelRecordReader openNewReader() {
+    fetchSize = recordCount - cursor <= FETCH_SIZE ? recordCount - cursor : FETCH_SIZE;
+    try {
+      return session.openRecordReader(cursor, fetchSize);
+    } catch (TunnelException e) {
+      throw new RuntimeException("Open reader failed:", e);
+    } catch (IOException e) {
+      throw new RuntimeException("Open reader failed:", e);
+    }
+  }
+
 }

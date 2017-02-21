@@ -53,4 +53,5 @@ public interface TunnelConstants {
   public static String SEEK_TIME = "timestamp";
   public static String MODE = "mode";
   public static String STREAM_UPLOAD = "streamupload";
+  public static String INSTANCE_TUNNEL_LIMIT_ENABLED = "instance_tunnel_limit_enabled";
 }

@@ -19,6 +19,8 @@
 
 package com.aliyun.odps;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -390,4 +392,29 @@ public class Project extends LazyLoad {
       throw new OdpsException(e.getMessage(), e);
     }
   }
+
+  public String getTunnelEndpoint() throws OdpsException {
+    String protocol;
+    try {
+      URI u = new URI(client.getEndpoint());
+      protocol = u.getScheme();
+    } catch (URISyntaxException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+
+    String resource = ResourceBuilder.buildProjectResource(model.name).concat("/tunnel");
+    HashMap<String, String> params = new HashMap<String, String>();
+    params.put("service", null);
+    Response resp = client.request(resource, "GET", params, null, null);
+
+    String tunnel;
+    if (resp.isOK()) {
+      tunnel = new String(resp.getBody());
+    } else {
+      throw new OdpsException("Can't get tunnel server address: " + resp.getStatus());
+    }
+
+    return protocol + "://" + tunnel;
+  }
+
 }

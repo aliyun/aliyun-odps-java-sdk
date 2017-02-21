@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import com.aliyun.odps.Odps;
+import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.GeneralConfiguration;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
@@ -38,13 +39,10 @@ import com.aliyun.odps.tunnel.io.CompressOption;
  */
 class Configuration extends GeneralConfiguration {
 
-  private TunnelServerRouter router;
-
   private CompressOption option = new CompressOption();
 
   public Configuration(Odps odps) {
     super(odps);
-    router = new TunnelServerRouter(this.odps.getRestClient());
   }
 
   public CompressOption getCompressOption() {
@@ -63,19 +61,19 @@ class Configuration extends GeneralConfiguration {
    */
   @Override
   public URI getEndpoint(String projectName) throws TunnelException {
-
     if (endpoint != null) {
       return endpoint;
     }
 
-    String odpsEndpoint = odps.getEndpoint();
     URI u = null;
     try {
-      u = new URI(odpsEndpoint);
+      u = new URI(odps.projects().get(projectName).getTunnelEndpoint());
     } catch (URISyntaxException e) {
       throw new TunnelException(e.getMessage(), e);
+    } catch (OdpsException e) {
+      throw new TunnelException(e.getMessage(), e);
     }
-    return router.getTunnelServer(projectName, u.getScheme());
+    return u;
   }
 
   /**

@@ -57,6 +57,12 @@ public class Checksum {
     crc.update(buf.array(), 0, 8);
   }
 
+  public void update(float v) {
+    buf.clear();
+    buf.putFloat(v);
+    crc.update(buf.array(), 0, 4);
+  }
+
   public void update(boolean v) {
     crc.update(v ? TRUE : FALSE, 0, 1);
   }

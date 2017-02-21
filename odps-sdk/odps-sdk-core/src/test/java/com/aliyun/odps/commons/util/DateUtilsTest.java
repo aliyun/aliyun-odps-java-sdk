@@ -20,15 +20,16 @@
 package com.aliyun.odps.commons.util;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.aliyun.odps.TestBase;
-import com.aliyun.odps.commons.transport.OdpsTestUtils;
 
 public class DateUtilsTest extends TestBase {
 
@@ -210,5 +211,28 @@ public class DateUtilsTest extends TestBase {
         .assertEquals(c11.getTime(), DateUtils.rawtime2date(DateUtils.date2rawtime(c11.getTime())));
     Assert
         .assertEquals(c12.getTime(), DateUtils.rawtime2date(DateUtils.date2rawtime(c12.getTime())));
+  }
+
+  @Ignore
+  @Test
+  public void testUTCOffset() throws IOException {
+    Calendar cal = Calendar.getInstance();
+    cal.clear();
+    cal.set(9999, 0, 1, 0, 0, 0); // 9999-1-1
+    long lastTime = cal.getTimeInMillis();
+    cal.clear();
+    cal.set(0, 0, 1, 0, 0, 0); // 0001-1-1
+    long startTime = cal.getTimeInMillis();
+    long t = startTime;
+
+    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+    while (t <= lastTime) {
+      java.sql.Date d = java.sql.Date.valueOf(format.format(t));
+      long off = DateUtils.getDayOffset(d);
+      java.sql.Date resD = DateUtils.fromDayOffset(off);
+      Assert.assertEquals(d, resD);
+      cal.add(Calendar.DATE, 1);
+      t = cal.getTimeInMillis();
+    }
   }
 }

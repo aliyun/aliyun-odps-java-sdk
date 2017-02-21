@@ -19,7 +19,13 @@
 
 package com.aliyun.odps;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.MapTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
 
 /**
  * Column表示ODPS中表的列定义
@@ -28,6 +34,7 @@ public final class Column {
 
   private String name;
   private OdpsType type;
+  private TypeInfo typeInfo;
   private String comment;
   private String label;
   private List<OdpsType> genericOdpsTypeList;
@@ -42,19 +49,62 @@ public final class Column {
    * @param comment
    *     列注释
    */
+  @Deprecated
   public Column(String name, OdpsType type, String comment) {
-    this(name, type, comment, (String)null, null);
+    this(name, type, comment, (String) null, null);
+  }
+
+  public Column(String name, TypeInfo typeInfo, String comment) {
+    this(name, typeInfo, comment, (String) null);
+  }
+
+  public Column(String name, TypeInfo typeInfo) {
+    this(name, typeInfo, null);
+  }
+
+  Column(String name, TypeInfo typeInfo, String comment, String label) {
+    this.name = name;
+    this.comment = comment;
+    this.typeInfo = typeInfo;
+    this.label = label;
+    this.type = typeInfo.getOdpsType();
+
+    // if it is array or map, should init genericOdpsTypeList.
+    // otherwise, getGenericTypeList returns null when init column by this constructor
+    initGenericOdpsTypeList();
+  }
+
+  private void initGenericOdpsTypeList() {
+    switch (type) {
+      case ARRAY: {
+        genericOdpsTypeList = new ArrayList<OdpsType>();
+        genericOdpsTypeList.add(((ArrayTypeInfo)typeInfo).getElementTypeInfo().getOdpsType());
+        break;
+      }
+      case MAP: {
+        genericOdpsTypeList = new ArrayList<OdpsType>();
+        MapTypeInfo mapTypeInfo = (MapTypeInfo) typeInfo;
+
+        genericOdpsTypeList.add(mapTypeInfo.getKeyTypeInfo().getOdpsType());
+        genericOdpsTypeList.add(mapTypeInfo.getValueTypeInfo().getOdpsType());
+        break;
+      }
+    }
   }
 
   Column(String name, OdpsType type, String comment, String label,
          List<OdpsType> genericOdpsTypeList) {
     this.name = name;
-    this.type = type;
     this.comment = comment;
     this.label = label;
+    this.type = type;
     this.genericOdpsTypeList = genericOdpsTypeList;
+
+    // if genericOdpsTypeList is null, array and map typeinfo object is null
+    // it will create when setGenericOdpsTypeList
+    initTypeInfo();
   }
-  
+
   /**
    * 构造Column对象
    *
@@ -65,6 +115,63 @@ public final class Column {
    */
   public Column(String name, OdpsType type) {
     this(name, type, null);
+  }
+
+  private void initTypeInfo() {
+    switch (type) {
+      case ARRAY: {
+        initArrayTypeInfo();
+        break;
+      }
+      case MAP: {
+        initMapTypeInfo();
+        break;
+      }
+      case VARCHAR: {
+        throw new IllegalArgumentException("The length of " + type
+                                           + " must be specified, pls use TypeInfoFactory.getVarcharTypeInfo to new Column.");
+      }
+      case CHAR: {
+        throw new IllegalArgumentException("The length of " + type
+                                           + " must be specified, pls use TypeInfoFactory.getCharTypeInfo to new Column.");
+      }
+      default:
+        if (typeInfo == null) {
+          typeInfo = TypeInfoFactory.getPrimitiveTypeInfo(type);
+        }
+        break;
+    }
+  }
+
+  private void initMapTypeInfo() {
+    if (genericOdpsTypeList == null) {
+      return;
+    }
+
+    if (genericOdpsTypeList.size() < 2) {
+      throw new IllegalArgumentException("Error genericOdpsTypeList for Map.");
+    }
+    TypeInfo keyType =
+        TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(0));
+    TypeInfo valueType =
+        TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(1));
+
+    typeInfo = TypeInfoFactory.getMapTypeInfo(keyType, valueType);
+  }
+
+  private void initArrayTypeInfo() {
+    if (genericOdpsTypeList == null) {
+      return;
+    }
+
+    if (genericOdpsTypeList.size() < 1) {
+      throw new IllegalArgumentException("Error genericOdpsTypeList for Array.");
+    }
+
+    TypeInfo valueType =
+        TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(0));
+
+    typeInfo = TypeInfoFactory.getArrayTypeInfo(valueType);
   }
 
   /**
@@ -81,8 +188,24 @@ public final class Column {
    *
    * @return 列类型{@link OdpsType}
    */
+  @Deprecated
   public OdpsType getType() {
     return type;
+  }
+
+  /**
+   * 获得列类型
+   *
+   * @return 列类型{@link TypeInfo}
+   */
+  public TypeInfo getTypeInfo() {
+    // if the GenericTypeList have not set before, the typeInfo is null for array and map type
+    if (typeInfo == null) {
+      throw new IllegalArgumentException(
+          "Failed to get TypeInfo for " + type.toString() + ", please set generic type list first.");
+    }
+
+    return typeInfo;
   }
 
   /**
@@ -112,7 +235,7 @@ public final class Column {
       }
     }
   }
-  
+
   public String getCategoryLabel() {
     return label;
   }
@@ -122,6 +245,8 @@ public final class Column {
   }
 
   public void setGenericTypeList(List<OdpsType> genericOdpsTypeList) {
+    // for array and map, compatible to OdpsType enum
     this.genericOdpsTypeList = genericOdpsTypeList;
+    initTypeInfo();
   }
 }

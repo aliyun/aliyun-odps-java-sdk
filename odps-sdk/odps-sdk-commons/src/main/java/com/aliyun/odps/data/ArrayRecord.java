@@ -21,7 +21,7 @@ package com.aliyun.odps.data;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -38,20 +38,10 @@ import com.aliyun.odps.TableSchema;
  * @see Record
  */
 public class ArrayRecord implements Record {
-
-  private static final int STRING_MAX_LENTH = 8 * 1024 * 1024;
-  private static final int DECIMAL_MAX_INTLENGTH = 36;
-  private static final int DECIMAL_MAX_SCALE = 18;
-
-  // 9999-12-31 23:59:59
-  private static final long DATETIME_MAX_TICKS = 253402271999000L;
-  // 0001-01-01 00:00:00
-  private static final long DATETIME_MIN_TICKS = -62135798400000L;
+  private static final String DEFAULT_CHARSET = "utf-8";
 
   private Column[] columns;
   private final Object[] values;
-
-  private static final String STRING_CHARSET = "UTF-8";
 
   private HashMap<String, Integer> nameMap = new HashMap<String, Integer>();
 
@@ -87,37 +77,8 @@ public class ArrayRecord implements Record {
 
   @Override
   public void set(int idx, Object value) {
-    switch (columns[idx].getType()) {
-      case STRING:
-        if (value instanceof String) {
-          setString(idx, (String) value);
-        } else {
-          setString(idx, (byte[]) value);
-        }
-        break;
-      case BIGINT:
-        setBigint(idx, (Long) value);
-        break;
-      case BOOLEAN:
-        setBoolean(idx, (Boolean) value);
-        break;
-      case DOUBLE:
-        setDouble(idx, (Double) value);
-        break;
-      case DATETIME:
-        setDatetime(idx, (Date) value);
-        break;
-      case DECIMAL:
-        setDecimal(idx, (BigDecimal) value);
-        break;
-      case ARRAY:
-        setArray(idx, (List) value);
-        break;
-      case MAP:
-        setMap(idx, (Map) value);
-    }
+    values[idx] = OdpsTypeTransformer.transform(value, columns[idx].getTypeInfo());
   }
-
 
   @Override
   public Object get(int idx) {
@@ -136,15 +97,12 @@ public class ArrayRecord implements Record {
 
   @Override
   public void setBigint(int idx, Long value) {
-    if (value != null && (value > Long.MAX_VALUE || value <= Long.MIN_VALUE)) {
-      throw new IllegalArgumentException("InvalidData: Bigint out of range.");
-    }
-    values[idx] = value;
+    set(idx, value);
   }
 
   @Override
   public Long getBigint(int idx) {
-    return (Long) get(idx);
+    return getInternal(idx);
   }
 
   @Override
@@ -154,17 +112,17 @@ public class ArrayRecord implements Record {
 
   @Override
   public Long getBigint(String columnName) {
-    return (Long) get(columnName);
+    return getBigint(getColumnIndex(columnName));
   }
 
   @Override
   public void setDouble(int idx, Double value) {
-    values[idx] = value;
+    set(idx, value);
   }
 
   @Override
   public Double getDouble(int idx) {
-    return (Double) get(idx);
+    return getInternal(idx);
   }
 
   @Override
@@ -174,17 +132,17 @@ public class ArrayRecord implements Record {
 
   @Override
   public Double getDouble(String columnName) {
-    return (Double) get(columnName);
+    return getDouble(getColumnIndex(columnName));
   }
 
   @Override
   public void setBoolean(int idx, Boolean value) {
-    values[idx] = value;
+    set(idx, value);
   }
 
   @Override
   public Boolean getBoolean(int idx) {
-    return (Boolean) get(idx);
+    return getInternal(idx);
   }
 
   @Override
@@ -194,21 +152,17 @@ public class ArrayRecord implements Record {
 
   @Override
   public Boolean getBoolean(String columnName) {
-    return (Boolean) get(columnName);
+    return getBoolean(getColumnIndex(columnName));
   }
 
   @Override
   public void setDatetime(int idx, Date value) {
-    if (value != null
-        && (value.getTime() > DATETIME_MAX_TICKS || value.getTime() < DATETIME_MIN_TICKS)) {
-      throw new IllegalArgumentException("InvalidData: Datetime out of range.");
-    }
-    values[idx] = value;
+    set(idx, value);
   }
 
   @Override
   public Date getDatetime(int idx) {
-    return (Date) get(idx);
+    return getInternal(idx);
   }
 
   @Override
@@ -218,27 +172,17 @@ public class ArrayRecord implements Record {
 
   @Override
   public Date getDatetime(String columnName) {
-    return (Date) get(columnName);
+    return getDatetime(getColumnIndex(columnName));
   }
 
   @Override
   public void setDecimal(int idx, BigDecimal value) {
-    if (value != null) {
-      BigDecimal tmpValue = value.setScale(DECIMAL_MAX_SCALE, RoundingMode.HALF_UP);
-      int intLength = tmpValue.precision() - tmpValue.scale();
-      if (intLength > DECIMAL_MAX_INTLENGTH) {
-        throw new IllegalArgumentException(
-            String.format("decimal value %s overflow, max integer digit number is %s.",
-                          value, DECIMAL_MAX_INTLENGTH));
-      }
-    }
-    values[idx] = value;
-
+    set(idx, value);
   }
 
   @Override
   public BigDecimal getDecimal(int idx) {
-    return (BigDecimal) get(idx);
+    return getInternal(idx);
   }
 
   @Override
@@ -253,33 +197,22 @@ public class ArrayRecord implements Record {
 
   @Override
   public void setString(int idx, String value) {
-    if (value == null) {
-      values[idx] = value;
-      return;
-    }
-    try {
-      if (value.length() * 6 > STRING_MAX_LENTH
-          && value.getBytes(STRING_CHARSET).length > STRING_MAX_LENTH) {
-        throw new IllegalArgumentException("InvalidData: The string's length is more than "
-                                           + STRING_MAX_LENTH / 1024 / 1024 + "M.");
-      }
-      values[idx] = value;
-    } catch (UnsupportedEncodingException e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
-    }
+    set(idx, value);
   }
 
   @Override
   public String getString(int idx) {
-    Object o = get(idx);
-    if (o == null) {
+    Object obj = values[idx];
+
+    if (obj == null) {
       return null;
     }
-    if (!(o instanceof String)) {
-      return bytesToString((byte[]) o);
-    } else {
-      return (String) get(idx);
+
+    if (obj instanceof byte []) {
+      return bytesToString((byte []) obj);
     }
+
+    return getInternal(idx);
   }
 
   @Override
@@ -294,15 +227,7 @@ public class ArrayRecord implements Record {
 
   @Override
   public void setString(int idx, byte[] value) {
-    if (value == null) {
-      values[idx] = value;
-      return;
-    }
-    if (value.length > STRING_MAX_LENTH) {
-      throw new IllegalArgumentException("InvalidData: The string's length is more than "
-                                         + STRING_MAX_LENTH / 1024 / 1024 + "M.");
-    }
-    values[idx] = value;
+    set(idx, value);
   }
 
   @Override
@@ -312,20 +237,45 @@ public class ArrayRecord implements Record {
 
   @Override
   public byte[] getBytes(int idx) {
-    Object o = get(idx);
-    if (o == null) {
+    Object obj = values[idx];
+
+    if (obj == null) {
       return null;
     }
-    if (o instanceof String) {
-      return stringToBytes((String) o);
-    } else {
-      return (byte[]) get(idx);
+    if (obj instanceof  byte[]) {
+      return (byte[]) obj;
+    } else if (obj instanceof String) {
+      return stringToBytes((String) obj);
+    } else if (obj instanceof Binary) {
+      return ((Binary) obj).data();
+    } else if (obj instanceof AbstractChar) {
+        return stringToBytes(((AbstractChar)obj).getValue());
+    }
+    else {
+      throw new RuntimeException("Does not support getBytes for type other than String/Binary/Char/VarChar, sees "
+              + obj.getClass());
     }
   }
 
   @Override
   public byte[] getBytes(String columnName) {
     return getBytes(getColumnIndex(columnName));
+  }
+
+  public void setBinary(int idx, Binary value) {
+    set(idx, value);
+  }
+
+  public void setBinary(String columnName, Binary value) {
+    setBinary(getColumnIndex(columnName), value);
+  }
+
+  public Binary getBinary(int idx) {
+    return getInternal(idx);
+  }
+
+  public Binary getBinary(String columnName) {
+    return getBinary(getColumnIndex(columnName));
   }
 
   @Override
@@ -361,23 +311,6 @@ public class ArrayRecord implements Record {
     setArray(getColumnIndex(columnName), list);
   }
 
-  private byte[] stringToBytes(String string) {
-    try {
-      return String.valueOf(string).getBytes(STRING_CHARSET);
-    } catch (UnsupportedEncodingException e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
-    }
-  }
-
-  private String bytesToString(byte[] bytes) {
-    try {
-      return new String(bytes, STRING_CHARSET);
-    } catch (UnsupportedEncodingException e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
-    }
-
-  }
-
   /**
    * 设置对应索引列的值，该列是 Array 类型
    *
@@ -388,22 +321,7 @@ public class ArrayRecord implements Record {
    */
 
   public void setArray(int idx, List list) {
-    if (list == null) {
-      values[idx] = list;
-      return;
-    }
-
-    List<Object> newList = new ArrayList<Object>(list.size());
-
-    for (Object obj : list) {
-      if (obj instanceof String) {
-        newList.add(stringToBytes((String) obj));
-      } else {
-        newList.add(obj);
-      }
-    }
-
-    values[idx] = newList;
+    set(idx, list);
   }
 
   /**
@@ -415,31 +333,7 @@ public class ArrayRecord implements Record {
    *     列值
    */
   public void setMap(int idx, Map map) {
-    if (map == null) {
-      values[idx] = map;
-      return;
-    }
-
-    Map newMap = new HashMap(map.size(), 1.0f);
-    Iterator iter = map.entrySet().iterator();
-    while (iter.hasNext()) {
-      Map.Entry entry = (Map.Entry) iter.next();
-
-      Object key = entry.getKey();
-      Object value = entry.getValue();
-
-      if (key instanceof String) {
-        key = stringToBytes((String) key);
-      }
-
-      if (value instanceof String) {
-        value = stringToBytes((String) value);
-      }
-
-      newMap.put(key, value);
-    }
-
-    values[idx] = newMap;
+    set(idx, map);
   }
 
   public void setMap(String columnName, Map map) {
@@ -464,23 +358,20 @@ public class ArrayRecord implements Record {
 
   public <T> List<T> getArray(Class<T> className, int idx) {
     List list = getArray(idx);
-    if (list == null) {
-      return null;
+
+    if (list == null || list.isEmpty()) {
+      return list;
     }
 
-    if (className == String.class) {
-      List newList = new ArrayList<String>(list.size());
-      for (Object obj : list) {
-        if (obj instanceof byte[]) {
-          newList.add(bytesToString((byte[]) obj));
-        } else {
-          newList.add((String) obj);
-        }
+    List<T> newList = new ArrayList<T>(list.size());
+    for (Object obj : list) {
+      if ((obj instanceof String) && (className == byte[].class)) {
+        newList.add((T) stringToBytes((String) obj));
+      } else {
+        newList.add(className.cast(obj));
       }
-      return newList;
-    } else {
-      return (List<T>) list;
     }
+    return newList;
   }
 
   public List getArray(String columnName) {
@@ -488,16 +379,7 @@ public class ArrayRecord implements Record {
   }
 
   public List getArray(int idx) {
-    Object obj = get(idx);
-    if (obj == null) {
-      return null;
-    }
-
-    if (obj instanceof List) {
-      return (List) obj;
-    } else {
-      throw new IllegalArgumentException("Column " + idx + " is not an array column");
-    }
+    return getInternal(idx);
   }
 
   public <k, v> Map<k, v> getMap(Class<k> keyClass, Class<v> valueClass, String columnName) {
@@ -522,31 +404,27 @@ public class ArrayRecord implements Record {
 
   public <k, v> Map<k, v> getMap(Class<k> keyClass, Class<v> valueClass, int idx) {
     Map map = getMap(idx);
-    if (map == null) {
-      return null;
-    }
 
-    if (keyClass != String.class && valueClass != String.class) {
-      return (Map<k, v>) map;
+    if (map == null || map.isEmpty()) {
+      return map;
     }
 
     Map<k, v> newMap = new HashMap<k, v>(map.size(), 1.0f);
-
     Iterator iter = map.entrySet().iterator();
     while (iter.hasNext()) {
       Map.Entry entry = (Map.Entry) iter.next();
       Object key = entry.getKey();
       Object value = entry.getValue();
 
-      if (keyClass == String.class && key != null) {
-        key = bytesToString((byte[]) key);
+      if (keyClass == byte [].class && key != null && key instanceof String) {
+        key = stringToBytes((String) key);
       }
 
-      if (valueClass == String.class && value != null) {
-        value = bytesToString((byte[]) value);
+      if (valueClass == byte [].class && value != null && value instanceof String) {
+        value = stringToBytes((String) value);
       }
 
-      newMap.put((k) key, (v) value);
+      newMap.put(keyClass.cast(key), valueClass.cast(value));
     }
 
     return newMap;
@@ -557,17 +435,153 @@ public class ArrayRecord implements Record {
   }
 
   public Map getMap(int idx) {
-    Object obj = get(idx);
-    if (obj == null) {
-      return null;
-    }
-
-    if (obj instanceof Map) {
-      return (Map) obj;
-    } else {
-      throw new IllegalArgumentException("Column " + idx + " is not a map column");
-    }
+    return getInternal(idx);
   }
+
+  public void setChar(int idx, Char value) {
+    set(idx, value);
+  }
+
+  public void setChar(String columnName, Char value) {
+    setChar(getColumnIndex(columnName), value);
+  }
+
+  public Char getChar(int idx) {
+    return getInternal(idx);
+  }
+
+  public Char getChar(String columnName) {
+    return getChar(getColumnIndex(columnName));
+  }
+
+  public void setVarchar(int idx, Varchar value) {
+    set(idx, value);
+  }
+
+  public void setVarchar(String columnName, Varchar value) {
+    setVarchar(getColumnIndex(columnName), value);
+  }
+
+  public Varchar getVarchar(int idx) {
+    return getInternal(idx);
+  }
+
+  public Varchar getVarchar(String columnName) {
+    return getVarchar(getColumnIndex(columnName));
+  }
+
+  public void setDate(int idx, java.sql.Date value) {
+    set(idx, value);
+  }
+
+  public java.sql.Date getDate(int idx) {
+    return getInternal(idx);
+  }
+
+  public void setDate(String columnName, java.sql.Date value) {
+    setDate(getColumnIndex(columnName), value);
+  }
+
+  public java.sql.Date getDate(String columnName) {
+    return getDate(getColumnIndex(columnName));
+  }
+
+  public void setTimestamp(int idx, Timestamp value) {
+    set(idx, value);
+  }
+
+  public Timestamp getTimestamp(int idx) {
+    return getInternal(idx);
+  }
+
+  public void setTimestamp(String columnName, Timestamp value) {
+    setTimestamp(getColumnIndex(columnName), value);
+  }
+
+  public Timestamp getTimestamp(String columnName) {
+    return getTimestamp(getColumnIndex(columnName));
+  }
+
+  public void setFloat(int idx, Float value) {
+    set(idx, value);
+  }
+
+  public void setFloat(String columnName, Float value) {
+    setFloat(getColumnIndex(columnName), value);
+  }
+
+  public Float getFloat(int idx) {
+    return getInternal(idx);
+  }
+
+  public Float getFloat(String columnName) {
+    return getFloat(getColumnIndex(columnName));
+  }
+
+  public void setInt(int idx, Integer value) {
+    set(idx, value);
+  }
+
+  public void setInt(String columnName, Integer value) {
+    setInt(getColumnIndex(columnName), value);
+  }
+
+  public Integer getInt(int idx) {
+    return getInternal(idx);
+  }
+
+  public Integer getInt(String columnName) {
+    return getInt(getColumnIndex(columnName));
+  }
+
+  public void setTinyint(int idx, Byte value) {
+    set(idx, value);
+  }
+
+  public void setTinyint(String columnName, Byte value) {
+    setTinyint(getColumnIndex(columnName), value);
+  }
+
+  public Byte getTinyint(int idx) {
+    return getInternal(idx);
+  }
+
+  public Byte getTinyint(String columnName) {
+    return getTinyint(getColumnIndex(columnName));
+  }
+
+  public void setSmallint(int idx, Short value) {
+    set(idx, value);
+  }
+
+  public void setSmallint(String columnName, Short value) {
+    setSmallint(getColumnIndex(columnName), value);
+  }
+
+  public Short getSmallint(int idx) {
+    return getInternal(idx);
+  }
+
+  public Short getSmallint(String columnName) {
+    return getSmallint(getColumnIndex(columnName));
+  }
+
+  public void setStruct(int idx, Struct value) {
+    set(idx, value);
+  }
+
+  public void setStruct(String columnName, Struct value) {
+    setStruct(getColumnIndex(columnName), value);
+  }
+
+  public Struct getStruct(int idx) {
+    return getInternal(idx);
+  }
+
+  public Struct getStruct(String columnName) {
+    return getStruct(getColumnIndex(columnName));
+  }
+
 
   @Override
   public boolean isNull(int idx) {
@@ -584,6 +598,43 @@ public class ArrayRecord implements Record {
     ArrayRecord record = new ArrayRecord(getColumns());
     record.set(values);
     return record;
+  }
+
+  @SuppressWarnings({"unchecked"})
+  private <T> T getInternal(int idx) {
+    if (values[idx] == null) {
+      return null;
+    }
+
+    return (T) values[idx];
+  }
+
+  /**
+   * 使用默认 charset，将 byte array 转成 string
+   * @param bytes
+   *     byte array
+   * @return 字符串
+   */
+  static String bytesToString(byte[] bytes) {
+    try {
+      return new String(bytes, DEFAULT_CHARSET);
+    } catch (UnsupportedEncodingException e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+  }
+
+  /**
+   * 将 string 转成 byte array，使用默认 charset
+   * @param string
+   *     字符串
+   * @return byte array
+   */
+  static byte[] stringToBytes(String string) {
+    try {
+      return string.getBytes(DEFAULT_CHARSET);
+    } catch (UnsupportedEncodingException e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
   }
 }
 

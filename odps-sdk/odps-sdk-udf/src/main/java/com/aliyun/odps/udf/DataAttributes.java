@@ -1,7 +1,7 @@
 package com.aliyun.odps.udf;
 
 import com.aliyun.odps.Column;
-
+import com.aliyun.odps.OdpsType;
 import java.util.HashSet;
 import java.util.Properties;
 
@@ -23,7 +23,7 @@ public abstract class DataAttributes {
   /**
    * @return Serde properties specified in DDL statement and table information (e.g., columns name/type)
    */
-  public abstract Properties getHiveTableProperites();
+  public abstract Properties getHiveTableProperties();
 
   /**
    * Getter for the record columns that describe the schema of the underlying data
@@ -45,4 +45,11 @@ public abstract class DataAttributes {
    * @return: resources, each denoted by a formatted string of <project>:<resourceName>
    **/
   public abstract HashSet<String> getResources();
+
+  /**
+   * Check if the Column schemas passed in by data attributes matched the expectation. A runtime exception
+   * will be thrown if there is a mismatch for the schema
+   *
+   **/
+  public abstract void verifySchema(OdpsType[] expectedSchemas);
 }

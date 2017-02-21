@@ -35,16 +35,16 @@ public interface Record {
   /**
    * 获得记录中包含的字段数量
    *
-   * @return 字段{@link Column}数量
+   * @return 字段 {@link Column} 数量
    */
-  public int getColumnCount();
+  int getColumnCount();
 
   /**
    * 获得记录中包含的所有字段
    *
    * @return {@link Column}[]
    */
-  public Column[] getColumns();
+  Column[] getColumns();
 
   /**
    * 判断某列是否为NULL值，如果该列为null，则返回true
@@ -53,7 +53,7 @@ public interface Record {
    *          列序号，0起始
    * @return 如果该列为null，则返回true，否则false
    */
-  public boolean isNull(int idx);
+  boolean isNull(int idx);
 
   /**
    * 判断某列是否为NULL值，如果该列为null，则返回true
@@ -62,7 +62,7 @@ public interface Record {
    *          列名
    * @return 如果该列为null，则返回true，否则false
    */
-  public boolean isNull(String columnName);
+  boolean isNull(String columnName);
 
   /**
    * 设置列的值
@@ -72,7 +72,7 @@ public interface Record {
    * @param value
    *     列的值 Object
    */
-  public void set(int idx, Object value);
+  void set(int idx, Object value);
 
   /**
    * 获取当前列的值
@@ -81,7 +81,7 @@ public interface Record {
    *     列的索引
    * @return 对应索引列值的Object对象
    */
-  public Object get(int idx);
+  Object get(int idx);
 
   /**
    * 设置列的值
@@ -91,7 +91,7 @@ public interface Record {
    * @param value
    *     列的值
    */
-  public void set(String columnName, Object value);
+  void set(String columnName, Object value);
 
   /**
    * 获取列值
@@ -100,7 +100,7 @@ public interface Record {
    *     列名
    * @return 对应列名的Object对象
    */
-  public Object get(String columnName);
+  Object get(String columnName);
 
 
   /**
@@ -108,10 +108,11 @@ public interface Record {
    *
    * @param idx
    *     列索引
-   * @param Bigint值
+   * @param value
+   *     列值
    * @see #set(int, Object)
    */
-  public void setBigint(int idx, Long value);
+  void setBigint(int idx, Long value);
 
   /**
    * 获取对应索引列的值，该列必须为Bigint类型
@@ -121,7 +122,7 @@ public interface Record {
    * @return 对应索引列的值
    * @see #get(int)
    */
-  public Long getBigint(int idx);
+  Long getBigint(int idx);
 
   /**
    * 设置对应列名的值，该列必须为Bigint类型
@@ -132,7 +133,7 @@ public interface Record {
    *     列值
    * @see #set(String, Object)
    */
-  public void setBigint(String columnName, Long value);
+  void setBigint(String columnName, Long value);
 
   /**
    * 获取对应列名的值，该列必须为Bigint类型
@@ -142,7 +143,7 @@ public interface Record {
    * @return 列值
    * @see #get(String)
    */
-  public Long getBigint(String columnName);
+  Long getBigint(String columnName);
 
   /**
    * 设置对应索引列的值，该列必须为Double类型
@@ -153,7 +154,7 @@ public interface Record {
    *     列值
    * @see #set(int, Object)
    */
-  public void setDouble(int idx, Double value);
+  void setDouble(int idx, Double value);
 
   /**
    * 获取对应索引列的值，该列必须为Double类型
@@ -163,7 +164,7 @@ public interface Record {
    * @return 列值
    * @see #get(int)
    */
-  public Double getDouble(int idx);
+  Double getDouble(int idx);
 
   /**
    * 设置对应列名的值，该列必须为Double类型
@@ -174,7 +175,7 @@ public interface Record {
    *     列值
    * @see #set(String, Object)
    */
-  public void setDouble(String columnName, Double value);
+  void setDouble(String columnName, Double value);
 
   /**
    * 设置对应列的值，该列必须为Double类型
@@ -184,7 +185,7 @@ public interface Record {
    * @return 列值
    * @see #get(String)
    */
-  public Double getDouble(String columnName);
+  Double getDouble(String columnName);
 
   /**
    * 设置对应索引列的值，该列必须为Boolean类型
@@ -195,7 +196,7 @@ public interface Record {
    *     列值
    * @see #set(int, Object)
    */
-  public void setBoolean(int idx, Boolean value);
+  void setBoolean(int idx, Boolean value);
 
   /**
    * 设置对应索引列的值，该列必须为Boolean类型
@@ -205,7 +206,7 @@ public interface Record {
    * @return 列值
    * @see #get(int)
    */
-  public Boolean getBoolean(int idx);
+  Boolean getBoolean(int idx);
 
   /**
    * 设置对应列名的值，该列必须为Boolean类型
@@ -216,7 +217,7 @@ public interface Record {
    *     列值
    * @see #set(String, Object)
    */
-  public void setBoolean(String columnName, Boolean value);
+  void setBoolean(String columnName, Boolean value);
 
   /**
    * 获取对应列名的值，该列必须为Boolean类型
@@ -226,7 +227,7 @@ public interface Record {
    * @return 列值
    * @see #get(String)
    */
-  public Boolean getBoolean(String columnName);
+  Boolean getBoolean(String columnName);
 
   /**
    * 设置对应索引列的值，该列必须为Datetime类型
@@ -237,7 +238,7 @@ public interface Record {
    *     列值
    * @see #set(int, Object)
    */
-  public void setDatetime(int idx, Date value);
+  void setDatetime(int idx, Date value);
 
   /**
    * 获取对应索引列的值，该列必须为Datetime类型
@@ -247,7 +248,7 @@ public interface Record {
    * @return 列值
    * @see #get(int)
    */
-  public Date getDatetime(int idx);
+  Date getDatetime(int idx);
 
   /**
    * 设置对应列名的值，该列必须为Datetime类型
@@ -258,7 +259,7 @@ public interface Record {
    *     列值
    * @see #set(String, Object)
    */
-  public void setDatetime(String columnName, Date value);
+  void setDatetime(String columnName, Date value);
 
   /**
    * 获取对应列名的值，该列必须为Datetime类型
@@ -268,7 +269,7 @@ public interface Record {
    * @return 列值
    * @see #get(String)
    */
-  public Date getDatetime(String columnName);
+  Date getDatetime(String columnName);
 
   /**
    * 设置对应索引列的值，该列必须为Decimal类型
@@ -284,7 +285,7 @@ public interface Record {
    *     列值
    * @see #set(int, Object)
    */
-  public void setDecimal(int idx, BigDecimal value);
+  void setDecimal(int idx, BigDecimal value);
 
   /**
    * 获取对应索引列的值，该列必须为Decimal类型
@@ -294,7 +295,7 @@ public interface Record {
    * @return 列值
    * @see #get(int)
    */
-  public BigDecimal getDecimal(int idx);
+  BigDecimal getDecimal(int idx);
 
   /**
    * 设置对应列名的值，该列必须为Decimal类型
@@ -307,7 +308,7 @@ public interface Record {
    *     列值
    * @see #set(String, Object)
    */
-  public void setDecimal(String columnName, BigDecimal value);
+  void setDecimal(String columnName, BigDecimal value);
 
   /**
    * 获取对应列名的值，该列必须为Decimal类型
@@ -317,7 +318,7 @@ public interface Record {
    * @return 列值
    * @see #get(String)
    */
-  public BigDecimal getDecimal(String columnName);
+  BigDecimal getDecimal(String columnName);
 
   /**
    * 设置对应索引列的值，该列必须为String类型
@@ -328,7 +329,7 @@ public interface Record {
    *     列值
    * @see #set(int, Object)
    */
-  public void setString(int idx, String value);
+  void setString(int idx, String value);
 
   /**
    * 获取对应索引列的值，该列必须为String类型
@@ -338,7 +339,7 @@ public interface Record {
    * @return 列值
    * @see #get(int)
    */
-  public String getString(int idx);
+  String getString(int idx);
 
   /**
    * 设置对应列名的值，该列必须为String类型
@@ -349,7 +350,7 @@ public interface Record {
    *     列值
    * @see #set(String, Object)
    */
-  public void setString(String columnName, String value);
+  void setString(String columnName, String value);
 
   /**
    * 获取对应列名的值，该列必须为String类型
@@ -359,7 +360,7 @@ public interface Record {
    * @return 列值
    * @see #get(String)
    */
-  public String getString(String columnName);
+  String getString(String columnName);
 
   /**
    * 设置对应列索引的值，该列必须为String类型
@@ -372,7 +373,7 @@ public interface Record {
    * 需要保证value.length就是需要传入的长度
    * 并且byte的值不会被复用
    */
-  public void setString(int idx, byte[] value);
+  void setString(int idx, byte[] value);
 
   /**
    * 设置对应列名的值，该列必须为String类型
@@ -381,7 +382,7 @@ public interface Record {
    * 需要保证value.length就是需要传入的长度
    * 并且byte的值不会被复用
    */
-  public void setString(String columnName, byte[] value);
+  void setString(String columnName, byte[] value);
 
   /**
    * 获取指定列索引的值
@@ -391,7 +392,7 @@ public interface Record {
    * @return 列值
    * @see #get(int)
    */
-  public byte[] getBytes(int idx);
+  byte[] getBytes(int idx);
 
   /**
    * 获取指定列名的值
@@ -401,7 +402,7 @@ public interface Record {
    * @return 列值
    * @see #get(String)
    */
-  public byte[] getBytes(String columnName);
+  byte[] getBytes(String columnName);
 
   /**
    * 设置当前 {@link Record} 的所有 {@link Column} 的值， 数组大小请和Column大小保持一致

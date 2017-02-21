@@ -26,11 +26,14 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.SimpleTimeZone;
+import java.util.TimeZone;
 
 public class DateUtils {
 
   private static long TZ = +8;
-  private static Calendar CAL = Calendar.getInstance();
+  private static Calendar CAL = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"));
+  private static Calendar GMT_CAL = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
+  private static long MILLIS_OF_DAY = 24 * 60 * 60 * 1000;
 
   //Java unix time stamp of Current Timezone
   private static final long _0001_01_01 = getTime(1, 1, 1, 0, 0, 0);
@@ -310,5 +313,44 @@ public class DateUtils {
     rfc822DateFormat.setTimeZone(new SimpleTimeZone(0, "GMT"));
 
     return rfc822DateFormat;
+  }
+
+  /**
+   * 计算与 1970-01-01 00:00:00 UTC  的偏移天数
+   *
+   * @param date
+   *        时间对象
+   * @return 偏移量
+   */
+  public static long getDayOffset(java.sql.Date date) {
+    Calendar localCal = (Calendar) CAL.clone();
+    Calendar gmtCal = (Calendar) GMT_CAL.clone();
+    localCal.clear();
+    gmtCal.clear();
+
+    localCal.setTime(date);
+    gmtCal.set(localCal.get(Calendar.YEAR), localCal.get(Calendar.MONTH), localCal.get(Calendar.DATE),
+             0, 0, 0);
+    return gmtCal.getTimeInMillis() / MILLIS_OF_DAY;
+  }
+
+  /**
+   * 根据偏移天数，生成 java.sql.Date 时间对象
+   *
+   * @param offset
+   *        与 1970-01-01 00:00:00 UTC  的偏移天数
+   * @return Date 对象
+   */
+  public static java.sql.Date fromDayOffset(long offset) {
+    Calendar localCal = (Calendar) CAL.clone();
+    Calendar gmtCal = (Calendar) GMT_CAL.clone();
+    localCal.clear();
+    gmtCal.clear();
+
+    gmtCal.setTimeInMillis(offset *  MILLIS_OF_DAY);
+    localCal.set(gmtCal.get(Calendar.YEAR), gmtCal.get(Calendar.MONTH), gmtCal.get(Calendar.DATE),
+               0, 0, 0);
+
+    return new java.sql.Date(localCal.getTimeInMillis());
   }
 }

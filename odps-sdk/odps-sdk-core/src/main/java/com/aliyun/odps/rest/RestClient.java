@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -324,25 +325,6 @@ public class RestClient {
         } catch (InterruptedException e1) {
         }
         continue;
-      } catch (Error e) {
-        if (retryTimes == retryCount) {
-          throw e;
-        }
-        resetBody(body);
-        ++retryCount;
-        if (logger != null) {
-          logger.onRetryLog(e, retryCount, retryWaitTime);
-        }
-
-        try {
-          long endTime = System.currentTimeMillis();
-          long sleepTime = retryWaitTime * 1000 - (endTime - startTime);
-          if (sleepTime > 0) {
-            Thread.sleep(sleepTime);
-          }
-        } catch (InterruptedException e1) {
-        }
-        continue;
       }
     }
     throw new OdpsException("Failed in Connection Retry.");
@@ -442,6 +424,8 @@ public class RestClient {
     } catch (SSLHandshakeException e) {
       // FOR HTTPS CERTS CHECK FAILED
       // USE RuntimeException could avoid retry
+      throw new RuntimeException(e.getMessage(), e);
+    } catch (UnknownHostException e) {
       throw new RuntimeException(e.getMessage(), e);
     } catch (IOException e) {
       throw new OdpsException(e.getMessage(), e);
