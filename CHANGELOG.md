@@ -1,10 +1,37 @@
-# 0.24.0 
+# 0.26.2
+- fastjson update to 1.2.25
+
+# 0.26.0
+- add SQLTask.getResultSet
+- copytask support new type
+- mv xflow, xflows, ml from core-internal to core
+
+# 0.25.2
+- refactor Date io in tunnel
+- refactor Java classes for new type
+- fix graph classloader bug in sandbox
+
+# 0.25.0
+- add `Instance.getTaskInfo`
+- add `SQLTASK.getSqlWarning`
+- add `Instance.getTaskQuotaJson`
+- specify 'Asia/Shanghai' to be default timezon in DateUtils
+- add type info system and extend `OdpsType` to support more data type
+- refactor tunnel sdk to support more data type
+
+# 0.24.0
 - improve sync instance
 - support external table
 - copy task support tunnel endpoint router 
 - fix `user.reload` bug, mk it work
-- add instance.getStatus(boolean )
 - optimize mr multi output
+- add `BearerTokenAccount`
+
+# 0.23.4
+- always do reload in onlinemodel
+
+# 0.23.3
+- use utf-8 charset in event notification
 
 # 0.23.2
 - make `OdpsHooks` thread safe
