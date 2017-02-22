@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk-impl</artifactId>
-        <version>0.26.0-public</version>
+        <version>0.26.2-public</version>
     </parent>
 
     <artifactId>odps-mapred-local</artifactId>
@@ -17,24 +17,24 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-common-local</artifactId>
-            <version>0.26.0-public</version>
+            <version>0.26.2-public</version>
         </dependency>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-mapred</artifactId>
-            <version>0.26.0-public</version>
+            <version>0.26.2-public</version>
         </dependency>
 
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-mapred-bridge</artifactId>
-            <version>0.26.0-public</version>
+            <version>0.26.2-public</version>
         </dependency>
 
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-core</artifactId>
-            <version>0.26.0-public</version>
+            <version>0.26.2-public</version>
         </dependency>
 
         <dependency>
