@@ -154,7 +154,7 @@ public class Main {
           }
         }
       } else if (str.startsWith("c(")) {
-        if (str.length() < 6) {
+        if (str.length() < 4) {
           throw new LocalRunError("Invalid columns");
         }
         str = str.substring(2, str.length() - 1);

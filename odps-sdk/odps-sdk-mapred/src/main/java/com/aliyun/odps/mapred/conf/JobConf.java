@@ -516,7 +516,7 @@ public class JobConf extends Configuration {
   }
 
   /**
-   * 获取指定的切分大小，单位 MB，默认 640.
+   * 获取指定的切分大小，单位 MB，默认 256.
    *
    * <p>
    * 此参数会影响到 {@link com.aliyun.odps.mapred.Mapper} 任务数，具体影响见
@@ -526,11 +526,11 @@ public class JobConf extends Configuration {
    * @return 指定的切分大小，单位 MB
    */
   public long getSplitSize() {
-    return getLong(CONF.MAP_SPLIT_SIZE, 640);
+    return getLong(CONF.MAP_SPLIT_SIZE, 256);
   }
 
   /**
-   * 设置切分大小，单位 MB，默认 640.
+   * 设置切分大小，单位 MB，默认 256.
    *
    * <p>
    * 此参数会影响到 {@link com.aliyun.odps.mapred.Mapper} 任务数，具体影响见

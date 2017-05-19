@@ -181,7 +181,6 @@ import com.aliyun.odps.utils.StringUtils;
 public class MRUnitTest {
 
   private static final Log LOG = LogFactory.getLog(MRUnitTest.class);
-  private static Counters counters = new Counters();
   private static String DEFAULT_PROJECT_NAME = "default_mr_unittest";
   private static String DEFAULT_TABLE_NAME = "default_mr_unittest_table";
 
@@ -212,49 +211,53 @@ public class MRUnitTest {
 
     TableInfo[] inputTableInfos = InputUtils.getTables(job);
     List<FileSplit> inputs = new ArrayList<FileSplit>();
-    try {
-      context.setRuntimeContext(ctx);
+    context.setRuntimeContext(ctx);
 
-      // write job xml
-      writeJobConf(job, ctx);
+    // write job xml
+    writeJobConf(job, ctx);
 
-      // start to process input tables
-      processInputs(job, inputs, context);
-      
-      // start to process resources
-      processResources(job, context);
+    // start to process input tables
+    processInputs(job, inputs, context);
 
-      int mapCopyNum = 0, reduceCopyNum = 0;
-      if (inputTableInfos != null && inputTableInfos.length > 0) {
-        mapCopyNum = inputTableInfos.length;
-      } else {
-        // allow no input
-        mapCopyNum = job.getInt("odps.stage.mapper.num", 1);
-      }
+    // start to process resources
+    processResources(job, context);
 
-      TransformNode pipeNode = pipeline == null ? null : pipeline.getFirstNode();
-      reduceCopyNum = computeReduceNum(mapCopyNum, pipeNode, job, ctx);
-
-      TaskId taskId = new LocalTaskId("M1", 0, DEFAULT_PROJECT_NAME);
-      TaskOutput mapOutput = pipeline == null ? new TaskOutput(job, reduceCopyNum) : new TaskOutput(job, pipeline, taskId.getTaskId(), reduceCopyNum);
-
-      for (int mapId = 0; mapId < mapCopyNum; mapId++) {
-        FileSplit split = inputs.size() > 0 ? inputs.get(mapId) : FileSplit.NullSplit;
-        taskId = new TaskId("M1", mapId + 1);
-        LOG.info("Start to run mapper, TaskId: " + taskId);
-
-        BridgeJobConf conf = new BridgeJobConf(job);
-        MapDriver mapDriver =
-            new MapDriver(conf, split, taskId, mapOutput, counters, inputTableInfos == null ? null
-                : inputTableInfos[mapId]);
-        mapDriver.run();
-      }
-      return mapOutput;
-    } finally {
-      printCounters();
-      // delete temp directory
-      clean(context);
+    int mapCopyNum = 0, reduceCopyNum = 0;
+    if (inputTableInfos != null && inputTableInfos.length > 0) {
+      mapCopyNum = inputTableInfos.length;
+    } else {
+      // allow no input
+      mapCopyNum = job.getInt("odps.stage.mapper.num", 1);
     }
+
+    TransformNode pipeNode = pipeline == null ? null : pipeline.getFirstNode();
+    reduceCopyNum = computeReduceNum(mapCopyNum, pipeNode, job, ctx);
+
+    TaskId taskId = new LocalTaskId("M1", 0, DEFAULT_PROJECT_NAME);
+    TaskOutput mapOutput =
+        pipeline == null ? new TaskOutput(job, reduceCopyNum) : new TaskOutput(job, pipeline,
+            taskId.getTaskId(), reduceCopyNum);
+
+    Counters counters = new Counters();
+    for (int mapId = 0; mapId < mapCopyNum; mapId++) {
+      FileSplit split = inputs.size() > 0 ? inputs.get(mapId) : FileSplit.NullSplit;
+      taskId = new TaskId("M1", mapId + 1);
+      LOG.info("Start to run mapper, TaskId: " + taskId);
+
+      BridgeJobConf conf = new BridgeJobConf(job);
+      MapDriver mapDriver =
+          new MapDriver(conf, split, taskId, mapOutput, counters, inputTableInfos == null ? null
+              : inputTableInfos[mapId]);
+      mapDriver.run();
+    }
+
+    Counters userCounters = new Counters();
+    // print counters and get user counters
+    printCounters(counters, userCounters);
+    mapOutput.setCounters(userCounters);
+    // delete temp directory
+    clean(context);
+    return mapOutput;
   }
 
   private void processResources(JobConf job, UTContext context)
@@ -351,48 +354,57 @@ public class MRUnitTest {
 
     RuntimeContext ctx = RuntimeContext.create(jobId, job);
 
-    try {
-      context.setRuntimeContext(ctx);
+    context.setRuntimeContext(ctx);
 
-      // write job xml
-      writeJobConf(job, ctx);
+    // write job xml
+    writeJobConf(job, ctx);
 
-      int mapCopyNum = 1, reduceCopyNum = 0;
-      TransformNode pipeNode = pipeline == null ? null : pipeline.getNode(context.getReducerIndex() + 1);
-      int reduceIndx = pipeline == null ? 2 : (2+context.getReducerIndex());
-      reduceCopyNum = computeReduceNum(mapCopyNum, pipeNode, job, ctx);
+    int mapCopyNum = 1, reduceCopyNum = 0;
+    TransformNode pipeNode =
+        pipeline == null ? null : pipeline.getNode(context.getReducerIndex() + 1);
+    int reduceIndx = pipeline == null ? 2 : (2 + context.getReducerIndex());
+    reduceCopyNum = computeReduceNum(mapCopyNum, pipeNode, job, ctx);
 
-      // construct reducer's input
-      TaskId preTaskId = new LocalTaskId(reduceIndx == 2 ? "M1" : "R"+Integer.toString(reduceIndx-1), 0, DEFAULT_PROJECT_NAME);
-      TaskOutput reduceInput = pipeline == null ? new TaskOutput(job, reduceCopyNum) : new TaskOutput(job, pipeline, preTaskId.getTaskId(), reduceCopyNum);
-      for (KeyValue<Record, Record> kv : context.getInputKeyVals()) {
-        reduceInput.add(kv.getKey(), kv.getValue());
-      }
-
-      // start to process resources
-      processResources(job, context);
-
-      TaskId taskId = new LocalTaskId("R"+Integer.toString(reduceIndx), 0, DEFAULT_PROJECT_NAME);
-      TaskOutput reduceOutput = pipeline == null ? new TaskOutput(job, reduceCopyNum) : new TaskOutput(job, pipeline, taskId.getTaskId(), reduceCopyNum);;
-      for (int reduceId = 0; reduceId < reduceCopyNum; ++reduceId) {
-        taskId = new TaskId("R"+Integer.toString(reduceIndx), reduceId);
-        LOG.info("Start to run reduce, taskId: " + taskId);
-
-        BridgeJobConf conf = new BridgeJobConf(job);
-        ReduceDriver reduceDriver =
-            new ReduceDriver(conf, reduceInput, reduceOutput, taskId, counters, reduceId);
-        reduceDriver.run();
-
-        LOG.info("Finished run reduce, taskId: " + taskId);
-      }
-
-      return reduceOutput;
-
-    } finally {
-      printCounters();
-      // delete temp directory
-      clean(context);
+    // construct reducer's input
+    TaskId preTaskId =
+        new LocalTaskId(reduceIndx == 2 ? "M1" : "R" + Integer.toString(reduceIndx - 1), 0,
+            DEFAULT_PROJECT_NAME);
+    TaskOutput reduceInput =
+        pipeline == null ? new TaskOutput(job, reduceCopyNum) : new TaskOutput(job, pipeline,
+            preTaskId.getTaskId(), reduceCopyNum);
+    for (KeyValue<Record, Record> kv : context.getInputKeyVals()) {
+      reduceInput.add(kv.getKey(), kv.getValue());
     }
+
+    // start to process resources
+    processResources(job, context);
+
+    TaskId taskId = new LocalTaskId("R" + Integer.toString(reduceIndx), 0, DEFAULT_PROJECT_NAME);
+    TaskOutput reduceOutput =
+        pipeline == null ? new TaskOutput(job, reduceCopyNum) : new TaskOutput(job, pipeline,
+            taskId.getTaskId(), reduceCopyNum);
+
+    Counters counters = new Counters();
+    for (int reduceId = 0; reduceId < reduceCopyNum; ++reduceId) {
+      taskId = new TaskId("R" + Integer.toString(reduceIndx), reduceId);
+      LOG.info("Start to run reduce, taskId: " + taskId);
+
+      BridgeJobConf conf = new BridgeJobConf(job);
+      ReduceDriver reduceDriver =
+          new ReduceDriver(conf, reduceInput, reduceOutput, taskId, counters, reduceId);
+      reduceDriver.run();
+
+      LOG.info("Finished run reduce, taskId: " + taskId);
+    }
+
+    Counters userCounters = new Counters();
+    // print counters and get user counters
+    printCounters(counters, userCounters);
+    reduceOutput.setCounters(userCounters);
+    // delete temp directory
+    clean(context);
+
+    return reduceOutput;
   }
 
   /**
@@ -438,6 +450,7 @@ public class MRUnitTest {
     if (!dataFile.exists()) {
       return records;
     }
+    Counters counters = new Counters();
     Counter emptyCounter = counters.findCounter(JobCounter.__EMPTY_WILL_NOT_SHOW);
     RecordReader reader =
         new CSVRecordReader(new FileSplit(dataFile, meta.getCols(), 0, dataFile.getTotalSpace()),
@@ -619,7 +632,7 @@ public class MRUnitTest {
     return reduceNum;
   }
 
-  private void printCounters() {
+  private void printCounters(Counters counters, Counters userCounters) {
     int totalCount = 0;
     int frameWorkCounterCount = 0;
     int jobCounterCount = 0;
@@ -656,22 +669,6 @@ public class MRUnitTest {
       }
     }
 
-    // sb.append("\n\tJob Counters: " + jobCounterCount);
-    // for (CounterGroup group : counters) {
-    // if
-    // (!group.getDisplayName().equals("com.aliyun.odps.mapred.local.Counter.JobCounter"))
-    // {
-    // continue;
-    // }
-    // for (Counter counter : group) {
-    // if
-    // (counter.getDisplayName().equals(JobCounter.__EMPTY_WILL_NOT_SHOW.toString()))
-    // continue;
-    // sb.append("\n\t\t" + counter.getDisplayName() + "=" +
-    // counter.getValue());
-    // }
-    // }
-
     sb.append("\n\tUser Defined Counters: " + userCounterCount);
     for (CounterGroup group : counters) {
       if (group.getDisplayName().equals(JobCounter.class.getName())
@@ -683,9 +680,10 @@ public class MRUnitTest {
         if (counter.getDisplayName().equals(JobCounter.__EMPTY_WILL_NOT_SHOW.toString())) {
           continue;
         }
+        userCounters.findCounter(group.getDisplayName(), counter.getDisplayName()).setValue(counter.getValue());
         sb.append("\n\t\t\t" + counter.getDisplayName() + "=" + counter.getValue());
       }
     }
-    System.err.println(sb.toString().toLowerCase());
+    System.err.println(sb.toString());
   }
 }

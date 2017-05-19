@@ -1,4 +1,4 @@
-"odps_test_mrtask.l_p_ss{p1=3D1, p2=3D1}",in,2,"key,val",mapSetup
+"odps_test_mrtask.l_p_ss{p1=1, p2=1}",in,2,"key,val",mapSetup
 odps_test_mrtask.getTableInfo_out,out,5,"table_info,type,colNum,cols,stage",mapSetup
-"odps_test_mrtask.l_p_ss{p1=3D1, p2=3D1}",in,2,"key,val",map
+"odps_test_mrtask.l_p_ss{p1=1, p2=1}",in,2,"key,val",map
 odps_test_mrtask.getTableInfo_out,out,5,"table_info,type,colNum,cols,stage",map

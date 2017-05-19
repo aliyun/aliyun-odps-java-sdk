@@ -69,7 +69,9 @@ public class LotMapperUDTF extends LotTaskUDTF {
       inputTableInfo = tableInfo;
       record = new WritableRecord(inputSchema);
       // only map stage need column access info now
-      ((WritableRecord)record).setEnableColumnAccessStat(true);
+      if (!conf.getBoolean("odps.mapred.mark.input.columns.all.used", false)) {
+        ((WritableRecord)record).setEnableColumnAccessStat(true);
+      }
       configure(context);
     }
 
@@ -639,8 +641,9 @@ public class LotMapperUDTF extends LotTaskUDTF {
     // Set additional info
     for (TableInfo input : inputs) {
       if (MapReduceUtils.partSpecInclusive(input, info)) {
-        info.setCols(input.getCols());
-        info.setLable(input.getLabel());
+        TableInfo tmpInfo = new TableInfo(input);
+        tmpInfo.setPartSpec(info.getPartSpec());
+        info = tmpInfo;
       }
     }
     return info;
@@ -684,8 +687,10 @@ public class LotMapperUDTF extends LotTaskUDTF {
     StateInfo.init();
     MapReduceUtils.runMapper((Class<Mapper>) conf.getMapperClass(), ctx);
     // add column access info counters here, now all the user code finished
-    if (ctx instanceof DirectMapContextImpl) {
-      ((DirectMapContextImpl) ctx).AddFrameworkCounters();
+    if (!conf.getBoolean("odps.mapred.mark.input.columns.all.used", false)) {
+      if (ctx instanceof DirectMapContextImpl) {
+        ((DirectMapContextImpl) ctx).AddFrameworkCounters();
+      }
     }
     StateInfo.updateMemStat("mapper end");
     StateInfo.printMaxMemo();

@@ -13,6 +13,7 @@ public class TypeUtils{
     OdpsTypesMap.put("string", com.aliyun.odps.OdpsType.STRING);
     OdpsTypesMap.put("datetime", com.aliyun.odps.OdpsType.DATETIME);
     OdpsTypesMap.put("decimal", com.aliyun.odps.OdpsType.DECIMAL);
+    OdpsTypesMap.put("binary", com.aliyun.odps.OdpsType.BINARY);
   }
   // Note: We have two versions of OdpsType, we are getting com.aliyun.odps.OdpsType here
   public static com.aliyun.odps.OdpsType getOdpsType(String typeStr) {

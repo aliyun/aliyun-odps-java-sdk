@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Iterator;
+import java.util.List;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.TableInfo;
@@ -35,21 +36,24 @@ public class MapReduceUtils {
 
   /**
    * Get method from class <code>clz</code> whose name is specified as
-   * <code>m</code> and arguments are specified as <code>args</code>. Note that
+   * <code>methodName</code> and arguments are specified as <code>args</code>. Note that
    * the function will traverse parent classes if the declared method is not
    * exist in current class.
    *
    * @param clz
-   * @param m
+   * @param methodName
    * @param args
    * @return the finding method, or null if non-exist.
    */
-  static Method getOverriddenMethod(Class<?> clz, String m, Class<?>... args) {
-    Method method = null;
+  static Method getOverriddenMethod(Class<?> clz, String methodName, Class<?>... args) {
+    List<Method> methods = null;
     while (clz != null) {
-      method = ReflectionUtils.findUserClassMethod(clz, m);
-      if (method != null && isAssignable(method.getParameterTypes(), args)) {
-        return method;
+      // find all methods with the same name
+      methods = ReflectionUtils.findUserClassMethods(clz, methodName);
+      for (Method m : methods) {
+        if (m != null && isAssignable(m.getParameterTypes(), args)) {
+          return m;
+        }
       }
       clz = clz.getSuperclass();
     }
@@ -99,7 +103,7 @@ public class MapReduceUtils {
     Mapper mapper = (Mapper) ReflectionUtils.newInstance(clz, ctx.getJobConf());
     try {
       // should add a flag to this for compatibility
-      if (ctx.getJobConf().getBoolean("odps.mapred.run.interface.enable", true)) {
+      if (ctx.getJobConf().getBoolean("odps.mapred.run.interface.enable", false)) {
         Method m = getOverriddenMethod(clz, "run", TaskContext.class);
         if (m != null) {
           m.invoke(mapper, ctx);
@@ -139,7 +143,7 @@ public class MapReduceUtils {
     Reducer combiner = (Reducer) ReflectionUtils.newInstance(clz, ctx.getJobConf());
     try {
       // should add a flag to this for compatibility
-      if (ctx.getJobConf().getBoolean("odps.mapred.run.interface.enable", true)) {
+      if (ctx.getJobConf().getBoolean("odps.mapred.run.interface.enable", false)) {
         Method m = getOverriddenMethod(clz, "run", TaskContext.class);
         if (m != null) {
           m.invoke(combiner, ctx);

@@ -27,6 +27,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import com.aliyun.odps.counter.Counter;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.io.Text;
@@ -46,12 +47,14 @@ public class WordCountTest extends MRUnitTest {
   public static class TokenizerMapper extends MapperBase {
     private Record word;
     private Record one;
+    Counter gCnt;
 
     @Override
     public void setup(TaskContext context) throws IOException {
       word = context.createMapOutputKeyRecord();
       one = context.createMapOutputValueRecord();
       one.set(new Object[] {1L});
+      gCnt = context.getCounter("MyCounters", "global_counts");
     }
 
     @Override
@@ -59,6 +62,9 @@ public class WordCountTest extends MRUnitTest {
       for (int i = 0; i < record.getColumnCount(); i++) {
           word.set(new Object[] {record.get(i)});
           context.write(word, one);
+          Counter cnt = context.getCounter("MyCounters", "map_outputs");
+          cnt.increment(1);
+          gCnt.increment(1);
       }
     }
   }
@@ -92,10 +98,12 @@ public class WordCountTest extends MRUnitTest {
    **/
   public static class SumReducer extends ReducerBase {
     private Record result = null;
+    Counter gCnt;
 
     @Override
     public void setup(TaskContext context) throws IOException {
       result = context.createOutputRecord();
+      gCnt = context.getCounter("MyCounters", "global_counts");
     }
 
     @Override
@@ -107,6 +115,10 @@ public class WordCountTest extends MRUnitTest {
       }
       result.set(0, key.get(0));
       result.set(1, count);
+      Counter cnt = context.getCounter("MyCounters", "reduce_outputs");
+      cnt.increment(1);
+      gCnt.increment(1);
+      
       context.write(result);
     }
   }
@@ -156,6 +168,10 @@ public class WordCountTest extends MRUnitTest {
     Assert.assertEquals(new KeyValue<String, Long>(new String("java"), new Long(1)),
         new KeyValue<String, Long>((String) (kvs.get(2).getKey().get(0)), (Long) (kvs.get(2)
             .getValue().get(0))));
+    // verify mapper counters
+    Assert.assertEquals(2, output.getCounters().countCounters());
+    Assert.assertEquals(4, output.getCounters().getGroup("MyCounters").findCounter("global_counts").getValue());
+    Assert.assertEquals(4, output.getCounters().getGroup("MyCounters").findCounter("map_outputs").getValue());
   }
 
   @Test
@@ -188,6 +204,10 @@ public class WordCountTest extends MRUnitTest {
     Assert.assertEquals(new Long(1), records.get(1).get("v"));
     Assert.assertEquals(new String("world"), records.get(2).get("k"));
     Assert.assertEquals(new Long(1), records.get(2).get("v"));
+    // verify reducer counters
+    Assert.assertEquals(2, output.getCounters().countCounters());
+    Assert.assertEquals(3, output.getCounters().getGroup("MyCounters").findCounter("global_counts").getValue());
+    Assert.assertEquals(3, output.getCounters().getGroup("MyCounters").findCounter("reduce_outputs").getValue());
   }
 
 }

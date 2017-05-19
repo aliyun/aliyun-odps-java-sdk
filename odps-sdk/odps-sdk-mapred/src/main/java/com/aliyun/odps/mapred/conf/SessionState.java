@@ -184,7 +184,13 @@ public class SessionState {
     if (context.containsKey("context")) {
       // extract info from execution context
       Map<String, Object> ctx = (Map<String, Object>) context.get("context");
-      defaultJob.setInstancePriority((Integer) ctx.get("priority"));
+      // for compatibility
+      Object priority = ctx.get("priority");
+      if (priority instanceof Integer) {
+        defaultJob.setInstancePriority((Integer) priority);
+      } else {
+        defaultJob.setInstancePriority(Integer.parseInt((String) priority));
+      }
       OdpsHooks.clearRegisteredHooks();
       String hookString = (String) ctx.get("odpsHooks");
       if (!StringUtils.isNullOrEmpty(hookString)) {

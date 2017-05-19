@@ -53,7 +53,6 @@ for (Table t : odps.tables()) {
 - [Wang Shenggong](https://github.com/shellc)
 - [Ni Zheming](https://github.com/nizheming)
 - [Li Ruibo](https://github.com/lyman)
-- [Guo Zhenhong](https://github.com/guozhenhong)
 
 ## License
 

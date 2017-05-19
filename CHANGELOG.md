@@ -1,10 +1,20 @@
+# 0.26.5
+- remove jcabi, fix 0.26.2-public duplicated field bug
+
+# 0.26.4
+- fix mr secondary partition bug
+
+# 0.26.3
+- fastjson update to 1.2.28.odps
+
 # 0.26.2
 - fastjson update to 1.2.25
 
-# 0.26.0
+# 0.26.0 
 - add SQLTask.getResultSet
 - copytask support new type
 - mv xflow, xflows, ml from core-internal to core
+
 
 # 0.25.2
 - refactor Date io in tunnel
