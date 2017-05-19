@@ -4,9 +4,6 @@
 # 0.26.4
 - fix mr secondary partition bug
 
-# 0.26.3
-- fastjson update to 1.2.28.odps
-
 # 0.26.2
 - fastjson update to 1.2.25
 
