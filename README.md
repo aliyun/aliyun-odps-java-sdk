@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/aliyun/aliyun-odps-java-sdk.svg?branch=master)](https://travis-ci.org/aliyun/aliyun-odps-java-sdk)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.aliyun.odps/odps/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.aliyun.odps/odps)
-
+[![Javadocs](http://www.javadoc.io/badge/com.aliyun.odps/odps-sdk-core.svg)](http://www.javadoc.io/doc/com.aliyun.odps/odps-sdk-core)
 
 
 ## Requirements
