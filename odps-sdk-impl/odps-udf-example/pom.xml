@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk-impl</artifactId>
-        <version>0.26.5-public</version>
+        <version>0.26.6-public</version>
     </parent>
 
     <artifactId>odps-udf-example</artifactId>
@@ -17,7 +17,7 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-udf</artifactId>
-            <version>0.26.5-public</version>
+            <version>0.26.6-public</version>
         </dependency>
     </dependencies>
 </project>
