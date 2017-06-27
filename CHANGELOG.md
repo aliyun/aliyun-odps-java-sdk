@@ -1,3 +1,9 @@
+# 0.27.1
+- server task: modify create api and support scale/upgrade
+- fastjson update to 1.2.28.odps
+- add InstanceQueueingInfo
+- add algotask
+
 # 0.26.5
 - remove jcabi, fix 0.26.2-public duplicated field bug
 
@@ -11,7 +17,6 @@
 - add SQLTask.getResultSet
 - copytask support new type
 - mv xflow, xflows, ml from core-internal to core
-
 
 # 0.25.2
 - refactor Date io in tunnel
