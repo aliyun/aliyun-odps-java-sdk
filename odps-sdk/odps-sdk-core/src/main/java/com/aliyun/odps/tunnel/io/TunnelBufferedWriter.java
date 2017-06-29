@@ -104,7 +104,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   private long bufferSize;
   private long bytesWritten;
 
-  private static final long BUFFER_SIZE_DEFAULT = 10 * 1024 * 1024;
+  private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
   private static final long BUFFER_SIZE_MIN = 1024 * 1024;
   private static final long BUFFER_SIZE_MAX = 1000 * 1024 * 1024;
 

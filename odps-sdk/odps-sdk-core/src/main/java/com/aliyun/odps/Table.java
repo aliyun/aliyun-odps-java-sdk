@@ -611,10 +611,33 @@ public class Table extends LazyLoad {
    *     所要读取的列名的列表。如果读取全表可传入null
    * @param limit
    *     最多读取的记录行数。
+   *
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit)
+      throws OdpsException {
+    return read(partition, columns, limit, null);
+  }
+
+  /**
+   * 读取表内的数据 <br />
+   * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
+   * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
+   *
+   * @param partition
+   *     表的分区{@link PartitionSpec}。如不指定分区可传入null。
+   * @param columns
+   *     所要读取的列名的列表。如果读取全表可传入null
+   * @param limit
+   *     最多读取的记录行数。
+   * @param timezone
+   *     设置 datetime 类型数据的时区
+   *
+   * @return {@link RecordReader}对象
+   * @throws OdpsException
+   */
+  public RecordReader read(PartitionSpec partition, List<String> columns, int limit, String timezone)
       throws OdpsException {
     if (limit < 0) {
       throw new OdpsException("limit number should >= 0.");
@@ -640,8 +663,14 @@ public class Table extends LazyLoad {
       params.put("linenum", String.valueOf(limit));
     }
 
+    Map<String, String> header = null;
+    if (timezone != null) {
+      header = new HashMap<String, String>();
+      header.put("x-odps-sql-timezone", timezone);
+    }
+
     String resource = ResourceBuilder.buildTableResource(model.projectName, getName());
-    Response resp = client.request(resource, "GET", params, null, null);
+    Response resp = client.request(resource, "GET", params, header, null);
     return new DefaultRecordReader(new ByteArrayInputStream(resp.getBody()), getSchema());
   }
 

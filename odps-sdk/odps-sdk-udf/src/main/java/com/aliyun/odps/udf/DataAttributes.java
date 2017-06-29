@@ -21,19 +21,29 @@ public abstract class DataAttributes {
 
 
   /**
+   * @param isExtractor flag to distinguish extractor or outputer
    * @return Serde properties specified in DDL statement and table information (e.g., columns name/type)
    */
-  public abstract Properties getHiveTableProperties();
+  public abstract Properties getHiveTableProperties(boolean isExtractor);
 
   /**
-   * Getter for the record columns that describe the schema of the underlying data
+   * Getter for columns describing expected Record schema: un-used columns may have been pruned and this schema
+   * therefore can be a subset of full schema (that describes underlying physical data)
    *
    * @return: column arrays
    */
   public abstract Column[] getRecordColumns();
 
   /**
-   * Getter for needed indexes, this can be used to skip deserialization of non-neede column(s).
+   * Getter for record columns describing the FULL schema of underlying physical data, represented by the
+   * (external) table
+   *
+   * @return: column arrays
+   */
+  public abstract Column[] getFullTableColumns();
+
+  /**
+   * Getter for needed indexes, this can be used to skip deserialization of non-needed column(s).
    *
    * @return: the indexes of columns that should be extracted from underlying unstructured raw data.
    **/

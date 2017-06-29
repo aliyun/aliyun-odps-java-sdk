@@ -336,6 +336,38 @@ public class ArrayRecordTest {
   }
 
   @Test
+  public void testInterval() {
+    TableSchema schema = new TableSchema();
+
+    schema.addColumn(new Column("c1", OdpsType.INTERVAL_DAY_TIME));
+    schema.addColumn(new Column("c2", OdpsType.INTERVAL_DAY_TIME));
+    schema.addColumn(new Column("c3", OdpsType.INTERVAL_YEAR_MONTH));
+    schema.addColumn(new Column("c4", OdpsType.INTERVAL_YEAR_MONTH));
+
+    ArrayRecord record = new ArrayRecord(schema);
+
+    java.sql.Timestamp timestamp = new java.sql.Timestamp(System.currentTimeMillis());
+
+    IntervalDayTime dayTime = new IntervalDayTime(timestamp.getTime() / 1000, timestamp.getNanos());
+    record.set(0, dayTime);
+    record.set("c2", dayTime);
+
+    IntervalYearMonth yearMonth = new IntervalYearMonth(16);
+    record.set(2, yearMonth);
+    record.set("c4", yearMonth);
+
+    Assert.assertEquals(dayTime, record.getIntervalDayTime("c1"));
+    Assert.assertEquals(dayTime, record.getIntervalDayTime(1));
+    Assert.assertEquals(dayTime, record.get("c2"));
+    Assert.assertEquals(dayTime, record.get(0));
+
+    Assert.assertEquals(yearMonth, record.getIntervalYearMonth("c3"));
+    Assert.assertEquals(yearMonth, record.getIntervalYearMonth(3));
+    Assert.assertEquals(yearMonth, record.get("c4"));
+    Assert.assertEquals(yearMonth, record.get(2));
+  }
+
+  @Test
   public void testCastError() {
 
     TableSchema schema = new TableSchema();

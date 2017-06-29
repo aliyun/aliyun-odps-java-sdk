@@ -64,9 +64,7 @@ public abstract class SourceInputStream extends InputStream {
   }
 
   @Override
-  public long skip(long n){
-    throw new UnsupportedOperationException();
-  }
+  public abstract  long skip(long n) throws IOException;
 
   /**
    * Getter for the file name associated with the file being streamed in.
@@ -75,10 +73,7 @@ public abstract class SourceInputStream extends InputStream {
   public abstract String getFileName();
 
   /**
-   * Getter for the size in [bytes] of the file currently being processed. Note that currently splitting of
-   * a single file across multiple vertexes is  not supported, but were a vertex processing a split,
-   * this would be current split size.
-   * @return: file size in bytes
+   * Getter for the size in [bytes] of the file currently being processed.
    **/
   public abstract long getFileSize();
 
@@ -93,5 +88,21 @@ public abstract class SourceInputStream extends InputStream {
    * @return: number of read-out bytes after a successful read
    **/
   public abstract int readToEnd(byte[] buffer) throws IOException, BufferOverflowException;
+
+  /**
+   * Clone a stream, the clone is a separate handle to the source data. This allows flexible data manipulations,
+   * such as operations on different segments of the source files, without frequent seek/reset operations.
+   * @return cloned stream
+   * @throws IOException
+   */
+  public abstract SourceInputStream cloneStream() throws IOException;
+
+  /**
+   * Allow adjustment on the upper limit for number of maximum cloned streams allowed.
+   * The system will set a reasonable upper limit by default, so unless absolutely necessary,
+   * it is NOT recommended that user adjusts this value.
+   * @param limit
+   */
+  public abstract void adjustMaxCloneLimit(int limit);
 
 }

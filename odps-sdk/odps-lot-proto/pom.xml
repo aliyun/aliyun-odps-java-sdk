@@ -5,12 +5,12 @@
   <parent>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk</artifactId>
-    <version>0.26.6-public</version>
+    <version>0.27.1-public</version>
   </parent>
   
   <groupId>com.aliyun.odps</groupId>
   <artifactId>odps-lot-proto</artifactId>
-  <version>0.26.6-public</version>
+  <version>0.27.1-public</version>
   <packaging>jar</packaging>
 
   <name>odps-lot-proto</name>
@@ -74,7 +74,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>2.4.1</version>
     </dependency>
   </dependencies>
 </project>

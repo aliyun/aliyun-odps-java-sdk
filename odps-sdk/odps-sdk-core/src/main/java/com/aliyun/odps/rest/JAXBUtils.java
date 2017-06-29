@@ -302,6 +302,17 @@ public class JAXBUtils {
     return jc;
   }
 
+  public static class EpochBinding extends DateBinding {
+    @Override
+    public Date unmarshal(String v) {
+      try {
+        return new Date(Long.parseLong(v) * 1000);
+      } catch (Exception e) {
+        return null;
+      }
+    }
+  }
+
   public static class DateBinding extends XmlAdapter<String, Date> {
 
     @Override

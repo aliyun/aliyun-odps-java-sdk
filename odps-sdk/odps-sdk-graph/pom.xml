@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.26.6-public</version>
+        <version>0.27.1-public</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -66,29 +66,26 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-core</artifactId>
-            <version>0.26.6-public</version>
         </dependency>
 
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-commons</artifactId>
-            <version>0.26.6-public</version>
         </dependency>
+
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-mapred</artifactId>
-            <version>0.26.6-public</version>
         </dependency>
+
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
-            <version>1.2.8</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>15.0</version>
         </dependency>
     </dependencies>
 

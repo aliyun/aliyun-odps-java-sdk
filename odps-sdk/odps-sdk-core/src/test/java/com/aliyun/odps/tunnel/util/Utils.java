@@ -112,11 +112,11 @@ public class Utils {
     VolumeTunnel tunnel = new VolumeTunnel(odps);
     String endpoint = OdpsTestUtils.getProperty("default.tunnel.endpoint");
     if (endpoint != null && !endpoint.isEmpty()) {
-        tunnel.setEndpoint(endpoint);
+      tunnel.setEndpoint(endpoint);
     }
     return tunnel;
   }
-  
+
   public static VolumeFSTunnel getVolumeFSTunnel() {
     VolumeFSTunnel tunnelFS = new VolumeFSTunnel(odps);
     String endpoint = OdpsTestUtils.getProperty("default.tunnel.endpoint");
@@ -131,7 +131,7 @@ public class Utils {
     VolumeTunnel tunnel = new VolumeTunnel(grantOdps);
     String endpoint = OdpsTestUtils.getProperty("default.tunnel.endpoint");
     if (endpoint != null && !endpoint.isEmpty()) {
-        tunnel.setEndpoint(endpoint);
+      tunnel.setEndpoint(endpoint);
     }
     return tunnel;
   }
@@ -177,7 +177,7 @@ public class Utils {
 
   public static List<String> listVolumePartitions(String volumeName, String partitionName,
                                                   String projectName)
-      throws Exception {
+          throws Exception {
     Odps odps = OdpsTestUtils.newDefaultOdps();
     odps.setDefaultProject(projectName);
     List<String> result = new LinkedList<String>();

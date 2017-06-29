@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import com.aliyun.odps.account.Account;
+import com.aliyun.odps.account.AccountFormat;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
@@ -86,6 +87,7 @@ public class Odps {
   private String userAgent;
 
   private String logViewHost;
+  private AccountFormat accountFormat = null;
 
   public void setAccount(Account account) {
     this.client.setAccount(account);
@@ -325,5 +327,25 @@ public class Odps {
    */
   public void setLogViewHost(String host) {
     this.logViewHost = host;
+  }
+
+  /**
+   * 设置参数 account 格式
+   *
+   * @param format
+   *     account 格式
+   */
+  public void setAccountFormat(AccountFormat format) {
+    this.accountFormat = format;
+  }
+
+  /**
+   * 获取参数 account 格式
+   *
+   * @return
+   *     account 格式
+   */
+  public AccountFormat getAccountFormat() {
+    return this.accountFormat;
   }
 }

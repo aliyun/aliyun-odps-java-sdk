@@ -39,6 +39,7 @@ public class ResourceBuilder {
   public static final String EVENTS = "/events";
   public static final String RESOURCES = "/resources";
   public static final String INSTANCES = "/instances";
+  public static final String CACHED_INSTANCES = "/cachedinstances";
   public static final String VOLUMES = "/volumes";
   private static final String STREAMS = "/streams";
   private static final String TOPOLOGIES = "/topologies";
@@ -122,6 +123,15 @@ public class ResourceBuilder {
 
     return sb.toString();
   }
+
+  public static String buildCachedInstancesResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(CACHED_INSTANCES);
+
+    return sb.toString();
+  }
+
 
   public static String buildInstanceResource(String projectName, String instanceId) {
     StringBuilder sb = new StringBuilder();

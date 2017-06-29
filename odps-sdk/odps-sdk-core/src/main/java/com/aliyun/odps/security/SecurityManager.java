@@ -257,25 +257,104 @@ public class SecurityManager {
     return users;
   }
 
+  /**
+   * 查看是否有操作权限
+   *
+   * @param type
+   *        查看权限的对象类型
+   * @param objectName
+   *        查看权限的对象名称
+   * @param action
+   *        查看的权限类型
+   * @param projectName
+   *        查看对象所在项目名称
+   * @param columns
+   *        查看权限的列名，若查看列操作权限，type 值为 Table {@link ObjectType}
+   *
+   * @return CheckPermissionResult
+   * @throws OdpsException
+   */
   public CheckPermissionResult checkPermission(ObjectType type, String objectName,
-                                               ActionType action) throws OdpsException {
-    return checkPermission(type, objectName, action, project);
-  }
-
-  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
-                                               ActionType action, String projectName) throws OdpsException {
+                                               ActionType action, String projectName,
+                                               List<String> columns) throws OdpsException {
     StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(projectName)).append("/auth/");
+    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(projectName))
+        .append("/auth/");
 
     Map<String, String> params = new HashMap<String, String>();
     params.put("type", type.toString());
     params.put("name", objectName);
     params.put("grantee", action.toString());
+    if ((columns != null) && !columns.isEmpty()) {
+      params.put("columns", StringUtils.join(columns.toArray(), ","));
+    }
+
     CheckPermissionResponse response = client.request(CheckPermissionResponse.class,
-                                                      resource.toString(), "GET", params, null, null);
+                                                      resource.toString(), "GET", params, null,
+                                                      null);
     System.out.println(response.getResult());
     return response.getResult().toUpperCase().equals("ALLOW") ?
            CheckPermissionResult.Allow : CheckPermissionResult.Deny;
+
+  }
+
+  /**
+   * 查看是否有操作权限
+   *
+   * @param type
+   *        查看权限的对象类型
+   * @param objectName
+   *        查看权限的对象名称
+   * @param action
+   *        查看的权限类型
+   * @param columns
+   *        查看权限的列名，若查看列操作权限，type 值为 Table {@link ObjectType}
+   *
+   * @return CheckPermissionResult
+   * @throws OdpsException
+   */
+  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
+                                               ActionType action, List<String> columns)
+      throws OdpsException {
+    return checkPermission(type, objectName, action, project, columns);
+  }
+
+  /**
+   * 查看是否有操作权限
+   *
+   * @param type
+   *        查看权限的对象类型
+   * @param objectName
+   *        查看权限的对象名称
+   * @param action
+   *        查看的权限类型
+   *
+   * @return CheckPermissionResult
+   * @throws OdpsException
+   */
+  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
+                                               ActionType action) throws OdpsException {
+    return checkPermission(type, objectName, action, project);
+  }
+
+  /**
+   * 查看是否有操作权限
+   *
+   * @param type
+   *        查看权限的对象类型
+   * @param objectName
+   *        查看权限的对象名称
+   * @param action
+   *        查看的权限类型
+   * @param projectName
+   *        查看对象所在项目名称
+   *
+   * @return CheckPermissionResult
+   * @throws OdpsException
+   */
+  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
+                                               ActionType action, String projectName) throws OdpsException {
+    return checkPermission(type, objectName, action, projectName, null);
   }
 
   public String runQuery(String query, Boolean jsonOutput) throws OdpsException {

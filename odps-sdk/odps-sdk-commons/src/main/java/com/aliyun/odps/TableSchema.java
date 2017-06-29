@@ -150,7 +150,7 @@ public class TableSchema {
    * 获得列定义列表
    *
    * <p>
-   * 在返回的List上增加、删除元素导致TableSchema增加或减少Column
+   * 在返回的List上增加、删除元素不会导致TableSchema增加或减少Column。返回的List不包含分区列。
    * </p>
    *
    * @return 被复制的{@link Column}列表
@@ -172,7 +172,7 @@ public class TableSchema {
    * 获得分区列定义列表
    *
    * <p>
-   * 在返回的List上增加、删除元素导致TableSchema增加或减少Column
+   * 在返回的List上增加、删除元素不会导致TableSchema增加或减少Column
    * </p>
    *
    * @return 被复制的{@link Column}列表

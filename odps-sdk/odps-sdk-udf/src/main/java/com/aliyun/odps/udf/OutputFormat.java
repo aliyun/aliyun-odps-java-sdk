@@ -14,13 +14,13 @@ public interface OutputFormat {
 
   /**
    *
-   * @param outputStream the output stream to write to
+   * @param name the output file to write to
    * @param conf framework configuration
    * @param reporter mechanism for reporting progress while writing to output.
    * @return a {@link RecordWriter} to write the output for the job.
    * @throws IOException
    */
-  RecordWriter getRecordWriter(OutputStream outputStream,
+  RecordWriter getRecordWriter(String name,
                                Configuration conf,
                                Reporter reporter) throws IOException;
 }

@@ -200,8 +200,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case TIMESTAMP: {
-        Long value = ((Timestamp) v).getTime() / 1000;
         Integer nano = ((Timestamp) v).getNanos();
+        Long value = (((Timestamp) v).getTime() - (nano / 1000000)) / 1000;
         crc.update(value);
         crc.update(nano);
         out.writeSInt64NoTag(value);
@@ -210,7 +210,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       }
       case INTERVAL_DAY_TIME: {
         Long value = ((IntervalDayTime) v).getTotalSeconds();
-        Integer nano = ((Timestamp) v).getNanos();
+        Integer nano = ((IntervalDayTime) v).getNanos();
         crc.update(value);
         crc.update(nano);
         out.writeSInt64NoTag(value);

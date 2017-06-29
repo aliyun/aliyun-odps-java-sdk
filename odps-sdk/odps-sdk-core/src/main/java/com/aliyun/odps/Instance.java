@@ -45,6 +45,7 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import org.apache.commons.codec.binary.Base64;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
 import com.aliyun.odps.Instance.TaskStatusModel.InstanceTaskModel;
 import com.aliyun.odps.Job.JobModel;
@@ -197,7 +198,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     String transform;
 
     @XmlAttribute(name = "Format")
-    String format;  
+    String format;
 
     @XmlValue
     String text;
@@ -432,7 +433,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     try {
       if (summary.get("Cost") != null) {
-        Map<String, Integer> taskCostMap = (Map)summary.get("Cost");
+        Map<String, Integer> taskCostMap = (Map) summary.get("Cost");
 
         TaskCost cost = new TaskCost();
 
@@ -894,7 +895,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     for (StageProgress stage : stages) {
       result.append(String.format("%s:%s/%s/%s%s%s", stage.getName(), stage.getRunningWorkers(),
                                   stage.getTerminatedWorkers(), stage.getTotalWorkers(),
-                                  stage.getBackupWorkers() > 0 ? "(+" + stage.getBackupWorkers() + " backups)" : "",
+                                  stage.getBackupWorkers() > 0 ? "(+" + stage.getBackupWorkers()
+                                                                 + " backups)" : "",
                                   "[" + stage.getFinishedPercentage() + "%]\t"
       ));
     }
@@ -968,10 +970,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * <li>TERMINATED: 执行结束, 包括成功、失败、取消等</li>
    * </p>
    *
-   * @param isBlock 是否使用 block 模式
-   *    若启用 block 模式， 请求会被 block 住一定时间 （一般是 5s），随后再返回 instance 的状态。
-   *    若不启用，请求将会立即返回。与接口 {@link #getStatus()} 的行为一致。
-   *
+   * @param isBlock
+   *     是否使用 block 模式
+   *     若启用 block 模式， 请求会被 block 住一定时间 （一般是 5s），随后再返回 instance 的状态。
+   *     若不启用，请求将会立即返回。与接口 {@link #getStatus()} 的行为一致。
    * @return 返回{@link Status.TERMINATED}
    */
   public Status getStatus(boolean isBlock) {
@@ -1012,7 +1014,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @return 返回{@link Status.TERMINATED}
    */
   public Status getStatus() {
-   return getStatus(false);
+    return getStatus(false);
   }
 
   /**
@@ -1086,11 +1088,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   public List<Task> getTasks() throws OdpsException {
     String resource = getResource();
 
-    Map<String, String> params = new HashMap<String, String>();
-    params.put("source", null);
-    JobModel model = client.request(JobModel.class, resource, "GET", params, null, null);
-    Job job = new Job(model);
-    return job.getTasks();
+    return getJob(resource).getTasks();
   }
 
   /**
@@ -1102,11 +1100,25 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   public int getPriority() throws OdpsException {
     String resource = getResource();
 
+    return getJob(resource).getPriority();
+  }
+
+  private Job getJob(String resource) throws OdpsException {
     Map<String, String> params = new HashMap<String, String>();
     params.put("source", null);
     JobModel model = client.request(JobModel.class, resource, "GET", params, null, null);
-    Job job = new Job(model);
-    return job.getPriority();
+    return new Job(model);
+  }
+
+  /**
+   * 获取 Instance 的 Job name
+   *
+   * @return job name
+   * @throws OdpsException
+   */
+  public String getJobName() throws OdpsException {
+    String resource = getResource();
+    return getJob(resource).getName();
   }
 
   private String getResource() {
@@ -1226,7 +1238,6 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    *
    * @throws OdpsException
    */
-
   public String getTaskQuotaJson(String taskName) throws OdpsException {
     Map<String, String> params = new HashMap<String, String>();
     params.put("instancequota", null);
@@ -1271,5 +1282,176 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
+  }
+
+  public static class InstanceQueueingInfo {
+
+    InstanceQueueingInfo(JSONObject props) {
+      properties = props;
+    }
+
+    public enum Status {
+      /**
+       * 运行
+       */
+      RUNNING,
+
+      /**
+       * 挂起
+       */
+      SUSPENDED,
+
+      /**
+       * 终止
+       */
+      TERMINATED,
+
+      /**
+       * 无法识别
+       */
+      UNKNOWN;
+    }
+
+    JSONObject properties;
+
+    /**
+     * 根据关键字来获取属性值
+     *
+     * @param key
+     *        字段关键字
+     * @param clz
+     *        对应值的类型
+     *
+     * @return 相关字段的值
+     */
+    public <T> T getProperty(String key, Class<T> clz) {
+      if (properties.get(key) == null) {
+        return null;
+      }
+      return properties.getObject(key, clz);
+    }
+    /**
+     * 获取 instance id
+     *
+     * @return instance id
+     */
+    public String getId() {
+      return properties.getString("instanceId");
+    }
+
+    /**
+     * 获取 instance 优先级
+     *
+     * @return instance 优先级
+     */
+    public Integer getPriority() {
+      return properties.getInteger("instancePriority");
+    }
+
+    /**
+     * 获取 instance 进度
+     *
+     * @return progress
+     */
+    public Double getProgress() {
+      return properties.getDouble("instanceProgress");
+    }
+
+    /**
+     * 获取 Job  名称
+     *
+     * @return job name
+     */
+    public String getJobName() {
+      return properties.getString("jobName");
+    }
+
+    /**
+     * 获取 project 名称
+     *
+     * @return project name
+     */
+    public String getProject() {
+      return properties.getString("projectName");
+    }
+
+    /**
+     * 获取 instance owner 的 skynetId
+     *
+     * @return skynetId
+     */
+    public String getSkyNetId() {
+      return properties.getString("skynetId");
+    }
+
+    /**
+     * 获取 instance 开始
+     *
+     * @return instance 开始时间
+     */
+    public Date getStartTime() {
+      return properties.getDate("startTime");
+    }
+
+    /**
+     * 当前运行的 odps task 类型
+     *
+     * @return task type
+     */
+    public String getTaskType() {
+      return properties.getString("taskType");
+    }
+
+    /**
+     * 当前运行的 odps task 名称
+     *
+     * @return task name
+     */
+    public String getTaskName() {
+      return properties.getString("taskName");
+    }
+
+    /**
+     * 获取 instance owner 的 云账号信息
+     *
+     * @return userAcount
+     */
+    public String getUserAccount() {
+      return properties.getString("userAccount");
+    }
+
+    /**
+     * 获取 instance 状态
+     *
+     * @return 状态
+     */
+    public Status getStatus() {
+      String status = properties.getString("status");
+      if (status == null) {
+        return null;
+      }
+
+      try {
+        return Status.valueOf(status.toUpperCase());
+      } catch (Exception e) {
+        return Status.UNKNOWN;
+      }
+    }
+
+  }
+
+  /**
+   * 获取运行中 instance 的排队信息
+   *
+   * @return {@link InstanceQueueingInfo}的迭代器
+   * @throws OdpsException
+   */
+  public InstanceQueueingInfo getQueueingInfo() throws OdpsException {
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("cached", null);
+
+    Response resp = client.request(getResource(), "GET", params, null, null);
+    JSONObject object = JSON.parseObject(resp.getBody(), JSONObject.class);
+    return new InstanceQueueingInfo(object);
   }
 }

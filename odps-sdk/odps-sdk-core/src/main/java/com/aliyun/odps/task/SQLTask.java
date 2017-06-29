@@ -37,10 +37,12 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.Project;
+import com.aliyun.odps.Survey;
 import com.aliyun.odps.Task;
 import com.aliyun.odps.commons.util.EmptyIterator;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
@@ -191,12 +193,13 @@ public class SQLTask extends Task {
    * @throws OdpsException,
    *     IOException
    */
+  @Survey
   public static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
                                                        Long limit)
       throws OdpsException, IOException {
     return getResultByInstanceTunnel(instance, taskName, limit, true);
   }
-     
+
   private static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
                                                        Long limit, boolean limitEnabled)
       throws OdpsException, IOException {
@@ -242,6 +245,7 @@ public class SQLTask extends Task {
    *
    * @see #getResultByInstanceTunnel(Instance, String, Long)
    */
+  @Survey
   public static List<Record> getResultByInstanceTunnel(Instance instance, Long limit)
       throws OdpsException, IOException {
     return getResultByInstanceTunnel(instance, AnonymousSQLTaskName, limit);
@@ -263,6 +267,7 @@ public class SQLTask extends Task {
    * @throws OdpsException,
    *     IOException
    */
+  @Survey
   public static List<Record> getResultByInstanceTunnel(Instance instance, String taskName)
       throws OdpsException, IOException {
     return getResultByInstanceTunnel(instance, taskName, null);
@@ -280,6 +285,7 @@ public class SQLTask extends Task {
    *
    * @see #getResultByInstanceTunnel(Instance, String)
    */
+  @Survey
   public static List<Record> getResultByInstanceTunnel(Instance instance)
       throws OdpsException, IOException {
     return getResultByInstanceTunnel(instance, AnonymousSQLTaskName);
@@ -322,7 +328,7 @@ public class SQLTask extends Task {
    * @return
    * @throws OdpsException
    */
-  public static Iterator<Record> getResultSet(Instance instance) throws OdpsException, IOException {
+  public static ResultSet getResultSet(Instance instance) throws OdpsException, IOException {
     return getResultSet(instance, AnonymousSQLTaskName);
   }
 
@@ -337,7 +343,7 @@ public class SQLTask extends Task {
    * @return
    * @throws OdpsException
    */
-  public static Iterator<Record> getResultSet(Instance instance, String taskName)
+  public static ResultSet getResultSet(Instance instance, String taskName)
       throws OdpsException, IOException {
     return getResultSet(instance, taskName, null);
   }
@@ -353,7 +359,7 @@ public class SQLTask extends Task {
    * @return
    * @throws OdpsException
    */
-  public static Iterator<Record> getResultSet(Instance instance, Long limit) throws OdpsException, IOException {
+  public static ResultSet getResultSet(Instance instance, Long limit) throws OdpsException, IOException {
     return getResultSet(instance, AnonymousSQLTaskName, limit);
   }
 
@@ -369,26 +375,48 @@ public class SQLTask extends Task {
    * @return
    * @throws OdpsException
    */
-  public static Iterator<Record> getResultSet(Instance instance, String taskName, Long limit)
+  public static ResultSet getResultSet(Instance instance, String taskName, Long limit)
+      throws OdpsException {
+    return getResultSet(instance, taskName, limit, false);
+  }
+  
+  /**
+   * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
+   * 
+   * 注：
+   * 1.只有instance的owner本人可以使用本接口
+   * 2.当limitHint为true时，结果最多只能获得1条记录，超过将截断，但无需进行逐表的权限检查
+   * 3.当limitHint为false时，没有记录数限制，可获取instance对应query结果集的全量数据。但前提是需要逐表（SQL中
+   * 涉及的表与视图）对用户进行权限检查，所以当查询涉及表所在project打开protection时，需要提前在policy中为相应表
+   * 和视图添加exception，否则无权下载
+   * 
+   * @param instance
+   * @param taskName
+   * @param limit
+   * @param limitHint
+   * @return
+   * @throws OdpsException
+   */
+  public static ResultSet getResultSet(Instance instance, String taskName, Long limit, boolean limitHint)
       throws OdpsException {
 
     checkTaskName(instance, taskName);
 
     InstanceTunnel tunnel = new InstanceTunnel(instance.getOdps());
     InstanceTunnel.DownloadSession session =
-        tunnel.createDownloadSession(instance.getProject(), instance.getId(), false);
+        tunnel.createDownloadSession(instance.getProject(), instance.getId(), limitHint);
 
     long recordCount = session.getRecordCount();
 
     if (recordCount == 0) {
-      return EmptyIterator.emptyIterator();
+      return new ResultSet(EmptyIterator.<Record>emptyIterator(), session.getSchema(), recordCount);
     }
 
     if (limit != null && limit < recordCount) {
       recordCount = limit;
     }
 
-    return new RecordSetIterator(session, recordCount);
+    return new ResultSet(new RecordSetIterator(session, recordCount), session.getSchema(), recordCount);
   }
 
 
@@ -631,9 +659,9 @@ class RecordSetIterator implements Iterator<Record> {
     try {
       return session.openRecordReader(cursor, fetchSize);
     } catch (TunnelException e) {
-      throw new RuntimeException("Open reader failed:", e);
+      throw new RuntimeException("Open reader failed: " + e.getMessage(), e);
     } catch (IOException e) {
-      throw new RuntimeException("Open reader failed:", e);
+      throw new RuntimeException("Open reader failed: " + e.getMessage(), e);
     }
   }
 

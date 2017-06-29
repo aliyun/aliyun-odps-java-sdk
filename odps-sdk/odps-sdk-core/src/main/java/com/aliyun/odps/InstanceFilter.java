@@ -53,6 +53,8 @@ public class InstanceFilter {
 
   private Boolean onlyOwner;
 
+  private String quotaIndex;
+
   /**
    * 获得起始执行时间过滤条件
    *
@@ -113,8 +115,8 @@ public class InstanceFilter {
   /**
    * 获得{@link Instance} owner过滤条件
    *
-   * @param onlyOwner
-   *     只查询当前用户作为owner的Instance
+   * @return onlyOwner
+   *     onlyowner 的值
    */
   public Boolean getOnlyOwner() {
     return onlyOwner;
@@ -129,4 +131,25 @@ public class InstanceFilter {
   public void setOnlyOwner(Boolean onlyOwner) {
     this.onlyOwner = onlyOwner;
   }
+
+  /**
+   * 获得{@link Instance} 运行所在 quota 组过滤条件
+   *
+   * @return quotaindex
+   *     quota 组信息
+   */
+  public String getQuotaIndex() {
+    return quotaIndex;
+  }
+
+  /**
+   * 设置 {@link Instance} 运行所在 quota 组过滤条件
+   *
+   * @param quotaIndex
+   *     指定的 quota 组， 格式为 quotaId@CluterName
+   */
+  public void setQuotaIndex(String quotaIndex) {
+    this.quotaIndex = quotaIndex;
+  }
+
 }

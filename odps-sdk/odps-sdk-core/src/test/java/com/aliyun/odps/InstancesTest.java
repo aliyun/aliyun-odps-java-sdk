@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -44,10 +45,12 @@ public class InstancesTest extends TestBase {
 
   Instance i;
   private static String TABLE_NAME = InstancesTest.class.getSimpleName() + "_test_instances_test";
+  private static String TABLE_NAME_1 = InstancesTest.class.getSimpleName() + "_instances_test_1";
 
   @BeforeClass
   public static void setup() throws TunnelException, OdpsException, IOException {
     OdpsTestUtils.createTableForTest(TABLE_NAME);
+    OdpsTestUtils.createBigTableForTest(odps, TABLE_NAME_1);
   }
 
   @Before
@@ -189,6 +192,27 @@ public class InstancesTest extends TestBase {
     i.getId();
     i.waitForSuccess();
     i.getTaskDetailJson("testsqlcase");
+    Assert.assertNull(i.getJobName());
+
+    String jobName = "test_job_name";
+    job.setName(jobName);
+    i = odps.instances().create(job);
+    i.waitForSuccess();
+    Assert.assertEquals(jobName, i.getJobName());
+  }
+
+  @Test
+  public void testCreateJobName() throws OdpsException {
+    SQLTask task = new SQLTask();
+    task.setQuery("select count(*) from " + TABLE_NAME + ";");
+    task.setName("testsqlcase");
+
+    String jobName = "test_job_name";
+    i = odps.instances().create(odps.getDefaultProject(), task, null, null, jobName);
+    i.getId();
+    i.waitForSuccess();
+    i.getTaskDetailJson("testsqlcase");
+    Assert.assertEquals(jobName, i.getJobName());
   }
 
 
@@ -229,5 +253,80 @@ public class InstancesTest extends TestBase {
     System.out.println(result);
 
     odps.tables().delete(name, true);
+  }
+
+  @Test
+  public void testIteratorQueueing() throws Exception {
+    SQLTask task = new SQLTask();
+    task.setQuery("select (t2.c1 + 2) from " + TABLE_NAME + " t1 join " + TABLE_NAME_1 + " t2 on t1.c1 == t2.c1;");
+    task.setName("testsqlcase");
+    i = odps.instances().create(task);
+    System.out.println("Now create Instance: " + i.getId());
+
+    Thread.sleep(1000);
+    Iterator<Instance.InstanceQueueingInfo> iterator = odps.instances().iteratorQueueing();
+
+    Assert.assertTrue(iterator.hasNext());
+
+    boolean flag = false;
+
+    while (iterator.hasNext()) {
+      Instance.InstanceQueueingInfo info = iterator.next();
+      System.out.println(info.getId());
+      System.out.println(info.getStatus());
+      System.out.println(info.getStartTime());
+      System.out.println(info.getProgress());
+
+      if (i.getId().equals(info.getId())) {
+        flag = true;
+        Assert.assertNotNull(info.getPriority());
+        Assert.assertNotNull(info.getProgress());
+        Assert.assertNotNull(info.getTaskName());
+        Assert.assertNotNull(info.getTaskType());
+        Assert.assertNotNull(info.getStartTime());
+        Assert.assertNotNull(info.getStatus());
+        Assert.assertNotNull(info.getProject());
+        Assert.assertNotNull(info.getSkyNetId());
+        Assert.assertNotNull(info.getUserAccount());
+        Assert.assertNotNull(info.getId());
+      }
+    }
+
+    Assert.assertTrue(flag);
+  }
+
+  @Test
+  public void testGetQueueingInfo() throws Exception {
+    SQLTask task = new SQLTask();
+    task.setQuery("select (t2.c1 + 2) from " + TABLE_NAME + " t1 join " + TABLE_NAME_1
+                  + " t2 on t1.c1 == t2.c1;");
+    task.setName("testsqlcase");
+    i = odps.instances().create(task);
+
+    Thread.sleep(1000);
+    Instance.InstanceQueueingInfo info = i.getQueueingInfo();
+    Map substatus = info.getProperty("subStatus", Map.class);
+    System.out.println(substatus.get("start_time"));
+    System.out.println(substatus.get("description"));
+
+    System.out.println(info.getId());
+    System.out.println(info.getStatus());
+    System.out.println(info.getStartTime());
+    System.out.println(info.getProgress());
+
+    Assert.assertEquals(i.getId(), info.getId());
+    Assert.assertNotNull(info.getPriority());
+    Assert.assertNotNull(info.getProgress());
+    Assert.assertNotNull(info.getTaskName());
+    Assert.assertNotNull(info.getTaskType());
+    Assert.assertNotNull(info.getStartTime());
+    Assert.assertNotNull(info.getStatus());
+    Assert.assertNotNull(info.getProject());
+    Assert.assertNotNull(info.getSkyNetId());
+    Assert.assertNotNull(info.getUserAccount());
+
+    i.waitForSuccess();
+    info = i.getQueueingInfo();
+    Assert.assertNull(info.getId());
   }
 }

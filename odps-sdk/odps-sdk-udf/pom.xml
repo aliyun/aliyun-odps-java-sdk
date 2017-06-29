@@ -6,25 +6,23 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.26.6-public</version>
+        <version>0.27.1-public</version>
     </parent>
 
     <artifactId>odps-sdk-udf</artifactId>
     <packaging>jar</packaging>
-    <version>0.26.6-public</version>
+    <version>0.27.1-public</version>
     <name>ODPS SDK UDF</name>
     <url>http://maven.apache.org</url>
     <dependencies>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-commons</artifactId>
-            <version>0.26.6-public</version>
         </dependency>
         
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.2.4</version>
         </dependency>
     </dependencies>
 </project>

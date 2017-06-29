@@ -343,9 +343,6 @@ public class ProtobufRecordStreamReader implements RecordReader {
 
   public List readArray(TypeInfo type) throws IOException {
     OdpsType t = type.getOdpsType();
-    if ((t == OdpsType.ARRAY) ||  (t == OdpsType.MAP) || (t == OdpsType.STRUCT)) {
-      throw new IOException("Unsupported array type: " + t);
-    }
 
     int arraySize = in.readUInt32();
     List list = new ArrayList();

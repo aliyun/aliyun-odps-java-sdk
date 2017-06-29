@@ -48,15 +48,15 @@ public class Partition extends LazyLoad {
     private List<ColumnModel> columns = new ArrayList<ColumnModel>();
 
     @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(EpochBinding.class)
+    @XmlJavaTypeAdapter(JAXBUtils.EpochBinding.class)
     Date createdTime;
 
     @XmlElement(name = "LastDDLTime")
-    @XmlJavaTypeAdapter(EpochBinding.class)
+    @XmlJavaTypeAdapter(JAXBUtils.EpochBinding.class)
     Date lastMetaModifiedTime;
 
     @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(EpochBinding.class)
+    @XmlJavaTypeAdapter(JAXBUtils.EpochBinding.class)
     Date lastDataModifiedTime;
   }
 
@@ -67,17 +67,6 @@ public class Partition extends LazyLoad {
     private String columnName;
     @XmlAttribute(name = "Value")
     private String columnValue;
-  }
-
-  static class EpochBinding extends JAXBUtils.DateBinding {
-    @Override
-    public Date unmarshal(String v) {
-      try {
-        return new Date(Long.parseLong(v) * 1000);
-      } catch (Exception e) {
-        return null;
-      }
-    }
   }
 
   private PartitionModel model;

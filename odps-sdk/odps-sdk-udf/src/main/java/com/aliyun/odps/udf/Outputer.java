@@ -18,7 +18,7 @@ public abstract class Outputer{
    * @param attributes: encapsulate any attributes needed that describe the associated output data and/or 
    * any other useful information for outputer
    **/
-  public abstract void setup(ExecutionContext ctx, OutputStreamSet outputStreamSet, DataAttributes attributes);
+  public abstract void setup(ExecutionContext ctx, OutputStreamSet outputStreamSet, DataAttributes attributes) throws IOException;
 
   /**
    * Interface for writing a record via output stream. Each record for output will invoke this function call,

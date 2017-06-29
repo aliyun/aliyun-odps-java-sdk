@@ -33,6 +33,7 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import com.aliyun.odps.task.AlgoTask;
 import com.aliyun.odps.task.GraphTask;
 import com.aliyun.odps.task.LOTTask;
 import com.aliyun.odps.task.MergeTask;
@@ -63,6 +64,7 @@ import com.aliyun.odps.task.CupidTask;
     GalaxyTask.class,
     CupidTask.class,
     MergeTask.class,
+    AlgoTask.class
 })
 public abstract class Task {
 

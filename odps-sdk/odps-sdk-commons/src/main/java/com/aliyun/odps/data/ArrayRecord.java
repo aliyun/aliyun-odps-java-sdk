@@ -582,6 +582,37 @@ public class ArrayRecord implements Record {
     return getStruct(getColumnIndex(columnName));
   }
 
+  public IntervalYearMonth getIntervalYearMonth(int idx) {
+    return getInternal(idx);
+  }
+
+  public IntervalYearMonth getIntervalYearMonth(String columnName) {
+    return getIntervalYearMonth(getColumnIndex(columnName));
+  }
+
+  public void setIntervalYearMonth(int idx, IntervalDayTime value) {
+    set(idx, value);
+  }
+
+  public void setIntervalYearMonth(String columnName, IntervalDayTime value) {
+    setIntervalYearMonth(getColumnIndex(columnName), value);
+  }
+
+  public IntervalDayTime getIntervalDayTime(int idx) {
+    return getInternal(idx);
+  }
+
+  public IntervalDayTime getIntervalDayTime(String columnName) {
+    return getIntervalDayTime(getColumnIndex(columnName));
+  }
+
+  public void setIntervalDayTime(int idx, IntervalDayTime value) {
+    set(idx, value);
+  }
+
+  public void setIntervalDayTime(String columnName, IntervalDayTime value) {
+    setIntervalDayTime(getColumnIndex(columnName), value);
+  }
 
   @Override
   public boolean isNull(int idx) {
@@ -607,6 +638,15 @@ public class ArrayRecord implements Record {
     }
 
     return (T) values[idx];
+  }
+
+  @SuppressWarnings({"unchecked"})
+  /**
+   * set record column value directly without type validation
+   * unsafe: caller must ensure correct type and do validation check externally when necessary
+   */
+  public void setWithoutValidation(int idx, Object o){
+    this.values[idx] = o;
   }
 
   /**

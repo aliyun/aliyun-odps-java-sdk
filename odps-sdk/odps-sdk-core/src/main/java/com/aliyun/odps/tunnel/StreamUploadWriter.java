@@ -23,6 +23,7 @@ import com.google.protobuf.ByteString;
 /**
  * Created by yinyue on 15-6-10.
  */
+@Deprecated
 public class StreamUploadWriter {
   private RestClient tunnelServiceClient;
   private String path;

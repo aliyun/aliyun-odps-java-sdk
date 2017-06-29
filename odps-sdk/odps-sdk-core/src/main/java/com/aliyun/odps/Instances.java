@@ -31,6 +31,8 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Instance.InstanceResultModel;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
 import com.aliyun.odps.Instance.TaskStatusModel;
@@ -61,6 +63,19 @@ public class Instances implements Iterable<Instance> {
     @XmlElement(name = "Instance")
     private List<TaskStatusModel> instances = new ArrayList<TaskStatusModel>();
 
+  }
+
+  @XmlRootElement(name = "Instances")
+  private static class ListInstanceQueueResponse {
+
+    @XmlElement(name = "Marker")
+    private String marker;
+
+    @XmlElement(name = "MaxItems")
+    private Integer maxItems;
+
+    @XmlElement(name = "Content")
+    private String queue;
   }
 
   private Odps odps;
@@ -257,7 +272,42 @@ public class Instances implements Iterable<Instance> {
     return create(projectName, task, new Integer(priority), runningCluster);
   }
 
+  /**
+   * 为给定的{@link Task}创建Instance
+   *
+   * @param projectName
+   *     Instance运行的Project名称
+   * @param task
+   *     {@link Task}对象
+   * @param priority
+   *     指定的优先级
+   * @param runningCluster
+   *     指定的计算集群
+   * @return {@link Instance}对象
+   * @throws OdpsException
+   */
   public Instance create(String projectName, Task task, Integer priority, String runningCluster) throws OdpsException {
+    return create(projectName, task, priority, runningCluster, null);
+  }
+
+  /**
+   * 为给定的{@link Task}创建Instance
+   *
+   * @param projectName
+   *     Instance运行的Project名称
+   * @param task
+   *     {@link Task}对象
+   * @param priority
+   *     指定的优先级
+   * @param runningCluster
+   *     指定的计算集群
+   * @param jobName
+   *     指定的作业名称
+   * @return {@link Instance}对象
+   * @throws OdpsException
+   */
+  public Instance create(String projectName, Task task, Integer priority, String runningCluster,
+                         String jobName) throws OdpsException {
     Job job = new Job();
     job.addTask(task);
     if (priority != null) {
@@ -268,6 +318,9 @@ public class Instances implements Iterable<Instance> {
       job.setPriority(priority);
     }
     job.setRunningCluster(runningCluster);
+    if (jobName != null) {
+      job.setName(jobName);
+    }
 
     return create(projectName, job);
   }
@@ -565,7 +618,107 @@ public class Instances implements Iterable<Instance> {
       }
 
       return instances;
-
     }
+  }
+
+
+  private class InstanceQueueListIterator extends ListIterator<Instance.InstanceQueueingInfo> {
+    Map<String, String> params = new HashMap<String, String>();
+
+    InstanceFilter filter;
+    String project;
+
+    InstanceQueueListIterator(String projectName, InstanceFilter filter) {
+      this.filter = filter;
+      this.project = projectName;
+    }
+
+    @Override
+    protected List<Instance.InstanceQueueingInfo> list() {
+      if ((params.containsKey("marker")) && (params.get("marker").length() == 0)){
+        return null;
+      }
+
+      if (filter != null) {
+        if (filter.getStatus() != null) {
+          params.put("status", filter.getStatus().toString());
+        }
+
+        if (filter.getOnlyOwner() != null) {
+          params.put("onlyowner", filter.getOnlyOwner() ? "yes" : "no");
+        }
+
+        if (filter.getQuotaIndex() != null) {
+          params.put("quotaindex", filter.getQuotaIndex());
+        }
+      }
+
+      String resource = ResourceBuilder.buildCachedInstancesResource(project);
+      try {
+        ListInstanceQueueResponse resp = client.request(
+            ListInstanceQueueResponse.class, resource, "GET", params);
+
+        params.put("marker", resp.marker);
+
+        List<Instance.InstanceQueueingInfo> result = new ArrayList<Instance.InstanceQueueingInfo>();
+        if (resp.queue != null) {
+          for (JSONObject item : JSON.parseArray(resp.queue, JSONObject.class)) {
+            result.add(new Instance.InstanceQueueingInfo(item));
+          }
+        }
+        return result;
+      } catch (OdpsException e) {
+        throw new RuntimeException(e.getMessage(), e);
+      }
+    }
+  }
+
+  /**
+   * 获取运行队列中的所有 instance 的排队信息
+   *
+   *
+   * @return 迭代器
+   */
+  public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing() {
+    return iteratorQueueing(getDefaultProjectName());
+  }
+
+
+  /**
+   * 获取运行队列中的所有 instance 的排队信息
+   *
+   * @param project
+   *          项目名称
+   *
+   * @return 迭代器
+   */
+  public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(String project) {
+    return iteratorQueueing(project, null);
+  }
+
+  /**
+   * 获取运行队列中的所有 instance 的排队信息
+   *
+   * @param filter
+   *          过滤器
+   *
+   * @return 迭代器
+   */
+  public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(InstanceFilter filter) {
+    return iteratorQueueing(getDefaultProjectName(), filter);
+  }
+
+  /**
+   * 获取运行队列中的所有 instance 的排队信息
+   *
+   * @param project
+   *          项目名称
+   * @param filter
+   *          过滤器
+   *
+   * @return 迭代器
+   */
+  public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(String project, InstanceFilter filter) {
+    return new InstanceQueueListIterator(project, filter);
   }
 }

@@ -16,7 +16,7 @@ Generated jar will be placed in `target/odps-demo-1.0.jar`
 
 - Run
 
-First, download [ODPS Console(odpscmd)](http://repo.aliyun.com/download/odpscmd/0.23.1/odpscmd_public.zip), and unzip it into a folder, say `/opt/odpscmd`. ODPS Console will provide all runtime dependencies with minimal effort (mainly because odps-mapred-bridge.jar can not be found at maven.org yet).
+First, download [ODPS Console(odpscmd)](https://docs-aliyun.cn-hangzhou.oss.aliyun-inc.com/cn/odps/0.0.90/assets/download/odpscmd_public.zip?spm=5176.doc27991.2.2.NhDlMO&file=odpscmd_public.zip), and unzip it into a folder, say `/opt/odpscmd`. ODPS Console will provide all runtime dependencies with minimal effort (mainly because odps-mapred-bridge.jar can not be found at maven.org yet).
 
 run `java -classpath /opt/odpscmd/lib/*:target/odps-demo-1.0.jar DemoMR`
 

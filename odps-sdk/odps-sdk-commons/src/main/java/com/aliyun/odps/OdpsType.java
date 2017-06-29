@@ -116,7 +116,7 @@ public enum OdpsType {
   BINARY,
 
   /**
-   *  日期间隔
+   * 日期间隔
    */
   INTERVAL_DAY_TIME,
 
@@ -126,7 +126,7 @@ public enum OdpsType {
   INTERVAL_YEAR_MONTH,
 
   /**
-   *
+   * 结构体
    */
   STRUCT;
 

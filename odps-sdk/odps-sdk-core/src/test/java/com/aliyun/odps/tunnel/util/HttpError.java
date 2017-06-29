@@ -33,7 +33,7 @@ public class HttpError {
       "You need to specify a partitionspec along with the specified table.";
   public static final String InvalidPartitionSpec = "The specified partitionspec is not valid.";
   public static final String
-      IncommitBody =
+      IncompleteBody =
       "You did not provide the number of bytes specified by the Content-Length HTTP header.";
   public static final String MaxMessageLengthExceeded = "Your request was too big.";
   public static final String
@@ -54,10 +54,10 @@ public class HttpError {
   public static final String AccessDenied = "Access Denied.";
   public static final String
       StatusConflict =
-      "You cannot commit the specified operation under the current upload or download status.";
+      "You cannot complete the specified operation under the current upload or download status.";
   public static final String
       NoPermission =
-      "You do not have enough privilege to commit the specified operation.";
+      "You do not have enough privilege to complete the specified operation.";
   public static final String
       InvalidStatusChange =
       "You cannot change the specified upload or download status.";

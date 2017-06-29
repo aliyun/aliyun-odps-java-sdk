@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +38,7 @@ import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.TestBase;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.tunnel.TunnelException;
 
 /**
@@ -141,38 +141,47 @@ public class SQLTaskTest extends TestBase {
     
     assertEquals(OdpsType.BIGINT, records.get(0).getColumns()[0].getType());
 
-    Iterator<Record> it = SQLTask.getResultSet(i);
+    ResultSet rs = SQLTask.getResultSet(i);
     records = new ArrayList<Record>();
-    while(it.hasNext()){
-      records.add(it.next());
+    for (Record r : rs) {
+      records.add(r);
     }
-    
-    assertEquals(OdpsType.BIGINT, records.get(0).getColumns()[0].getType()); 
+
+    assertEquals(OdpsType.BIGINT, records.get(0).getColumns()[0].getType());
+    assertEquals(OdpsType.BIGINT, rs.getTableSchema().getColumn(0).getType());
+
     assertEquals(10010, records.size());
     assertEquals(1l, records.get(1).get(0));
-    assertEquals(5000l, records.get(5000).get(0));   
-    assertEquals(10008l, records.get(10008).get(0));   
-    assertEquals(10009l, records.get(10009).get(0));   
+    assertEquals(5000l, records.get(5000).get(0));
+    assertEquals(10008l, records.get(10008).get(0));
+    assertEquals(10009l, records.get(10009).get(0));
 
-    it = SQLTask.getResultSet(i,10003L);
+    rs = SQLTask.getResultSet(i, 10003L);
     records = new ArrayList<Record>();
-    while(it.hasNext()){
-      records.add(it.next());
+    for (Record r : rs) {
+      records.add(r);
+    }
+    assertEquals(10003, records.size());
+    
+    rs = SQLTask.getResultSet(i, 10003L);
+    records = new ArrayList<Record>();
+    while(rs.hasNext()){
+      records.add(rs.next());
     }
     assertEquals(10003, records.size());
 
-    
-    it = SQLTask.getResultSet(i,10011L);
+
+    rs = SQLTask.getResultSet(i, 10011L);
     records = new ArrayList<Record>();
-    while(it.hasNext()){
-      records.add(it.next());
+    for (Record r : rs) {
+      records.add(r);
     }
     assertEquals(10010, records.size());
 
-    it = SQLTask.getResultSet(i,10L);
+    rs = SQLTask.getResultSet(i, 10L);
     records = new ArrayList<Record>();
-    while(it.hasNext()){
-      records.add(it.next());
+    for (Record r : rs) {
+      records.add(r);
     }
     assertEquals(10, records.size());
   }

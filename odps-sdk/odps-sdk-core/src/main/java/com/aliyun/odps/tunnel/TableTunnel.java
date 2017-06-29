@@ -534,6 +534,7 @@ public class TableTunnel {
    * @throws com.aliyun.odps.tunnel.TunnelException,
    *     java.io.IOException
    */
+  @Deprecated
   public StreamUploadWriter createStreamUploadWriter(String projectName, String tableName)
       throws TunnelException, IOException {
     RestClient tunnelServiceClient = config.newRestClient(projectName);
@@ -629,6 +630,8 @@ public class TableTunnel {
     private final Long totalBLocks = 20000L;
     private Long shares = 1L;
     private Long curBlockId = 0L;
+    
+    private static final int RETRY_SLEEP_SECONDS = 5;
 
     /**
      * 根据已有的uploadId构造一个{@link UploadSession}对象
@@ -1031,17 +1034,20 @@ public class TableTunnel {
             loadFromJson(conn.getInputStream());
             break;
           } else {
-            if (resp.getStatus() == HttpURLConnection.HTTP_INTERNAL_ERROR && count < 3) {
-              try {
-                Thread.sleep(2 * count * 1000);
-              } catch (InterruptedException e) {
-                throw new TunnelException(e.getMessage(), e);
-              }
-              continue;
+            if (resp.getStatus() == HttpURLConnection.HTTP_INTERNAL_ERROR) {
+              throw new IOException("Http Internal Error: " + resp.getMessage());
             }
             throw new TunnelException(conn.getInputStream());
           }
         } catch (IOException e) {
+          if (count < tunnelServiceClient.getRetryTimes()) {
+            try {
+              Thread.sleep(RETRY_SLEEP_SECONDS * 1000);
+            } catch (InterruptedException ex) {
+              throw new TunnelException(e.getMessage(), ex);
+            }
+            continue;
+          }
           throw new TunnelException(e.getMessage(), e);
         } catch (TunnelException e) {
           throw e;

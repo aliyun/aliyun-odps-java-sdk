@@ -26,9 +26,14 @@ public class TextOutputer extends Outputer {
 
   // no particular usage of execution context in this example
   @Override
-  public void setup(ExecutionContext ctx, OutputStreamSet outputStreamSet, DataAttributes attributes) {
+  public void setup(ExecutionContext ctx, OutputStreamSet outputStreamSet, DataAttributes attributes) throws IOException {
     this.outputStream = outputStreamSet.next();
     this.attributes = attributes;
+    String columnDelimiter = attributes.getValueByKey("delimiter");
+    if ( columnDelimiter != null)
+    {
+      delimiter = columnDelimiter;
+    }
   }
 
   @Override
@@ -44,7 +49,13 @@ public class TextOutputer extends Outputer {
         sb.append("NULL");
       }
       else{
-        sb.append(record.get(i).toString());
+        Object o = record.get(i);
+        if (o instanceof byte[]){
+          sb.append(new String((byte[])o));
+        }
+        else{
+          sb.append(o.toString());
+        }
       }
       if (i != record.getColumnCount() - 1){
         sb.append(this.delimiter);

@@ -14,7 +14,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.26.6-public</version>
+        <version>0.27.1-public</version>
     </parent>
     <name>ODPS SDK Commons for Mapreduce/Graph</name>
     <artifactId>odps-sdk-commons</artifactId>
@@ -24,23 +24,21 @@
         <dependency>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
-            <version>1.1.1</version>
         </dependency>
+
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjrt</artifactId>
-            <version>1.8.2</version>
         </dependency>
+
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.5</version>
         </dependency>
+
         <dependency>
             <groupId>com.github.stephenc.jcip</groupId>
             <artifactId>jcip-annotations</artifactId>
-            <version>1.0-1</version>
-            <scope>test</scope>
         </dependency>
 
     </dependencies>
