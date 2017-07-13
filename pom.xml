@@ -18,7 +18,7 @@
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps</artifactId>
-    <version>0.27.1-public</version>
+    <version>0.27.2-public</version>
     <packaging>pom</packaging>
     <name>odps-sdk-java</name>
     <description>Aliyun ODPS SDK for Java Developers</description>
@@ -62,37 +62,37 @@
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-sdk-commons</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-sdk-core</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-sdk-mapred</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-lot-proto</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-sdk-lot</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-sdk-graph</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
@@ -110,19 +110,19 @@
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-common-local</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-sdk-udf</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-mapred-bridge</artifactId>
-                    <version>0.27.1-public</version>
+                    <version>0.27.2-public</version>
                 </dependency>
 
                 <dependency>
