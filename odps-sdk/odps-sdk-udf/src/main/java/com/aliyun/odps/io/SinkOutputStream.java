@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * An extension of Java OutputStream, used to interface with the output file byte stream
+ * An extension of Java OutputStream, used to interface with the output file byte stream.
  **/
 public abstract class SinkOutputStream extends OutputStream {
 

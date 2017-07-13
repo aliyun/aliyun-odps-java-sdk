@@ -36,4 +36,7 @@ public abstract class RecordSerDe {
    * @return A Record object representing the contents in the blob.
    */
   public abstract Record deserialize(Writable blob) throws SerDeException;
+
+  // HiveOutputFormat need serialized class to init
+  public abstract Class getSerializedClass();
 }

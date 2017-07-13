@@ -73,14 +73,38 @@ public abstract class SourceInputStream extends InputStream {
   public abstract String getFileName();
 
   /**
-   * Getter for the size in [bytes] of the file currently being processed.
+   * Getter for the size in [bytes] of the  physical file currently being processed.
    **/
   public abstract long getFileSize();
 
   /**
-   * An attempt to read rest of file content from current position (init to begin of file) to the end of file,
-   * into the supplied buffer. The supplied byte buffer will be first checked to ensure that it is large enough
-   * to hold read-out content, and may throw BufferOverflowException if the checks fail, before actual reading.
+   * Getter for the start position (within the physical stream) that is assigned to the input stream to process.
+   * See {@link SourceInputStream::getSplitSize()} for more details.
+   * @return split start
+   */
+  public abstract long getSplitStart();
+
+  /**
+   * Getter for the split size supposedly assigned to the input stream.
+   * Note that the combination of split start and split size is merely an indication of what portion of data
+   * is assigned to current input stream for processing. However, the input stream can still be used to access data
+   * anywhere in the physical stream, although doing so may result in duplicate reading of the same data across
+   * multiple input streams.
+   * @return split size
+   */
+  public abstract long getSplitSize();
+
+  /**
+   * Getter for current position of the cursor, within the physical file
+   * @return current pos
+   */
+  public abstract long getCurrentPos() throws IOException;
+
+  /**
+   * An attempt to read rest of file content from current position (init to begin of file) to the end of
+   * current file split (when file is not split up, it will read the entire file) into the supplied buffer.
+   * The supplied byte buffer will be first checked to ensure that it is large enough to hold read-out content, and
+   * may throw BufferOverflowException if the checks fail, before actual reading.
    * Once successful, the read-out byte count will be returned.
    * This could be used to read an entire file of less than Integer.MAX_VALUE bytes, for files larger than
    * such limit, use a series of read(byte[] buffer, int offset, int length) instead.

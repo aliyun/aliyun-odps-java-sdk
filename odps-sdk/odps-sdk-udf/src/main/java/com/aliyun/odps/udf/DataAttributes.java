@@ -19,6 +19,15 @@ public abstract class DataAttributes {
    **/
   public abstract String getValueByKey(String key);
 
+  /**
+   * Get the customized external data location that describes external data storage location other than
+   * storage types with built-in support (such as Aliyun OSS/TableStore), user is responsible for parsing and
+   * connecting to customized data location in self-defined Extractor and/or Outputer
+   * @return customized external location defined in LOCATION clause
+   *
+   * Note: when "oss://" or "tablestore://" scheme is used in LOCATION clause, this returns null instead
+   */
+  public abstract  String getCustomizedDataLocation();
 
   /**
    * @param isExtractor flag to distinguish extractor or outputer

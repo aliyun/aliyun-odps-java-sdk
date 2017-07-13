@@ -13,9 +13,10 @@ public abstract class Outputer{
 
   /** Interface for setting up the outputer
    * @param ctx: the ExecutionContext which contains context information that may be useful
-   *             for setting up user code execution environment
-   * @param outputStreamSet: set of output streams this outputer write to
-   * @param attributes: encapsulate any attributes needed that describe the associated output data and/or 
+   *             for setting up user code execution environment.
+   * @param outputStreamSet: set of output streams this outputer write to, when customized external storage is used,
+   *             this will be empty and user will be responsible for interacting with customized storage.
+   * @param attributes: encapsulate any attributes needed that describe the associated output data and/or
    * any other useful information for outputer
    **/
   public abstract void setup(ExecutionContext ctx, OutputStreamSet outputStreamSet, DataAttributes attributes) throws IOException;
