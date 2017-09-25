@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.counter.Counters;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.bridge.WritableRecord;
@@ -46,13 +47,15 @@ public class LocalGroupingRecordIterator implements Iterator<Record> {
   private boolean incInputRecordCount;
   private Counters counters;
 
+  private Column[] columns;
+
   public LocalGroupingRecordIterator(Queue<Object[]> queue, WritableRecord key,
-                                     WritableRecord value,
+                                     Column[] columns,
                                      Comparator<Object[]> keyGroupingComparator,
                                      boolean incInputRecordCount, Counters counters) {
     this.queue = queue;
     this.key = key;
-    this.value = value;
+    this.columns = columns;
     this.keyGroupingComparator = keyGroupingComparator;
     this.incInputRecordCount = incInputRecordCount;
     this.counters = counters;
@@ -60,6 +63,8 @@ public class LocalGroupingRecordIterator implements Iterator<Record> {
 
   private void fillKeyValue(Object[] objs) {
     key.set(Arrays.copyOf(objs, key.getColumnCount()));
+
+    value = new WritableRecord(columns);
     value.set(Arrays.copyOfRange(objs, key.getColumnCount(),
                                  key.getColumnCount() + value.getColumnCount()));
     if (incInputRecordCount) {

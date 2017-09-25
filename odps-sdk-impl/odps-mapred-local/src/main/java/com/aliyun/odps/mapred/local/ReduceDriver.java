@@ -28,6 +28,7 @@ import java.util.Queue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.counter.Counters;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.TableInfo;
@@ -103,14 +104,14 @@ public class ReduceDriver extends DriverBase {
         if (init == null) {
           return false;
         }
-        Record value;
+        Column[] columns;
         if (pipeMode) {
-          value = new WritableRecord(pipeNode.getInputValueSchema());
+          columns = pipeNode.getInputValueSchema();
         } else {
-          value = new WritableRecord(conf.getMapOutputValueSchema());
+          columns = conf.getMapOutputValueSchema();
         }
         itr =
-            new LocalGroupingRecordIterator(queue, (WritableRecord) key, (WritableRecord) value,
+            new LocalGroupingRecordIterator(queue, (WritableRecord) key, columns,
                                             keyGroupingComparator, true, counters);
         key.set(Arrays.copyOf(init, key.getColumnCount()));
       } else {
