@@ -41,7 +41,6 @@ public class CSVRecordReader implements RecordReader {
   private CsvReader csvReader;
   private FileSplit split;
   private TableMeta tableMeta;
-  private Record record;
   private Counters counters;
 
   public static final Charset encoding = Charset.forName("UTF-8");
@@ -51,7 +50,6 @@ public class CSVRecordReader implements RecordReader {
       throws IOException {
     this.split = split;
     this.tableMeta = tableMeta;
-    this.record = new WritableRecord(split.getSchema());
     File file = split.getFile();
     if (file != null) {
       if (byteCounter != null) {
@@ -92,6 +90,8 @@ public class CSVRecordReader implements RecordReader {
       value[i] = LocalRunUtils.fromString(split.getSchema()[i].getType(),
                                           vals[i], "\\N", true);
     }
+
+    Record record = new WritableRecord(split.getSchema());
     record.set(value);
 
     counters.findCounter(JobCounter.__EMPTY_INPUT_RECORD_COUNT).increment(1);

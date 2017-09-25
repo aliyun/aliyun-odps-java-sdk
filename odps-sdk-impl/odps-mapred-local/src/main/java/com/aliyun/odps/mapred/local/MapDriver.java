@@ -31,6 +31,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.counter.Counter;
 import com.aliyun.odps.counter.Counters;
@@ -228,7 +229,7 @@ public class MapDriver extends DriverBase {
   class ProxiedMapContextImpl extends DirectMapContextImpl implements TaskContext {
 
     class CombinerContextImpl extends DirectMapContextImpl implements
-                                                       com.aliyun.odps.mapred.Reducer.TaskContext {
+                                                           com.aliyun.odps.mapred.Reducer.TaskContext {
 
       private Record key;
       private Iterator<Record> itr;
@@ -250,12 +251,19 @@ public class MapDriver extends DriverBase {
             return false;
           }
           key = createMapOutputKeyRecord();
-          Record value = createMapOutputValueRecord();
+
+          Column[] columns;
+          if (pipeMode && pipeNode != null && pipeNode.getType().equals("map")) {
+            columns = pipeNode.getOutputValueSchema();
+          } else {
+            columns = conf.getMapOutputValueSchema();
+          }
+
           String[] groupingColumns = getGroupingColumns();
           Comparator<Object[]> grpComparator = new ColumnBasedRecordComparator(
               groupingColumns, key.getColumns());
           itr =
-              new LocalGroupingRecordIterator(queue, (WritableRecord) key, (WritableRecord) value,
+              new LocalGroupingRecordIterator(queue, (WritableRecord) key, columns,
                                               grpComparator, false, counters);
           key.set(Arrays.copyOf(init, key.getColumnCount()));
         } else {
@@ -418,7 +426,7 @@ public class MapDriver extends DriverBase {
     }
     RecordReader reader =
         new CSVRecordReader(split, tableMeta, mapInputRecordCounter, mapInputByteCounter, counters,
-            WareHouse.getInstance().getInputColumnSeperator());
+                            WareHouse.getInstance().getInputColumnSeperator());
     if (job.getCombinerClass() != null) {
       mapContext = new ProxiedMapContextImpl(job, taskId, counters, reader, tableInfo);
     } else {
