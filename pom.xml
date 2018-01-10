@@ -98,13 +98,13 @@
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-sdk-graph-analysis</artifactId>
-                    <version>0.28.5-public</version>
+                    <version>0.28.4-public</version>
                 </dependency>
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-graph-example</artifactId>
-                    <version>0.28.5-public</version>
+                    <version>0.28.4-public</version>
                 </dependency>
 
                 <dependency>
@@ -404,6 +404,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.10.4</version>
                 <configuration>
                     <charset>UTF-8</charset>
                     <docencoding>UTF-8</docencoding>
