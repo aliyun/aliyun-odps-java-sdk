@@ -1,4 +1,0 @@
-project=odps_test_mrtask
-table=aggregatewordcount_out
-columns=cola:STRING,colb:STRING
-

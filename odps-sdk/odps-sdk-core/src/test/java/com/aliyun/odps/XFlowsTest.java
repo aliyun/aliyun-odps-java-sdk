@@ -44,7 +44,7 @@ public class XFlowsTest {
 
   @BeforeClass
   public static void setup() throws OdpsException {
-    odps = OdpsTestUtils.newTestOdps();
+    odps = OdpsTestUtils.newDefaultOdps();
     testCreateDeleteUpadte();
     if (!odps.xFlows().exists("abc")) {
       String source =

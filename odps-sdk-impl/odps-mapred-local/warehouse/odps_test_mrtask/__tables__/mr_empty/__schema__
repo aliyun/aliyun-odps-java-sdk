@@ -1,3 +1,0 @@
-project=odps_test_mrtask
-table=mr_empty
-columns=key:STRING

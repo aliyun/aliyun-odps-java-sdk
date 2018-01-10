@@ -1,3 +1,0 @@
-project=odps_test_mrtask
-table=grep_in
-columns=col1:STRING,col2:STRING

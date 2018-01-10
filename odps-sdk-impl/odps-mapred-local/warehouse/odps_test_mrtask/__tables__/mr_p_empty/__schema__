@@ -1,4 +1,0 @@
-project=odps_test_mrtask
-table=mr_p_empty
-columns=key:STRING
-partitions=p1:STRING,p2:STRING
