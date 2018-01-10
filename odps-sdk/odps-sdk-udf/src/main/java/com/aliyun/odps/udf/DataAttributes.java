@@ -37,8 +37,9 @@ public abstract class DataAttributes {
 
   /**
    * Getter for columns describing expected Record schema: un-used columns may have been pruned and this schema
-   * therefore can be a subset of full schema (that describes underlying physical data)
-   *
+   * therefore can be either
+   * 1. a subset of full schema that describes physical data underlying an EXTERNAL table, or
+   * 2. a subset of joined schemas from multiple input tables
    * @return: column arrays
    */
   public abstract Column[] getRecordColumns();

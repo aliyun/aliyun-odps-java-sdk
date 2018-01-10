@@ -21,7 +21,9 @@ package com.aliyun.odps.udf.local.runner;
 
 import static org.junit.Assert.fail;
 
+import com.aliyun.odps.udf.local.examples.UdfComplex;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,6 +67,19 @@ public class UDFRunnerTest {
     Assert.assertEquals("ss2s:one,one", StringUtils.join(out.get(0), ","));
     Assert.assertEquals("ss2s:three,three", StringUtils.join(out.get(1), ","));
     Assert.assertEquals("ss2s:four,four", StringUtils.join(out.get(2), ","));
+  }
+
+  @Test
+  public void testVarargs() throws LocalRunException, UDFException{
+    BaseRunner runner = new UDFRunner(odps, new UdfExample());
+    runner.feed(new Object[]{BigDecimal.ONE, BigDecimal.ONE}).feed(new Object[]{BigDecimal.ONE, null})
+        .feed(new Object[]{null, BigDecimal.ONE});
+    List<Object[]> out = runner.yield();
+
+    Assert.assertEquals(3, out.size());
+    Assert.assertEquals("2", StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("1", StringUtils.join(out.get(1), ","));
+    Assert.assertEquals("1", StringUtils.join(out.get(2), ","));
   }
 
   @Test
@@ -408,6 +423,110 @@ public class UDFRunnerTest {
     Assert.assertEquals("ss2s:three3,three1", StringUtils.join(out.get(3), ","));
     Assert.assertEquals("ss2s:three3,three1", StringUtils.join(out.get(4), ","));
     
+  }
+
+  @Test
+  public void testNewType() throws LocalRunException, UDFException{
+    BaseRunner runner = new UDFRunner(odps, new UdfComplex());
+    String project = "project_name";
+    String table = "max_compute_basic_types";
+    String[] columns = new String[]{"a_tinyint"};
+    InputSource inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    List<Object[]> out = runner.yield();
+    Assert.assertEquals("Byte:1", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_smallint"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Short:2", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_int"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Integer:3", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_float"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Float:5.1", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_double"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Double:6.2", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_decimal"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("BigDecimal:7.3", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_vachar"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Varchar:a varchar", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_datetime"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Long:1510333261000", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_timestamp"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Long:1515052675229", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_binary"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Binary:abc", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"a_boolean"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Boolean:true", StringUtils.join(out.get(0), ","));
+
+    table = "max_compute_complex_types";
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"c_array"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("List:[1, 2, 3]", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"c_map"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Map:{name=ZhanShan, age=111}", StringUtils.join(out.get(0), ","));
+
+    runner = new UDFRunner(odps, new UdfComplex());
+    columns = new String[]{"c_struct"};
+    inputSource = new TableInputSource(project, table, null, columns);
+    runner.addInputSource(inputSource);
+    out = runner.yield();
+    Assert.assertEquals("Struct:[1, 2]", StringUtils.join(out.get(0), ","));
   }
 
 }

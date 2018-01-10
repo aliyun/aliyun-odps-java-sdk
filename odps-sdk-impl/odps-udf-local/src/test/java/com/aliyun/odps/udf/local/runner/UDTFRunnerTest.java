@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.udf.local.examples.Udtf_complex;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -292,6 +293,25 @@ public class UDTFRunnerTest {
     Assert.assertEquals("A31,A32,A33,A34", StringUtils.join(out.get(3), ","));
     Assert.assertEquals("A41,A42,A43,A44", StringUtils.join(out.get(4), ","));
 
+  }
+
+  @Test
+  public void testComplexType() throws LocalRunException, UDFException{
+    runner = new UDTFRunner(null, new Udtf_complex());
+
+    String project = "project_name";
+    String table = "wc_in1";
+    String[] partitions = null;
+    String[] columns = new String[]{"col1"};
+
+    InputSource inputSource = new TableInputSource(project, table, partitions, columns);
+    runner.addInputSource(inputSource);
+    List<Object[]> out = runner.yield();
+    Assert.assertEquals(4, out.size());
+    Assert.assertEquals("A11,[A11x, A11y]", StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("A21,[A21x, A21y]", StringUtils.join(out.get(1), ","));
+    Assert.assertEquals("A31,[A31x, A31y]", StringUtils.join(out.get(2), ","));
+    Assert.assertEquals("A41,[A41x, A41y]", StringUtils.join(out.get(3), ","));
   }
 
 }

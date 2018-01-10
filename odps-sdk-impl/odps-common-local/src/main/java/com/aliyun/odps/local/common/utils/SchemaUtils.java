@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.local.common.utils;
 
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoParser;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -35,7 +37,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.TableMeta;
@@ -43,8 +44,10 @@ import com.aliyun.odps.local.common.TableMeta;
 public class SchemaUtils {
 
   private static final Log LOG = LogFactory.getLog(SchemaUtils.class);
-  private static final String SEPERATOR = ",";
-  private static final String DELIMITER = ":";
+  private static final String KEY_VALUE_SEPARATOR = "=";
+  private static final String NAME_TYPE_DELIMITER = ":";
+  private static final String COLUMN_SEPARATOR = ",";
+  private static final String RESOLVE_SEPARATOR = ",";
 
   public static boolean existsSchemaFile(File dir) {
     return new File(dir, Constants.SCHEMA_FILE).exists();
@@ -67,9 +70,9 @@ public class SchemaUtils {
     LOG.info("Start to write table scheme : " + tableInfo + "-->" + dir.getAbsolutePath());
 
     StringBuffer sb = new StringBuffer();
-    sb.append("project=" + table.getProjName());
+    sb.append("project" + KEY_VALUE_SEPARATOR + table.getProjName());
     sb.append("\n");
-    sb.append("table=" + table.getTableName());
+    sb.append("table" + KEY_VALUE_SEPARATOR + table.getTableName());
     sb.append("\n");
 
     StringBuffer sb1 = new StringBuffer();
@@ -79,24 +82,17 @@ public class SchemaUtils {
       int index = indexes == null ? i : indexes.get(i);
       Column col = columns[index];
       if (sb1.length() > 0) {
-        sb1.append(",");
+        sb1.append(COLUMN_SEPARATOR);
       }
-      sb1.append(col.getName() + ":" + col.getType().toString());
+      sb1.append(col.getName() + NAME_TYPE_DELIMITER + col.getTypeInfo().toString());
     }
 
-    sb.append("columns=" + sb1.toString());
+    sb.append("columns" + KEY_VALUE_SEPARATOR + sb1.toString());
     sb.append("\n");
 
     Column[] partitions = table.getPartitions();
     if (partitions != null && partitions.length > 0) {
-      sb1 = new StringBuffer();
-      for (int i = 0; i < partitions.length; i++) {
-        if (sb1.length() > 0) {
-          sb1.append(",");
-        }
-        sb1.append(partitions[i].getName() + ":" + partitions[i].getType().toString());
-      }
-      sb.append("partitions=" + sb1.toString());
+      sb.append("partitions" + KEY_VALUE_SEPARATOR + toString(partitions));
       sb.append("\n");
     }
 
@@ -144,8 +140,8 @@ public class SchemaUtils {
     }
     String project = null;
     String table = null;
-    List<Column> cols = new ArrayList<Column>();
-    List<Column> parts = new ArrayList<Column>();
+    Column[] cols = null;
+    Column[] partitionCols = null;
     while (line != null) {
       line = line.trim();
       if (line.equals("") || line.startsWith("#")) {
@@ -157,7 +153,7 @@ public class SchemaUtils {
         continue;
       }
 
-      String[] kv = line.split("=");
+      String[] kv = line.split(KEY_VALUE_SEPARATOR);
       if (kv == null || kv.length != 2 || kv[0] == null || kv[0].trim().isEmpty() || kv[1] == null
           || kv[1].trim().isEmpty()) {
         try {
@@ -184,34 +180,14 @@ public class SchemaUtils {
           throw new RuntimeException("Table schema file '_schema_' must include 'columns'");
         }
 
-        String[] ss = columns.split(",");
-        for (int i = 0; i < ss.length; i++) {
-          String[] temp = ss[i].trim().split(":");
-          if (temp.length == 2) {
-            temp[0] = temp[0].trim();
-            temp[1] = temp[1].trim();
-            if (!temp[0].isEmpty() && !temp[1].isEmpty()) {
-              cols.add(new Column(temp[0], OdpsType.valueOf(temp[1].toUpperCase())));
-            }
-          }
-        }
-        if (cols.size() == 0) {
+        cols = fromString(columns);
+        if (cols.length == 0) {
           throw new RuntimeException("'columns' in table schema file '_schema_' has invalid value");
         }
       } else if (kv[0].equals("partitions")) {
         String partitions = kv[1];
         if (partitions != null && !partitions.trim().isEmpty()) {
-          String[] ss = partitions.split(",");
-          for (int i = 0; i < ss.length; i++) {
-            String[] temp = ss[i].trim().split(":");
-            if (temp.length == 2) {
-              temp[0] = temp[0].trim();
-              temp[1] = temp[1].trim();
-              if (!temp[0].isEmpty() && !temp[1].isEmpty()) {
-                parts.add(new Column(temp[0], OdpsType.valueOf(temp[1].toUpperCase())));
-              }
-            }
-          }
+          partitionCols = fromString(partitions);
         }
       }
 
@@ -228,8 +204,7 @@ public class SchemaUtils {
       throw new RuntimeException(e);
     }
 
-    return new TableMeta(project, table, cols.toArray(new Column[cols.size()]),
-                         parts.toArray(new Column[parts.size()]));
+    return new TableMeta(project, table, cols, partitionCols);
 
   }
 
@@ -250,9 +225,7 @@ public class SchemaUtils {
 
   /**
    * 行属性序列化为描述字符串
-   *
-   * @param cols
-   *     行属性
+   * @param cols 行属性
    * @return 描述字符串
    * @see #fromString(String)
    */
@@ -266,11 +239,108 @@ public class SchemaUtils {
         continue;
       }
       if (sb.length() > 0) {
-        sb.append(SEPERATOR);
+        sb.append(COLUMN_SEPARATOR);
       }
-      sb.append(c.getName()).append(DELIMITER).append(c.getType().toString());
+      sb.append(c.getName()).append(NAME_TYPE_DELIMITER).append(c.getTypeInfo().toString());
     }
     return sb.toString();
+  }
+
+  /**
+   * 描述字符串解析为列
+   * @param str 描述字符串 like c1:MAP<STRING,STRING>,c2:ARRAY<INT>
+   * @return column数组
+   */
+  public static Column[] fromString(String str) {
+    List<Column> colList = new ArrayList<Column>();
+    String remain = str;
+    int pos = 0; //indicate the position we find
+    IllegalArgumentException exception = null;
+    while (remain.length() > 0) {
+      pos = remain.indexOf(COLUMN_SEPARATOR, pos);
+      if (pos < 0) { //last one
+        pos = remain.length();
+      }
+      String candidate = remain.substring(0, pos);
+      String[] nameType = candidate.split(NAME_TYPE_DELIMITER, 2);
+      if (nameType.length != 2) {
+        throw new IllegalArgumentException(
+          "Malformed schema definition, expecting \"name:type\" but was \"" + nameType + "\"");
+      }
+      try {
+        TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(nameType[1]);
+        if (typeInfo != null) { //find a valid type
+          exception = null;
+          colList.add(new Column(nameType[0], typeInfo));
+          if (pos == remain.length()) {
+            remain = "";
+          } else {
+            remain = remain.substring(pos + 1);
+            pos = 0;
+          }
+          continue;
+        }
+      } catch (IllegalArgumentException e) {
+        exception = e;
+      }
+      if (pos == remain.length()) {
+        remain = "";
+      } else {
+        pos = pos + 1; //try to parse at next position
+      }
+    }
+    if (exception != null) {
+      throw exception;
+    } else {
+      return colList.toArray(new Column[]{});
+    }
+  }
+
+  /**
+   * 解析resolve annotation中的类型信息
+   * @param str : like string,array<string>
+   */
+  public static List<TypeInfo> parseResolveTypeInfo(String str) throws IllegalArgumentException {
+    if (str.contains("*")) {
+      throw new IllegalArgumentException("* is not supported");
+    }
+    List<TypeInfo> types = new ArrayList<TypeInfo>();
+    String remain = str;
+    int pos = 0; //indicate the position we find
+    IllegalArgumentException exception = null;
+    while (remain.length() > 0) {
+      pos = remain.indexOf(RESOLVE_SEPARATOR, pos);
+      if (pos < 0) { //last one
+        pos = remain.length();
+      }
+      String candidate = remain.substring(0, pos);
+      try {
+        TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(candidate);
+        if (typeInfo != null) { //find a valid type
+          exception = null;
+          types.add(typeInfo);
+          if (pos == remain.length()) {
+            remain = "";
+          } else {
+            remain = remain.substring(pos + 1);
+            pos = 0;
+          }
+          continue;
+        }
+      } catch (IllegalArgumentException e) {
+        exception = e;
+      }
+      if (pos == remain.length()) {
+        remain = "";
+      } else {
+        pos = pos + 1; //try to parse at next position
+      }
+    }
+    if (exception != null) {
+      throw exception;
+    } else {
+      return types;
+    }
   }
 
 }

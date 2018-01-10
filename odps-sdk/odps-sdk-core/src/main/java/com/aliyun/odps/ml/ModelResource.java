@@ -26,7 +26,16 @@ public class ModelResource {
     this.memory = memory;
   }
 
+  public long getGpu() {
+    return gpu;
+  }
+
+  public void setGpu(long gpu) {
+    this.gpu = gpu;
+  }
+
   private long cpu;
   private long memory;
+  private long gpu;
 }
 

@@ -411,4 +411,28 @@ public class ArrayRecordTest {
 
     Assert.assertEquals(r.getColumnCount(), count);
   }
+
+  @Test
+  public void testByteAndString() {
+    TableSchema schema = new TableSchema();
+
+    schema.addColumn(new Column("col1", OdpsType.STRING));
+    schema.addColumn(new Column("col2", OdpsType.STRING));
+
+
+    ArrayRecord r = new ArrayRecord(schema);
+    byte [] v = new byte[] {'1', '2', '3'};
+    r.setString(0, v);
+    r.set(1, v);
+
+    Assert.assertTrue(r.get(0) instanceof  byte []);
+    Assert.assertTrue(r.get(1) instanceof byte []);
+
+    Assert.assertArrayEquals(new byte[]{'1', '2', '3'}, (byte [])r.get(0));
+    Assert.assertArrayEquals(new byte[]{'1', '2', '3'}, (byte [])r.get(1));
+    Assert.assertArrayEquals(new byte[]{'1', '2', '3'}, r.getBytes(0));
+    Assert.assertEquals(new String(new byte[]{'1', '2', '3'}), r.getString(0));
+    Assert.assertEquals(new String(new byte[]{'1', '2', '3'}), r.getString(1));
+
+  }
 }

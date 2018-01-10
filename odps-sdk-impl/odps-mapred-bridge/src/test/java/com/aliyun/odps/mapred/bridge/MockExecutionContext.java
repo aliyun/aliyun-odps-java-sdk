@@ -21,6 +21,7 @@ package com.aliyun.odps.mapred.bridge;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.util.Properties;
 
 import com.aliyun.odps.data.VolumeInfo;
 import com.aliyun.odps.udf.ExecutionContext;
@@ -99,6 +100,12 @@ public class MockExecutionContext extends ExecutionContext {
   @Override
   public FileSystem getOutputVolumeFileSystem(String label) throws IOException {
     return null;
+  }
+
+  private Properties configurations = new Properties();
+  @Override
+  public Properties getConfigurations() {
+    return configurations;
   }
 
   @Override

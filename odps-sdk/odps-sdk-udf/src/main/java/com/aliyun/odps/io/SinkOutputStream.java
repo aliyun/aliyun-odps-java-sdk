@@ -51,4 +51,10 @@ public abstract class SinkOutputStream extends OutputStream {
    */
   @Override
   public abstract void write(int b)throws IOException;
+
+  /**
+   * Get total number of bytes written by current output stream so far
+   * @return number of bytes written
+   */
+  public abstract long getBytesWritten();
 }

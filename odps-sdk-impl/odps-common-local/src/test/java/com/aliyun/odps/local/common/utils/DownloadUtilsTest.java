@@ -21,13 +21,26 @@ package com.aliyun.odps.local.common.utils;
 
 import static org.junit.Assert.assertEquals;
 
+import com.aliyun.odps.data.ArrayRecord;
+import com.aliyun.odps.data.Char;
+import com.aliyun.odps.data.SimpleStruct;
+import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.data.Varchar;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -57,10 +70,36 @@ public class DownloadUtilsTest {
   static String project;
   static String partTable = DownloadUtils.class.getSimpleName() + "_download_part_table";
   static String nonePartTable = DownloadUtils.class.getSimpleName() + "_download_none_part_table";
+  static String complexTable = DownloadUtils.class.getSimpleName() + "_download_complex_table";
   static String fileResource = DownloadUtils.class.getSimpleName() + "_download_file_resource.tar";
   static String partTableResource = DownloadUtils.class.getSimpleName() + "_download_part_table_resource1";
   static String nonePartTableResource = DownloadUtils.class.getSimpleName() + "_download_none_part_table_resource1";
   static Odps odps;
+
+  static BigDecimal BIG_DECIMAL = new BigDecimal("12345678901234567890.123456789");
+
+  static Map<String , String> MAP = new HashMap<String , String>(){{
+    put("key1", "value1");
+    put("key2", "value2");
+  }};
+  static List<Integer> LIST = new ArrayList<Integer>(){{
+    add(1);
+    add(2);
+  }};
+
+  static String [] NAMES = {"name", "age", "parents", "hehe", "salary", "hobbies"};
+  // char(10), int, Map<varchar(20), smallint>, decimal(20,10), float, Array<Varchar(100)>
+  static TypeInfo[] TYPES = {TypeInfoFactory.getCharTypeInfo(10), TypeInfoFactory.INT,
+    TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.getVarcharTypeInfo(20), TypeInfoFactory.SMALLINT),
+    TypeInfoFactory.getDecimalTypeInfo(20, 10), TypeInfoFactory.FLOAT,
+    TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.getVarcharTypeInfo(100))};
+  static StructTypeInfo STRUCT_TYPE_INFO = TypeInfoFactory.getStructTypeInfo(Arrays.asList(NAMES), Arrays.asList(
+    TYPES));
+
+  static String[] NAME1 = {"tag", "details"};
+  static TypeInfo[] TYPES1 = {TypeInfoFactory.TINYINT, STRUCT_TYPE_INFO};
+  static StructTypeInfo STRUCT_TYPE_INFO1 = TypeInfoFactory.getStructTypeInfo(Arrays.asList(NAME1), Arrays.asList(
+    TYPES1));
 
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
@@ -71,14 +110,16 @@ public class DownloadUtilsTest {
   }
 
   public static void init() throws OdpsException, IOException {
-
-    if (!odps.tables().exists(partTable)) {
+    if (!odps.tables().exists(partTable)
+        || !odps.tables().get(partTable).getSchema().containsColumn("c6")) {
+      odps.tables().delete(partTable, true);
       TableSchema schema = new TableSchema();
       schema.addColumn(new Column("c1", OdpsType.STRING));
       schema.addColumn(new Column("c2", OdpsType.BIGINT));
       schema.addColumn(new Column("c3", OdpsType.DOUBLE));
       schema.addColumn(new Column("c4", OdpsType.BOOLEAN));
       schema.addColumn(new Column("c5", OdpsType.DATETIME));
+      schema.addColumn(new Column("c6", OdpsType.DECIMAL));
       schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
       schema.addPartitionColumn(new Column("p2", OdpsType.STRING));
       odps.tables().create(partTable, schema);
@@ -86,9 +127,8 @@ public class DownloadUtilsTest {
       odps.tables().get(partTable).createPartition(new PartitionSpec("p1='1',p2='2'"));
 
       TableTunnel tunnel = TestUtils.newTableTunnel(odps);
-      TableTunnel.UploadSession session = tunnel.createUploadSession(odps.getDefaultProject(),
-                                                                     partTable, new PartitionSpec(
-          "p1='1',p2='1'"));
+      TableTunnel.UploadSession session = tunnel.createUploadSession(
+          odps.getDefaultProject(), partTable, new PartitionSpec("p1='1',p2='1'"));
       TunnelRecordWriter rw = (TunnelRecordWriter) session.openRecordWriter(0L);
       Record record = session.newRecord();
       record.set(0, "col1");
@@ -96,13 +136,14 @@ public class DownloadUtilsTest {
       record.set(2, 1.1D);
       record.set(3, true);
       record.set(4, new Date());
+      record.set(5, BIG_DECIMAL);
       rw.write(record);
       rw.close();
       Long[] blocks = {0L};
       session.commit(blocks);
 
-      session = tunnel.createUploadSession(odps.getDefaultProject(), partTable, new PartitionSpec(
-          "p1='1',p2='2'"));
+      session = tunnel.createUploadSession(
+          odps.getDefaultProject(), partTable, new PartitionSpec("p1='1',p2='2'"));
       rw = (TunnelRecordWriter) session.openRecordWriter(0L);
       record = session.newRecord();
       record.set(0, "col2");
@@ -110,20 +151,23 @@ public class DownloadUtilsTest {
       record.set(2, 2.2D);
       record.set(3, false);
       record.set(4, new Date());
+      record.set(5, BIG_DECIMAL);
       rw.write(record);
       rw.close();
       blocks[0] = 0L;
       session.commit(blocks);
-
     }
 
-    if (!odps.tables().exists(nonePartTable)) {
+    if (!odps.tables().exists(nonePartTable)
+        || !odps.tables().get(nonePartTable).getSchema().containsColumn("c6")) {
+      odps.tables().delete(nonePartTable, true);
       TableSchema schema = new TableSchema();
       schema.addColumn(new Column("c1", OdpsType.STRING));
       schema.addColumn(new Column("c2", OdpsType.BIGINT));
       schema.addColumn(new Column("c3", OdpsType.DOUBLE));
       schema.addColumn(new Column("c4", OdpsType.BOOLEAN));
       schema.addColumn(new Column("c5", OdpsType.DATETIME));
+      schema.addColumn(new Column("c6", OdpsType.DECIMAL));
       odps.tables().create(nonePartTable, schema);
       TableTunnel tunnel = TestUtils.newTableTunnel(odps);
       TableTunnel.UploadSession session = tunnel.createUploadSession(odps.getDefaultProject(),
@@ -135,6 +179,48 @@ public class DownloadUtilsTest {
       record.set(2, 2.2D);
       record.set(3, false);
       record.set(4, new Date());
+      record.set(5, BIG_DECIMAL);
+      rw.write(record);
+      rw.close();
+      Long[] blocks = {0L};
+      session.commit(blocks);
+    }
+
+    if (!odps.tables().exists(complexTable)) {
+      TableSchema schema = new TableSchema();
+      schema.addColumn(new Column("c1", TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.STRING, TypeInfoFactory.STRING)));
+      schema.addColumn(new Column("c2", TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.INT)));
+      schema.addColumn(new Column("c3", STRUCT_TYPE_INFO));
+      schema.addColumn(new Column("c4", STRUCT_TYPE_INFO1));
+      createTableWithHints(odps, complexTable, schema);
+      TableTunnel tunnel = TestUtils.newTableTunnel(odps);
+      TableTunnel.UploadSession session = tunnel.createUploadSession(odps.getDefaultProject(),
+        complexTable);
+      TunnelRecordWriter rw = (TunnelRecordWriter) session.openRecordWriter(0L);
+      ArrayRecord record = new ArrayRecord(session.getSchema().getColumns().toArray(new Column[0]));
+
+      List<Object> list = new ArrayList<Object>();
+      list.add(new Char("a"));
+      list.add(1);
+      Map<Varchar, Short> map = new HashMap<Varchar, Short>();
+      map.put(new Varchar("ad"), Short.valueOf("1"));
+      map.put(new Varchar("asdf"), Short.valueOf("2"));
+      list.add(map);
+      list.add(new BigDecimal("10010.34235435"));
+      list.add(Float.valueOf("1.1"));
+      Varchar[] hobbies = {new Varchar("hobbies1"), new Varchar("hobbies2")};
+      list.add(Arrays.asList(hobbies));
+      SimpleStruct structObject = new SimpleStruct((StructTypeInfo) session.getSchema().getColumn("c3").getTypeInfo(), list);
+
+      List<Object> list1 = new ArrayList<Object>();
+      list1.add((byte)1);
+      list1.add(structObject);
+      SimpleStruct structObject1 = new SimpleStruct((StructTypeInfo) session.getSchema().getColumn("c4").getTypeInfo(), list1);
+
+      record.setMap(0, MAP);
+      record.setArray(1, LIST);
+      record.setStruct(2, structObject);
+      record.setStruct(3, structObject1);
       rw.write(record);
       rw.close();
       Long[] blocks = {0L};
@@ -156,7 +242,7 @@ public class DownloadUtilsTest {
 
   }
 
-  // @Test
+  @Test
   public void testDownloadTable() throws OdpsException, IOException {
     // //////Test table////////
     WareHouse.getInstance().dropTableIfExists(project, nonePartTable);
@@ -165,6 +251,7 @@ public class DownloadUtilsTest {
     DownloadUtils.downloadTableSchemeAndData(odps, tableInfo, 10, ',');
     List<Object[]> dataList = WareHouse.getInstance().readData(project, nonePartTable, null, null,
                                                                ',');
+
     Assert.assertNotNull(dataList);
     Assert.assertEquals(1, dataList.size());
     Object[] record = dataList.get(0);
@@ -178,6 +265,8 @@ public class DownloadUtilsTest {
     Assert.assertEquals(true, record[3] instanceof Boolean);
     Assert.assertEquals(false, (Boolean) record[3]);
     Assert.assertEquals(true, record[4] instanceof Date);
+    Assert.assertEquals(BIG_DECIMAL, (BigDecimal) record[5]);
+    Assert.assertEquals(true, record[5] instanceof BigDecimal);
 
     // //////Test Partition table////////
     WareHouse.getInstance().dropTableIfExists(project, partTable);
@@ -201,6 +290,32 @@ public class DownloadUtilsTest {
     Assert.assertEquals(true, record[3] instanceof Boolean);
     Assert.assertEquals(false, (Boolean) record[3]);
     Assert.assertEquals(true, record[4] instanceof Date);
+    Assert.assertEquals(BIG_DECIMAL, (BigDecimal) record[5]);
+    Assert.assertEquals(true, record[5] instanceof BigDecimal);
+  }
+
+  @Test
+  public void testDownloadComplexTable() throws OdpsException, IOException {
+    // //////Test Complex table////////
+    WareHouse.getInstance().dropTableIfExists(project, complexTable);
+    Assert.assertEquals(false, WareHouse.getInstance().existsTable(project, complexTable));
+    TableInfo tableInfo = TableInfo.builder().projectName(project).tableName(complexTable).build();
+    DownloadUtils.downloadTableSchemeAndData(odps, tableInfo, 10, ',');
+    List<Object[]> dataList = WareHouse.getInstance().readData(project, complexTable, null, null,
+      ',');
+
+    Assert.assertNotNull(dataList);
+    Assert.assertEquals(1, dataList.size());
+    Object[] record = dataList.get(0);
+    Assert.assertTrue(record[0] instanceof Map);
+    Assert.assertTrue(((Map) record[0]).containsKey("key1"));
+    Assert.assertTrue(record[1] instanceof List);
+    Assert.assertTrue(((List) record[1]).contains(2));
+    Assert.assertTrue(record[2] instanceof Struct);
+    Assert.assertEquals(new Char("a"), ((Struct) record[2]).getFieldValue(0));
+    Assert.assertTrue(record[3] instanceof Struct);
+    Assert.assertEquals((byte)1, ((Struct) record[3]).getFieldValue(0));
+    Assert.assertTrue(((Struct) record[3]).getFieldValue(1) instanceof Struct);
   }
 
   @Test(expected = RuntimeException.class)
@@ -402,6 +517,18 @@ public class DownloadUtilsTest {
 
   private void deleteResource(String resourceName) throws OdpsException {
     odps.resources().delete(resourceName);
+  }
+
+  private static void createTableWithHints(Odps odps, String tableName, TableSchema schema)
+    throws OdpsException {
+    Map<String, String> hints = new HashMap<String, String>();
+    hints.put("odps.sql.hive.compatible", "true");
+    hints.put("odps.sql.preparse.odps2", "hybrid");
+    hints.put("odps.sql.planner.mode", "lot");
+    hints.put("odps.sql.planner.parser.odps2", "true");
+    hints.put("odps.sql.ddl.odps2", "true");
+
+    odps.tables().create(odps.getDefaultProject(), tableName, schema, null, false, null, hints, null);
   }
 
   @Before

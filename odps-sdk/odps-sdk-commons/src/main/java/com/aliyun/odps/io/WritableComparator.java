@@ -229,6 +229,32 @@ public class WritableComparator implements RawComparator {
   }
 
   /**
+   * 从 byte 数组读取 tinyint.
+   *
+   * @param bytes
+   *     字节数组
+   * @param start
+   *     起始位置，读取内容bytes[start, start]
+   * @return
+   */
+  static byte readByte(byte[] bytes, int start) {
+    return bytes[start];
+  }
+
+  /**
+   * 从 byte 数组读取 short.
+   *
+   * @param bytes
+   *     字节数组
+   * @param start
+   *     起始位置，读取内容bytes[start, start+1]
+   * @return
+   */
+  static short readShort(byte[] bytes, int start) {
+    return (short) (((bytes[start] & 0xff) << 8) + ((bytes[start + 1] & 0xff)));
+  }
+
+  /**
    * 从 byte 数组读取无符号 short.
    *
    * @param bytes

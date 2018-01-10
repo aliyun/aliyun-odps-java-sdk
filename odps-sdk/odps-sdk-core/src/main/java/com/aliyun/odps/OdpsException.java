@@ -28,13 +28,9 @@ import com.aliyun.odps.rest.RestException;
  */
 @SuppressWarnings("serial")
 public class OdpsException extends Exception {
-
-  private String requestId;
-  String code;
-
-  public String getErrorCode() {
-    return code;
-  }
+  protected Integer status;
+  protected String requestId;
+  protected String errorCode;
 
   public OdpsException() {
 
@@ -46,20 +42,20 @@ public class OdpsException extends Exception {
 
   public OdpsException(String code, String msg) {
     super(msg);
-    this.code = code;
+    this.errorCode = code;
   }
 
   public OdpsException(String msg, Throwable t) {
     super(msg, t);
     if (t instanceof RestException) {
-      this.code = ((RestException) t).getErrorMessage().getErrorcode();
+      this.errorCode = ((RestException) t).getErrorMessage().getErrorcode();
       this.requestId = ((RestException) t).getErrorMessage().getRequestId();
     }
   }
 
   public OdpsException(String code, String msg, Throwable t) {
     super(msg, t);
-    this.code = code;
+    this.errorCode = code;
   }
 
   public OdpsException(Exception e) {
@@ -73,5 +69,41 @@ public class OdpsException extends Exception {
    */
   public String getRequestId() {
     return requestId;
+  }
+
+  /**
+   * 设置 失败请求的 RequestID
+   *
+   * @param requestId
+   */
+  public void setRequestId(String requestId) {
+    this.requestId = requestId;
+  }
+
+  /**
+   * 设置网络状态
+   *
+   * @param  status
+   */
+  public void setStatus(Integer status) {
+    this.status = status;
+  }
+
+  /**
+   * 获得网络状态
+   *
+   * @return status
+   */
+  public Integer getStatus() {
+    return status;
+  }
+
+  /**
+   * 获取错误码
+   *
+   * @return err code
+   */
+  public String getErrorCode() {
+    return errorCode;
   }
 }

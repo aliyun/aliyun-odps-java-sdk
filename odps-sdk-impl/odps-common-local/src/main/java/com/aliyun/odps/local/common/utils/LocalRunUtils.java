@@ -26,6 +26,7 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -77,48 +78,6 @@ public class LocalRunUtils {
                                  + " out of bound, must be in range [" + lower_bound + ","
                                  + upper_bound + "].");
     }
-  }
-
-  public static Object fromString(OdpsType type, String val, String nullIndicator, boolean isBinary) throws IOException {
-    if (val == null) {
-      return null;
-    }
-    if (nullIndicator != null && nullIndicator.equals(val)) {
-      return null;
-    }
-
-    if (val != null) {
-      switch (type) {
-        case BIGINT:
-          return Long.parseLong(val);
-        case STRING:
-          try {
-            byte[] v = fromReadableString(val);
-            return isBinary ? v : new String(v, Charset.forName("UTF-8")); 
-          } catch (Exception e1) {
-            throw new RuntimeException("from readable string failed!" + e1);
-          }
-        case DOUBLE:
-          return Double.parseDouble(val);
-        case BOOLEAN:
-          return Boolean.parseBoolean(val);
-        case DATETIME:
-          try {
-            return getDateFormat(Constants.DATE_FORMAT_2).parse(val);
-          } catch (ParseException e) {
-            throw new IOException(e);
-          }
-        default:
-          throw new IOException("unsupported type: " + type);
-      }
-    } else {
-      return null;
-    }
-  }
-
-  public static Object fromString(OdpsType type, String val, String nullIndicator)
-      throws IOException {
-    return fromString(type, val, nullIndicator, false);
   }
 
   public static DateFormat getDateFormat(String formateStr) {

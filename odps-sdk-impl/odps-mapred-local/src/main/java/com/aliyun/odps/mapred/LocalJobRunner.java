@@ -98,7 +98,12 @@ public class LocalJobRunner implements JobRunner {
 
   public void initialize() {
     odps = SessionState.get().getOdps();
-    wareHouse = WareHouse.getInstance();
+    String warehouseDir = System.getProperty("odps.runner.warehouseDir");
+    if (StringUtils.isNotBlank(warehouseDir)) {
+      wareHouse = WareHouse.getInstance(warehouseDir);
+    } else {
+      wareHouse = WareHouse.getInstance();
+    }
     wareHouse.init(odps, conf);
 
     LocalMRUtils.generateLocalMrTaskName();

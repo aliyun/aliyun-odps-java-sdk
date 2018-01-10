@@ -27,8 +27,10 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.After;
@@ -37,6 +39,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.type.TypeInfoFactory;
 
 import net.jcip.annotations.NotThreadSafe;
 
@@ -125,8 +128,83 @@ public class TablesTest extends TestBase {
     deleteTable(tableName);
   }
 
+  @Test
+  public void testCreateExternalTable() throws OdpsException {
+    UUID id = UUID.randomUUID();
+    String tableName = "testCreateExternalTable" + id.toString().replace("-", "");
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("c1", OdpsType.BIGINT));
+    schema.addColumn(new Column("_c2", OdpsType.STRING, "_comment here"));
+    schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
+    schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
+    Map<String, String> hints = new HashMap<String, String>();
+    hints.put("odps.sql.preparse.odps2", "lot");
+    hints.put("odps.sql.planner.mode", "lot");
+    hints.put("odps.sql.planner.parser.odps2", "true");
+    hints.put("odps.sql.ddl.odps2", "true");
+    hints.put("odps.compiler.output.format", "lot,pot");
+
+    String storageHandler = "com.aliyun.odps.CsvStorageHandler";
+
+    odps.tables()
+        .createExternal(odps.getDefaultProject(), tableName, schema,
+            "MOCKoss://full/uri/path/to/oss/directory/",
+            storageHandler, null, null,
+            "External table with partitions and builtin CsvStorageHandler", false, 10L, hints, null);
+    Table createdTable = odps.tables().get(tableName);
+    assertEquals(createdTable.isExternalTable(), true);
+    assertEquals(createdTable.getStorageHandler(), storageHandler);
+    assertEquals(createdTable.getLife(), 10L);
+    deleteTable(tableName);
+
+    schema = new TableSchema();
+    schema.addColumn(new Column("c1", OdpsType.BIGINT));
+    schema.addColumn(new Column("_c2", OdpsType.STRING));
+
+    storageHandler = "com.aliyun.odps.udf.example.text.TextStorageHandler";
+    List<String > jars = new ArrayList<String>();
+    jars.add("odps-udf-example.jar");
+    jars.add("another.jar");
+    Map<String,String> properties = new HashMap<String, String>();
+    properties.put("odps.text.option.delimiter", "|");
+    properties.put("my.own.option", "value");
+    odps.tables()
+        .createExternal(odps.getDefaultProject(), tableName, schema,
+            "MOCKoss://full/uri/path/to/oss/directory/",
+            storageHandler, jars, properties,
+            "External table using user defined TextStorageHandler", true, null, hints, null);
+    createdTable = odps.tables().get(tableName);
+    assertEquals(createdTable.isExternalTable(), true);
+    assertEquals(createdTable.getStorageHandler(), storageHandler);
+    assertEquals(createdTable.getResources().split(",").length, 2);
+    deleteTable(tableName);
+  }
+
+  @Test
+  public void testCreateTableWithHints() throws OdpsException {
+    UUID id = UUID.randomUUID();
+    String tableName = "testCreateTableWithHints" + id.toString().replace("-", "");
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("c1", TypeInfoFactory.getCharTypeInfo(10)));
+    schema.addColumn(new Column("_c2", TypeInfoFactory.STRING, "_comment here"));
+    schema.addPartitionColumn(new Column("p1", TypeInfoFactory.getVarcharTypeInfo(20)));
+    schema.addColumn(new Column("_p2", TypeInfoFactory
+        .getMapTypeInfo(TypeInfoFactory.BIGINT, TypeInfoFactory.BOOLEAN)));
+    Map<String, String> hints = new HashMap<String, String>();
+    hints.put("odps.sql.hive.compatible", "true");
+    hints.put("odps.sql.preparse.odps2", "hybrid");
+    hints.put("odps.sql.planner.mode", "lot");
+    hints.put("odps.sql.planner.parser.odps2", "true");
+    hints.put("odps.sql.ddl.odps2", "true");
+
+    odps.tables().create(odps.getDefaultProject(), tableName, schema, null, false, 10L, hints, null);
+
+    assertEquals(odps.tables().get(tableName).getLife(), 10L);
+    deleteTable(tableName);
+  }
+
   @Test(expected = OdpsException.class)
-  public void testCreateTableCrossProject() throws OdpsException {
+  public void testCreateTableCrossProjectNeg() throws OdpsException {
     TableSchema schema = new TableSchema();
     schema.addColumn(new Column("c1", OdpsType.BIGINT));
     schema.addColumn(new Column("c2", OdpsType.BOOLEAN));
@@ -138,7 +216,6 @@ public class TablesTest extends TestBase {
 
     odps.tables().create("NOT_EXIST_PROJECT", tableName, schema);
   }
-
 
   @Test
   public void testGetString() {

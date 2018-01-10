@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
 
 /**
@@ -61,6 +62,16 @@ public class ArrayRecord implements Record {
 
   }
 
+  public ArrayRecord(Column[] columns, Object[] values){
+    this(columns);
+    if (values.length != columns.length) {
+      throw new IllegalArgumentException("Lengths of schema and column values of the Record mismatches.");
+    }
+    for (int i = 0 ; i < columns.length; i++){
+      set(i, values[i]);
+    }
+  }
+
   public ArrayRecord(TableSchema schema) {
     this(schema.getColumns().toArray(new Column[0]));
   }
@@ -77,6 +88,14 @@ public class ArrayRecord implements Record {
 
   @Override
   public void set(int idx, Object value) {
+    // allow byte [] to set on STRING column, ugly
+    if (columns[idx].getTypeInfo().getOdpsType() == OdpsType.STRING && (value instanceof byte[])) {
+      OdpsTypeTransformer.validateByteArray((byte[]) value);
+      values[idx] = value;
+
+      return;
+    }
+
     values[idx] = OdpsTypeTransformer.transform(value, columns[idx].getTypeInfo());
   }
 
@@ -590,11 +609,11 @@ public class ArrayRecord implements Record {
     return getIntervalYearMonth(getColumnIndex(columnName));
   }
 
-  public void setIntervalYearMonth(int idx, IntervalDayTime value) {
+  public void setIntervalYearMonth(int idx, IntervalYearMonth value) {
     set(idx, value);
   }
 
-  public void setIntervalYearMonth(String columnName, IntervalDayTime value) {
+  public void setIntervalYearMonth(String columnName, IntervalYearMonth value) {
     setIntervalYearMonth(getColumnIndex(columnName), value);
   }
 

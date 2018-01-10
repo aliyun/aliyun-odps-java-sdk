@@ -226,7 +226,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
         return (byte) v;
       }
       case STRING: {
-        return readString();
+        return readBytes();
       }
       case VARCHAR: {
         return new Varchar(readString());

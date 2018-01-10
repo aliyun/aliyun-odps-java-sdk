@@ -19,15 +19,16 @@
 
 package com.aliyun.odps.tunnel.io;
 
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+
 import java.io.IOException;
 
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.tunnel.TunnelException;
-import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.tunnel.HttpHeaders;
+import com.aliyun.odps.tunnel.TunnelException;
 
 /**
  * TunnelRecordWriter支持通过Tunnel服务写入数据到ODPS表
@@ -73,9 +74,8 @@ public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
     } catch (IOException e) {
       Response resp = conn.getResponse();
       if (!resp.isOK()) {
-        TunnelException err = new TunnelException(conn.getInputStream());
-        err.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
-        throw new IOException(err);
+        TunnelException err = new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
+        throw new IOException(err.getMessage(), err);
       }
     }
   }
@@ -88,9 +88,8 @@ public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
     try {
       Response resp = conn.getResponse();
       if (!resp.isOK()) {
-        TunnelException err = new TunnelException(conn.getInputStream());
-        err.setRequestId(resp.getHeader("x-odps-request-id")); // XXX: hard code
-        throw new IOException(err);
+        TunnelException err = new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
+        throw new IOException(err.getMessage(), err);
       }
     } finally {
       conn.disconnect();

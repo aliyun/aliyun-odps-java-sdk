@@ -28,11 +28,12 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 
 import javax.mail.internet.MimeUtility;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.account.AuthorizationUtil;
@@ -45,7 +46,7 @@ import com.aliyun.odps.account.AuthorizationUtil;
 @Survey
 public class DefaultConnection implements Connection {
 
-  private static final Logger log = Logger.getLogger(DefaultConnection.class.getName());
+  private static final Logger log = LoggerFactory.getLogger(DefaultConnection.class);
 
   private HttpURLConnection conn;
 
@@ -53,16 +54,11 @@ public class DefaultConnection implements Connection {
   public void connect(Request req) throws IOException {
     URI u = req.getURI();
 
-    if (log.isLoggable(Level.FINE)) {
-      log.fine("Connecting to " + u.toString());
+    if (u == null || u.getScheme() == null) {
+      throw new IllegalArgumentException("Request URI(http or https) required.");
     }
 
-    if (u == null || u.getScheme() == null) {
-      IllegalArgumentException e = new IllegalArgumentException(
-          "Request URI(http or https) required.");
-      log.log(Level.SEVERE, e.getMessage(), e);
-      throw e;
-    }
+    log.trace("Connecting to {}", u);
 
     try {
       String scheme = u.getScheme().toLowerCase();
@@ -98,8 +94,8 @@ public class DefaultConnection implements Connection {
 
       // set headers
       if (req.getHeaders() != null) {
-        if (log.isLoggable(Level.FINE)) {
-          log.fine("Request headers: " + req.getHeaders().toString());
+        if (log.isTraceEnabled()) {
+        log.trace("Request headers: {}", req.getHeaders());
         }
 
         for (Entry<String, String> kv : req.getHeaders().entrySet()) {
@@ -112,7 +108,7 @@ public class DefaultConnection implements Connection {
       }
 
     } catch (MalformedURLException e) {
-      log.log(Level.SEVERE, e.getMessage(), e);
+      log.error("", e);
       throw new IllegalArgumentException("Invalid request URI: " + u);
     }
   }

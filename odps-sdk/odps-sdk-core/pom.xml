@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.27.2-public</version>
+        <version>0.28.4-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -68,34 +68,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.0.0</version>
-                <configuration>
-                    <artifactSet>
-                        <includes>
-                            <include>com.google.protobuf:protobuf-java:jar:</include>
-                        </includes>
-                    </artifactSet>
-                    <relocations>
-                        <relocation>
-                            <pattern>com.google.protobuf</pattern>
-                            <shadedPattern>com.aliyun.odps.thirdparty.com.google.protobuf</shadedPattern>
-                        </relocation>
-                    </relocations>
-                    <shadedClassifierName>jar-with-dependencies</shadedClassifierName>
-                    <shadedArtifactAttached>true</shadedArtifactAttached>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>

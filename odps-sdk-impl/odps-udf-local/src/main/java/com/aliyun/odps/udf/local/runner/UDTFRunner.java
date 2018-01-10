@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.local.common.utils.SchemaUtils;
+import com.aliyun.odps.type.TypeInfo;
 import java.io.IOException;
 import java.util.List;
 
@@ -82,10 +84,11 @@ public class UDTFRunner extends BaseRunner {
     }
     String info = r.value()[0];
     String[] outs = parseResolutionInfo(info);
-    String[] inputs = StringUtils.splitPreserveAllTokens(outs[0], ',');
-    converters = new ArgumentConverter[inputs.length];
-    for (int i = 0; i < inputs.length; i++) {
-      converters[i] = ArgumentConverterUtils.validSigType.get(inputs[i]);
+    List<TypeInfo> inputTypes = SchemaUtils.parseResolveTypeInfo(outs[0]);
+    converters = new ArgumentConverter[inputTypes.size()];
+    for (int i = 0; i < inputTypes.size(); i++) {
+      String sigType = ArgumentConverterUtils.getSigType(inputTypes.get(i));
+      converters[i] = ArgumentConverterUtils.validSigType.get(sigType);
     }
   }
 
@@ -101,30 +104,31 @@ public class UDTFRunner extends BaseRunner {
     } else if (pos < 0) {
       throw new InvalidFunctionException(errMsg);
     }
-    String rtypes;
     int tPos = info.indexOf("->", pos + 2);
     if (tPos >= 0) {
       throw new InvalidFunctionException(errMsg + "contains not exactly one '->'");
     }
-    rtypes = info.substring(pos + 2, info.length());
-    if (!validTypeInfo(args)) {
+    List<TypeInfo> argTypeInfos = SchemaUtils.parseResolveTypeInfo(args);
+    if (!validTypeInfo(argTypeInfos)) {
       throw new InvalidFunctionException(errMsg + "annotates wrong arguments '" + args + "'");
     }
-    if (rtypes.isEmpty()) {
+    String rtypes = info.substring(pos + 2, info.length());
+    List<TypeInfo> rtTypeInfos = SchemaUtils.parseResolveTypeInfo(rtypes);
+    if (rtTypeInfos.isEmpty()) {
       throw new InvalidFunctionException(errMsg + "annotates no output types '" + args + "'");
-    } else if (!validTypeInfo(rtypes)) {
+    } else if (!validTypeInfo(rtTypeInfos)) {
       throw new InvalidFunctionException(errMsg + "annotates wrong output types '" + rtypes + "'");
     }
     return new String[] {args, rtypes};
   }
 
-  public static boolean validTypeInfo(String sig) {
-    if (sig.isEmpty()) {
+  public static boolean validTypeInfo(List<TypeInfo> typeInfos) {
+    if (typeInfos.isEmpty()) {
       return true;
     }
-    String[] sigArray = StringUtils.splitPreserveAllTokens(sig, ',');
-    for (String type : sigArray) {
-      if (!ArgumentConverterUtils.validSigType.containsKey(type)) {
+    for (TypeInfo type : typeInfos) {
+      String sigType = ArgumentConverterUtils.getSigType(type);
+      if (!ArgumentConverterUtils.validSigType.containsKey(sigType)) {
         return false;
       }
     }

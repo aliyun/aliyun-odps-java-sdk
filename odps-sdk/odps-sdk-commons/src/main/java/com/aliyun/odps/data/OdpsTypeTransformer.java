@@ -66,6 +66,13 @@ public class OdpsTypeTransformer {
     throw new IllegalArgumentException("Cannot get Java type for Odps type: " + type);
   }
 
+  static void validateByteArray(byte[] value) {
+    if (value.length > STRING_MAX_LENGTH) {
+      throw new IllegalArgumentException("InvalidData: The string's length is more than "
+                                         + STRING_MAX_LENGTH / 1024 / 1024 + "M.");
+    }
+  }
+
   private static void validateString(String value) {
     try {
       if ((value.length() * 6 > STRING_MAX_LENGTH) && (value.getBytes("utf-8").length
@@ -168,8 +175,9 @@ public class OdpsTypeTransformer {
 
     switch (typeInfo.getOdpsType()) {
       case STRING:
-        // allow byte [] to set on STRING column, ugly
         if (value instanceof byte []) {
+          // this convert would happened on embedded STRING in MAP/ARRAY/STRUCT
+          // raw STRING would not convert byte array to string, it handles in ArrayRecord.set
           value = ArrayRecord.bytesToString((byte []) value);
         }
 

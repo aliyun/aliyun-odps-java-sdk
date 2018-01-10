@@ -68,6 +68,9 @@ public class Volume extends LazyLoad {
     @XmlElement(name = "Owner")
     String owner;
 
+    @XmlElement(name = "Lifecycle")
+    Long lifecycle;
+
     @XmlElement(name = "CreationTime")
     @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
     Date createdTime;
@@ -206,6 +209,28 @@ public class Volume extends LazyLoad {
       lazyLoad();
     }
     return model.length;
+  }
+
+  /**
+   * 获取生命周期
+   *
+   * @return 生命周期
+   */
+  public Long getLifecycle() {
+    if (model.lifecycle == null) {
+      lazyLoad();
+    }
+
+    return model.lifecycle;
+  }
+
+  /**
+   * 设置生命周期
+   *
+   * @param  lifecycle 生命周期。 若为0， 表示 disable 生命周期
+   */
+  public void setLifecycle(long lifecycle) {
+    this.model.lifecycle = lifecycle;
   }
 
   /**

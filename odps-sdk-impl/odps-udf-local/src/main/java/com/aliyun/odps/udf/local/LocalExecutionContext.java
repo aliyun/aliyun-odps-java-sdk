@@ -22,6 +22,7 @@ package com.aliyun.odps.udf.local;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Properties;
 
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.data.VolumeInfo;
@@ -126,6 +127,12 @@ public class LocalExecutionContext extends ExecutionContext {
   @Override
   public FileSystem getOutputVolumeFileSystem(String label) throws IOException {
     return null;
+  }
+
+  private Properties configurations = new Properties();
+  @Override
+  public Properties getConfigurations() {
+    return configurations;
   }
 
   //TODO

@@ -55,6 +55,9 @@ public class Main {
     options.addOption(null, "endpoint", true, "Specify the endpoint");
     options.addOption(null, "access-id", true, "The accessId of ALIYUN account");
     options.addOption(null, "access-key", true, "The accessKey of ALIYUN account");
+    options.addOption("w", "warehouse-dir", true, "Warehouse Dir");
+    options.addOption(null, "record-limit", true, "download record num limit");
+    options.addOption(null, "column-separator", true, "column separator for data input");
     options.addOption("h", "help", false, "print this help information");
   }
 
@@ -80,6 +83,14 @@ public class Main {
       Odps odps = new Odps(account);
       odps.setEndpoint(endpoint);
       odps.setDefaultProject(defaultProject);
+
+      String warehouseDir = cmdl.getOptionValue("w");
+      if (StringUtils.isNotBlank(warehouseDir)) {
+        WareHouse.getInstance(warehouseDir); // init warehouse with giving dir
+      }
+
+      WareHouse.getInstance().setRecordLimit(cmdl.getOptionValue("record-limit"));
+      WareHouse.getInstance().setColumnSeparator(cmdl.getOptionValue("column-separator"));
 
       BaseRunner runner = RunnerFactory.getRunner(cmdl, odps);
 

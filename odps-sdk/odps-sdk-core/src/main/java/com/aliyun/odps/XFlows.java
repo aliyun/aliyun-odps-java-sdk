@@ -293,7 +293,8 @@ public class XFlows implements Iterable<XFlow> {
 
   @XmlRootElement(name = "XflowInstance")
   @XmlAccessorType(XmlAccessType.FIELD)
-  @XmlType(name = "", propOrder = {"RunningMode", "project", "XflowName", "parameters"})
+  @XmlType(name = "", propOrder = {"RunningMode", "project", "XflowName",
+                                   "parameters", "guid", "priority"})
   public static class XFlowInstance {
 
     /**
@@ -349,6 +350,13 @@ public class XFlows implements Iterable<XFlow> {
     @XmlElement(name = "Parameters")
     private Parameters parameters = new Parameters();
 
+    @XmlElement(name = "Guid")
+    private String guid;
+
+    // Priority range [0,9], 0 is the highest priority in odps
+    @XmlElement(name = "Priority")
+    private int priority = 1;
+
     public String getXflowName() {
       return XflowName;
     }
@@ -391,6 +399,14 @@ public class XFlows implements Iterable<XFlow> {
       p.value = value;
       parameters.parameters.add(p);
     }
+
+    public String getGuid() { return guid; }
+
+    public void setGuid(String guid) { this.guid = guid; }
+
+    public int getPriority() { return priority; }
+
+    public void setPriority(int priority) { this.priority = priority; }
   }
 
   public Instance execute(XFlowInstance xFlowInstance) throws OdpsException {

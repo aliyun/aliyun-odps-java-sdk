@@ -52,7 +52,7 @@ public class TableInputSource extends InputSource {
     try {
       dataList =
           WareHouse.getInstance().readData(tableInfo.getProjectName(), tableInfo.getTableName(),
-              tableInfo.getPartitionSpec(), tableInfo.getCols(), ',');
+              tableInfo.getPartitionSpec(), tableInfo.getCols(), WareHouse.getInstance().getInputColumnSeperator());
       // convert Date to Long for udf inputs
       for (Object[] datas : dataList) {
         if (datas == null) {

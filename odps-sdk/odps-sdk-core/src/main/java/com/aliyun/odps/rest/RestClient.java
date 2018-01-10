@@ -49,12 +49,35 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.transport.Transport;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.commons.util.IOUtils;
+import com.aliyun.odps.commons.util.RetryExceedLimitException;
+import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
+import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
+import com.aliyun.odps.commons.util.backoff.FixedBackOffStrategy;
 
 /**
  * RESTful API客户端
  */
 public class RestClient {
+
+  static class RestRetryStrategy extends RetryStrategy {
+    RestRetryStrategy(int limit, BackOffStrategy strategy)  {
+      super(limit, strategy);
+    }
+
+    @Override
+    protected boolean needRetry(Exception e) {
+      if (e instanceof OdpsException) {
+        OdpsException err = (OdpsException) e;
+
+        if(err.getStatus() != null && err.getStatus() / 100 == 4) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+  }
 
   public static abstract class RetryLogger {
 
@@ -280,24 +303,18 @@ public class RestClient {
     }
 
     long retryWaitTime = getConnectTimeout() + getReadTimeout();
+    FixedBackOffStrategy backOffStrategy = new FixedBackOffStrategy(retryWaitTime);
+    RetryStrategy retryStrategy = new RestRetryStrategy(retryTimes, backOffStrategy);
 
-    long retryCount = 0;
+    while (true) {
+      backOffStrategy.setStartTime(System.currentTimeMillis());
 
-    while (retryCount <= retryTimes) {
-      long startTime = System.currentTimeMillis();
       try {
         Response resp = requestWithNoRetry(resource, method, params, headers, body, bodyLen);
 
         if (resp == null) {
           throw new OdpsException("Response is null.");
         }
-
-        if (resp.getStatus() / 100 == 4) {
-          retryTimes = 0;
-          // IF THE HTTP CODE IS 4XX,
-          // IT SHOULD NOT RETRY IF THE REQUEST NOT CHANGED
-        }
-
         handleErrorResponse(resp);
 
         uploadDeprecatedLog();
@@ -305,29 +322,19 @@ public class RestClient {
         return resp;
 
       } catch (OdpsException e) {
-        if (retryTimes == retryCount) {
+        try {
+          retryStrategy.onFailure(e);
+        } catch (RetryExceedLimitException ignore) {
           throw e;
         }
 
         resetBody(body);
-        ++retryCount;
 
         if (logger != null) {
-          logger.onRetryLog(e, retryCount, retryWaitTime);
+          logger.onRetryLog(e, retryStrategy.getAttempts(), retryWaitTime);
         }
-
-        try {
-          long endTime = System.currentTimeMillis();
-          long sleepTime = retryWaitTime * 1000 - (endTime - startTime);
-          if (sleepTime > 0) {
-            Thread.sleep(sleepTime);
-          }
-        } catch (InterruptedException e1) {
-        }
-        continue;
       }
     }
-    throw new OdpsException("Failed in Connection Retry.");
   }
 
   private void uploadDeprecatedLog() {
@@ -377,6 +384,9 @@ public class RestClient {
           e = new OdpsException(String.valueOf(resp.getStatus()));          
         }
       }
+
+      e.setStatus(resp.getStatus());
+
       throw e;
     }
   }
@@ -503,14 +513,13 @@ public class RestClient {
   }
 
   private Request buildRequest(String resource, String method, Map<String, String> params,
-                               Map<String, String> headers)
-      throws OdpsException {
+                               Map<String, String> headers) {
     if (resource == null || !resource.startsWith("/")) {
-      throw new OdpsException("Invalid resource: " + resource);
+      throw new IllegalArgumentException("Invalid resource: " + resource);
     }
 
     if (endpoint == null) {
-      throw new OdpsException("Odps endpoint required.");
+      throw new IllegalArgumentException("Odps endpoint required.");
     }
 
     Request req = new Request(this);
@@ -571,7 +580,7 @@ public class RestClient {
       // Sign the request
       account.getRequestSigner().sign(resource, req);
     } catch (URISyntaxException e) {
-      throw new OdpsException(e.getMessage(), e);
+      throw new IllegalArgumentException(e.getMessage(), e);
     }
 
     return req;

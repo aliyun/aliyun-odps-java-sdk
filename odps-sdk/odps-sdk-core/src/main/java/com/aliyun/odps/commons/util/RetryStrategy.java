@@ -1,5 +1,13 @@
 package com.aliyun.odps.commons.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
+import com.aliyun.odps.commons.util.backoff.ConstantBackOffStrategy;
+import com.aliyun.odps.commons.util.backoff.ExponentialBackOffStrategy;
+import com.aliyun.odps.commons.util.backoff.LinearBackOffStrategy;
+
 /**
  * 失败重试策略：辅助用户对某段代码逻辑进行重试处理
  *
@@ -36,11 +44,27 @@ public class RetryStrategy {
    * CONSTANT_BACKOFF：常数回避策略：失败到下次重试的等待间隔是一个定值
    * LINEAR_BACKOFF：常数回避策略：失败到下次重试的等待间隔是一个常数递增的值（每次递增一个默认值）
    */
+  @Deprecated
   public enum BackoffStrategy {
     EXPONENTIAL_BACKOFF,
     LINEAR_BACKOFF,
     CONSTANT_BACKOFF,
   }
+
+  private BackOffStrategy transform(BackoffStrategy strategy, long initInterval) {
+    switch (strategy) {
+      case CONSTANT_BACKOFF:
+        return new ConstantBackOffStrategy(initInterval);
+      case LINEAR_BACKOFF:
+        return new LinearBackOffStrategy(initInterval);
+      case EXPONENTIAL_BACKOFF:
+        return new ExponentialBackOffStrategy(initInterval);
+      default:
+        throw new IllegalArgumentException("Invalid retry strategy: " + strategy.name());
+    }
+  }
+
+  final static private Logger LOG = LoggerFactory.getLogger(RetryStrategy.class);
 
   /**
    * 默认失败重试次数：10 次
@@ -55,30 +79,40 @@ public class RetryStrategy {
   /**
    * 失败回避策略
    */
-  private BackoffStrategy strategy;
+  protected BackOffStrategy strategy;
 
   /**
    * 失败重试次数，当它的值等于 limit，就不再重试，抛出异常
    */
-  private int attempts;
+  protected int attempts;
 
-  private int limit;
-
-  /**
-   * 发生失败到到下次重试的时间间隔，秒
-   *
-   * 对于指数回避策略，这个值会以指数增长。
-   * 对于常数回避策略，这个值将保持不变。
-   */
-  private int interval;
-
-  private int initialInterval;
+  protected int limit;
 
   /**
    * 总共消耗在回避上的时间，秒
    */
-  private int totalBackupTime;
+  protected int totalBackoffTime;
 
+  private void init(int limit, BackOffStrategy strategy) {
+    if (limit < 0) {
+      throw new IllegalArgumentException("Retry limit must >= 0");
+    }
+
+    this.limit = limit;
+    this.strategy = strategy;
+    this.totalBackoffTime = 0;
+    this.attempts = 0;
+  }
+
+  /**
+   * 构造重试策略
+   *
+   * @param limit 尝试次数上限
+   * @param strategy 回避策略
+   */
+  public RetryStrategy(int limit, BackOffStrategy strategy) {
+    init(limit, strategy);
+  }
   /**
    * 构造重试策略
    *
@@ -87,18 +121,7 @@ public class RetryStrategy {
    * @param strategy 回避策略
    */
   public RetryStrategy(int limit, int interval, BackoffStrategy strategy) {
-    if (limit < 1) {
-      throw new IllegalArgumentException("limit must >= 1");
-    }
-    if (interval < 1) {
-      throw new IllegalArgumentException("interval must >= 1");
-    }
-    this.limit = limit;
-    this.initialInterval = interval;
-    this.interval = interval;
-    this.strategy = strategy;
-    this.totalBackupTime = 0;
-    this.attempts = 0;
+    init(limit, transform(strategy, interval));
   }
 
   /**
@@ -128,25 +151,42 @@ public class RetryStrategy {
   }
 
   /**
+   * 重置重试策略，重试次数和间隔回到初始值。
+   */
+  public void reset() {
+    attempts = 0;
+    strategy.reset();
+  }
+
+  protected  boolean needRetry(Exception e) {
+    return true;
+  }
+
+
+  /**
    * 该方法会忽略一定次数的失败，并策略性地进行回避，然后进入后续的逻辑（重试）
    * 直到达到重试上限时会抛出异常。
    *
    * @param err 用户 catch 到的异常
    */
   public void onFailure(Exception err) throws RetryExceedLimitException {
+    if (!needRetry(err)) {
+      throw new RetryExceedLimitException(0, err);
+    }
+
     if (attempts++ >= limit) {
       throw new RetryExceedLimitException(attempts, err);
     }
 
     try {
-      Thread.sleep(interval * 1000);
-      totalBackupTime += interval;
-      if (strategy.equals(BackoffStrategy.EXPONENTIAL_BACKOFF)) {
-        interval *= 2;
+      long millis = strategy.next();
+
+      if (LOG.isWarnEnabled()) {
+        LOG.warn("Start to retry, retryCount:{}, will retry in {} milliseconds.", attempts, millis);
       }
-      if (strategy.equals(BackoffStrategy.LINEAR_BACKOFF)) {
-        interval += initialInterval;
-      }
+
+      Thread.sleep(millis);
+      totalBackoffTime += (millis / 1000);
     } catch (InterruptedException ignore) {
     }
   }
@@ -164,6 +204,6 @@ public class RetryStrategy {
    * 获取总共消耗在回避上的时间，秒
    */
   public int getTotalBackupTime() {
-    return totalBackupTime;
+    return totalBackoffTime;
   }
 }

@@ -117,8 +117,12 @@ public class MapWritable extends AbstractMapWritable implements
   @Override
   @SuppressWarnings("unchecked")
   public Writable put(Writable key, Writable value) {
-    addToMap(key.getClass());
-    addToMap(value.getClass());
+    if (key != null) {
+      addToMap(key.getClass());
+    }
+    if (value != null) {
+      addToMap(value.getClass());
+    }
     return instance.put(key, value);
   }
 
@@ -157,10 +161,21 @@ public class MapWritable extends AbstractMapWritable implements
     // Then write out each key/value pair
 
     for (Map.Entry<Writable, Writable> e : instance.entrySet()) {
-      out.writeByte(getId(e.getKey().getClass()));
-      e.getKey().write(out);
-      out.writeByte(getId(e.getValue().getClass()));
-      e.getValue().write(out);
+      Writable key = e.getKey();
+      if (key == null) {
+        out.writeByte(getId(NullWritable.class));
+      } else {
+        out.writeByte(getId(key.getClass()));
+        key.write(out);
+      }
+
+      Writable value = e.getValue();
+      if (value == null) {
+        out.writeByte(getId(NullWritable.class));
+      } else {
+        out.writeByte(getId(value.getClass()));
+        value.write(out);
+      }
     }
   }
 
@@ -180,15 +195,20 @@ public class MapWritable extends AbstractMapWritable implements
     // Then read each key/value pair
 
     for (int i = 0; i < entries; i++) {
-      Writable key = (Writable) ReflectionUtils.newInstance(
-          getClass(in.readByte()), getConf());
+      Class keyClass = getClass(in.readByte());
+      Writable key = null;
+      if (keyClass != NullWritable.class) {
+        key = (Writable) ReflectionUtils.newInstance(keyClass, getConf());
+        key.readFields(in);
+      }
 
-      key.readFields(in);
+      Class valueClass = getClass(in.readByte());
+      Writable value = null;
+      if (valueClass != NullWritable.class) {
+        value = (Writable) ReflectionUtils.newInstance(valueClass, getConf());
+        value.readFields(in);
+      }
 
-      Writable value = (Writable) ReflectionUtils.newInstance(
-          getClass(in.readByte()), getConf());
-
-      value.readFields(in);
       instance.put(key, value);
     }
   }

@@ -32,6 +32,7 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.JAXBUtils;
@@ -426,10 +427,7 @@ public class Tables implements Iterable<Table> {
     task.setName(taskName);
     task.setQuery(
         getHubString(projectName, tableName, schema, comment, ifNotExists, shardNum, hubLifecycle));
-    Instances instances = new Instances(odps);
-    Instance instance = instances.create(task);
-
-    instance.waitForSuccess();
+    submitCreateAndWait(task, null, null);
   }
 
   /**
@@ -470,16 +468,84 @@ public class Tables implements Iterable<Table> {
   public void createTableWithLifeCycle(String projectName, String tableName, TableSchema schema,
                                        String comment, boolean ifNotExists, Long lifeCycle)
       throws OdpsException {
+    create(projectName, tableName, schema, comment, ifNotExists, lifeCycle, null, null);
+  }
+
+
+  /**
+   * 创建表
+   *
+   * @param projectName
+   *     目标表所在{@link Project}名称
+   * @param tableName
+   *     所要创建的{@link Table}名称
+   * @param schema
+   *     表结构 {@link TableSchema}
+   * @param comment
+   *     表注释, 其中不能带有单引号
+   * @param ifNotExists
+   * @param lifeCycle
+   *     表生命周期
+   * @param hints
+   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
+   * @param aliases
+   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
+   */
+  public void create(String projectName, String tableName, TableSchema schema,
+                     String comment, boolean ifNotExists, Long lifeCycle,
+                     Map<String, String> hints, Map<String, String> aliases)
+      throws OdpsException {
     // new SQLTask
     String taskName = "SQLCreateTableTask";
     SQLTask task = new SQLTask();
     task.setName(taskName);
     task.setQuery(getSQLString(projectName, tableName, schema, comment, ifNotExists, lifeCycle));
-    Instances instances = new Instances(odps);
-    Instance instance = instances.create(task);
 
-    instance.waitForSuccess();
+    submitCreateAndWait(task, hints, aliases);
   }
+
+  /**
+   * 创建外部表
+   *
+   * @param projectName
+   *     目标表所在{@link Project}名称
+   * @param tableName
+   *     所要创建的{@link Table}名称
+   * @param schema
+   *     表结构 {@link TableSchema}
+   * @param location
+   *     外部数据存储地址URI String，比如"oss://path/to/directory/", 具体格式参考外部表使用手册
+   * @param storedBy
+   *     处理外部数据使用的StorageHandler名字, 比如"com.aliyun.odps.TsvStorageHandler"
+   * @param usingJars (nullable)
+   *     如果是自定义的StorageHandler, 这里指定其所依赖的jar名字。这些jar必须事先用ADD JAR命令添加
+   * @param serdeProperties (nullable)
+   *     对StorageHandler的参数指定(if any)，每个参数为一个String/String的key value
+   * @param comment (nullable)
+   *     表注释, 其中不能带有单引号
+   * @param ifNotExists
+   * @param lifeCycle (nullable)
+   *     表生命周期
+   * @param hints (nullable)
+   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
+   * @param aliases (nullable)
+   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
+   * @throws OdpsException
+   */
+  public void createExternal(String projectName, String tableName, TableSchema schema,
+                             String location, String storedBy, List<String> usingJars, Map<String, String> serdeProperties,
+                             String comment, boolean ifNotExists, Long lifeCycle,
+                             Map<String, String> hints, Map<String, String> aliases)
+      throws OdpsException {
+    SQLTask task = new SQLTask();
+    task.setName("SQLCreateExternalTableTask");
+    task.setQuery(
+        getExternalSQLStringStoredBy(projectName, tableName, schema, comment, ifNotExists, lifeCycle,
+                                     storedBy, location, usingJars, serdeProperties));
+
+    submitCreateAndWait(task, hints, aliases);
+  }
+
 
   /**
    * 删除表
@@ -687,6 +753,33 @@ public class Tables implements Iterable<Table> {
     return project;
   }
 
+  private void submitCreateAndWait(
+      SQLTask task,
+      Map<String, String> hints, Map<String, String> aliases) throws OdpsException {
+    if (hints != null) {
+      try {
+        String json = JSON.toJSONString(hints);
+        task.setProperty("settings", json);
+      } catch (Exception e) {
+        throw new OdpsException(e.getMessage(), e);
+      }
+    }
+
+    if (aliases != null) {
+      try {
+        String json = JSON.toJSONString(aliases);
+        task.setProperty("aliases", json);
+      } catch (Exception e) {
+        throw new OdpsException(e.getMessage(), e);
+      }
+    }
+
+    Instances instances = new Instances(odps);
+    Instance instance = instances.create(task);
+
+    instance.waitForSuccess();
+  }
+
   private String getHubString(String projectName, String tableName, TableSchema schema,
                               String comment, boolean ifNotExists, Long shardNum,
                               Long hubLifecycle) {
@@ -707,6 +800,67 @@ public class Tables implements Iterable<Table> {
     sb.append(';');
 
     return sb.toString();
+  }
+
+  private String getExternalSQLStringStoredBy(
+      String projectName, String tableName, TableSchema schema,
+      String comment, boolean ifNotExists, Long lifeCycle,
+      String storedBy, String location, List<String> jars, Map<String, String> properties) {
+    String plainString = getSQLString(projectName, tableName, schema, comment, ifNotExists, lifeCycle);
+    if (!plainString.startsWith("CREATE TABLE ")){
+      throw new RuntimeException("Plain sql table creation must start with CREATE TABLE .");
+    }
+    plainString = new StringBuilder(plainString).insert("CREATE".length(), " EXTERNAL").toString();
+    if (storedBy == null || location == null){
+      throw new IllegalArgumentException();
+    }
+    StringBuilder sb = new StringBuilder();
+    sb.append(" STORED BY '")
+      .append(storedBy.trim())
+      .append("'");
+    if (properties != null && !properties.isEmpty()) {
+      sb.append(" WITH SERDEPROPERTIES(");
+      int index = 0;
+      for(Map.Entry<String, String> entry : properties.entrySet()) {
+        index++;
+        sb.append("'")
+          .append(entry.getKey())
+          .append("' = '")
+          .append(entry.getValue())
+          .append("'");
+        if (index != properties.size()){
+          sb.append(" , ");
+        }
+      }
+      sb.append(")");
+    }
+    sb.append(" LOCATION '").append(location).append("'");
+    if (jars != null && !jars.isEmpty()) {
+      sb.append(" USING '");
+      int index = 0;
+      for (String jar : jars) {
+        index++;
+        sb.append(jar);
+        if (index != jars.size()) {
+          sb.append(",");
+        }
+      }
+      sb.append("'");
+    }
+    if (lifeCycle != null) {
+      // remove LIFE CYCLE from original sql query
+      int index = plainString.lastIndexOf(" LIFECYCLE ");
+      if (index < 0) {
+        throw new IllegalArgumentException();
+      }
+      plainString = plainString.substring(0, index);
+      sb.append(" LIFECYCLE ").append(lifeCycle).append(";");
+    } else {
+      // remove the trailing ';'
+      plainString = plainString.substring(0, plainString.length() - 1);
+      sb.append(";");
+    }
+    return plainString + sb.toString();
   }
 
   private String getSQLString(

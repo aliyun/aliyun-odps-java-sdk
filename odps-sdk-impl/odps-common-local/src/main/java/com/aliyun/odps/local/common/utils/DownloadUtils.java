@@ -25,7 +25,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -356,53 +355,12 @@ public class DownloadUtils {
   }
 
   private static String getColumnValueString(TableMeta tableMeta, Record record, int colIndex) {
-
-    String colValue = null;
     Column col = tableMeta.getCols()[colIndex];
-    if (record.get(col.getName()) == null) {
-      return "\\N";
+    String colValue = TypeConvertUtils.toString(record.get(colIndex), col.getTypeInfo(), false);
+    if (!Constants.NULL_TOKEN.equals(colValue)) {
+      colValue = colValue.replaceAll("\\\\N", "\"\\\\N\"");
     }
-
-    switch (col.getType()) {
-      case BIGINT: {
-        Long v = record.getBigint(col.getName());
-        colValue = v == null ? null : v.toString();
-        break;
-      }
-      case BOOLEAN: {
-        Boolean v = record.getBoolean(col.getName());
-        colValue = v == null ? null : v.toString();
-        break;
-      }
-      case DOUBLE: {
-        Double v = record.getDouble(col.getName());
-        colValue = v == null ? null : v.toString();
-        break;
-      }
-      case STRING: {
-        byte[] v = record.getBytes(col.getName());
-        try {
-          colValue = v == null ? null : LocalRunUtils.toReadableString(v);
-        } catch (Exception e) {
-          throw new RuntimeException("convert to readable string failed!" + e);
-        }
-        break;
-      }
-      case DATETIME: {
-        Date v = record.getDatetime(col.getName());
-        colValue =
-            v == null ? null : LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2).format(v);
-        break;
-      }
-      default:
-        throw new RuntimeException("Unknown column type: " + col.getType());
-    }
-
-    if (colValue == null) {
-      return Constants.NULL_TOKEN;
-    } else {
-      return colValue.replaceAll("\\\\N", "\"\\\\N\"");
-    }
+    return colValue;
   }
 
   private static boolean matches(PartitionSpec spec, Map<String, String> parts) {

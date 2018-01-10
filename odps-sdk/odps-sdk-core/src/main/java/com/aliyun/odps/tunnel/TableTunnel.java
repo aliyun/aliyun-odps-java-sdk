@@ -19,15 +19,19 @@
 
 package com.aliyun.odps.tunnel;
 
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -40,6 +44,8 @@ import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
+import com.aliyun.odps.commons.util.RetryExceedLimitException;
+import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
@@ -612,6 +618,7 @@ public class TableTunnel {
    */
   public class UploadSession {
 
+    private final Logger LOG = LoggerFactory.getLogger(UploadSession.class);
     private String id;
     private TableSchema schema = new TableSchema();
     private String projectName;
@@ -686,14 +693,13 @@ public class TableTunnel {
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
         } else {
-          TunnelException e = new TunnelException(conn.getInputStream());
-          e.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
-          throw e;
+          throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
         }
       } catch (IOException e) {
         throw new TunnelException("Failed to create upload session with tunnel endpoint "
                                   + tunnelServiceClient.getEndpoint(), e);
       } catch (TunnelException e) {
+        // Do not delete here! TunnelException extends from OdpsException.
         throw e;
       } catch (OdpsException e) {
         throw new TunnelException(e.getMessage(), e);
@@ -759,19 +765,8 @@ public class TableTunnel {
           }
           writer.close();
         }
-      } catch (IOException e) {
-        if (null != conn && !(e.getCause() instanceof TunnelException)) {
-          Response response = conn.getResponse();
-          if (!response.isOK()) {
-            TunnelException err = new TunnelException(conn.getInputStream());
-            throw new IOException(err.getErrorMsg(), err.getCause());
-          }
-        }
-        throw e;
-      } catch (TunnelException e) {
-        throw new IOException(e.getMessage(), e.getCause());
       } catch (OdpsException e) {
-        throw new IOException(e.getMessage(), e.getCause());
+        throw new IOException(e.getMessage(), e);
       } finally {
         if (null != conn) {
           conn.disconnect();
@@ -783,19 +778,24 @@ public class TableTunnel {
       if (null == conn) {
         throw new IOException("Invalid connection");
       }
+
       pack.complete();
       ByteArrayOutputStream baos = pack.getProtobufStream();
       baos.writeTo(conn.getOutputStream());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("UploadSession({}) send record pack to net success, total {} bytes.", System.identityHashCode(this), baos.size());
+      }
       conn.getOutputStream().close();
       baos.close();
       Response response = conn.getResponse();
       if (!response.isOK()) {
-        TunnelException err = new TunnelException(conn.getInputStream());
-        err.setRequestId(response.getHeader("x-odps-request-id")); // XXX: hard code
-        throw new IOException(err.getMessage(), err);
+        TunnelException exception =
+            new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(),
+                                response.getStatus());
+        throw new IOException(exception.getMessage(), exception);
       }
     }
-    
+
     /**
      * 打开{@link RecordWriter}用来写入数据
      *
@@ -842,7 +842,10 @@ public class TableTunnel {
       try {
         conn = getConnection(blockId, compress);
         writer = new TunnelRecordWriter(schema, conn, compress);
-
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("UploadSession({}) create record writer: {} success. UploadSession: {}, BlockID: {}.",
+                    System.identityHashCode(this), System.identityHashCode(writer), id, blockId);
+        }
       } catch (IOException e) {
         if (conn != null) {
           conn.disconnect();
@@ -884,7 +887,13 @@ public class TableTunnel {
      */
     public RecordWriter openBufferedWriter(CompressOption compressOption) throws TunnelException {
       try {
-        return new TunnelBufferedWriter(this, compressOption);
+        RecordWriter writer = new TunnelBufferedWriter(this, compressOption);
+
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("UploadSession({}) create buffered writer: {} success. UploadSession: {}.",
+                    System.identityHashCode(this), System.identityHashCode(writer), id);
+        }
+        return writer;
       } catch (IOException e) {
         throw new TunnelException(e.getMessage(), e.getCause());
       }
@@ -953,6 +962,7 @@ public class TableTunnel {
       } catch (IOException e) {
         throw new TunnelException(e.getMessage(), e);
       } catch (TunnelException e) {
+        // Do not delete here! TunnelException extends from OdpsException.
         throw e;
       } catch (OdpsException e) {
         throw new TunnelException(e.getMessage(), e);
@@ -1022,9 +1032,8 @@ public class TableTunnel {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
 
-      int count = 0;
+      RetryStrategy retryStrategy = new RetryStrategy(tunnelServiceClient.getRetryTimes(), RETRY_SLEEP_SECONDS);
       while (true) {
-        count++;
         Connection conn = null;
         try {
           conn = tunnelServiceClient.connect(getResource(), "POST", params, headers);
@@ -1034,23 +1043,15 @@ public class TableTunnel {
             loadFromJson(conn.getInputStream());
             break;
           } else {
-            if (resp.getStatus() == HttpURLConnection.HTTP_INTERNAL_ERROR) {
-              throw new IOException("Http Internal Error: " + resp.getMessage());
-            }
-            throw new TunnelException(conn.getInputStream());
+            throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(),
+                                      resp.getStatus());
           }
-        } catch (IOException e) {
-          if (count < tunnelServiceClient.getRetryTimes()) {
-            try {
-              Thread.sleep(RETRY_SLEEP_SECONDS * 1000);
-            } catch (InterruptedException ex) {
-              throw new TunnelException(e.getMessage(), ex);
-            }
-            continue;
-          }
-          throw new TunnelException(e.getMessage(), e);
         } catch (TunnelException e) {
-          throw e;
+          try {
+            retryStrategy.onFailure(e);
+          } catch (RetryExceedLimitException ignore) {
+            throw e;
+          }
         } catch (OdpsException e) {
           throw new TunnelException(e.getMessage(), e);
         } finally {
@@ -1058,6 +1059,11 @@ public class TableTunnel {
             conn.disconnect();
           }
         }
+      }
+
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("UploadSession({}) Complete upload, session id: {}.",
+                  System.identityHashCode(this), id);
       }
     }
 
@@ -1340,14 +1346,13 @@ public class TableTunnel {
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
         } else {
-          TunnelException e = new TunnelException(conn.getInputStream());
-          e.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
-          throw e;
+          throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
         }
       } catch (IOException e) {
         throw new TunnelException("Failed to create download session with tunnel endpoint "
                                   + tunnelServiceClient.getEndpoint(), e);
       } catch (TunnelException e) {
+        // Do not delete here! TunnelException extends from OdpsException.
         throw e;
       } catch (OdpsException e) {
         throw new TunnelException(e.getMessage(), e);
@@ -1388,12 +1393,13 @@ public class TableTunnel {
           loadFromJson(conn.getInputStream());
         } else {
           TunnelException e = new TunnelException(conn.getInputStream());
-          e.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
+          e.setRequestId(resp.getHeader(HEADER_ODPS_REQUEST_ID));
           throw e;
         }
       } catch (IOException e) {
         throw new TunnelException(e.getMessage(), e);
       } catch (TunnelException e) {
+        // Do not delete here! TunnelException extends from OdpsException.
         throw e;
       } catch (OdpsException e) {
         throw new TunnelException(e.getMessage(), e);

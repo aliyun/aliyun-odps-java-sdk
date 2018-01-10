@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.local.common;
 
+import com.aliyun.odps.local.common.utils.TypeConvertUtils;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -75,7 +76,11 @@ public class WareHouse {
   private JobDirecotry jobDirecotry;
 
   private WareHouse() {
-    warehouseDir = new File(Constants.WAREHOUSE_HOUSE_DIR);
+    this(Constants.WAREHOUSE_HOUSE_DIR);
+  }
+
+  private WareHouse(String dir) {
+    warehouseDir = new File(dir);
     if (!warehouseDir.exists()) {
       warehouseDir.mkdirs();
     }
@@ -85,6 +90,13 @@ public class WareHouse {
   public static synchronized WareHouse getInstance() {
     if (wareHouse == null) {
       wareHouse = new WareHouse();
+    }
+    return wareHouse;
+  }
+
+  public static synchronized WareHouse getInstance(String warehouseDir) {
+    if (wareHouse == null) {
+      wareHouse = new WareHouse(warehouseDir);
     }
     return wareHouse;
   }
@@ -204,13 +216,11 @@ public class WareHouse {
       TableInfo tableInfo = TableInfo.builder().projectName(projName).tableName(tblName)
           .partSpec(part).build();
       DownloadUtils.downloadTableSchemeAndData(WareHouse.getInstance().getOdps(), tableInfo,
-                                               Constants.DEFAULT_DOWNLOAD_RECORD,
-                                               inputColumnSeperator);
+        getLimitDownloadRecordCount(), inputColumnSeperator);
     } else if (!existsTable(projName, tblName)) {
       TableInfo tableInfo = TableInfo.builder().projectName(projName).tableName(tblName).build();
       DownloadUtils.downloadTableSchemeAndData(WareHouse.getInstance().getOdps(), tableInfo,
-                                               Constants.DEFAULT_DOWNLOAD_RECORD,
-                                               inputColumnSeperator);
+        getLimitDownloadRecordCount(), inputColumnSeperator);
     }
 
     File tableDir = getTableDir(projName, tblName);
@@ -933,13 +943,14 @@ public class WareHouse {
         if (indexes != null && !indexes.isEmpty()) {
           newVals = new Object[indexes.size()];
           for (int i = 0; i < indexes.size(); ++i) {
-            newVals[i] = LocalRunUtils.fromString(tableMeta.getCols()[indexes.get(i)].getType(),
-                                                  vals[indexes.get(i)], "\\N");
+            newVals[i] = TypeConvertUtils.fromString(tableMeta.getCols()[indexes.get(i)].getTypeInfo(),
+                vals[indexes.get(i)], false);
           }
         } else {
           newVals = new Object[vals.length];
           for (int i = 0; i < vals.length; i++) {
-            newVals[i] = LocalRunUtils.fromString(tableMeta.getCols()[i].getType(), vals[i], "\\N");
+            newVals[i] = TypeConvertUtils
+              .fromString(tableMeta.getCols()[i].getTypeInfo(), vals[i], false);
           }
           System.out.println();
         }
@@ -959,7 +970,7 @@ public class WareHouse {
 
     if (!existsResource(project, resource)) {
       DownloadUtils.downloadResource(WareHouse.getInstance().getOdps(), getOdps()
-          .getDefaultProject(), resource, Constants.DEFAULT_DOWNLOAD_RECORD, inputColumnSeperator);
+          .getDefaultProject(), resource, getLimitDownloadRecordCount(), inputColumnSeperator);
     }
 
     if (!existsResource(project, resource)) {
@@ -978,7 +989,7 @@ public class WareHouse {
       throws IOException, OdpsException {
     if (!existsResource(project, resource)) {
       DownloadUtils.downloadResource(WareHouse.getInstance().getOdps(), getOdps()
-          .getDefaultProject(), resource, Constants.DEFAULT_DOWNLOAD_RECORD, inputColumnSeperator);
+          .getDefaultProject(), resource, getLimitDownloadRecordCount(), inputColumnSeperator);
     }
 
     File file = getReourceFile(project, resource);
@@ -1002,7 +1013,7 @@ public class WareHouse {
       throws IOException, OdpsException {
     if (!existsResource(project, resource)) {
       DownloadUtils.downloadResource(WareHouse.getInstance().getOdps(), getOdps()
-          .getDefaultProject(), resource, Constants.DEFAULT_DOWNLOAD_RECORD, inputColumnSeperator);
+          .getDefaultProject(), resource, getLimitDownloadRecordCount(), inputColumnSeperator);
     }
 
     File tableResourceDir = getReourceFile(project, resource);
@@ -1101,7 +1112,7 @@ public class WareHouse {
         } else {
           result = new Object[vals.length];
           for (int i = 0; i < vals.length; i++) {
-            result[i] = LocalRunUtils.fromString(schema[i].getType(), vals[i], "\\N");
+            result[i] = TypeConvertUtils.fromString(schema[i].getTypeInfo(), vals[i], false);
           }
         }
         return result;
@@ -1166,9 +1177,6 @@ public class WareHouse {
   public int getLimitDownloadRecordCount() {
     int limit = getConfiguration().getInt(Constants.LOCAL_RECORD_LIMIT,
                                           Constants.DEFAULT_DOWNLOAD_RECORD);
-    if (limit > Constants.LIMIT_DOWNLOAD_RECORD) {
-      return Constants.LIMIT_DOWNLOAD_RECORD;
-    }
     return limit > 0 ? limit : Constants.DEFAULT_DOWNLOAD_RECORD;
   }
   
@@ -1220,5 +1228,19 @@ public class WareHouse {
       confThreadLocal.set(conf);
     }
     return conf;
+  }
+
+  public void setRecordLimit(String recordLimit) {
+    if (StringUtils.isBlank(recordLimit)) {
+      return;
+    }
+    getConfiguration().set(Constants.LOCAL_RECORD_LIMIT, recordLimit);
+  }
+
+  public void setColumnSeparator(String columnSeparator) {
+    if (StringUtils.isBlank(columnSeparator)) {
+      return;
+    }
+    getConfiguration().set(Constants.LOCAL_INPUT_COLUMN_SEPERATOR, columnSeparator);
   }
 }

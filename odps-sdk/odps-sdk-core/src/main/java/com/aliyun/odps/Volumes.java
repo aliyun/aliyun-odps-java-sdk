@@ -279,6 +279,21 @@ public class Volumes implements Iterable<Volume> {
    * @throws OdpsException
    */
   public void create(String projectName, String volumeName, String comment, Volume.Type type) throws OdpsException {
+   create(projectName, volumeName, comment, type, null);
+  }
+
+  /**
+   * 创建Volume
+   *
+   * @param projectName 目标表所在Project名称
+   * @param volumeName 所要创建的volume名
+   * @param comment
+   * @param type 创建原有Volume传入 {@link Volume}.Type.Old,创建新VolumeFS功能的volume传入{@link Volume}
+   *        .Type.New。VolumeFS特性需要Project开启该功能才可使用
+   * @param lifecycle 生命周期
+   * @throws OdpsException
+   */
+  public void create(String projectName, String volumeName, String comment, Volume.Type type, Long lifecycle) throws OdpsException {
     if (projectName == null || volumeName == null) {
       throw new IllegalArgumentException();
     }
@@ -287,8 +302,11 @@ public class Volumes implements Iterable<Volume> {
     Volume.VolumeModel model = new Volume.VolumeModel();
     model.name = volumeName;
     model.comment = comment;
-    if(type!=null)
+    if(type != null)
       model.type = type.name().toLowerCase();
+
+    if (lifecycle != null)
+      model.lifecycle = lifecycle;
 
     String xml = null;
     try {
@@ -301,6 +319,38 @@ public class Volumes implements Iterable<Volume> {
     headers.put("Content-Type", "application/xml");
 
     client.stringRequest(resource, "POST", null, headers, xml);
+  }
+
+  public void update(Volume volume) throws OdpsException {
+    update(getDefaultProjectName(), volume);
+  }
+
+  /** 更新 volume meta, 目前只支持更改 lifecycle
+   *
+   * @param projectName
+   * @para volume
+   */
+  public void update(String projectName, Volume volume) throws OdpsException {
+    if (projectName == null || volume == null) {
+      throw new IllegalArgumentException();
+    }
+
+    String resource = ResourceBuilder.buildVolumeResource(projectName, volume.getName());
+    String xml = null;
+
+    // only lifecycle now
+    Volume.VolumeModel model = new Volume.VolumeModel();
+    model.lifecycle = volume.getLifecycle();
+    try {
+      xml = JAXBUtils.marshal(model, Volume.VolumeModel.class);
+    } catch (JAXBException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put("Content-Type", "application/xml");
+
+    client.stringRequest(resource, "PUT", null, headers, xml);
   }
 
   /**

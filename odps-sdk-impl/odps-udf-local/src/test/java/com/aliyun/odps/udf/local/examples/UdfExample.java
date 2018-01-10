@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.udf.local.examples;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 import com.aliyun.odps.udf.UDF;
@@ -59,6 +60,19 @@ public class UdfExample extends UDF {
     }
     return a && b;
 
+  }
+
+  public BigDecimal evaluate(BigDecimal... arr) {
+    if (arr == null || arr.length == 0) {
+      return null;
+    }
+    BigDecimal result = new BigDecimal(0);
+    for(BigDecimal tmp : arr) {
+      if (tmp != null) {
+        result = result.add(tmp);
+      }
+    }
+    return result;
   }
 
   // negative

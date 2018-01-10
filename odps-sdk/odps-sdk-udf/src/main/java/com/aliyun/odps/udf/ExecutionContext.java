@@ -22,6 +22,7 @@ package com.aliyun.odps.udf;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Properties;
 
 import com.aliyun.odps.counter.Counter;
 import com.aliyun.odps.counter.Counters;
@@ -272,4 +273,5 @@ public abstract class ExecutionContext {
 
   public abstract FileSystem getOutputVolumeFileSystem(String label) throws IOException;
 
+  public abstract Properties getConfigurations();
 }

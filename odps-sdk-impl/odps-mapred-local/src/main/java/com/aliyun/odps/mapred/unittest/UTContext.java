@@ -209,7 +209,7 @@ public abstract class UTContext {
     }
     TableMeta meta =
         new TableMeta(info.getProjectName(), info.getTableName(),
-            com.aliyun.odps.mapred.utils.SchemaUtils.fromString(schema), parts);
+            SchemaUtils.fromString(schema), parts);
 
     tableResources.put(resourceName, records);
     tableMetas.put(resourceName, meta);

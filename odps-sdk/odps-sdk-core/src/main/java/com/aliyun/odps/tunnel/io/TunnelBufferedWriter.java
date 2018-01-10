@@ -21,10 +21,12 @@ package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
 
-import javax.sound.midi.SysexMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.commons.util.RetryExceedLimitException;
 import com.aliyun.odps.commons.util.RetryStrategy;
+import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -98,6 +100,39 @@ import com.aliyun.odps.tunnel.TunnelException;
  */
 public class TunnelBufferedWriter implements RecordWriter {
 
+  static class TunnelRetryStrategy extends RetryStrategy {
+
+    private final static int limit = 6;
+    private final static int interval = 4;
+
+    TunnelRetryStrategy() {
+      super(limit, interval, BackoffStrategy.EXPONENTIAL_BACKOFF);
+    }
+
+    TunnelRetryStrategy(int limit, BackOffStrategy strategy) {
+      super(limit, strategy);
+    }
+
+    @Override
+    protected boolean needRetry(Exception e) {
+      TunnelException err = null;
+      if (e.getCause() instanceof TunnelException) {
+        err = (TunnelException) e.getCause();
+      }
+
+      if (e instanceof TunnelException) {
+        err = (TunnelException) e;
+      }
+
+      if (err != null && err.getStatus() != null && err.getStatus() / 100 == 4) {
+        return false;
+      }
+
+      return true;
+    }
+  }
+
+
   private ProtobufRecordPack bufferedPack;
   private TableTunnel.UploadSession session;
   private RetryStrategy retry;
@@ -107,6 +142,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
   private static final long BUFFER_SIZE_MIN = 1024 * 1024;
   private static final long BUFFER_SIZE_MAX = 1000 * 1024 * 1024;
+  private static final Logger LOG = LoggerFactory.getLogger(TunnelBufferedWriter.class);
 
   /**
    * 构造此类对象，使用默认缓冲区大小为 10 MiB，和默认的回退策略：4s、8s、16s、32s、64s、128s
@@ -124,7 +160,7 @@ public class TunnelBufferedWriter implements RecordWriter {
     this.bufferedPack = new ProtobufRecordPack(session.getSchema(), new Checksum(), option);
     this.session = session;
     this.bufferSize = BUFFER_SIZE_DEFAULT;
-    this.retry = new RetryStrategy(6, 4, RetryStrategy.BackoffStrategy.EXPONENTIAL_BACKOFF);
+    this.retry = new TunnelRetryStrategy();
     this.bytesWritten = 0;
   }
 
@@ -167,10 +203,15 @@ public class TunnelBufferedWriter implements RecordWriter {
    *     Signals that an I/O exception has occurred.
    */
   public void write(Record r) throws IOException {
-    bufferedPack.append(r);
     if (bufferedPack.getTotalBytes() > bufferSize) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("BufferedWriter({}) need to flush. Pack total bytes: {} is greater than buffer size: {}.",
+                  System.identityHashCode(this), bufferedPack.getTotalBytes(), bufferSize);
+      }
       flush();
     }
+
+    bufferedPack.append(r);
   }
 
   /**
@@ -193,18 +234,31 @@ public class TunnelBufferedWriter implements RecordWriter {
     return bytesWritten;
   }
 
-  private void flush() throws IOException {
+  public void flush() throws IOException {
+    // 每一个block的上传单独计算重试次数
+    retry.reset();
     // 得到实际序列化的的字节数，如果等于 0，说明没有写，跳过即可
     long delta = bufferedPack.getTotalBytesWritten();
     if (delta > 0) {
-      bytesWritten += delta;
       Long blockId = session.getAvailBlockId();
+
       while (true) {
         try {
           session.writeBlock(blockId, bufferedPack);
-          bufferedPack.reset();
-          return;
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                "BufferedWriter({}) flush record pack({} bytes) to block({}) success. Total bytes written: {}.",
+                System.identityHashCode(this), delta, blockId, bufferedPack.getTotalBytes());
+          }
+
+          break;
         } catch (IOException e) {
+          if (LOG.isErrorEnabled()) {
+            LOG.error("BufferedWriter({}) flush record pack({} bytes) to block({}) error: {}",
+                      System.identityHashCode(this), bufferedPack.getTotalBytes(), blockId,
+                      e.getMessage());
+          }
+
           try {
             retry.onFailure(e);
           } catch (RetryExceedLimitException ignore) {
@@ -212,6 +266,9 @@ public class TunnelBufferedWriter implements RecordWriter {
           }
         }
       }
+
+      bufferedPack.reset();
+      bytesWritten += delta;
     }
   }
 }

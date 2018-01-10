@@ -350,7 +350,11 @@ public class Text extends BinaryComparable implements
   public static class Comparator extends WritableComparator {
 
     public Comparator() {
-      super(Text.class);
+      this(Text.class);
+    }
+
+    public Comparator(Class<? extends WritableComparable> keyClass) {
+      super(keyClass);
     }
 
     /**

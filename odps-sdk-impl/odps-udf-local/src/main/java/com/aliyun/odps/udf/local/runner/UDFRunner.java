@@ -84,6 +84,7 @@ public class UDFRunner extends BaseRunner {
       if (evalMethod == null) {
         evalMethod = findMethod(udf.getClass(), input);
       }
+      input = ClassUtils.adaptVarargMethodDataIfNecessary(evalMethod, input);
       Object result = evalMethod.invoke(udf, input);
       buffer.add(new Object[] {result});
     } catch (InvocationTargetException e) {

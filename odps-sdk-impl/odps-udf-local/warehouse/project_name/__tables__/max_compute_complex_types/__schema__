@@ -1,0 +1,3 @@
+project=project_name
+table=max_compute_complex_types
+columns=c_array:ARRAY<BIGINT>,c_array2:ARRAY<STRUCT<x:BIGINT,y:BIGINT>>,c_map:MAP<STRING,STRING>,c_map2:MAP<STRING,STRUCT<x:BIGINT,y:BIGINT>>,c_struct:STRUCT<x:BIGINT,y:BIGINT>,c_struct2:STRUCT<bid:DECIMAL,perf:STRUCT<imp:DOUBLE,click:DOUBLE>>

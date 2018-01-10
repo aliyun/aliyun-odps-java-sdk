@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.mapred.local;
 
+import com.aliyun.odps.local.common.utils.TypeConvertUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -30,7 +31,6 @@ import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.local.common.FileSplit;
 import com.aliyun.odps.local.common.TableMeta;
 import com.aliyun.odps.local.common.utils.DownloadUtils;
-import com.aliyun.odps.local.common.utils.LocalRunUtils;
 import com.aliyun.odps.mapred.bridge.WritableRecord;
 import com.csvreader.CsvReader;
 
@@ -89,8 +89,8 @@ public class CSVRecordReader implements RecordReader {
     }
     value = new Object[size];
     for (int i = 0; i < size; i++) {
-      value[i] = LocalRunUtils.fromString(split.getSchema()[i].getType(),
-                                          vals[i], "\\N", true);
+      value[i] = TypeConvertUtils.fromString(split.getSchema()[i].getTypeInfo(),
+                                          vals[i], true);
     }
     record.set(value);
 

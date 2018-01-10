@@ -50,7 +50,6 @@ public class ProjectTest extends TestBase {
     }
     assertTrue(map.containsKey("WORKER_GIT_BRANCH"));
     assertTrue(map.containsKey("WORKER_GIT_REVISION"));
-    assertTrue(map.containsKey("WORKER_GIT_URL"));
   }
 
   @Test

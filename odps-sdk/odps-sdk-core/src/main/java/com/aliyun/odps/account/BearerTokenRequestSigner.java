@@ -19,8 +19,8 @@
 
 package com.aliyun.odps.account;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.commons.transport.Request;
 
@@ -31,8 +31,7 @@ import com.aliyun.odps.commons.transport.Request;
  */
 public class BearerTokenRequestSigner implements RequestSigner {
 
-  private static final Logger log = Logger.getLogger(BearerTokenRequestSigner.class
-                                                         .getName());
+  private static final Logger LOG = LoggerFactory.getLogger(BearerTokenRequestSigner.class);
 
   private String token;
 
@@ -46,9 +45,7 @@ public class BearerTokenRequestSigner implements RequestSigner {
 
   @Override
   public void sign(String resource, Request req) {
-    if (log.isLoggable(Level.FINE)) {
-      log.fine("Bearer token is : " + token);
-    }
+    LOG.trace("Beare token is: {}", token);
 
     req.getHeaders().put("x-odps-bearer-token", token);
   }

@@ -1,3 +1,16 @@
+# 0.28.4
+- udf local run support new type
+- add `getAuthorizationVersion`
+- xflow instance add priority
+- quota support gpu
+- refactor tunnel buffered writer retry
+- add volume lifecycle
+- support parent and son quota
+- tunnel add logger
+- openmr support sprint-boot jar
+- support create external table
+- remove remove jcabi dep
+
 # 0.27.1
 - server task: modify create api and support scale/upgrade
 - fastjson update to 1.2.28.odps

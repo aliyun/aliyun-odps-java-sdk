@@ -19,23 +19,17 @@
 
 package com.aliyun.odps.io;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
 /**
  * DatetimeWritable 提供了 datetime 的 {@link Writable} 和 {@link WritableComparable}
  * 的实现
  */
-@SuppressWarnings("rawtypes")
-public class DatetimeWritable implements WritableComparable {
-
-  private long value;
+public class DatetimeWritable extends AbstractDatetimeWritable<DatetimeWritable> {
 
   /**
    * 默认构造 datetime 值为0的 DatetimeWritable.
    */
   public DatetimeWritable() {
+    super();
   }
 
   /**
@@ -44,80 +38,14 @@ public class DatetimeWritable implements WritableComparable {
    * @param value
    */
   public DatetimeWritable(long value) {
-    set(value);
+    super(value);
   }
 
   /**
-   * 设置 DatetimeWritable 的值
-   *
-   * @param value
+   * 获取该 writable 对应的 java.util.Date 对象
    */
-  public void set(long value) {
-    this.value = value;
-  }
-
-  /**
-   * 返回此 DatetimeWritable 的值
-   *
-   * @return
-   */
-  public long get() {
-    return value;
-  }
-
-  @Override
-  public void readFields(DataInput in) throws IOException {
-    value = in.readLong();
-  }
-
-  @Override
-  public void write(DataOutput out) throws IOException {
-    out.writeLong(value);
-  }
-
-  /**
-   * 判断两个 DatetimeWritable 是否相等.
-   *
-   * <p>
-   * 如果两个都是 DatetimeWritable 且值相等，返回true，否则返回false
-   *
-   * @param o
-   * @return
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (!(o instanceof DatetimeWritable)) {
-      return false;
-    }
-    DatetimeWritable other = (DatetimeWritable) o;
-    return this.value == other.value;
-  }
-
-  /**
-   * 计算哈希值，直接返回此 DatetimeWritable 的值.
-   */
-  @Override
-  public int hashCode() {
-    return (int) value;
-  }
-
-  /**
-   * 比较两个 DatetimeWritable 的值.
-   *
-   * @param o
-   *     比较对象
-   * @return (this < o ? -1 : (this == o) ? 0 ：1))
-   */
-  @Override
-  public int compareTo(Object o) {
-    long thisValue = this.value;
-    long thatValue = ((DatetimeWritable) o).value;
-    return (thisValue < thatValue ? -1 : (thisValue == thatValue ? 0 : 1));
-  }
-
-  @Override
-  public String toString() {
-    return Long.toString(value);
+  public java.util.Date getDatetime() {
+    return new java.util.Date(get());
   }
 
   /**

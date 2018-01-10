@@ -104,6 +104,9 @@ public class SecurityConfiguration extends LazyLoad {
 
     @XmlElement(name = "CreatePackageV2")
     boolean createPackageV2;
+
+    @XmlElement(name = "AuthorizationVersion")
+    String authorizationVersion;
   }
 
   private SecurityConfigurationModel model;
@@ -276,6 +279,10 @@ public class SecurityConfiguration extends LazyLoad {
 
   public boolean createPackageV2() {
     return model.createPackageV2;
+  }
+
+  public String getAuthorizationVersion() {
+    return model.authorizationVersion;
   }
 
 }

@@ -24,7 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URISyntaxException;
+import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -127,12 +127,22 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
 
   private void applyFrameworkResource(Class<?> clz, String alias,
       String padding, Set<String> added) throws OdpsException {
-    String jarFilePath;
+    String jarFilePath = "";
     try {
-      jarFilePath = new File(clz.getProtectionDomain().getCodeSource().getLocation().toURI()).getAbsolutePath();
-    } catch (URISyntaxException ex) {
-      throw new OdpsException(ex);
+      URL jarUrl = clz.getProtectionDomain().getCodeSource().getLocation();
+      String protocol = jarUrl.getProtocol();
+      if (protocol.equals("jar")) {
+        JarURLConnection connection = (JarURLConnection) jarUrl.openConnection();
+        jarFilePath = new File(connection.getJarFileURL().toURI()).getAbsolutePath();
+      } else if (protocol.equals("file")) {
+        jarFilePath = new File(jarUrl.toURI()).getAbsolutePath();
+      } else {
+        throw new IOException("Unsupported protocol: " + protocol);
+      }
+    } catch (Exception e) {
+      throw new OdpsException("Get jar file path failed!", e);
     }
+
     if (added.contains(jarFilePath)) {
       return;
     }

@@ -33,8 +33,6 @@ import com.aliyun.odps.commons.util.IOUtils;
 @SuppressWarnings("serial")
 public class TunnelException extends OdpsException {
 
-  private String requestId;
-  private String errorCode;
   private String errorMsg;
 
   /**
@@ -43,6 +41,11 @@ public class TunnelException extends OdpsException {
   public TunnelException() {
   }
 
+  public TunnelException(String requestId, InputStream in, Integer status) {
+    this(in);
+    this.requestId = requestId;
+    this.status = status;
+  }
   /**
    * 构造异常对象
    *
@@ -106,27 +109,6 @@ public class TunnelException extends OdpsException {
     }
     return sb.toString();
   }
-
-  public void setRequestId(String requestId) {
-    this.requestId = requestId;
-  }
-
-  /**
-   * 获得请求标识
-   *
-   * @param requestId
-   */
-  public String getRequestId() {
-    return requestId;
-  }
-
-  /**
-   * 获得错误代码
-   */
-  public String getErrorCode() {
-    return errorCode;
-  }
-
   /**
    * 获得错误信息
    *

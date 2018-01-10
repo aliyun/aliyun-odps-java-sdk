@@ -7,7 +7,10 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class Resource {
 	@XmlElement(name = "CPU")
 	public int CPU = 0;
-	
+
 	@XmlElement(name = "Memory")
 	public long memory = 0;
+
+	@XmlElement(name = "GPU")
+	public long GPU = 0;
 }

@@ -129,4 +129,14 @@ public abstract class SourceInputStream extends InputStream {
    */
   public abstract void adjustMaxCloneLimit(int limit);
 
+  /**
+   * Get total number of bytes read by current inputstream so far
+   * Note1: this can be less than (e.g., not all bytes read) or larger than (e.g., repeated reads from part of the
+   * input via seek operation) the physical size of the file underlying the input stream
+   * Note2: this denotes the "meaningful" size of read, bytes read into buffer but discarded (e.g., due to seek
+   * operation) are not accounted for.
+   * @return number of bytes read
+   */
+  public abstract long getBytesRead();
+
 }

@@ -5,11 +5,11 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk-impl</artifactId>
-        <version>0.27.2-public</version>
+        <version>0.28.4-public</version>
     </parent>
     <artifactId>odps-udf-local</artifactId>
     <packaging>jar</packaging>
-    <name>UDF, UDTF, UDAF local mode implementation</name>
+    <name>UDF, UDTF, UDAF, Extractor and Outputer local mode implementation</name>
     <dependencies>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
@@ -27,6 +27,11 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun.odps</groupId>
+            <artifactId>odps-udf-example</artifactId>
+            <version>0.28.4-public</version>
         </dependency>
     </dependencies>
 </project>
