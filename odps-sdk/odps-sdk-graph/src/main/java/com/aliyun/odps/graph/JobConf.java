@@ -353,7 +353,7 @@ public class JobConf extends Configuration {
    * 0为最高，9为最低.
    *
    * @param priority
-   *     作业优先级，范围：[0, 9]，默认9
+   *     作业优先级，范围：[0, 9]，默认0. (注：公共云环境此参数无效)
    */
   public void setJobPriority(int priority) {
     setInt(GRAPH_CONF.JOB_PRIORITY, priority);

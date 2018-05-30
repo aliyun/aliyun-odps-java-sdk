@@ -111,7 +111,12 @@ public class Job {
     return model.priority;
   }
 
-  /* Un-document */
+  /**
+   * 设置作业优先级。优先级的取值去见为[0, 9]的整型值，数字越大，优先级越低。
+   *
+   * @param priority
+   *     优先级 (注：公共云环境此参数无效)
+   */
   public void setPriority(int priority) {
     model.priority = priority;
   }
