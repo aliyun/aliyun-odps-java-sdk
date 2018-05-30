@@ -534,7 +534,7 @@ public class SQLTask extends Task {
    *     需要运行的SQL查询
    * @param hints
    *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
-   * @param alias
+   * @param aliases
    *     Alias信息。详情请参考用户手册中alias命令的相关介绍
    * @return 作业运行实例 {@link Instance}
    * @throws OdpsException
@@ -545,13 +545,50 @@ public class SQLTask extends Task {
     return run(odps, project, sql, AnonymousSQLTaskName, hints, aliases, "sql");
   }
 
-  /*Un-document*/
+  /**
+   * 运行SQL
+   *
+   * @param odps
+   *     {@link Odps}对象
+   * @param project
+   *     任务运行时所属的{@link Project}名称
+   * @param sql
+   *     需要运行的SQL查询
+   * @param taskName
+   *     任务名称
+   * @param hints
+   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
+   * @param aliases
+   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
+   * @return 作业运行实例 {@link Instance}
+   * @throws OdpsException
+   */
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
                              Map<String, String> aliases) throws OdpsException {
     return run(odps, project, sql, taskName, hints, aliases, "sql");
   }
 
+  /**
+   * 运行SQL
+   *
+   * @param odps
+   *     {@link Odps}对象
+   * @param project
+   *     任务运行时所属的{@link Project}名称
+   * @param sql
+   *     需要运行的SQL查询
+   * @param taskName
+   *     任务名称
+   * @param hints
+   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
+   * @param aliases
+   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
+   * @param priority
+   *     作业优先级 (注：公共云环境此参数无效)
+   * @return 作业运行实例 {@link Instance}
+   * @throws OdpsException
+   */
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
                              Map<String, String> aliases, int priority) throws OdpsException {
