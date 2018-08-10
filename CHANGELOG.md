@@ -1,27 +1,45 @@
-# 0.28.4
-- udf local run support new type
-- add `getAuthorizationVersion`
-- xflow instance add priority
+# 0.29.6 
+- revert xflow priority
+
+# 0.29.4
+- SQLTask.getResultSet support tunnel endpoint
+
+# 0.29.3
+- add sqlrt task
+- support java1.8_161 xml problem, force to use cdata
+
+# 0.29.2
+- add biggraph 
+- biggraph support setting running cluster
+
+# 0.29.1
+- delete project.getSystemVersion
+- commons-logging version to 1.2
+- add AuthorizationQueryInstance to support auth async query
+
+# 0.28.0
 - quota support gpu
 - refactor tunnel buffered writer retry
 - add volume lifecycle
 - support parent and son quota
-- tunnel add logger
+- tunnel add logger 
 - openmr support sprint-boot jar
 - support create external table
 - remove remove jcabi dep
 
-# 0.27.1
-- server task: modify create api and support scale/upgrade
-- fastjson update to 1.2.28.odps
+
+# 0.27.0 
 - add InstanceQueueingInfo
-- add algotask
+- support check permission for select columns
 
 # 0.26.5
 - remove jcabi, fix 0.26.2-public duplicated field bug
 
 # 0.26.4
 - fix mr secondary partition bug
+
+# 0.26.3
+- fastjson update to 1.2.28.odps
 
 # 0.26.2
 - fastjson update to 1.2.25

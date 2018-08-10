@@ -419,7 +419,7 @@ public abstract class LocalTaskContext implements TaskContext {
           throw new NoSuchElementException();
         }
         fetched = false;
-        return current;
+        return current.clone();
       }
 
       @Override

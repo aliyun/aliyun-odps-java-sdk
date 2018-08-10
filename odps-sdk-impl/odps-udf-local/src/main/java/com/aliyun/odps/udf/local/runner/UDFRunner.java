@@ -60,7 +60,6 @@ public class UDFRunner extends BaseRunner {
     if (StringUtils.isBlank(className)) {
       throw new IllegalArgumentException("Missing arguments:className");
     }
-    
     try {
       udf = (UDF) ClassUtils.newInstance(UDFRunner.class.getClassLoader(), className);
 

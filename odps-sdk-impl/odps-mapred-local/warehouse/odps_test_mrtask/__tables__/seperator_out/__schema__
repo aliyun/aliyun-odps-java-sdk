@@ -1,0 +1,4 @@
+project=odps_test_mrtask
+table=seperator_out
+columns=key:STRING,cnt:BIGINT
+partitions=p1:STRING,p2:STRING

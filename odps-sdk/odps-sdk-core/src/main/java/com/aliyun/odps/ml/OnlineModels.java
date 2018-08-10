@@ -199,20 +199,20 @@ public class OnlineModels implements Iterable<OnlineModel> {
    *     离线模型项目
    * @param offlinemodelName
    *     离线模型名字
-   * @param qps
-   *     qps
+   * @param qos
+   *     QOS
    * @return {@link OnlineModel}对象
    * @throws OdpsException
    */
   public OnlineModel create(String modelName, String offlinemodelProject,
-                            String offlinemodelName, short qps) throws OdpsException {
+                            String offlinemodelName, short qos) throws OdpsException {
     return createInternally(getDefaultProjectName(), modelName, offlinemodelProject,
-                  offlinemodelName, qps, "");
+                  offlinemodelName, qos, "");
   }
 
-	public OnlineModel create(String modelName, String offlinemodelProject, String offlinemodelName, short qps,
+	public OnlineModel create(String modelName, String offlinemodelProject, String offlinemodelName, short qos,
 			String serviceTag) throws OdpsException {
-		return createInternally(getDefaultProjectName(), modelName, offlinemodelProject, offlinemodelName, qps,
+		return createInternally(getDefaultProjectName(), modelName, offlinemodelProject, offlinemodelName, qos,
 				serviceTag);
 	}
 
@@ -227,21 +227,21 @@ public class OnlineModels implements Iterable<OnlineModel> {
    *     离线模型项目
    * @param offlinemodelName
    *     离线模型名字
-   * @param qps
-   *     qps
+   * @param qos
+   *     QOS
    * @return {@link OnlineModel}对象
    * @throws OdpsException
    */
   public OnlineModel create(String projectName, String modelName,
-                            String offlinemodelProject, String offlinemodelName, short qps)
+                            String offlinemodelProject, String offlinemodelName, short qos)
       throws OdpsException {
-    return createInternally(projectName, modelName, offlinemodelProject, offlinemodelName, qps, "");
+    return createInternally(projectName, modelName, offlinemodelProject, offlinemodelName, qos, "");
   }
 
 	public OnlineModel create(String projectName, String modelName,
 			String offlinemodelProject, String offlinemodelName,
-			short qps, String serviceTag) throws OdpsException {
-		return createInternally(projectName, modelName, offlinemodelProject, offlinemodelName, qps, serviceTag);
+			short qos, String serviceTag) throws OdpsException {
+		return createInternally(projectName, modelName, offlinemodelProject, offlinemodelName, qos, serviceTag);
 	}
 
 	public OnlineModel create(OnlineModelInfo modelInfo) throws OdpsException{

@@ -28,9 +28,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
@@ -84,6 +86,11 @@ public class LocalGraphJobRunner implements JobRunner {
   private void initialize() throws IOException {
     odps = SessionState.get().getOdps();
     wareHouse = WareHouse.getInstance();
+    Iterator<Entry<String, String>> iterator = SessionState.get().getDefaultJob().iterator();
+    while(iterator.hasNext()) {
+      Entry<String,String> entry = iterator.next();
+      conf.set(entry.getKey(), entry.getValue());
+    }
     wareHouse.init(odps, conf);
 
     jobId = LocalGraphRunUtils.generateLocalGraphTaskName();
@@ -233,7 +240,7 @@ public class LocalGraphJobRunner implements JobRunner {
         File tempDataDir = jobDirecotry.getInputDir(wareHouse.getRelativePath(
             whTblMeta.getProjName(), whTblMeta.getTableName(), null));
         File tempSchemeDir = tempDataDir;
-        wareHouse.copyTable(whTblMeta.getProjName(), whTblMeta.getTableName(), null, readCols,
+        wareHouse.copyTable(whTblMeta.getProjName(), whTblMeta.getTableName(),null, readCols,
                             tempSchemeDir, wareHouse.getLimitDownloadRecordCount(),
                             wareHouse.getInputColumnSeperator());
         for (File file : LocalRunUtils.listDataFiles(tempDataDir)) {

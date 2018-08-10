@@ -1,0 +1,3 @@
+project=bug
+table=setOutputGroupingColumns_out
+columns=c1:bigint,d1:bigint,e1:bigint

@@ -19,18 +19,17 @@
 
 package com.aliyun.odps.mapred.local;
 
+import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.local.common.utils.TypeConvertUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.counter.Counter;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
-import com.aliyun.odps.local.common.Constants;
-import com.aliyun.odps.local.common.utils.LocalRunUtils;
 import com.csvreader.CsvWriter;
 
 public class CSVRecordWriter implements RecordWriter {
@@ -43,8 +42,7 @@ public class CSVRecordWriter implements RecordWriter {
   private long count = 0;
 
   public CSVRecordWriter(File file, Counter recordCounter, Counter byteCounter,
-                         char outputColumnSeperator)
-      throws IOException {
+                         char outputColumnSeperator) {
     this.recordCounter = recordCounter;
     this.byteCounter = byteCounter;
     outputFile = new File(file.getAbsolutePath());
@@ -58,19 +56,12 @@ public class CSVRecordWriter implements RecordWriter {
     String[] vals = new String[fields.length];
     for (int i = 0; i < fields.length; i++) {
       String rawVal;
-      if (record.getColumns()[i].getType() == OdpsType.DATETIME) {
-        rawVal = fields[i] == null ? null : LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2)
-            .format(fields[i]);
-      } else if (record.getColumns()[i].getType() == OdpsType.STRING) {
-        try {
-          rawVal = fields[i] == null ? null : LocalRunUtils.toReadableString(record.getBytes(i));
-        } catch (Exception e) {
-          throw new RuntimeException("convert to readable string failed!" + e);
-        }
+      if (record.getColumns()[i].getType() == OdpsType.STRING) {
+        rawVal = TypeConvertUtils.toString(record.getBytes(i), record.getColumns()[i].getTypeInfo(), true);
       } else {
-        rawVal = fields[i] == null ? null : fields[i].toString();
+        rawVal = TypeConvertUtils.toString(record.get(i), record.getColumns()[i].getTypeInfo(), false);
       }
-      vals[i] = encodeColumnValue(rawVal);
+      vals[i] = rawVal;
     }
     writer.writeRecord(vals);
     ++count;
@@ -102,14 +93,4 @@ public class CSVRecordWriter implements RecordWriter {
     return outputFile.length();
   }
 
-  /**
-   * Encode:replace \N with "\N", exception column is null.
-   */
-  private static String encodeColumnValue(String val) {
-    if (val == null) {
-      return Constants.NULL_TOKEN;
-    } else {
-      return val.replaceAll("\\\\N", "\"\\\\N\"");
-    }
-  }
 }

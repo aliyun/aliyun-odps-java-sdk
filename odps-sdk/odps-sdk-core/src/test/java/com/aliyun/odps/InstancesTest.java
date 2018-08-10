@@ -328,6 +328,6 @@ public class InstancesTest extends TestBase {
 
     i.waitForSuccess();
     info = i.getQueueingInfo();
-    Assert.assertNull(info.getId());
+    Assert.assertEquals(i.getId(), info.getId());
   }
 }

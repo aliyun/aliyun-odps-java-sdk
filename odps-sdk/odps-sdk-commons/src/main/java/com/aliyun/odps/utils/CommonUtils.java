@@ -86,6 +86,10 @@ public class CommonUtils {
     return "console_graph_" + getTimestampFormat().format(new Date());
   }
 
+  public static String generateBigGraphTaskName() {
+    return "console_biggraph_" + getTimestampFormat().format(new Date());
+  }
+
   public static String generateLocalGraphTaskName() {
     return "graph_" + getTimestampFormat().format(new Date()) + "_" + getPID();
   }

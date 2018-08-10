@@ -1230,6 +1230,14 @@ public class WareHouse {
     return conf;
   }
 
+  public void setTunnelEndpoint(String tunnelEndpoint) {
+    getConfiguration().set(Constants.TUNNEL_ENDPOINT, tunnelEndpoint);
+  }
+
+  public String getTunnelEndpoint() {
+    return getConfiguration().get(Constants.TUNNEL_ENDPOINT);
+  }
+
   public void setRecordLimit(String recordLimit) {
     if (StringUtils.isBlank(recordLimit)) {
       return;

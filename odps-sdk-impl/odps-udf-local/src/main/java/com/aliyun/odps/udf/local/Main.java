@@ -39,6 +39,8 @@ import com.aliyun.odps.udf.local.datasource.TableInputSource;
 import com.aliyun.odps.udf.local.runner.BaseRunner;
 import com.aliyun.odps.udf.local.runner.RunnerFactory;
 
+import static com.aliyun.odps.local.common.utils.LocalRunUtils.validateTunnelEndpoint;
+
 public class Main {
 
   private Options options;
@@ -55,6 +57,7 @@ public class Main {
     options.addOption(null, "endpoint", true, "Specify the endpoint");
     options.addOption(null, "access-id", true, "The accessId of ALIYUN account");
     options.addOption(null, "access-key", true, "The accessKey of ALIYUN account");
+    options.addOption(null, "tunnel-endpoint", true, "Specify the customer tunnel endpoint");
     options.addOption("w", "warehouse-dir", true, "Warehouse Dir");
     options.addOption(null, "record-limit", true, "download record num limit");
     options.addOption(null, "column-separator", true, "column separator for data input");
@@ -89,6 +92,7 @@ public class Main {
         WareHouse.getInstance(warehouseDir); // init warehouse with giving dir
       }
 
+      setTunnelEndpoint(cmdl.getOptionValue("tunnel-endpoint"));
       WareHouse.getInstance().setRecordLimit(cmdl.getOptionValue("record-limit"));
       WareHouse.getInstance().setColumnSeparator(cmdl.getOptionValue("column-separator"));
 
@@ -183,6 +187,17 @@ public class Main {
     HelpFormatter help = new HelpFormatter();
     help.printHelp("judt", options);
     System.exit(exitCode);
+  }
+
+  public void setTunnelEndpoint(String tunnelEndpoint) throws IllegalArgumentException{
+    if (StringUtils.isBlank(tunnelEndpoint)) {
+      return;
+    }
+    if (validateTunnelEndpoint(tunnelEndpoint)) {
+      WareHouse.getInstance().setTunnelEndpoint(tunnelEndpoint);
+    } else {
+      throw new IllegalArgumentException("Invalid tunnel endpoint: " + tunnelEndpoint);
+    }
   }
 
 }

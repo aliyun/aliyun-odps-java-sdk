@@ -21,6 +21,7 @@ package com.aliyun.odps.task;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -85,6 +86,46 @@ public class SQLTask extends Task {
   public void setQuery(String query) {
     this.query = query;
   }
+
+
+  /**
+   * 解析 CSV 格式的数据字符串，转换为 record 列表
+   * @param csvResult 数据字符串
+   * @return 记录列表
+   *
+   * @throws OdpsException
+   */
+  public static List<Record> parseCsvRecord(String csvResult) throws OdpsException {
+    CsvReader reader = new CsvReader(new StringReader(csvResult));
+    reader.setSafetySwitch(false);
+    List<Record> records = new ArrayList<Record>();
+    int lineCount = 0;
+    String[] newline;
+    Column[] columns = new Column[]{};
+
+    try {
+      while (reader.readRecord()) {
+        newline = reader.getValues();
+        // the first line is column names
+        if (lineCount == 0) {
+          columns = new Column[newline.length];
+          for (int i = 0; i < newline.length; i++) {
+            columns[i] = new Column(newline[i], OdpsType.STRING);
+          }
+        } else {
+          Record record = new ArrayRecord(columns);
+          for (int i = 0; i < newline.length; i++) {
+            record.set(i, newline[i]);
+          }
+          records.add(record);
+        }
+        lineCount++;
+      }
+    } catch (IOException e) {
+      throw new OdpsException("Error when parse sql results.", e);
+    }
+    return records;
+  }
   
   /**
    * Return 1W records at most. <br />
@@ -120,35 +161,7 @@ public class SQLTask extends Task {
     String selectResult = results.get(taskName);
 
     if (selectResult != null) {
-      CsvReader reader = new CsvReader(new StringReader(selectResult));
-      reader.setSafetySwitch(false);
-      List<Record> records = new ArrayList<Record>();
-      int lineCount = 0;
-      String[] newline;
-      Column[] columns = new Column[]{};
-
-      try {
-        while (reader.readRecord()) {
-          newline = reader.getValues();
-          // the first line is column names
-          if (lineCount == 0) {
-            columns = new Column[newline.length];
-            for (int i = 0; i < newline.length; i++) {
-              columns[i] = new Column(newline[i], OdpsType.STRING);
-            }
-          } else {
-            Record record = new ArrayRecord(columns);
-            for (int i = 0; i < newline.length; i++) {
-              record.set(i, newline[i]);
-            }
-            records.add(record);
-          }
-          lineCount++;
-        }
-      } catch (IOException e) {
-        throw new OdpsException("Error when parse sql results.", e);
-      }
-      return records;
+      return parseCsvRecord(selectResult);
     }
     return null;
   }
@@ -379,7 +392,30 @@ public class SQLTask extends Task {
       throws OdpsException {
     return getResultSet(instance, taskName, limit, false);
   }
-  
+
+
+  /**
+   * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
+   *
+   * 注：
+   * 1.只有instance的owner本人可以使用本接口
+   * 2.当limitHint为true时，结果最多只能获得1条记录，超过将截断，但无需进行逐表的权限检查
+   * 3.当limitHint为false时，没有记录数限制，可获取instance对应query结果集的全量数据。但前提是需要逐表（SQL中
+   * 涉及的表与视图）对用户进行权限检查，所以当查询涉及表所在project打开protection时，需要提前在policy中为相应表
+   * 和视图添加exception，否则无权下载
+   *
+   * @param instance
+   * @param taskName
+   * @param limit
+   * @param limitHint
+   * @return
+   * @throws OdpsException
+   */
+  public static ResultSet getResultSet(Instance instance, String taskName, Long limit, boolean limitHint)
+      throws OdpsException {
+    return getResultSet(instance, taskName, limit, limitHint, null);
+  }
+
   /**
    * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
    * 
@@ -394,15 +430,20 @@ public class SQLTask extends Task {
    * @param taskName
    * @param limit
    * @param limitHint
+   * @param tunnelEndpoint 指定 tunnel endpoint
    * @return
    * @throws OdpsException
    */
-  public static ResultSet getResultSet(Instance instance, String taskName, Long limit, boolean limitHint)
+  public static ResultSet getResultSet(Instance instance, String taskName, Long limit,
+                                       boolean limitHint, URI tunnelEndpoint)
       throws OdpsException {
 
     checkTaskName(instance, taskName);
 
     InstanceTunnel tunnel = new InstanceTunnel(instance.getOdps());
+    if (tunnelEndpoint != null) {
+      tunnel.setEndpoint(tunnelEndpoint.toString());
+    }
     InstanceTunnel.DownloadSession session =
         tunnel.createDownloadSession(instance.getProject(), instance.getId(), limitHint);
 
@@ -534,7 +575,7 @@ public class SQLTask extends Task {
    *     需要运行的SQL查询
    * @param hints
    *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
-   * @param aliases
+   * @param alias
    *     Alias信息。详情请参考用户手册中alias命令的相关介绍
    * @return 作业运行实例 {@link Instance}
    * @throws OdpsException
@@ -545,50 +586,13 @@ public class SQLTask extends Task {
     return run(odps, project, sql, AnonymousSQLTaskName, hints, aliases, "sql");
   }
 
-  /**
-   * 运行SQL
-   *
-   * @param odps
-   *     {@link Odps}对象
-   * @param project
-   *     任务运行时所属的{@link Project}名称
-   * @param sql
-   *     需要运行的SQL查询
-   * @param taskName
-   *     任务名称
-   * @param hints
-   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
-   * @param aliases
-   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
-   * @return 作业运行实例 {@link Instance}
-   * @throws OdpsException
-   */
+  /*Un-document*/
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
                              Map<String, String> aliases) throws OdpsException {
     return run(odps, project, sql, taskName, hints, aliases, "sql");
   }
 
-  /**
-   * 运行SQL
-   *
-   * @param odps
-   *     {@link Odps}对象
-   * @param project
-   *     任务运行时所属的{@link Project}名称
-   * @param sql
-   *     需要运行的SQL查询
-   * @param taskName
-   *     任务名称
-   * @param hints
-   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
-   * @param aliases
-   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
-   * @param priority
-   *     作业优先级 (注：公共云环境此参数无效)
-   * @return 作业运行实例 {@link Instance}
-   * @throws OdpsException
-   */
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
                              Map<String, String> aliases, int priority) throws OdpsException {

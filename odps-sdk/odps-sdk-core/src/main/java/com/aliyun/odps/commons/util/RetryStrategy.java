@@ -1,7 +1,7 @@
 package com.aliyun.odps.commons.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.commons.util.backoff.ConstantBackOffStrategy;
@@ -64,7 +64,7 @@ public class RetryStrategy {
     }
   }
 
-  final static private Logger LOG = LoggerFactory.getLogger(RetryStrategy.class);
+  final static private Logger LOG = Logger.getLogger(RetryStrategy.class.getName());
 
   /**
    * 默认失败重试次数：10 次
@@ -181,8 +181,9 @@ public class RetryStrategy {
     try {
       long millis = strategy.next();
 
-      if (LOG.isWarnEnabled()) {
-        LOG.warn("Start to retry, retryCount:{}, will retry in {} milliseconds.", attempts, millis);
+      if (LOG.isLoggable(Level.FINE)) {
+        LOG.fine(String.format("Start to retry, retryCount: %d, will retry in %d milliseconds.",
+                                  attempts, millis));
       }
 
       Thread.sleep(millis);

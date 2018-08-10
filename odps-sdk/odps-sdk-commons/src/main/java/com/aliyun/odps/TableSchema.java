@@ -43,9 +43,11 @@ public class TableSchema {
 
   /**
    * 表增加一列
+   * 本方法不用于直接修改 SQL 表结构，适用于执行 MR 作业定义输入列等场景。
    *
    * @param c
    *     待新增的{@link Column}对象
+   *
    * @throws IllegalArgumentException
    *     c为空、列名已存在或不合法
    */

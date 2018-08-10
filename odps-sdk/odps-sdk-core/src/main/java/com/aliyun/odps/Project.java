@@ -382,17 +382,6 @@ public class Project extends LazyLoad {
     return securityManager;
   }
 
-  public Map<String, String> getSystemVersion() throws OdpsException {
-    String resource = ResourceBuilder.buildProjectResource(model.name)  + "/system";
-    Response resp = client.request(resource, "GET", null, null, null);
-    try {
-      Map<String, String> map = JSON.parseObject(resp.getBody(), Map.class);
-      return map;
-    } catch (JSONException e) {
-      throw new OdpsException(e.getMessage(), e);
-    }
-  }
-
   public String getTunnelEndpoint() throws OdpsException {
     String protocol;
     try {

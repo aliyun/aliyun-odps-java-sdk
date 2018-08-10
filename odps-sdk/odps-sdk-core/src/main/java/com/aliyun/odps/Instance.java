@@ -221,15 +221,29 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
 
     /**
-     * 指明返回结果的格式，包括：XML，JSON，CSV
+     * 指明返回结果的格式，包括：text, csv
      *
-     * @return 格式信息包括："XML"，"JSON"，"CSV"
+     * @return 格式信息包括："text"，"csv"
      */
     public String getFormat() {
       return format;
     }
   }
 
+  /**
+   * setTaskInfo指定的KV内容
+   *
+   * @author dejun.xiedj@alibaba-inc.com
+   */
+  @XmlRootElement(name = "Instance")
+  static class InstanceTaskInfoModel {
+
+    @XmlElement(name = "Key")
+    String key;
+
+    @XmlElement(name = "Value")
+    String value;
+  }
 
   @Override
   public void reload() throws OdpsException {
@@ -479,6 +493,37 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       return new String(result.getBody(), "utf-8");
     } catch (UnsupportedEncodingException e) {
       throw new OdpsException(e);
+    }
+  }
+
+  /**
+   * 设置 Instance 中 Task 运行时的指定相关信息
+   *
+   * @param taskName
+   *     指定的TaskName
+   * @param infoKey
+   *     指定相关信息的标志符
+   * @param infoValue
+   *     指定相关信息的内容
+   * @return 相关信息
+   * @throws OdpsException
+   */
+  public String setTaskInfo(String taskName, String infoKey, String infoValue) throws OdpsException {
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("info", null);
+    params.put("taskname", taskName);
+
+    InstanceTaskInfoModel sm = new InstanceTaskInfoModel();
+    sm.key = infoKey;
+    sm.value = infoValue;
+    try {
+      String kv = JAXBUtils.marshal(sm, InstanceTaskInfoModel.class);
+      HashMap<String, String> headers = new HashMap<String, String>();
+      headers.put(Headers.CONTENT_TYPE, "application/xml");
+      Response result = client.stringRequest(getResource(), "PUT", params, headers, kv);
+      return new String(result.getBody(), "utf-8");
+    } catch (Exception e) {
+      throw new OdpsException(e.getMessage(), e);
     }
   }
 

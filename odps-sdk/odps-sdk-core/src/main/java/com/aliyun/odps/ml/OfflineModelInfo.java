@@ -25,4 +25,16 @@ public class OfflineModelInfo {
 
 	@XmlElement(name = "Configuration")
 	public String configuration;
+
+	@XmlElement(name = "SrcProject")
+	public String srcProject;
+
+	@XmlElement(name = "SrcModel")
+	public String srcModel;
+
+	@XmlElement(name = "DestProject")
+	public String destProject;
+
+	@XmlElement(name = "DestModel")
+	public String destModel;
 }

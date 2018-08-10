@@ -32,8 +32,6 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
 import org.apache.commons.io.output.CountingOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.xerial.snappy.SnappyFramedOutputStream;
 
 import com.aliyun.odps.Column;
@@ -62,7 +60,6 @@ import com.google.protobuf.WireFormat;
  * @author chao.liu
  */
 public class ProtobufRecordStreamWriter implements RecordWriter {
-  private static final Logger LOG = LoggerFactory.getLogger(ProtobufRecordStreamWriter.class);
 
   private CountingOutputStream bou;
   private Column[] columns;
@@ -113,13 +110,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
     int recordValues = r.getColumnCount();
     int columnCount = columns.length;
     if (recordValues > columnCount) {
-      LOG.error("Record values more than schema. record columns: {}, schema columns: {}.",
-                recordValues, columnCount);
-
       throw new IOException("record values more than schema.");
     }
-
-    long bytesSent = bou.getByteCount();
 
     int i = 0;
     for (; i < columnCount && i < recordValues; i++) {
@@ -134,19 +126,12 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       crc.update(pbIdx);
 
       TypeInfo typeInfo = columns[i].getTypeInfo();
-
       writeFieldTag(pbIdx, typeInfo);
       writeField(v, typeInfo);
-
     }
 
     int checksum = (int) crc.getValue();
     out.writeUInt32(ProtoWireConstant.TUNNEL_END_RECORD, checksum);
-
-    if (LOG.isDebugEnabled() && bou.getByteCount() != bytesSent) {
-      LOG.debug("ProtobufStreamWriter({}) finish writing record {}, bytes sent to output stream til now: {}.",
-                System.identityHashCode(this), count, bou.getByteCount());
-    }
 
     crc.reset();
     crccrc.update(checksum);
@@ -371,26 +356,15 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
 
   @Override
   public void close() throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("ProtobufStreamWriter({}) start closing, bytes sent to output stream til now: {}.",
-                System.identityHashCode(this), bou.getByteCount());
-    }
-
     try {
       out.writeSInt64(ProtoWireConstant.TUNNEL_META_COUNT, count);
       out.writeUInt32(ProtoWireConstant.TUNNEL_META_CHECKSUM, (int) crccrc.getValue());
       out.flush();
       bou.close();
-
     } finally {
       if (def != null) {
         def.end();
       }
-    }
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("ProtobufStreamWriter({}) finish closing, bytes sent to output stream til now: {}.",
-                System.identityHashCode(this), bou.getByteCount());
     }
   }
 
@@ -405,7 +379,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
   public long getTotalBytes() {
     return bou.getByteCount();
   }
-
+  
   @Deprecated
   public void write(RecordPack pack) throws IOException {
     if (pack instanceof ProtobufRecordPack) {
@@ -423,17 +397,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
   }
 
   public void flush() throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("ProtobufStreamWriter({}) start to flush, bytes sent to output stream til now: {}.",
-                System.identityHashCode(this), bou.getByteCount());
-    }
-
     out.flush();
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("ProtobufStreamWriter({}) finish to flush, bytes sent to output stream til now: {}.",
-                System.identityHashCode(this), bou.getByteCount());
-    }
   }
 
   /**

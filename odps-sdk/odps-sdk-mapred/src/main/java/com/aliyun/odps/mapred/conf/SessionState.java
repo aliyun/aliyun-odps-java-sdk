@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -77,6 +78,7 @@ public class SessionState {
   private JobConf defaultJob;
   private boolean isLocalRun;
   private boolean isCostMode;
+  private String tunnelEndpoint;
   private Map<String, String> aliases;
   // if use internal cli
   private boolean internalCli = false;
@@ -132,6 +134,7 @@ public class SessionState {
   private final static String LOCAL_TEMP_DIR = "odps.mapred.local.temp.dir";
   private final static String LOCAL_TEMP_RETAIN = "odps.mapred.local.temp.retain";
   private final static String LOCAL_RECORD_LIMIT = "odps.mapred.local.record.download.limit";
+  private final static String LOCAL_TUNNEL_ENDPOINT = "odps.tunnel.end.point";
   public static final String LOCAL_DOWNLOAD_MODE = "odps.mapred.local.download.mode"; //always|auto|never; default auto
   //Local security
   public static final String LOCAL_SECURITY_ENABLE = "odps.local.security.enable";
@@ -247,6 +250,7 @@ public class SessionState {
       String accessId = prop.getProperty(OLD_ACCESSID_KEY);
       String accessKey = prop.getProperty(OLD_ACCESSKEY_KEY);
       String runmode = prop.getProperty(OLD_RUNMODE_KEY, "remote");
+      this.tunnelEndpoint = prop.getProperty(LOCAL_TUNNEL_ENDPOINT);
 
       if (runmode.equalsIgnoreCase("local")) {
         handleLocalMR(prop);
@@ -401,6 +405,14 @@ public class SessionState {
     return aliases;
   }
 
+  public String getTunnelEndpoint() {
+    return tunnelEndpoint;
+  }
+
+  public void setTunnelEndpoint(String tunnelEndpoint) {
+    this.tunnelEndpoint = tunnelEndpoint;
+  }
+
   private void handleLocalMR(Properties prop) {
     String tempDir = prop.getProperty(LOCAL_TEMP_DIR);
     if (tempDir != null && !tempDir.isEmpty()) {
@@ -422,6 +434,16 @@ public class SessionState {
           defaultJob.setInt(LOCAL_RECORD_LIMIT, limit);
         }
       } catch (Exception e) {
+      }
+    }
+
+    String tunnelEndpoint = prop.getProperty(LOCAL_TUNNEL_ENDPOINT);;
+    if (StringUtils.isNotBlank(tunnelEndpoint)) {
+      try {
+        new URI(tunnelEndpoint);
+        defaultJob.setStrings(LOCAL_TUNNEL_ENDPOINT, tunnelEndpoint);
+      } catch (Exception e) {
+        throw new IllegalArgumentException("Invalid tunnel endpoint: " + tunnelEndpoint);
       }
     }
 

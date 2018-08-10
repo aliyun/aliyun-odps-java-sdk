@@ -139,7 +139,7 @@ public class JAXBUtils {
     @Override
     public void writeCharacters(char[] text, int start, int len)
         throws XMLStreamException {
-      w.writeCharacters(new String(text, start, len));
+      writeCharacters(new String(text, start, len));
     }
 
     @Override

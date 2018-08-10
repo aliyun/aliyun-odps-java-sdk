@@ -43,6 +43,7 @@ public class Constants {
       "odps.mapred.local.output.column.seperator";
   public static final int LIMIT_DOWNLOAD_RECORD = 10000;
   public static final int DEFAULT_DOWNLOAD_RECORD = 100;
+  public static final String TUNNEL_ENDPOINT = "odps.tunnel.end.point";
 
   public static final String DATE_FORMAT_1 = "yyyyMMddHHmmss_SSS";
   public static final String DATE_FORMAT_2 = "yyyy-MM-dd HH:mm:ss SSS";

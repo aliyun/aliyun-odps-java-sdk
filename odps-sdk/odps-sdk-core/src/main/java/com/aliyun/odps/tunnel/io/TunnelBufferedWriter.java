@@ -21,9 +21,6 @@ package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.aliyun.odps.commons.util.RetryExceedLimitException;
 import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
@@ -142,7 +139,6 @@ public class TunnelBufferedWriter implements RecordWriter {
   private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
   private static final long BUFFER_SIZE_MIN = 1024 * 1024;
   private static final long BUFFER_SIZE_MAX = 1000 * 1024 * 1024;
-  private static final Logger LOG = LoggerFactory.getLogger(TunnelBufferedWriter.class);
 
   /**
    * 构造此类对象，使用默认缓冲区大小为 10 MiB，和默认的回退策略：4s、8s、16s、32s、64s、128s
@@ -204,13 +200,8 @@ public class TunnelBufferedWriter implements RecordWriter {
    */
   public void write(Record r) throws IOException {
     if (bufferedPack.getTotalBytes() > bufferSize) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("BufferedWriter({}) need to flush. Pack total bytes: {} is greater than buffer size: {}.",
-                  System.identityHashCode(this), bufferedPack.getTotalBytes(), bufferSize);
-      }
       flush();
     }
-
     bufferedPack.append(r);
   }
 
@@ -241,24 +232,13 @@ public class TunnelBufferedWriter implements RecordWriter {
     long delta = bufferedPack.getTotalBytesWritten();
     if (delta > 0) {
       Long blockId = session.getAvailBlockId();
-
       while (true) {
         try {
           session.writeBlock(blockId, bufferedPack);
-          if (LOG.isDebugEnabled()) {
-            LOG.debug(
-                "BufferedWriter({}) flush record pack({} bytes) to block({}) success. Total bytes written: {}.",
-                System.identityHashCode(this), delta, blockId, bufferedPack.getTotalBytes());
-          }
-
-          break;
+          bufferedPack.reset();
+          bytesWritten += delta;
+          return;
         } catch (IOException e) {
-          if (LOG.isErrorEnabled()) {
-            LOG.error("BufferedWriter({}) flush record pack({} bytes) to block({}) error: {}",
-                      System.identityHashCode(this), bufferedPack.getTotalBytes(), blockId,
-                      e.getMessage());
-          }
-
           try {
             retry.onFailure(e);
           } catch (RetryExceedLimitException ignore) {
@@ -266,9 +246,6 @@ public class TunnelBufferedWriter implements RecordWriter {
           }
         }
       }
-
-      bufferedPack.reset();
-      bytesWritten += delta;
     }
   }
 }

@@ -33,18 +33,7 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.aliyun.odps.task.AlgoTask;
-import com.aliyun.odps.task.GraphTask;
-import com.aliyun.odps.task.LOTTask;
-import com.aliyun.odps.task.MergeTask;
-import com.aliyun.odps.task.MoyeTask;
-import com.aliyun.odps.task.SQLCostTask;
-import com.aliyun.odps.task.SQLTask;
-import com.aliyun.odps.task.SqlPlanTask;
-import com.aliyun.odps.task.StreamTask;
-import com.aliyun.odps.task.XLibTask;
-import com.aliyun.odps.task.GalaxyTask;
-import com.aliyun.odps.task.CupidTask;
+import com.aliyun.odps.task.*;
 
 /**
  * ODPS的Task定义
@@ -57,6 +46,7 @@ import com.aliyun.odps.task.CupidTask;
     LOTTask.class,
     SqlPlanTask.class,
     SQLTask.class,
+    SQLRTTask.class,
     XLibTask.class,
     SQLCostTask.class,
     StreamTask.class,

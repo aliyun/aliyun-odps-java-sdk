@@ -21,10 +21,10 @@ package com.aliyun.odps.account;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.codec.binary.Base64;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.commons.transport.Request;
 
@@ -32,7 +32,9 @@ import com.aliyun.odps.commons.transport.Request;
  * ODPS请求签名工具
  */
 public class AliyunRequestSigner implements RequestSigner {
-  private static final Logger LOG = LoggerFactory.getLogger(AliyunRequestSigner.class);
+
+  private static final Logger log = Logger.getLogger(AliyunRequestSigner.class
+                                                         .getName());
 
   private String accessId;
   private String accessKey;
@@ -61,7 +63,9 @@ public class AliyunRequestSigner implements RequestSigner {
     }
     String strToSign = SecurityUtils.buildCanonicalString(resource, req, "x-odps-");
 
-    LOG.trace("String to sign {}", strToSign);
+    if (log.isLoggable(Level.FINE)) {
+      log.fine("String to sign: " + strToSign);
+    }
 
     byte[] crypto = new byte[0];
     try {

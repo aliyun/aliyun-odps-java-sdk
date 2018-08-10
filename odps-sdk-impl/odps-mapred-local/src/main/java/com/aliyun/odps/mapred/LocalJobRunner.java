@@ -79,6 +79,7 @@ import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.pipeline.Pipeline;
 import com.aliyun.odps.pipeline.Pipeline.TransformNode;
 
+
 public class LocalJobRunner implements JobRunner {
 
   private List<FileSplit> inputs;

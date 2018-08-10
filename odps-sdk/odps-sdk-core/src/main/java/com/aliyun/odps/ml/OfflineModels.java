@@ -259,6 +259,43 @@ public class OfflineModels implements Iterable<OfflineModel> {
   }
 
   /**
+   * 创建离线模型, 返回负责复制离线模型的XmodelTask的instance
+   * @return Odps Instance
+   * @param modelInfo
+   */
+  public Instance copy(String project, OfflineModelInfo modelInfo) throws OdpsException {
+    String xml = null;
+    try {
+      xml = JAXBUtils.marshal(modelInfo, OfflineModelInfo.class);
+    } catch (JAXBException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
+
+    String resource = ModelResourceBuilder.buildOfflineModelResource(project);
+    Response resp = client.stringRequest(resource, "POST", null, headers, xml);
+
+    String location = resp.getHeaders().get(Headers.LOCATION);
+    if (location == null || location.trim().length() == 0) {
+      throw new OdpsException("Invalid response, Location header required.");
+    }
+    // location:service_name/projectname/instance/instanceid
+    location = location.trim();
+    String instId = location.substring(location.lastIndexOf('/') + 1);
+    if (instId.trim().length() == 0) {
+      throw new OdpsException("Copy offlinemodel failed: Instance id not found, " + location);
+    }
+
+    if (odps.instances().exists(project, instId)) {
+      return odps.instances().get(project, instId);
+    } else {
+      throw new OdpsException("Copy offlinemodel failed: Instance not found, " + instId);
+    }
+  }
+
+  /**
    * 删除离线模型
    *
    * @param modelName

@@ -30,9 +30,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
@@ -618,7 +615,6 @@ public class TableTunnel {
    */
   public class UploadSession {
 
-    private final Logger LOG = LoggerFactory.getLogger(UploadSession.class);
     private String id;
     private TableSchema schema = new TableSchema();
     private String projectName;
@@ -778,13 +774,9 @@ public class TableTunnel {
       if (null == conn) {
         throw new IOException("Invalid connection");
       }
-
       pack.complete();
       ByteArrayOutputStream baos = pack.getProtobufStream();
       baos.writeTo(conn.getOutputStream());
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("UploadSession({}) send record pack to net success, total {} bytes.", System.identityHashCode(this), baos.size());
-      }
       conn.getOutputStream().close();
       baos.close();
       Response response = conn.getResponse();
@@ -842,10 +834,7 @@ public class TableTunnel {
       try {
         conn = getConnection(blockId, compress);
         writer = new TunnelRecordWriter(schema, conn, compress);
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("UploadSession({}) create record writer: {} success. UploadSession: {}, BlockID: {}.",
-                    System.identityHashCode(this), System.identityHashCode(writer), id, blockId);
-        }
+
       } catch (IOException e) {
         if (conn != null) {
           conn.disconnect();
@@ -887,13 +876,7 @@ public class TableTunnel {
      */
     public RecordWriter openBufferedWriter(CompressOption compressOption) throws TunnelException {
       try {
-        RecordWriter writer = new TunnelBufferedWriter(this, compressOption);
-
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("UploadSession({}) create buffered writer: {} success. UploadSession: {}.",
-                    System.identityHashCode(this), System.identityHashCode(writer), id);
-        }
-        return writer;
+        return new TunnelBufferedWriter(this, compressOption);
       } catch (IOException e) {
         throw new TunnelException(e.getMessage(), e.getCause());
       }
@@ -1059,11 +1042,6 @@ public class TableTunnel {
             conn.disconnect();
           }
         }
-      }
-
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("UploadSession({}) Complete upload, session id: {}.",
-                  System.identityHashCode(this), id);
       }
     }
 

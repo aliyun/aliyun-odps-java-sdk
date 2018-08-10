@@ -86,6 +86,130 @@ public class SecurityManager {
     }
   }
 
+  public enum AuthorizationQueryStatus {
+    TERMINATED,
+    RUNNING,
+    FAILED;
+  }
+
+  @XmlRootElement(name = "AuthorizationQuery")
+  private static class AuthorizationQueryStatusModel {
+
+    @XmlElement(name = "Result")
+    private String result;
+    @XmlElement(name = "Status")
+    private String status;
+
+    public String getResult() {
+      return result;
+    }
+
+    public AuthorizationQueryStatus getStatus() throws OdpsException {
+      if (StringUtils.isNullOrEmpty(status)) {
+        throw new IllegalArgumentException("Cannot get authorization query status.");
+      }
+
+      try {
+        return AuthorizationQueryStatus.valueOf(status.toUpperCase());
+      } catch (IllegalArgumentException e) {
+        throw new OdpsException("Unknown authorization query status: " + status);
+      }
+    }
+  }
+
+  public class AuthorizationQueryInstance {
+
+    private String queryResult;
+    private String instanceId;
+    private String projectName;
+    private SecurityManager securityManager;
+    private boolean isSync;
+
+
+    public AuthorizationQueryInstance(String result) {
+      this.queryResult = result;
+      this.isSync = true;
+    }
+
+    public AuthorizationQueryInstance(String projectName, String instanceId, SecurityManager sm) {
+      if (StringUtils.isNullOrEmpty(projectName) || StringUtils.isNullOrEmpty(instanceId)) {
+        throw new IllegalArgumentException(
+            "Arguments: project and instance id cannot be null or empty.");
+      }
+      this.projectName = projectName;
+      this.instanceId = instanceId;
+      this.securityManager = sm;
+      this.isSync = false;
+    }
+
+    public String getId() {
+      if (isSync) {
+        return null;
+      }
+
+      return instanceId;
+    }
+
+    public boolean isSync() {
+      return isSync;
+    }
+
+    public String waitForSuccess() throws OdpsException {
+      return waitForSuccess(1000);
+    }
+
+    public String waitForSuccess(long interval) throws OdpsException {
+      if (isSync) {
+        return queryResult;
+      }
+
+      while (!isTerminated()) {
+        try {
+          Thread.sleep(interval);
+        } catch (InterruptedException e) {
+          throw new OdpsException(e);
+        }
+      }
+
+      AuthorizationQueryStatusModel model = getModel();
+      if (model.getStatus() == AuthorizationQueryStatus.TERMINATED) {
+        return model.getResult();
+      } else {
+        throw new OdpsException("Authorization query failed: " + model.getResult());
+      }
+    }
+
+    private AuthorizationQueryStatusModel getModel() throws OdpsException {
+      StringBuilder resource = new StringBuilder();
+      resource.append("/projects/")
+          .append(ResourceBuilder.encodeObjectName(project))
+          .append("/authorization/")
+          .append(instanceId);
+      return securityManager.client
+          .request(AuthorizationQueryStatusModel.class, resource.toString(), "GET", null, null, null);
+
+    }
+
+    public boolean isTerminated() throws OdpsException {
+      return (getStatus() != AuthorizationQueryStatus.RUNNING);
+    }
+
+    public AuthorizationQueryStatus getStatus() throws OdpsException {
+      if (!isSync) {
+        return getModel().getStatus();
+      }
+
+      return AuthorizationQueryStatus.TERMINATED;
+    }
+
+    public String getResult() throws OdpsException {
+      if (!isSync) {
+        queryResult = getModel().getResult();
+      }
+      return queryResult;
+    }
+  }
+
   @XmlRootElement(name = "Users")
   private static class ListUsersResponse {
 
@@ -110,6 +234,7 @@ public class SecurityManager {
     public String getResult() {
       return result;
     }
+
   }
 
   public SecurityManager(String project, RestClient client) {
@@ -126,12 +251,14 @@ public class SecurityManager {
   }
 
   public void setSecurityConfiguration(
-      SecurityConfiguration securityConfigration) throws OdpsException {
+      SecurityConfiguration securityConfigration
+  ) throws OdpsException {
     securityConfigration.update(null);
   }
 
   public void setSecurityConfiguration(
-      SecurityConfiguration securityConfigration, String supervisionToken)
+      SecurityConfiguration securityConfigration, String supervisionToken
+  )
       throws OdpsException {
     securityConfigration.update(supervisionToken);
   }
@@ -141,7 +268,8 @@ public class SecurityManager {
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
     Response response = client.request(resource, "GET", params, null,
-                                       null);
+                                       null
+    );
     try {
       return new String(response.getBody(), "UTF-8");
     } catch (UnsupportedEncodingException e) {
@@ -161,7 +289,8 @@ public class SecurityManager {
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
     Response response = client.request(resource, "GET", params, null,
-                                       null);
+                                       null
+    );
     try {
       return new String(response.getBody(), "UTF-8");
     } catch (UnsupportedEncodingException e) {
@@ -180,7 +309,8 @@ public class SecurityManager {
   public List<User> listUsers() throws OdpsException {
     String resource = ResourceBuilder.buildUsersResource(project);
     ListUsersResponse resp = client.request(ListUsersResponse.class,
-                                            resource, "GET");
+                                            resource, "GET"
+    );
     List<User> users = new ArrayList<User>();
     for (UserModel model : resp.users) {
       User t = new User(model, project, client);
@@ -192,7 +322,8 @@ public class SecurityManager {
   public List<Role> listRoles() throws OdpsException {
     String resource = ResourceBuilder.buildRolesResource(project);
     ListRolesResponse resp = client.request(ListRolesResponse.class,
-                                            resource, "GET");
+                                            resource, "GET"
+    );
     List<Role> roles = new ArrayList<Role>();
     for (RoleModel model : resp.roles) {
       Role t = new Role(model, project, client);
@@ -208,6 +339,7 @@ public class SecurityManager {
 
   /**
    * 获取指定用户 id 的角色列表
+   *
    * @param uid
    * @return
    * @throws OdpsException
@@ -218,6 +350,7 @@ public class SecurityManager {
 
   /**
    * 获取制定用户名的角色列表
+   *
    * @param userName
    * @return
    * @throws OdpsException
@@ -234,7 +367,8 @@ public class SecurityManager {
       params.put("type", type);
     }
     ListRolesResponse resp = client.request(ListRolesResponse.class,
-                                            resource, "GET", params, null, null);
+                                            resource, "GET", params, null, null
+    );
     List<Role> roles = new ArrayList<Role>();
     for (RoleModel model : resp.roles) {
       Role t = new Role(model, project, client);
@@ -248,7 +382,8 @@ public class SecurityManager {
     Map<String, String> params = new HashMap<String, String>();
     params.put("users", null);
     ListUsersResponse resp = client.request(ListUsersResponse.class,
-                                            resource, "GET", params, null, null);
+                                            resource, "GET", params, null, null
+    );
     List<User> users = new ArrayList<User>();
     for (UserModel model : resp.users) {
       User t = new User(model, project, client);
@@ -261,22 +396,23 @@ public class SecurityManager {
    * 查看是否有操作权限
    *
    * @param type
-   *        查看权限的对象类型
+   *     查看权限的对象类型
    * @param objectName
-   *        查看权限的对象名称
+   *     查看权限的对象名称
    * @param action
-   *        查看的权限类型
+   *     查看的权限类型
    * @param projectName
-   *        查看对象所在项目名称
+   *     查看对象所在项目名称
    * @param columns
-   *        查看权限的列名，若查看列操作权限，type 值为 Table {@link ObjectType}
-   *
+   *     查看权限的列名，若查看列操作权限，type 值为 Table {@link ObjectType}
    * @return CheckPermissionResult
    * @throws OdpsException
    */
-  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
-                                               ActionType action, String projectName,
-                                               List<String> columns) throws OdpsException {
+  public CheckPermissionResult checkPermission(
+      ObjectType type, String objectName,
+      ActionType action, String projectName,
+      List<String> columns
+  ) throws OdpsException {
     StringBuilder resource = new StringBuilder();
     resource.append("/projects/").append(ResourceBuilder.encodeObjectName(projectName))
         .append("/auth/");
@@ -291,7 +427,8 @@ public class SecurityManager {
 
     CheckPermissionResponse response = client.request(CheckPermissionResponse.class,
                                                       resource.toString(), "GET", params, null,
-                                                      null);
+                                                      null
+    );
     System.out.println(response.getResult());
     return response.getResult().toUpperCase().equals("ALLOW") ?
            CheckPermissionResult.Allow : CheckPermissionResult.Deny;
@@ -302,19 +439,20 @@ public class SecurityManager {
    * 查看是否有操作权限
    *
    * @param type
-   *        查看权限的对象类型
+   *     查看权限的对象类型
    * @param objectName
-   *        查看权限的对象名称
+   *     查看权限的对象名称
    * @param action
-   *        查看的权限类型
+   *     查看的权限类型
    * @param columns
-   *        查看权限的列名，若查看列操作权限，type 值为 Table {@link ObjectType}
-   *
+   *     查看权限的列名，若查看列操作权限，type 值为 Table {@link ObjectType}
    * @return CheckPermissionResult
    * @throws OdpsException
    */
-  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
-                                               ActionType action, List<String> columns)
+  public CheckPermissionResult checkPermission(
+      ObjectType type, String objectName,
+      ActionType action, List<String> columns
+  )
       throws OdpsException {
     return checkPermission(type, objectName, action, project, columns);
   }
@@ -323,17 +461,18 @@ public class SecurityManager {
    * 查看是否有操作权限
    *
    * @param type
-   *        查看权限的对象类型
+   *     查看权限的对象类型
    * @param objectName
-   *        查看权限的对象名称
+   *     查看权限的对象名称
    * @param action
-   *        查看的权限类型
-   *
+   *     查看的权限类型
    * @return CheckPermissionResult
    * @throws OdpsException
    */
-  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
-                                               ActionType action) throws OdpsException {
+  public CheckPermissionResult checkPermission(
+      ObjectType type, String objectName,
+      ActionType action
+  ) throws OdpsException {
     return checkPermission(type, objectName, action, project);
   }
 
@@ -341,32 +480,51 @@ public class SecurityManager {
    * 查看是否有操作权限
    *
    * @param type
-   *        查看权限的对象类型
+   *     查看权限的对象类型
    * @param objectName
-   *        查看权限的对象名称
+   *     查看权限的对象名称
    * @param action
-   *        查看的权限类型
+   *     查看的权限类型
    * @param projectName
-   *        查看对象所在项目名称
-   *
+   *     查看对象所在项目名称
    * @return CheckPermissionResult
    * @throws OdpsException
    */
-  public CheckPermissionResult checkPermission(ObjectType type, String objectName,
-                                               ActionType action, String projectName) throws OdpsException {
+  public CheckPermissionResult checkPermission(
+      ObjectType type, String objectName,
+      ActionType action, String projectName
+  ) throws OdpsException {
     return checkPermission(type, objectName, action, projectName, null);
   }
 
-  public String runQuery(String query, Boolean jsonOutput) throws OdpsException {
-    return runQuery(query, jsonOutput, null);
+  /**
+   * 执行安全命令, 返回 query 实例
+   *
+   * @param query
+   * @param jsonOutput
+   * @return query 实例
+   * @throws OdpsException
+   */
+  public AuthorizationQueryInstance run(String query, Boolean jsonOutput) throws OdpsException {
+    return run(query, jsonOutput, null);
   }
 
-  public String runQuery(String query, Boolean jsonOutput,
-                         String supervisionToken) throws OdpsException {
+  /**
+   * 执行安全命令, 返回 query 实例
+   *
+   * @param query
+   * @param jsonOutput
+   * @param supervisionToken
+   * @return query 实例
+   * @throws OdpsException
+   */
+  public AuthorizationQueryInstance run(String query, Boolean jsonOutput, String supervisionToken)
+      throws OdpsException {
     StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(project)).append("/authorization");
-    AuthorizationQueryRequest request = new AuthorizationQueryRequest(query,
-                                                                      jsonOutput);
+    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(project))
+        .append("/authorization");
+    AuthorizationQueryRequest request = new AuthorizationQueryRequest(query, jsonOutput);
+
     String xmlRequest;
     try {
       xmlRequest = JAXBUtils.marshal(request, AuthorizationQueryRequest.class);
@@ -378,10 +536,47 @@ public class SecurityManager {
       headers.put("odps-x-supervision-token", supervisionToken);
     }
     headers.put(Headers.CONTENT_TYPE, "application/xml");
-    AuthorizationQueryResponse response = client.stringRequest(
-        AuthorizationQueryResponse.class, resource.toString(), "POST", null,
-        headers, xmlRequest);
-    return response.getResult();
+
+    Response response =
+        client.stringRequest(resource.toString(), "POST", null, headers, xmlRequest);
+    try {
+      AuthorizationQueryResponse queryResponse =
+          JAXBUtils.unmarshal(response, AuthorizationQueryResponse.class);
+
+      if (response.getStatus() == 200) {
+        return new AuthorizationQueryInstance(queryResponse.getResult());
+      }
+
+      return new AuthorizationQueryInstance(project, queryResponse.getResult(), this);
+    } catch (JAXBException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+  }
+
+  /**
+   * 执行安全命令, 返回 query 结果
+   *
+   * @param query
+   * @param jsonOutput
+   * @return query 结果
+   * @throws OdpsException
+   */
+  public String runQuery(String query, Boolean jsonOutput) throws OdpsException {
+    return runQuery(query, jsonOutput, null);
+  }
+
+  /**
+   * 执行安全命令, 返回 query 结果
+   *
+   * @param query
+   * @param jsonOutput
+   * @param supervisionToken
+   * @return query 结果
+   * @throws OdpsException
+   */
+  public String runQuery(String query, Boolean jsonOutput, String supervisionToken)
+      throws OdpsException {
+    return run(query, jsonOutput, supervisionToken).waitForSuccess();
   }
 
   public String generateAuthorizationToken(String policy, String type)
@@ -396,7 +591,8 @@ public class SecurityManager {
       params.put("sign_bearer_token", null);
       AuthorizationQueryResponse response = client.stringRequest(
           AuthorizationQueryResponse.class, resource.toString(), "POST", params,
-          headers, policy);
+          headers, policy
+      );
       return response.getResult();
     } else {
       // 目前只支持bearer类型的token

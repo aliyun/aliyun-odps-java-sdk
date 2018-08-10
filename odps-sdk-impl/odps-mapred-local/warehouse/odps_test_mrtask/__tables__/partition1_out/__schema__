@@ -1,0 +1,3 @@
+project=odps_test_mrtask
+table=partition1_out
+columns=key:STRING,cnt:BIGINT

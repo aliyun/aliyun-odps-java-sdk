@@ -1,0 +1,5 @@
+project=odps_test_mrtask
+table=wordcount_in
+columns=cola:STRING,colb:STRING
+partitions=p1:STRING,p2:STRING
+

@@ -43,16 +43,6 @@ public class ProjectTest extends TestBase {
   }
 
   @Test
-  public void testGetSystemVersion() throws Exception {
-    Map<String, String> map = odps.projects().get().getSystemVersion();
-    for (Map.Entry<String, String> entry : map.entrySet()) {
-      System.out.println(entry.getKey()+ ":" + entry.getValue());
-    }
-    assertTrue(map.containsKey("WORKER_GIT_BRANCH"));
-    assertTrue(map.containsKey("WORKER_GIT_REVISION"));
-  }
-
-  @Test
   public void testGetBuid() throws OdpsException {
     Project p = odps.projects().get();
     assertTrue(p.getProperties().containsKey("buid"));

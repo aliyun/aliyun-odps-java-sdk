@@ -37,6 +37,7 @@ public class TypeConvertUtils {
     if (javaVal == null) {
       return Constants.NULL_TOKEN;
     }
+    String rawVal;
     switch (typeInfo.getOdpsType()) {
       case BIGINT:
       case BOOLEAN:
@@ -53,16 +54,20 @@ public class TypeConvertUtils {
       case STRING:
       case DATETIME:
       case BINARY:
-        return javaVal.toString();
+        rawVal = javaVal.toString();
+        break;
       case INTERVAL_DAY_TIME:
       case INTERVAL_YEAR_MONTH:
       case STRUCT:
       case MAP:
       case ARRAY:
-        return JSON.toJSONString(javaVal);
+        rawVal = JSON.toJSONString(javaVal);
+        break;
       default:
         throw new RuntimeException(" Unknown column type: " + typeInfo.getOdpsType());
     }
+    //Encode:replace \N with "\N", exception column is null
+    return rawVal.replaceAll("\\\\N", "\"\\\\N\"");
   }
 
   public static Object fromString(TypeInfo typeInfo, String token, boolean isBinary) {

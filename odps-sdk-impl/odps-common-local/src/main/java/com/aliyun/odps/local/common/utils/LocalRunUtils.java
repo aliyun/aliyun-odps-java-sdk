@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -365,5 +367,14 @@ public class LocalRunUtils {
     byte[] res = new byte[n];
     System.arraycopy(tmp, 0, res, 0, n);
     return res;
+  }
+
+  public static boolean validateTunnelEndpoint(String tunnelEndpoint) {
+    try {
+      URI url = new URI(tunnelEndpoint);
+      return true;
+    } catch (URISyntaxException e) {
+      return false;
+    }
   }
 }

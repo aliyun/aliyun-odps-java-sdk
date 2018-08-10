@@ -1,0 +1,4 @@
+project=odps_test_mrtask
+table=secondarysort_in
+columns=key:BIGINT,value:BIGINT
+partitions=p1:STRING,p2:STRING

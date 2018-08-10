@@ -191,7 +191,12 @@ public class DownloadUtils {
     Table table = odps.tables().get(projectName, tableName);
     tableMeta = TableMeta.fromTable(table);
     TableTunnel tunnel = new TableTunnel(odps);
+    String tunnelEndpoint = WareHouse.getInstance().getTunnelEndpoint();
+
     try {
+      if (StringUtils.isNotBlank(tunnelEndpoint)) {
+        tunnel.setEndpoint(tunnelEndpoint);
+      }
       DownloadSession downloadSession = (partition == null) ?
           tunnel.createDownloadSession(projectName, tableName):
           tunnel.createDownloadSession(projectName, tableName, partition);
@@ -356,11 +361,7 @@ public class DownloadUtils {
 
   private static String getColumnValueString(TableMeta tableMeta, Record record, int colIndex) {
     Column col = tableMeta.getCols()[colIndex];
-    String colValue = TypeConvertUtils.toString(record.get(colIndex), col.getTypeInfo(), false);
-    if (!Constants.NULL_TOKEN.equals(colValue)) {
-      colValue = colValue.replaceAll("\\\\N", "\"\\\\N\"");
-    }
-    return colValue;
+    return TypeConvertUtils.toString(record.get(colIndex), col.getTypeInfo(), true);
   }
 
   private static boolean matches(PartitionSpec spec, Map<String, String> parts) {

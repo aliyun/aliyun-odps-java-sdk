@@ -1,0 +1,3 @@
+project=odps_test_mrtask
+table=datetime_in
+columns=c1:STRING,c2:datetime

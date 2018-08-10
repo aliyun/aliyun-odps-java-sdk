@@ -293,8 +293,7 @@ public class XFlows implements Iterable<XFlow> {
 
   @XmlRootElement(name = "XflowInstance")
   @XmlAccessorType(XmlAccessType.FIELD)
-  @XmlType(name = "", propOrder = {"RunningMode", "project", "XflowName",
-                                   "parameters", "guid", "priority"})
+  @XmlType(name = "", propOrder = {"RunningMode", "project", "XflowName", "parameters", "guid"})
   public static class XFlowInstance {
 
     /**
@@ -353,10 +352,6 @@ public class XFlows implements Iterable<XFlow> {
     @XmlElement(name = "Guid")
     private String guid;
 
-    // Priority range [0,9], 0 is the highest priority in odps
-    @XmlElement(name = "Priority")
-    private int priority = 1;
-
     public String getXflowName() {
       return XflowName;
     }
@@ -403,16 +398,6 @@ public class XFlows implements Iterable<XFlow> {
     public String getGuid() { return guid; }
 
     public void setGuid(String guid) { this.guid = guid; }
-
-    public int getPriority() { return priority; }
-
-    /**
-     * 设置作业优先级。优先级的取值去见为[0, 9]的整型值，数字越大，优先级越低。
-     *
-     * @param priority
-     *     优先级 (注：公共云环境此参数无效)
-     */
-    public void setPriority(int priority) { this.priority = priority; }
   }
 
   public Instance execute(XFlowInstance xFlowInstance) throws OdpsException {
