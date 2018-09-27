@@ -19,9 +19,13 @@
 
 package com.aliyun.odps;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -33,7 +37,10 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import com.aliyun.odps.commons.util.OSUtils;
+import com.aliyun.odps.commons.util.SvnRevisionUtils;
 import com.aliyun.odps.task.*;
+
 
 /**
  * ODPS的Task定义
@@ -57,6 +64,16 @@ import com.aliyun.odps.task.*;
     AlgoTask.class
 })
 public abstract class Task {
+  private static final Map<String, String> DEFAULT_SETTINGS = new HashMap<String, String>();
+  static {
+    DEFAULT_SETTINGS.put(
+        "odps.idata.userenv",
+        "JavaSDK Revision:" + SvnRevisionUtils.getSvnRevision() +
+        ",Version:" + SvnRevisionUtils.getMavenVersion() +
+        ",JavaVersion:" + SvnRevisionUtils.getJavaVersion() +
+        ",IP:" + OSUtils.getIpAddress() +
+        ",MAC:" + OSUtils.getMacAddress());
+  }
 
   /**
    * Task property
@@ -239,5 +256,20 @@ public abstract class Task {
     } else {
       return "";
     }
+  }
+
+  void loadDefaultSettings() {
+    JsonObject settings;
+    if (properties.containsKey("settings")) {
+      JsonParser parser = new JsonParser();
+      settings = parser.parse(properties.get("settings")).getAsJsonObject();
+    } else {
+      settings = new JsonObject();
+    }
+    for (Entry<String, String> setting : DEFAULT_SETTINGS.entrySet()) {
+      settings.addProperty(setting.getKey(), setting.getValue());
+    }
+
+    properties.put("settings", settings.toString());
   }
 }

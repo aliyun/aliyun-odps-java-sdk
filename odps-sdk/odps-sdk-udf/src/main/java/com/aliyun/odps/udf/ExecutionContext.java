@@ -274,4 +274,6 @@ public abstract class ExecutionContext {
   public abstract FileSystem getOutputVolumeFileSystem(String label) throws IOException;
 
   public abstract Properties getConfigurations();
+
+  public abstract FileSystem getTempFileSystem() throws IOException;
 }

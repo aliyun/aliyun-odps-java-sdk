@@ -1,3 +1,7 @@
+# 0.29.8
+- increase openmr volume input/output limit from 256 to 1024
+- add user env in task settings, include user ip and mac
+
 # 0.29.6 
 - revert xflow priority
 

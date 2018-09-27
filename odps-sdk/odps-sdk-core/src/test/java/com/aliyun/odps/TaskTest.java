@@ -20,7 +20,14 @@
 package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.util.HashMap;
+import java.util.Map;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.annotation.XmlSeeAlso;
 
@@ -57,5 +64,32 @@ public class TaskTest {
     Class<?>[] value = anotation.value();
     assertEquals(false,
                  "com.aliyun.odps.task.InternalTask".equals(value[value.length - 1].getName()));
+  }
+
+  @Test
+  public void testDefaultSettings() {
+    Task task = new SQLTask();
+    task.loadDefaultSettings();
+    assertTrue(task.getProperties().containsKey("settings"));
+  }
+
+  @Test
+  public void testMergeSettingsWithDefault() {
+    String userDefinedValue = "user defined value";
+    String[] defaultSettings = {"odps.idata.userenv"};
+
+    Task task = new SQLTask();
+    JsonObject userSettings = new JsonObject();
+    for (String setting : defaultSettings) {
+      userSettings.addProperty(setting, userDefinedValue);
+    }
+    task.setProperty("settings", userSettings.toString());
+
+    task.loadDefaultSettings();
+    JsonParser parser = new JsonParser();
+    JsonObject settings = parser.parse(task.getProperties().get("settings")).getAsJsonObject();
+    for (String setting : defaultSettings) {
+      assertNotEquals(userDefinedValue, settings.get(setting));
+    }
   }
 }

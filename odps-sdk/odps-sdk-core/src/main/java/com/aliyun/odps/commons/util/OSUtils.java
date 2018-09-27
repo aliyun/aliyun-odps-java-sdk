@@ -19,6 +19,11 @@
 
 package com.aliyun.odps.commons.util;
 
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+
 public class OSUtils {
 
   /**
@@ -28,5 +33,37 @@ public class OSUtils {
    */
   public static String getOS() {
     return System.getProperties().getProperty("os.name");
+  }
+
+  public static String getIpAddress() {
+    try {
+      return InetAddress.getLocalHost().getHostAddress();
+    } catch (UnknownHostException e) {
+      return "unknown";
+    }
+  }
+
+  public static String getMacAddress() {
+    try {
+      InetAddress address = InetAddress.getLocalHost();
+      byte[] macAddressBytes = NetworkInterface.getByInetAddress(address).getHardwareAddress();
+      // The MAC address may not exist, in this case, return "unknown" immediately
+      if (macAddressBytes == null) {
+        return "unknown";
+      }
+
+      StringBuilder macBuilder = new StringBuilder();
+      for (int i = 0; i < macAddressBytes.length; i++) {
+        macBuilder.append(String.format(
+            "%02X%s", macAddressBytes[i], (i < macAddressBytes.length - 1) ? "-" : ""));
+      }
+      return macBuilder.toString();
+    } catch (UnknownHostException e) {
+      return "unknown";
+    } catch (SocketException e) {
+      return "unknown";
+    } catch (NullPointerException e) {
+      return "unknown";
+    }
   }
 }

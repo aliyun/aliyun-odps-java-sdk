@@ -149,4 +149,9 @@ public class LocalExecutionContext extends ExecutionContext {
     return null;
   }
 
+  //TODO
+  @Override
+  public FileSystem getTempFileSystem() throws IOException {
+    return null;
+  }
 }

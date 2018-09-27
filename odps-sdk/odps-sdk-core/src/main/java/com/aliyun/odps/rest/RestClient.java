@@ -89,7 +89,7 @@ public class RestClient {
      * @param retryCount
      *     重试计数
      * @param retrySleepTime
-     *     下次需要的重试时间
+     *     下次需要的重试时间(s)
      */
     public abstract void onRetryLog(Throwable e, long retryCount, long retrySleepTime);
   }
@@ -323,16 +323,12 @@ public class RestClient {
 
       } catch (OdpsException e) {
         try {
-          retryStrategy.onFailure(e);
+          retryStrategy.onFailure(e, logger);
         } catch (RetryExceedLimitException ignore) {
           throw e;
         }
 
         resetBody(body);
-
-        if (logger != null) {
-          logger.onRetryLog(e, retryStrategy.getAttempts(), retryWaitTime);
-        }
       }
     }
   }

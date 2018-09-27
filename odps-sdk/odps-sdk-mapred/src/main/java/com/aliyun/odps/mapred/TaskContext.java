@@ -366,4 +366,12 @@ public interface TaskContext extends JobContext {
    * @throws IOException
    */
   FileSystem getOutputVolumeFileSystem(String label) throws IOException;
+
+  /**
+   * 获取默认的tempFile fileSystem
+   *
+   * @return FileSystem
+   * @throws IOException
+   */
+  public FileSystem getTempFileSystem() throws IOException;
 }

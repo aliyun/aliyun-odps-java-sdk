@@ -487,4 +487,10 @@ public abstract class LocalTaskContext implements TaskContext {
   public TransformNode getCurrentNode() {
     return this.pipeNode;
   }
+
+
+  @Override
+  public com.aliyun.odps.volume.FileSystem getTempFileSystem() throws IOException {
+    return null;
+  }
 }

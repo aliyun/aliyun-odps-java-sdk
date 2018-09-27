@@ -119,4 +119,9 @@ public class MockExecutionContext extends ExecutionContext {
       String relativePath) throws IOException {
     return null;
   }
+
+  @Override
+  public FileSystem getTempFileSystem() throws IOException {
+    return null;
+  }
 }

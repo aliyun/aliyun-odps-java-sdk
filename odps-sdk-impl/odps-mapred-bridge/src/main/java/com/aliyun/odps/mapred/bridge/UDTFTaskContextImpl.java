@@ -451,4 +451,12 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
       throws IOException {
     return ctx.getOutputVolumeFileSystem(label);
   }
+
+  @Override
+  public com.aliyun.odps.volume.FileSystem getTempFileSystem() throws IOException {
+    if (conf.getBoolean("odps.mapred.enable.user.tempfile", false)) {
+      return ctx.getTempFileSystem();
+    }
+    throw new UnsupportedOperationException("user tempfile disabled");
+  }
 }

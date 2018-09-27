@@ -146,13 +146,13 @@ public class ValidatorTest {
   @Test
   public void testTooManyInputVolumes() throws OdpsException {
     exception.expect(OdpsException.class);
-    exception.expectMessage("Too many input volumes:Expecting no more than 256 partitions. ");
+    exception.expectMessage("Too many input volumes:Expecting no more than 1024 partitions. ");
 
     JobConf conf = new JobConf();
     conf.setMapperClass(WordCount.TokenizerMapper.class);
     conf.setReducerClass(WordCount.SumReducer.class);
     conf.setNumReduceTasks(0);
-    for (int i = 0; i < 257; i++) {
+    for (int i = 0; i < 1025; i++) {
       InputUtils.addVolume(new VolumeInfo("bar", "ds" + i, "label" + i), conf);
     }
     Validator validator = ValidatorFactory
@@ -163,14 +163,14 @@ public class ValidatorTest {
   @Test
   public void testTooManyInputVolumes2() throws OdpsException {
     exception.expect(OdpsException.class);
-    exception.expectMessage("Too many input volumes:Expecting no more than 256 partitions. ");
+    exception.expectMessage("Too many input volumes:Expecting no more than 1024 partitions. ");
 
     JobConf conf = new JobConf();
     conf.setMapperClass(WordCount.TokenizerMapper.class);
     conf.setReducerClass(WordCount.SumReducer.class);
     conf.setNumReduceTasks(0);
 
-    for (int i = 0; i < 257; i++) {
+    for (int i = 0; i < 1025; i++) {
       InputUtils.addVolume(new VolumeInfo("bar" + i, "ds", "label" + i), conf);
     }
     Validator validator = ValidatorFactory

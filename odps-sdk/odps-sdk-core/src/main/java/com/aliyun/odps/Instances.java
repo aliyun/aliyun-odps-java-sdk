@@ -362,6 +362,7 @@ public class Instances implements Iterable<Instance> {
 
     for (Task t : job.getTasks()) {
       t.setProperty("uuid", guid);
+      t.loadDefaultSettings();
       if (t.getName() == null) {
         throw new OdpsException("Task name required.");
       }
