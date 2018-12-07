@@ -28,6 +28,7 @@ public class HttpHeaders implements Headers {
   public static final String HEADER_ODPS_PACK_NUM = "x-odps-pack-num";
   public static final String HEADER_ODPS_VOLUME_FS_PATH = "x-odps-volume-fs-path";
   public static final String HEADER_ODPS_VOLUME_SESSIONID = "x-odps-volume-sessionid";
+  public static final String HEADER_ODPS_DATE_TRANSFORM = "odps-tunnel-date-transform";
 
 
 }

@@ -803,7 +803,7 @@ public class JobConf extends Configuration {
    * 设置Instance优先级。优先级的取值去见为[0, 9]的整型值，数字越大，优先级越低。
    *
    * @param priority
-   *     优先级 (注：公共云环境此参数无效)
+   *     优先级
    */
   public void setInstancePriority(int priority) {
     setInt(CONF.INSTANCE_PRIORITY, priority);

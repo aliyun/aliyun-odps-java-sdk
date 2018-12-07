@@ -21,6 +21,7 @@ package com.aliyun.odps.tunnel.io;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Calendar;
 
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
@@ -41,6 +42,7 @@ public class ProtobufRecordPack extends RecordPack {
   private TableSchema schema;
   private CompressOption option = null;
   private boolean isComplete = false;
+  private Calendar calendar = null;
 
   /**
    * 新建一个ProtobufRecordPack
@@ -116,6 +118,11 @@ public class ProtobufRecordPack extends RecordPack {
     if (null != checksum) {
       writer.setCheckSum(checksum);
     }
+  }
+
+  public void setCalendar(Calendar calendar) {
+    this.calendar = calendar;
+    this.writer.setCalendar(calendar);
   }
 
   @Override
@@ -194,6 +201,7 @@ public class ProtobufRecordPack extends RecordPack {
     }
     count = 0;
     this.writer = new ProtobufRecordStreamWriter(schema, byteos, option);
+    this.writer.setCalendar(calendar);
     isComplete = false;
   }
 

@@ -1,3 +1,9 @@
+# 0.29.10
+- provide join key for udx
+
+# 0.29.9
+- add tunnel transform header
+
 # 0.29.8
 - increase openmr volume input/output limit from 256 to 1024
 - add user env in task settings, include user ip and mac

@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 
@@ -40,6 +41,7 @@ import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.commons.util.RetryExceedLimitException;
 import com.aliyun.odps.commons.util.RetryStrategy;
@@ -55,6 +57,7 @@ import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Tunnel 是 ODPS 的数据通道，用户可以通过 Tunnel 向 ODPS 中上传或者下载数据。<br />
@@ -635,6 +638,7 @@ public class TableTunnel {
     private Long curBlockId = 0L;
     
     private static final int RETRY_SLEEP_SECONDS = 5;
+    private boolean useLocalTZ = false;
 
     /**
      * 根据已有的uploadId构造一个{@link UploadSession}对象
@@ -678,8 +682,7 @@ public class TableTunnel {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
 
-      HashMap<String, String> headers = new HashMap<String, String>();
-      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+      HashMap<String, String> headers = getCommonHeader();
 
       Connection conn = null;
       try {
@@ -688,6 +691,9 @@ public class TableTunnel {
 
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
+          useLocalTZ =
+              StringUtils.equals(resp.getHeader(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM), "true");
+
         } else {
           throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
         }
@@ -833,8 +839,9 @@ public class TableTunnel {
       Connection conn = null;
       try {
         conn = getConnection(blockId, compress);
-        writer = new TunnelRecordWriter(schema, conn, compress);
-
+        writer =
+            new TunnelRecordWriter(schema, conn, compress);
+        writer.setCalendar(getDateCalendar());
       } catch (IOException e) {
         if (conn != null) {
           conn.disconnect();
@@ -921,9 +928,7 @@ public class TableTunnel {
 
     private void reload() throws TunnelException {
       HashMap<String, String> params = new HashMap<String, String>();
-      HashMap<String, String> headers = new HashMap<String, String>();
-
-      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+      HashMap<String, String> headers = getCommonHeader();
 
       params.put(TunnelConstants.UPLOADID, id);
 
@@ -938,6 +943,9 @@ public class TableTunnel {
 
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
+          useLocalTZ =
+              StringUtils.equals(resp.getHeader(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM), "true");
+
         } else {
           TunnelException e = new TunnelException(conn.getInputStream());
           throw e;
@@ -1081,11 +1089,17 @@ public class TableTunnel {
     }
 
     public RecordPack newRecordPack() throws IOException {
-      return new ProtobufRecordPack(schema);
+      return newRecordPack(null);
     }
 
     public RecordPack newRecordPack(CompressOption option) throws IOException {
-      return new ProtobufRecordPack(schema, new Checksum(), option);
+      ProtobufRecordPack pack = new ProtobufRecordPack(schema, new Checksum(), option);
+      pack.setCalendar(getDateCalendar());
+      return pack;
+    }
+
+    private Calendar getDateCalendar() {
+      return useLocalTZ ? DateUtils.LOCAL_CAL : DateUtils.SHANGHAI_CAL;
     }
 
     /**
@@ -1176,6 +1190,7 @@ public class TableTunnel {
     private Configuration conf;
 
     private RestClient tunnelServiceClient;
+    private boolean useLocalTZ = false;
 
     /**
      * 根据已有downloadId构造一个{@link DownloadSession}对象。
@@ -1297,15 +1312,17 @@ public class TableTunnel {
     public TunnelRecordReader openRecordReader(long start, long count, CompressOption compress,
                                                List<Column> columns)
         throws TunnelException, IOException {
-      return new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
+      TunnelRecordReader reader = new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
+      reader.setCalendar(useLocalTZ ? DateUtils.LOCAL_CAL : DateUtils.SHANGHAI_CAL);
+
+      return reader;
     }
+
 
     // initiate a new download session
     private void initiate() throws TunnelException {
       HashMap<String, String> params = new HashMap<String, String>();
-      HashMap<String, String> headers = new HashMap<String, String>();
-
-      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+      HashMap<String, String> headers = getCommonHeader();
 
       params.put(TunnelConstants.DOWNLOADS, null);
       if (partitionSpec != null && partitionSpec.length() > 0) {
@@ -1323,6 +1340,9 @@ public class TableTunnel {
 
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
+          useLocalTZ =
+              StringUtils.equals(resp.getHeader(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM), "true");
+
         } else {
           throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
         }
@@ -1348,9 +1368,7 @@ public class TableTunnel {
     // reload download session properties
     private void reload() throws TunnelException {
       HashMap<String, String> params = new HashMap<String, String>();
-      HashMap<String, String> headers = new HashMap<String, String>();
-
-      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+      HashMap<String, String> headers = getCommonHeader();
 
       params.put(TunnelConstants.DOWNLOADID, id);
 
@@ -1369,6 +1387,8 @@ public class TableTunnel {
 
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
+          useLocalTZ =
+              StringUtils.equals(resp.getHeader(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM), "true");
         } else {
           TunnelException e = new TunnelException(conn.getInputStream());
           e.setRequestId(resp.getHeader(HEADER_ODPS_REQUEST_ID));
@@ -1475,5 +1495,13 @@ public class TableTunnel {
         throw new TunnelException("Invalid json content.", e);
       }
     }
+  }
+
+  static HashMap<String, String> getCommonHeader() {
+    HashMap<String, String> headers = new HashMap<String, String>();
+
+    headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+    headers.put(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM, "true");
+    return headers;
   }
 }

@@ -20,6 +20,7 @@
 package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.List;
 
 import com.aliyun.odps.Column;
@@ -136,6 +137,10 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     createNewReader();
   }
 
+  public void setCalendar(Calendar calendar) {
+    this.calendar = calendar;
+    this.reader.setCalendar(calendar);
+  }
 
   /**
    * 构造此类对象
@@ -232,12 +237,14 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
           reader = RawTunnelRecordReader
                   .createTableTunnelReader(start + offset, count - offset, option, columnList,
                                            tunnelServiceClient, tableSession);
+          reader.setCalendar(this.calendar);
         }
 
         if (instanceSession != null) {
           reader = RawTunnelRecordReader
                   .createInstanceTunnelReader(start + offset, count - offset, option, columnList,
                                               tunnelServiceClient, instanceSession);
+          reader.setCalendar(this.calendar);
         }
 
         return;

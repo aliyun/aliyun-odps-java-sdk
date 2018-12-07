@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +69,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
   private long bytesReaded = 0;
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
+  protected Calendar calendar = null;
 
   public ProtobufRecordStreamReader() {
 
@@ -111,6 +113,10 @@ public class ProtobufRecordStreamReader implements RecordReader {
       this.in = CodedInputStream.newInstance(bin);
     }
     this.in.setSizeLimit(Integer.MAX_VALUE);
+  }
+
+  public void setCalendar(Calendar calendar) {
+    this.calendar = calendar;
   }
 
   /**
@@ -240,7 +246,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
       case DATETIME:{
         long v = in.readSInt64();
         crc.update(v);
-        return DateUtils.ms2date(v);
+        return DateUtils.ms2date(v, calendar);
       }
       case DATE: {
         long v = in.readSInt64();

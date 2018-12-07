@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -69,6 +70,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
   private Deflater def;
+  private Calendar calendar = null;
 
   public ProtobufRecordStreamWriter(TableSchema schema, OutputStream out) throws IOException {
     this(schema, out, new CompressOption());
@@ -102,6 +104,10 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       throws IOException {
     out.writeRawVarint32(value.length);
     out.writeRawBytes(value);
+  }
+
+  public void setCalendar(Calendar calendar) {
+    this.calendar = calendar;
   }
 
   @Override
@@ -188,7 +194,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       }
       case DATETIME: {
         Date value = (Date) v;
-        Long longValue = DateUtils.date2ms(value);
+        Long longValue = DateUtils.date2ms(value, calendar);
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;

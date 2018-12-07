@@ -28,10 +28,16 @@ import java.util.Locale;
 import java.util.SimpleTimeZone;
 import java.util.TimeZone;
 
+import com.aliyun.odps.utils.StringUtils;
+
 public class DateUtils {
 
   private static long TZ = +8;
-  private static Calendar CAL = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"));
+  public static Calendar LOCAL_CAL = Calendar.getInstance();
+  public static Calendar SHANGHAI_CAL = Calendar.getInstance(TimeZone.getTimeZone("Asia/Shanghai"));
+
+  private static Calendar CAL = SHANGHAI_CAL;
+
   private static Calendar GMT_CAL = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
   private static long MILLIS_OF_DAY = 24 * 60 * 60 * 1000;
 
@@ -92,20 +98,36 @@ public class DateUtils {
     return c.getTime().getTime();
   }
 
-  public static long date2ms(Date date) {
+  public static long date2ms(Date date, Calendar calendar) {
+    if (calendar == null) {
+      calendar = SHANGHAI_CAL;
+    }
+
     long ms;
     Calendar c = null;
 
-    c = (Calendar) CAL.clone();
+    c = (Calendar) calendar.clone();
     c.setTime(date);
     ms = c.get(Calendar.MILLISECOND);
 
-    return date2rawtime(date) * 1000 + ms;
+    return date2rawtime(date, calendar) * 1000 + ms;
+  }
+
+  public static long date2ms(Date date) {
+    return date2ms(date, SHANGHAI_CAL);
   }
 
   public static Date ms2date(long ms) {
-    Date d = rawtime2date(ms / 1000);
-    Calendar c = (Calendar) CAL.clone();
+    return ms2date(ms, SHANGHAI_CAL);
+  }
+  
+  public static Date ms2date(long ms, Calendar calendar) {
+    if (calendar == null) {
+      calendar = SHANGHAI_CAL;
+    }
+
+    Date d = rawtime2date(ms / 1000, calendar);
+    Calendar c = (Calendar) calendar.clone();
 
     c.setTime(d);
     c.set(Calendar.MILLISECOND, (int) (ms % 1000));
@@ -114,7 +136,7 @@ public class DateUtils {
   }
 
   /**
-   * @param Object
+   * @param date
    *     of Date Class
    * @return Unix Time Stamp
    * @brief Java version of GLIBC mktime function
@@ -126,6 +148,10 @@ public class DateUtils {
    * and unambiguous).
    */
   public static long date2rawtime(Date date) {
+    return date2rawtime(date, SHANGHAI_CAL);
+  }
+
+  public static long date2rawtime(Date date, Calendar calendar) {
     //no input parameter verification
     //get literal value of broken-down time regard less of time zone
     Calendar c = null;
@@ -133,7 +159,7 @@ public class DateUtils {
     int year, mon, day, hour, min, sec;
     long ans;
 
-    c = (Calendar) CAL.clone();
+    c = (Calendar) calendar.clone();
     c.setTime(date);
     c.set(Calendar.MILLISECOND, 0);
 
@@ -202,10 +228,14 @@ public class DateUtils {
    * and unambiguous).
    */
   public static Date rawtime2date(long rawtime) {
+    return rawtime2date(rawtime, SHANGHAI_CAL);
+  }
+
+  public static Date rawtime2date(long rawtime, Calendar calendar) {
     int year, mon, day, hour, min, sec, leap;
     long offset;
 
-    Calendar c = (Calendar) CAL.clone();
+    Calendar c = (Calendar) calendar.clone();
 
     if (rawtime < _0000_03_01_C) {
       offset = rawtime - _0000_01_01_C;

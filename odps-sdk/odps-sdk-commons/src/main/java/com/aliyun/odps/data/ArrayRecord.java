@@ -90,7 +90,6 @@ public class ArrayRecord implements Record {
   public void set(int idx, Object value) {
     // allow byte [] to set on STRING column, ugly
     if (columns[idx].getTypeInfo().getOdpsType() == OdpsType.STRING && (value instanceof byte[])) {
-      OdpsTypeTransformer.validateByteArray((byte[]) value);
       values[idx] = value;
 
       return;

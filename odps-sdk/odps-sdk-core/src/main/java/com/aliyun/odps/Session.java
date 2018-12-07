@@ -380,8 +380,7 @@ public class Session {
       hints.put("odps.sql.session.worker.memory", workerMemory.toString());
     }
 
-    hints.put("odps.sql.session.enable.start.service", "true");
-
+    String userSubmitMode = hints.get("odps.sql.submit.mode");
     hints.put("odps.sql.submit.mode", "script");
     SQLRTTask task = new SQLRTTask();
     task.setName(DEFAULT_TASK_NAME);
@@ -394,6 +393,11 @@ public class Session {
     }
 
     Instance instance = odps.instances().create(projectName, task);
+    if (userSubmitMode == null || userSubmitMode.isEmpty()) {
+      hints.remove("odps.sql.submit.mode");
+    } else {
+      hints.put("odps.sql.submit.mode", userSubmitMode);
+    }
 
     Session session = new Session(odps, instance, sessionName);
     session.printLogView();
