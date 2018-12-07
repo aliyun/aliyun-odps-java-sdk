@@ -97,18 +97,6 @@
 
                 <dependency>
                     <groupId>com.aliyun.odps</groupId>
-                    <artifactId>odps-sdk-graph-analysis</artifactId>
-                    <version>0.29.10</version>
-                </dependency>
-
-                <dependency>
-                    <groupId>com.aliyun.odps</groupId>
-                    <artifactId>odps-graph-example</artifactId>
-                    <version>0.29.10</version>
-                </dependency>
-
-                <dependency>
-                    <groupId>com.aliyun.odps</groupId>
                     <artifactId>odps-common-local</artifactId>
                     <version>0.29.10-public</version>
                 </dependency>
