@@ -350,6 +350,8 @@
                 <version>1.6.8</version>
                 <extensions>true</extensions>
                 <configuration>
+                    <serverId>nexus-releases</serverId>
+                    <nexusUrl>https://oss.sonatype.org/service/local/staging/deploy/maven2/</nexusUrl>
                     <autoReleaseAfterClose>true</autoReleaseAfterClose>
                 </configuration>
             </plugin>
