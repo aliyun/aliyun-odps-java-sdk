@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps</artifactId>
-        <version>0.29.10-public</version>
+        <version>0.29.10-oversea-public</version>
     </parent>
 
     <artifactId>odps-sdk</artifactId>
