@@ -33,7 +33,6 @@ import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
@@ -167,7 +166,7 @@ public class InstanceTunnel {
     private TableSchema schema = new TableSchema();
     private DownloadStatus status = DownloadStatus.UNKNOWN;
     private Configuration conf;
-    private boolean useLocalTZ = false;
+    private boolean shouldTransform = false;
 
     private RestClient tunnelServiceClient;
 
@@ -292,7 +291,7 @@ public class InstanceTunnel {
 
       TunnelRecordReader reader =
           new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
-      reader.setCalendar(useLocalTZ ? DateUtils.LOCAL_CAL : DateUtils.SHANGHAI_CAL);
+      reader.setTransform(shouldTransform);
 
       return reader;
     }
@@ -315,7 +314,7 @@ public class InstanceTunnel {
 
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
-          useLocalTZ =
+          shouldTransform =
               StringUtils.equals(resp.getHeader(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM), "true");
         } else {
           TunnelException e = new TunnelException(conn.getInputStream());
@@ -354,7 +353,7 @@ public class InstanceTunnel {
 
         if (resp.isOK()) {
           loadFromJson(conn.getInputStream());
-          useLocalTZ =
+          shouldTransform =
               StringUtils.equals(resp.getHeader(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM), "true");
         } else {
           TunnelException e = new TunnelException(conn.getInputStream());
