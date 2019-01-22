@@ -61,6 +61,12 @@ public class CupidTask extends Task {
   }
 
   public static Instance run(Odps odps, String project, String plan, Map<String, String> hints,
+                             Integer priority, String runningCluster, String jobName) throws OdpsException {
+    CupidTask task = GetCupidTask(plan, "cupid_task", hints);
+    return odps.instances().create(project, task, priority, runningCluster, jobName);
+  }
+
+  public static Instance run(Odps odps, String project, String plan, Map<String, String> hints,
       int priority) throws OdpsException {
     CupidTask task = GetCupidTask(plan, "cupid_task", hints);
     return odps.instances().create(project, task, priority);

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
+import com.aliyun.odps.mapred.utils.SqlUtils;
 import org.apache.commons.io.FileUtils;
 
 import com.alibaba.fastjson.JSON;
@@ -78,6 +79,7 @@ public class SessionState {
   private JobConf defaultJob;
   private boolean isLocalRun;
   private boolean isCostMode;
+  private boolean isSqlMode;
   private String tunnelEndpoint;
   private Map<String, String> aliases;
   // if use internal cli
@@ -143,6 +145,10 @@ public class SessionState {
 
   public static final String COST = "cost";
   public static final String ODPS_JOB_COST_ESTIMATE = "odps.task.cost.estimate";
+  public static final String MR_EXECUTION_MODE = "odps.mr.run.mode";
+  public static final String MR_EXECUTION_SQL_QUERY = "odps.mr.sql.query";
+  public static final String MR_EXECUTION_SQL_ERROR = "odps.mr.sql.error";
+  public static final String MR_EXECUTION_SESSION_RESOURCES = "odps.sql.session.resources";
 
   private final static String
       LOCAL_INPUT_COLUMN_SEPERATOR =
@@ -503,5 +509,17 @@ public class SessionState {
         out.append(current);
     }
     return out.toString();
+  }
+
+  /**
+   * 返回sql run模式
+   *
+   * @return true如果符合sql run模式
+   */
+  public boolean isSqlMode() {
+    if (!System.getProperty(MR_EXECUTION_MODE, "lot").equals("sql")) {
+      return false;
+    }
+    return true;
   }
 }

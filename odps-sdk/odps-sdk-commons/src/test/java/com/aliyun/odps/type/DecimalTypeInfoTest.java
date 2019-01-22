@@ -42,7 +42,7 @@ public class DecimalTypeInfoTest {
     // precision illegal
     // scale illegal
     // scale larger than precision, illegal
-    int [][] params = {{DecimalTypeInfo.DEFAULT_PRECISION + 1, 0}, {0, 0}, {DecimalTypeInfo.DEFAULT_PRECISION, DecimalTypeInfo.DEFAULT_SCALE + 1}, {2, -1}, {3, 4}};
+    int [][] params = {{DecimalTypeInfo.DEFAULT_PRECISION, -1}, {0, 0}, {0, DecimalTypeInfo.DEFAULT_SCALE}, {2, -1}, {3, 4}};
 
     int count = 0;
 

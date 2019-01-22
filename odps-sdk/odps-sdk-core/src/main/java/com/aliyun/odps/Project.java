@@ -204,6 +204,7 @@ public class Project extends LazyLoad {
   private RestClient client;
 
   private HashMap<String, String> properties = new HashMap<String, String>();
+  private HashMap<String, String> allProperties;
   private SecurityManager securityManager = null;
   private Clusters clusters;
 
@@ -326,7 +327,7 @@ public class Project extends LazyLoad {
   }
 
   /**
-   * 获取Project配置信息
+   * 获取 Project 已配置的属性
    *
    * @return 以key, value保存的配置信息
    */
@@ -334,6 +335,32 @@ public class Project extends LazyLoad {
     lazyLoad();
     return properties;
   }
+
+  /**
+   * 获取 Project 全部可配置的属性, 包含从 group 继承来的配置信息
+   *
+   * @return 以key, value报错的配置信息
+   */
+  public Map<String, String> getAllProperties() throws OdpsException {
+    if (allProperties == null) {
+
+      String resource = ResourceBuilder.buildProjectResource(model.name);
+      HashMap<String, String> params = new HashMap<String, String>();
+      params.put("properties", "all");
+      Response resp = client.request(resource, "GET", params, null, null);
+      try {
+        ProjectModel model = JAXBUtils.unmarshal(resp, ProjectModel.class);
+
+        allProperties = model.properties;
+      } catch (Exception e) {
+        throw new OdpsException("Can't bind xml to " + ProjectModel.class, e);
+      }
+    }
+
+    return allProperties;
+  }
+
+
 
   /**
    * 获取Project所属集群信息

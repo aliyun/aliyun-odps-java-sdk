@@ -45,7 +45,7 @@ public class ProjectTest extends TestBase {
   @Test
   public void testGetBuid() throws OdpsException {
     Project p = odps.projects().get();
-    assertTrue(p.getProperties().containsKey("buid"));
+    assertTrue(p.getAllProperties().containsKey("buid"));
   }
 
   @Test

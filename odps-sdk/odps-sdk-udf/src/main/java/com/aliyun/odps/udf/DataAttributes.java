@@ -3,12 +3,19 @@ package com.aliyun.odps.udf;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Properties;
 
 /**
- * Provides interfaces to access different attributes of the underlying data, including the attributes provided
- * by the user, as well as different (system) properties that govern the underlying data, such as
- * the record columns, resources used, etc.
+ * <p>
+ *   Provides interfaces to access different attributes of the underlying data, including the attributes provided
+ *   by the user, as well as different (system) properties that govern the underlying data, such as
+ *   the record columns, resources used, etc.
+ * </p>
+ * <p>
+ *   This interface is used only for MaxCompute framework to encapsulate the internal representation of attributes.
+ *   It is not intended for user to implement it.
+ * </p>
  */
 public abstract class DataAttributes {
 
@@ -20,6 +27,13 @@ public abstract class DataAttributes {
   public abstract String getValueByKey(String key);
 
   /**
+   * Get a copy of all user-specified attributes. Note that the modification of the return value does not affect the
+   * underlying storage of attributes.
+   * @return All attributes specified by user
+   */
+  public abstract Map<String, String> getAttributes();
+
+  /**
    * Get the customized external data location that describes external data storage location other than
    * storage types with built-in support (such as Aliyun OSS/TableStore), user is responsible for parsing and
    * connecting to customized data location in self-defined Extractor and/or Outputer
@@ -27,7 +41,7 @@ public abstract class DataAttributes {
    *
    * Note: when "oss://" or "tablestore://" scheme is used in LOCATION clause, this returns null instead
    */
-  public abstract  String getCustomizedDataLocation();
+  public abstract String getCustomizedDataLocation();
 
   /**
    * @param isExtractor flag to distinguish extractor or outputer
@@ -72,4 +86,5 @@ public abstract class DataAttributes {
    *
    **/
   public abstract void verifySchema(OdpsType[] expectedSchemas);
+
 }

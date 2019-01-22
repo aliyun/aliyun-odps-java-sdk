@@ -164,6 +164,8 @@ public class JobClient {
     String runner = null;
     if (ss.isLocalRun()) {
       runner = "com.aliyun.odps.mapred.LocalJobRunner";
+    } else if (ss.isSqlMode()) {
+      runner = "com.aliyun.odps.mapred.SqlBridgeJobRunner";
     } else {
       runner = "com.aliyun.odps.mapred.LotBridgeJobRunner";
     }

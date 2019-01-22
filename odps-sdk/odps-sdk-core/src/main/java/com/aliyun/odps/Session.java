@@ -118,7 +118,11 @@ public class Session {
     }
     hints.put("odps.sql.session.share.id", sessionName);
 
-    return createInternal(odps, null, null, null, null, null, hints, timeout);
+    try {
+      return createInternal(odps, null, null, null, null, null, hints, timeout);
+    } finally {
+      hints.remove("odps.sql.session.share.id");
+    }
   }
 
   /**

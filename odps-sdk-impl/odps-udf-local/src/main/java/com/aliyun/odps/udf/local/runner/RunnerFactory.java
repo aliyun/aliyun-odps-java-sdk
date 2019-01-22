@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.data.TableInfo;
 import org.apache.commons.cli.CommandLine;
 
 import com.aliyun.odps.Odps;
@@ -32,7 +33,7 @@ import com.aliyun.odps.udf.local.util.ClassUtils;
 
 public class RunnerFactory {
 
-  public static BaseRunner getRunner(CommandLine cmdl, Odps odps) throws LocalRunException,
+  public static BaseRunner getRunner(CommandLine cmdl, Odps odps, TableInfo tableInfo) throws LocalRunException,
                                                                          UDFException {
 
     String className = cmdl.getOptionValue("c");
@@ -45,7 +46,7 @@ public class RunnerFactory {
     }
 
     if (obj instanceof UDF) {
-      return new UDFRunner(odps, className);
+      return new UDFRunner(odps, className, tableInfo);
     } else if (obj instanceof UDTF) {
       return new UDTFRunner(odps, className);
     } else if (obj instanceof Aggregator) {

@@ -41,10 +41,11 @@ public class JobUtils {
     SQLTask task = new SQLTask();
     task.setQuery(sql);
     task.setName(taskName);
-    task.setProperty("type", "mr");
+    task.setProperty("type", "sql");
 
     if (hints != null) {
       try {
+        hints.put("odps.sql.submit.mode", "script");
         String json = JSON.toJSONString(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {

@@ -75,4 +75,6 @@ public interface MetaExplorer {
 
   boolean existsVolume(String projectName, String volumeName)
       throws OdpsException;
+
+  public abstract String getProjectProperty(String key) throws OdpsException;
 }

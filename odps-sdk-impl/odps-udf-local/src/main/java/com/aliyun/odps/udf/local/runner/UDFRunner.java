@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.data.TableInfo;
+import com.aliyun.odps.local.common.WareHouse;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -36,6 +38,7 @@ import com.aliyun.odps.udf.local.util.ClassUtils;
 public class UDFRunner extends BaseRunner {
 
   private UDF udf;
+  private TableInfo tableInfo;
   private Method evalMethod;
 
   public UDFRunner(Odps odps, UDF udf) throws UDFException {
@@ -56,16 +59,19 @@ public class UDFRunner extends BaseRunner {
   }
 
   public UDFRunner(Odps odps, String className) throws LocalRunException {
+    this(odps, className, null);
+  }
+
+  public UDFRunner(Odps odps, String className, TableInfo tableInfo) throws LocalRunException {
     super(odps);
     if (StringUtils.isBlank(className)) {
       throw new IllegalArgumentException("Missing arguments:className");
     }
+    this.tableInfo = tableInfo;
     try {
       udf = (UDF) ClassUtils.newInstance(UDFRunner.class.getClassLoader(), className);
-
       SecurityClient.open();
       udf.setup(context);
-
     } catch (LocalRunException e) {
       throw e;
     } catch (UDFException e) {
@@ -73,7 +79,6 @@ public class UDFRunner extends BaseRunner {
     } finally {
       SecurityClient.close();
     }
-
   }
 
   @Override
@@ -117,7 +122,17 @@ public class UDFRunner extends BaseRunner {
     if (args == null || args.length == 0) {
       throw new LocalRunException("Input data can't be null");
     }
-    Method method = ClassUtils.findMethod(clz, "evaluate", args);
+    Class[] parameterTypes;
+    if (tableInfo != null) { //use table meta as UDF parameter types
+      parameterTypes = WareHouse.getInstance().getColumnTypes(tableInfo.getProjectName(),
+        tableInfo.getTableName(), tableInfo.getCols());
+    } else { //use data types as UDF parameter types
+      parameterTypes = new Class<?>[args.length];
+      for (int i = 0; i < args.length; ++i) {
+        parameterTypes[i] = args[i].getClass();
+      }
+    }
+    Method method = ClassUtils.findMethod(clz, "evaluate", parameterTypes);
     // method "evaluate" can't be static
     if (Modifier.toString(method.getModifiers()).contains("static")) {
       throw new LocalRunException("'evaluate' method can't be static");

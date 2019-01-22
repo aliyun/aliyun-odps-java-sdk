@@ -155,7 +155,6 @@ public class SQLTask extends Task {
    *
    * @see {@link #getResultByInstanceTunnel(Instance, String, Long)}
    */
-  @Deprecated
   public static List<Record> getResult(Instance instance, String taskName) throws OdpsException {
     Map<String, String> results = instance.getTaskResults();
     String selectResult = results.get(taskName);
@@ -326,16 +325,16 @@ public class SQLTask extends Task {
    * @return
    * @throws OdpsException
    */
-  @Deprecated
   public static List<Record> getResult(Instance instance) throws OdpsException {
     return getResult(instance, AnonymousSQLTaskName);
   }
   
   /**
    * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
-   * 
-   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
-   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   *
+   * 注：本接口使用 instance tunnel 实现，没有记录数限制，可获取instance对应query结果集的全量数据。
+   * 但是只有instance的owner本人可以使用本接口，且当对应project打开protection时，
+   * 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
    * 
    * @param instance
    * @return
@@ -348,8 +347,9 @@ public class SQLTask extends Task {
   /**
    * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
    * 
-   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
-   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   * 注：本接口使用 instance tunnel 实现，没有记录数限制，可获取instance对应query结果集的全量数据。
+   * 但是只有instance的owner本人可以使用本接口，且当对应project打开protection时，
+   * 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
    * 
    * @param instance
    * @param taskName
@@ -364,8 +364,9 @@ public class SQLTask extends Task {
   /**
    * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
    * 
-   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
-   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   * 注：本接口使用 instance tunnel 实现，没有记录数限制，可获取instance对应query结果集的全量数据。
+   * 但是只有instance的owner本人可以使用本接口，且当对应project打开protection时，
+   * 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
    * 
    * @param instance
    * @param limit
@@ -379,8 +380,9 @@ public class SQLTask extends Task {
   /**
    * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
    * 
-   * 注：本接口没有记录数限制，可获取instance对应query结果集的全量数据。但是只有instance的owner本人可以使用本接口，
-   * 且当对应project打开protection时，需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
+   * 注：本接口使用 instance tunnel 实现，没有记录数限制，可获取instance对应query结果集的全量数据。
+   * 但是只有instance的owner本人可以使用本接口，且当对应project打开protection时，
+   * 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception，否则无权下载
    * 
    * @param instance
    * @param taskName
@@ -418,8 +420,9 @@ public class SQLTask extends Task {
 
   /**
    * 通过instance获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题
-   * 
-   * 注：
+   *
+   * 注：本接口使用 instance tunnel 实现，没有记录数限制，可获取instance对应query结果集的全量数据。
+   *
    * 1.只有instance的owner本人可以使用本接口
    * 2.当limitHint为true时，结果最多只能获得1条记录，超过将截断，但无需进行逐表的权限检查
    * 3.当limitHint为false时，没有记录数限制，可获取instance对应query结果集的全量数据。但前提是需要逐表（SQL中
@@ -575,7 +578,7 @@ public class SQLTask extends Task {
    *     需要运行的SQL查询
    * @param hints
    *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
-   * @param aliases
+   * @param alias
    *     Alias信息。详情请参考用户手册中alias命令的相关介绍
    * @return 作业运行实例 {@link Instance}
    * @throws OdpsException

@@ -54,7 +54,7 @@ for (Table t : odps.tables()) {
 - [Ni Zheming](https://github.com/nizheming)
 - [Li Ruibo](https://github.com/lyman)
 - [Guo Zhenhong](https://github.com/guozhenhong)
-
+- [Zhong Wang](https://github.com/cornmonster)
 ## License
 
 licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.html)

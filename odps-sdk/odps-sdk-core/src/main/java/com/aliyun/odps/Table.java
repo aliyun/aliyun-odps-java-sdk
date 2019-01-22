@@ -125,6 +125,8 @@ public class Table extends LazyLoad {
 
     // for clustered info
     ClusterInfo clusterInfo;
+    // for table extended labels
+    List<String> tableExtendedLabels;
   }
 
   public static class ClusterInfo {
@@ -254,6 +256,13 @@ public class Table extends LazyLoad {
     return model.tableLabel;
   }
 
+  public List<String> getTableExtendedLabels() {
+    if (model.tableExtendedLabels == null) {
+      lazyLoad();
+    }
+
+    return model.tableExtendedLabels;
+  }
   /**
    * 获取表 ID
    *
@@ -280,6 +289,21 @@ public class Table extends LazyLoad {
     return model.cryptoAlgoName;
   }
 
+
+  public String getMaxExtendedLabel() {
+    List<String> extendedLabels = new ArrayList<String>();
+    if (getTableExtendedLabels() != null) {
+      extendedLabels.addAll(getTableExtendedLabels());
+    }
+
+    for (Column column : tableSchema.getColumns()) {
+      if (column.getExtendedlabels() != null) {
+        extendedLabels.addAll(column.getExtendedlabels());
+      }
+    }
+
+    return calculateMaxLabel(extendedLabels);
+  }
   /**
    * 获取最高的label级别
    * Label的定义分两部分：
@@ -674,7 +698,7 @@ public class Table extends LazyLoad {
     return new DefaultRecordReader(new ByteArrayInputStream(resp.getBody()), getSchema());
   }
 
-  private TableSchema loadSchemaFromJson(String json) {
+  private TableSchema   loadSchemaFromJson(String json) {
     TableSchema s = new TableSchema();
     try {
       JSONObject tree = JSON.parseObject(json);
@@ -795,6 +819,13 @@ public class Table extends LazyLoad {
         for (int i = 0; i < columnsNode.size(); ++i) {
           JSONObject n = columnsNode.getJSONObject(i);
           s.addColumn(parseColumn(n));
+        }
+      }
+
+      if (tree.containsKey("extendedLabel")) {
+        JSONArray tableExtendedLabels = tree.getJSONArray("extendedLabel");
+        if (!tableExtendedLabels.isEmpty()) {
+            model.tableExtendedLabels = tableExtendedLabels.toJavaList(String.class);
         }
       }
 
@@ -1125,7 +1156,12 @@ public class Table extends LazyLoad {
       label = node.getString("label");
     }
 
-    return new Column(name, typeInfo, comment, label);
+    List<String> extendedLabels = null;
+    if (node.containsKey("extendedLabels") && (!node.getJSONArray("extendedLabels").isEmpty())) {
+      extendedLabels = node.getJSONArray("extendedLabels").toJavaList(String.class);
+    }
+
+    return new Column(name, typeInfo, comment, label, extendedLabels);
   }
 
   private void lazyLoadExtendInfo() {

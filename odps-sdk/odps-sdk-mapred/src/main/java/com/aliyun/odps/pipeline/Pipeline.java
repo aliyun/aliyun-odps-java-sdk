@@ -114,6 +114,76 @@ public class Pipeline {
     int taskMemoryMB = -1;
     int jvmMemoryMB = -1;
 
+    private static final String KEY_PREFIX = "k_";
+    private static final String VALUE_PREFIX = "v_";
+    private static final String PARTITION_ID = "__partition_id__";
+
+    public String getIntermediateColsJoined() {
+      StringBuilder rt = new StringBuilder();
+      if (keySchema != null && keySchema.length > 0) {
+        for (String name : SchemaUtils.getNames(keySchema)) {
+          if (rt.length() > 0) {
+            rt.append(',');
+          }
+          rt.append(KEY_PREFIX + name);
+        }
+      }
+      if (valueSchema != null && valueSchema.length > 0) {
+        for (String name : SchemaUtils.getNames(valueSchema)) {
+          if (rt.length() > 0) {
+            rt.append(',');
+          }
+          rt.append(VALUE_PREFIX + name);
+        }
+      }
+      return rt.toString();
+    }
+
+    public String getIntermediateColsJoinedMapOut() {
+      StringBuilder rt = new StringBuilder();
+      if (this.getPartitionerClass() != null) {
+        rt.append(PARTITION_ID);
+        rt.append(',');
+      }
+      rt.append(getIntermediateColsJoined());
+      return rt.toString();
+    }
+
+    private String getPrefixedJoinedString(String[] colList, String prefix) {
+      StringBuilder sb = new StringBuilder();
+      for (String s : colList) {
+        if (sb.length() > 0) {
+          sb.append(",");
+        }
+        sb.append(prefix).append(s);
+      }
+      return sb.toString();
+    }
+
+    public String getPartitionColsJoined() {
+        if (this.getPartitionerClass() != null) {
+          return PARTITION_ID;
+        }
+        if (partCols != null) {
+          return getPrefixedJoinedString(partCols, KEY_PREFIX);
+        }
+        return getPrefixedJoinedString(SchemaUtils.getNames(keySchema), KEY_PREFIX);
+    }
+
+    public String getSortColsJoined() {
+      String[] cols = getOutputKeySortColumns();
+      JobConf.SortOrder[] sortOrder = getOutputKeySortOrder();
+      assert cols.length == sortOrder.length;
+      StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < cols.length; i++) {
+        if (sb.length() > 0) {
+          sb.append(",");
+        }
+        sb.append(KEY_PREFIX).append(cols[i]).append(" ").append(sortOrder[i].toString());
+      }
+      return sb.toString();
+    }
+
     /**
      * 获取Pipeline节点的类型
      *
@@ -996,6 +1066,8 @@ public class Pipeline {
         } else {
           conf.setInt("odps.stage.reducer." + i + ".num", node.getNumTasks());
         }
+        conf.setBoolean("odps.sql.jobconf.odps2", true);
+        conf.setBoolean("odps.optimizer.cbo.enable.dynamic.parallelism", false);
       }
 
       if (node.getMemoryForTask() >= 0) {
@@ -1004,6 +1076,7 @@ public class Pipeline {
         } else {
           conf.setInt("odps.stage.reducer." + i + ".mem", node.getMemoryForTask());
         }
+        conf.setBoolean("odps.sql.jobconf.odps2", true);
       }
 
       if (node.getMemoryForJVM() >= 0) {
@@ -1012,6 +1085,7 @@ public class Pipeline {
         } else {
           conf.setInt("odps.stage.reducer." + i + ".jvm.mem", node.getMemoryForJVM());
         }
+        conf.setBoolean("odps.sql.jobconf.odps2", true);
       }
     }
 

@@ -109,4 +109,8 @@ public class MockMetaExplorer implements MetaExplorer {
       throws OdpsException {
     return true;
   }
+
+  public String getProjectProperty(String key) throws OdpsException{
+    return null;
+  }
 }

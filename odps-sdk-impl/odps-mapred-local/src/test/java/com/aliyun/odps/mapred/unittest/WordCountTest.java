@@ -20,6 +20,7 @@
 package com.aliyun.odps.mapred.unittest;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -37,7 +38,6 @@ import com.aliyun.odps.mapred.conf.JobConf;
 import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
-import com.aliyun.odps.mapred.unittest.*;
 
 public class WordCountTest extends MRUnitTest {
   private final static String INPUT_SCHEMA = "a:string,b:string";
@@ -119,6 +119,33 @@ public class WordCountTest extends MRUnitTest {
       cnt.increment(1);
       gCnt.increment(1);
       
+      context.write(result);
+    }
+  }
+
+  public static class BinaryDataReducer extends ReducerBase {
+    private Record result = null;
+    Counter gCnt;
+
+    @Override
+    public void setup(TaskContext context) throws IOException {
+      result = context.createOutputRecord();
+      gCnt = context.getCounter("MyCounters", "global_counts");
+    }
+
+    @Override
+    public void reduce(Record key, Iterator<Record> values, TaskContext context) throws IOException {
+      long count = 0;
+      while (values.hasNext()) {
+        Record val = values.next();
+        count += (Long) val.get(0);
+      }
+      result.setString(0, key.getBytes(0));
+      result.set(1, count);
+      Counter cnt = context.getCounter("MyCounters", "reduce_outputs");
+      cnt.increment(1);
+      gCnt.increment(1);
+
       context.write(result);
     }
   }
@@ -208,6 +235,55 @@ public class WordCountTest extends MRUnitTest {
     Assert.assertEquals(2, output.getCounters().countCounters());
     Assert.assertEquals(3, output.getCounters().getGroup("MyCounters").findCounter("global_counts").getValue());
     Assert.assertEquals(3, output.getCounters().getGroup("MyCounters").findCounter("reduce_outputs").getValue());
+  }
+
+  @Test
+  public void TestBinaryReduce() throws IOException, ClassNotFoundException, InterruptedException {
+    JobConf jobConf = new JobConf(job);
+    jobConf.setReducerClass(BinaryDataReducer.class);
+
+    ReduceUTContext context = new ReduceUTContext();
+    context.setOutputSchema(OUTPUT_SCHEMA,  jobConf);
+
+    Record key = context.createInputKeyRecord(jobConf);
+    Record value = context.createInputValueRecord(jobConf);
+    key.set(0, "world");
+    value.set(0, new Long(1));
+    context.addInputKeyValue(key, value);
+    key.set(0, "hello");
+    value.set(0, new Long(1));
+    context.addInputKeyValue(key, value);
+    key.set(0, "hello");
+    value.set(0, new Long(1));
+    context.addInputKeyValue(key, value);
+    key.set(0, "odps");
+    value.set(0, new Long(1));
+    context.addInputKeyValue(key, value);
+    // add a binary data
+    byte[] data = new byte[10];
+    for (int i = 0; i < 10; ++i) {
+      data[i] = Integer.valueOf(i).byteValue();
+    }
+    key.set(0, data);
+    value.set(0, new Long(1));
+    context.addInputKeyValue(key, value);
+    TaskOutput output = runReducer(jobConf, context);
+
+    List<Record> records = output.getOutputRecords();
+    Assert.assertEquals(4, records.size());
+
+    Assert.assertTrue(Arrays.equals(data, records.get(0).getBytes("k")));
+    Assert.assertEquals(new Long(1), records.get(0).get("v"));
+    Assert.assertEquals(new String("hello"), records.get(1).get("k"));
+    Assert.assertEquals(new Long(2), records.get(1).get("v"));
+    Assert.assertEquals(new String("odps"), records.get(2).get("k"));
+    Assert.assertEquals(new Long(1), records.get(2).get("v"));
+    Assert.assertEquals(new String("world"), records.get(3).get("k"));
+    Assert.assertEquals(new Long(1), records.get(3).get("v"));
+    // verify reducer counters
+    Assert.assertEquals(2, output.getCounters().countCounters());
+    Assert.assertEquals(4, output.getCounters().getGroup("MyCounters").findCounter("global_counts").getValue());
+    Assert.assertEquals(4, output.getCounters().getGroup("MyCounters").findCounter("reduce_outputs").getValue());
   }
 
 }

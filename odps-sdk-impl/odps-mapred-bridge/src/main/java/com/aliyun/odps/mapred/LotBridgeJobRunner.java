@@ -20,7 +20,9 @@
 package com.aliyun.odps.mapred;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.alibaba.fastjson.JSON;
@@ -28,6 +30,8 @@ import com.aliyun.odps.Instance;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Resource;
 import com.aliyun.odps.mapred.bridge.LOTGenerator;
+import com.aliyun.odps.mapred.bridge.MetaExplorer;
+import com.aliyun.odps.mapred.bridge.sqlgen.SqlGenerator;
 import com.aliyun.odps.mapred.conf.JobHintTranslator;
 import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.pipeline.Pipeline;
@@ -57,6 +61,13 @@ public class LotBridgeJobRunner extends BridgeJobRunner {
     task.setPlan(plan);
 
     task.setName(taskName);
+
+    try {
+      task.setQuery(SqlGenerator.generate(job, jobId, metaExplorer));
+    } catch (Exception e) {
+      task.setProperty(SessionState.MR_EXECUTION_SQL_ERROR, e.getMessage());
+      e.printStackTrace();
+    }
 
     try {
       String json = JSON.toJSONString(JobHintTranslator.apply(job));

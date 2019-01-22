@@ -153,7 +153,7 @@ public class TunnelBufferedWriter implements RecordWriter {
    */
   public TunnelBufferedWriter(TableTunnel.UploadSession session, CompressOption option)
       throws IOException {
-    this.bufferedPack = new ProtobufRecordPack(session.getSchema(), new Checksum(), option);
+    this.bufferedPack = (ProtobufRecordPack)session.newRecordPack(option);
     this.session = session;
     this.bufferSize = BUFFER_SIZE_DEFAULT;
     this.retry = new TunnelRetryStrategy();

@@ -40,6 +40,8 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.TableMeta;
+import com.aliyun.odps.local.common.ColumnOrConstant;
+import com.aliyun.odps.local.common.ExceptionCode;
 
 public class SchemaUtils {
 
@@ -48,6 +50,7 @@ public class SchemaUtils {
   private static final String NAME_TYPE_DELIMITER = ":";
   private static final String COLUMN_SEPARATOR = ",";
   private static final String RESOLVE_SEPARATOR = ",";
+  private static final String CONSTANT_TYPE_DELIMITER = "\\|";
 
   public static boolean existsSchemaFile(File dir) {
     return new File(dir, Constants.SCHEMA_FILE).exists();
@@ -341,6 +344,99 @@ public class SchemaUtils {
     } else {
       return types;
     }
+  }
+
+  /**
+   * UDF local run column list split
+   * @param str 描述字符串 like c1, ",", ":", 1|bigint
+   * @return column数组
+   */
+  public static String[] splitColumn(String str) {
+    List<String> colList = new ArrayList<String>();
+    String remain = str;
+    int pos = 0; //indicate the position we find
+    while (remain.length() > 0) {
+      pos = remain.indexOf(COLUMN_SEPARATOR, pos);
+      if (pos < 0) { //last one
+        pos = remain.length();
+      }
+      String candidate = remain.substring(0, pos).trim();
+      boolean found = true;
+      if (candidate.startsWith("\"")) { //handle the case that string constant contains comma
+        found = isStringConstant(candidate);
+      }
+      if (found) {
+        colList.add(candidate);
+        if (pos == remain.length()) {
+          remain = "";
+        } else {
+          remain = remain.substring(pos + 1);
+          pos = 0;
+        }
+        continue;
+      }
+      if (pos == remain.length()) {
+        remain = "";
+      } else {
+        pos = pos + 1; //try to parse at next position
+      }
+    }
+    return colList.toArray(new String[]{});
+  }
+
+  public static ColumnOrConstant parseColumn(String colStr, TableMeta tableMeta) throws IllegalArgumentException {
+    if (StringUtils.isBlank(colStr)) {
+      throw new IllegalArgumentException("column or constant is blank");
+    }
+    if (isStringConstant(colStr)) { //string constant
+      String value = colStr.substring(1, colStr.length() - 1);
+      TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString("string");
+      return new ColumnOrConstant(value, typeInfo);
+    }
+    String[] constantAndType = colStr.split(CONSTANT_TYPE_DELIMITER);
+    if (constantAndType.length == 2) { //other type constant
+      String type = constantAndType[1].trim();
+      TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(type);
+      if (typeInfo == null) {
+        throw new IllegalArgumentException("type " + type + " is invalid");
+      }
+      String constant = constantAndType[0].trim();
+      Object value = TypeConvertUtils.fromString(typeInfo, constant, false);
+      if (value == null) {
+        throw new IllegalArgumentException("convert to constant value failed:" + colStr);
+      }
+      return new ColumnOrConstant(value, typeInfo);
+    } else { //column name
+      Integer colIndex = null;
+      if (tableMeta != null) {
+        for (int j = 0; j < tableMeta.getCols().length; ++j) {
+          if (tableMeta.getCols()[j].getName().equals(colStr)) {
+            colIndex = j;
+            break;
+          }
+        }
+        if (colIndex == null) {
+          throw new IllegalArgumentException(ExceptionCode.ODPS_0720021 + " - " + colStr + " in table "
+            + tableMeta.getProjName() + "." + tableMeta.getTableName());
+        }
+      }
+      return new ColumnOrConstant(colStr, colIndex);
+    }
+  }
+
+  public static List<ColumnOrConstant> parseColumnConstant(String[] columns, TableMeta tableMeta) throws IllegalArgumentException {
+    if (columns == null || columns.length == 0) {
+      return null;
+    }
+    List<ColumnOrConstant> columnOrConstants = new ArrayList<ColumnOrConstant>(columns.length);
+    for (String column : columns) {
+      columnOrConstants.add(parseColumn(column, tableMeta));
+    }
+    return columnOrConstants;
+  }
+
+  private static boolean isStringConstant(String str) {
+    return str.length() > 2 && str.startsWith("\"") && str.endsWith("\"");
   }
 
 }

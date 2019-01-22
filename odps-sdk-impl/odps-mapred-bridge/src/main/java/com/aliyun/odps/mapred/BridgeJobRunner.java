@@ -314,6 +314,7 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
     }
     totalRes.addAll(aliasToTempResource.keySet());
     job.setResources(StringUtils.join(totalRes, ","));
+    job.setFunctionResources(StringUtils.join(aliasToTempResource.values(), ","));
   }
 
   private String[] getInputColumnsFromCommandSettings(BridgeJobConf job, TableInfo info) {

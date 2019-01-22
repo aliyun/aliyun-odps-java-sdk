@@ -76,6 +76,10 @@ public class VersionUtils {
         return com.aliyun.odps.udf.OdpsType.DOUBLE;
       case BOOLEAN:
         return com.aliyun.odps.udf.OdpsType.BOOLEAN;
+      case DATETIME:
+        return com.aliyun.odps.udf.OdpsType.DATETIME;
+      case DECIMAL:
+        return com.aliyun.odps.udf.OdpsType.DECIMAL;
       default:
         throw new RuntimeException("Type " + odpsType + " not supported.");
     }

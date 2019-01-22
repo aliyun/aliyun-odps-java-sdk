@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.udf.local;
 
+import com.aliyun.odps.data.TableInfo;
+import com.aliyun.odps.local.common.utils.PartitionUtils;
 import java.io.IOException;
 import java.util.List;
 
@@ -32,6 +34,7 @@ import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.local.common.utils.SchemaUtils;
 import com.aliyun.odps.local.common.WareHouse;
 import com.aliyun.odps.udf.UDFException;
 import com.aliyun.odps.udf.local.datasource.InputSource;
@@ -96,9 +99,9 @@ public class Main {
       WareHouse.getInstance().setRecordLimit(cmdl.getOptionValue("record-limit"));
       WareHouse.getInstance().setColumnSeparator(cmdl.getOptionValue("column-separator"));
 
-      BaseRunner runner = RunnerFactory.getRunner(cmdl, odps);
-
-      InputSource inputSource = getInputSource(cmdl);
+      TableInfo tableInfo = getTableInfo(cmdl);
+      BaseRunner runner = RunnerFactory.getRunner(cmdl, odps, tableInfo);
+      InputSource inputSource = new TableInputSource(tableInfo);
 
       Object[] data;
       while ((data = inputSource.getNextRow()) != null) {
@@ -145,7 +148,7 @@ public class Main {
     }
   }
 
-  private InputSource getInputSource(CommandLine cmdl) throws LocalRunException {
+  private TableInfo getTableInfo(CommandLine cmdl) {
     String inputArgs = cmdl.getOptionValue("i");
     // ie: table.p(p1=1,p2=2).c(c1,c2)
     String[] ss = inputArgs.split("\\.");
@@ -173,14 +176,14 @@ public class Main {
           throw new LocalRunError("Invalid columns");
         }
         str = str.substring(2, str.length() - 1);
-        columns = str.split(",");
+        columns = SchemaUtils.splitColumn(str);
       } else {
         throw new LocalRunError("Invalid input table info, please check it");
       }
     }
 
-    return new TableInputSource(WareHouse.getInstance().getOdps().getDefaultProject(), table,
-                                partitions, columns);
+    return TableInfo.builder().projectName(cmdl.getOptionValue("project")).tableName(table)
+      .partSpec(PartitionUtils.convert(partitions)).cols(columns).build();
   }
 
   private void printHelpAndExit(int exitCode) {

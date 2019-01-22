@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import com.aliyun.odps.volume.FileSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -488,9 +489,8 @@ public abstract class LocalTaskContext implements TaskContext {
     return this.pipeNode;
   }
 
-
   @Override
-  public com.aliyun.odps.volume.FileSystem getTempFileSystem() throws IOException {
+  public FileSystem getTempFileSystem() throws IOException {
     return null;
   }
 }

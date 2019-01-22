@@ -19,6 +19,10 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.local.common.utils.SchemaUtils;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.VarcharTypeInfo;
+import com.aliyun.odps.udf.local.InvalidFunctionException;
 import com.aliyun.odps.udf.local.examples.Udtf_complex;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -312,6 +316,27 @@ public class UDTFRunnerTest {
     Assert.assertEquals("A21,[A21x, A21y]", StringUtils.join(out.get(1), ","));
     Assert.assertEquals("A31,[A31x, A31y]", StringUtils.join(out.get(2), ","));
     Assert.assertEquals("A41,[A41x, A41y]", StringUtils.join(out.get(3), ","));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void parseInvalidResolveTypeInfo() throws InvalidFunctionException{
+    UDTFRunner.parseResolveInfo("long->long");
+  }
+
+  @Test
+  public void parseResolveTypeInfo() throws InvalidFunctionException{
+    String[] outs = UDTFRunner.parseResolveInfo("struct<a:bigint>,string->string");
+    Assert.assertEquals(2, outs.length);
+    Assert.assertEquals("struct<a:bigint>,string", outs[0]);
+    Assert.assertEquals("string", outs[1]);
+
+    outs = UDTFRunner.parseResolveInfo("varchar(10) -> smallint");
+    Assert.assertEquals(2, outs.length);
+    Assert.assertEquals("varchar(10) ", outs[0]);
+    Assert.assertEquals(" smallint", outs[1]);
+    List<TypeInfo> inputTypes = SchemaUtils.parseResolveTypeInfo(outs[0]);
+    Assert.assertEquals(1, inputTypes.size());
+    Assert.assertTrue(inputTypes.get(0) instanceof VarcharTypeInfo);
   }
 
 }

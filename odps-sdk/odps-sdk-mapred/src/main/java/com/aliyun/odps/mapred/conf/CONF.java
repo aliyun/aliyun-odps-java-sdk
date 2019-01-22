@@ -226,4 +226,29 @@ class CONF {
   public static final String OUTPUT_KEY_COMPARATOR_CLASS = "odps.stage.mapred.output.key.comparator.class";
 
   public static final String OUTPUT_KEY_GROUPING_COMPARATOR_CLASS = "odps.mapred.output.key.grouping.comparator.class";
+
+  public final static String MR2SQL_FUNCTION_RESOURCES = "odps.mapred.function.resources";
+
+  public final static String MR2SQL_FUNCTION_CREATE_TEXT = "odps.mapred.function.create.text";
+
+  public final static String MR2SQL_FUNCTION_DROP_TEXT = "odps.mapred.function.drop.text";
+
+  public final static String MR2SQL_PIPELINE_LIST = "odps.pipeline.list";
+
+  public final static String MR2SQL_PIPELINE_OUTPUT_KEY_SCHEMA = "odps.pipeline.%d.output.key.schema";
+
+  public final static String MR2SQL_PIPELINE_OUTPUT_VALUE_SCHEMA = "odps.pipeline.%d.output.value.schema";
+
+  public final static String MR2SQL_STREAMJOB_ADDENVIRONMENT = "stream.addenvironment";
+
+  public final static String MR2SQL_STREAMJOB_PROCESSOR = "stream.%s.streamprocessor";
+
+  public final static String MR2SQL_REDUCE_INSTACNES = "odps.sql.reducer.instances";
+
+  public final static String MR2SQL_JOIN_INSTACNES = "odps.sql.joiner.instances";
+
+  public final static String MR2SQL_PARTITION_CLASS = "odps.pipeline.%s.partition.class";
+
+  public final static String MR2SQL_DYNAMIC_PARALLELISM = "odps.optimizer.cbo.enable.dynamic.parallelism";
+
 }

@@ -109,7 +109,7 @@ public class Odps {
 
     setEndpoint(defaultEndpoint);
 
-    projects = new Projects(client);
+    projects = new Projects(this);
     tables = new Tables(this);
     instances = new Instances(this);
     resources = new Resources(this);

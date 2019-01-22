@@ -69,7 +69,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
   private long bytesReaded = 0;
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
-  protected Calendar calendar = null;
+  protected boolean shouldTransform = false;
 
   public ProtobufRecordStreamReader() {
 
@@ -115,8 +115,8 @@ public class ProtobufRecordStreamReader implements RecordReader {
     this.in.setSizeLimit(Integer.MAX_VALUE);
   }
 
-  public void setCalendar(Calendar calendar) {
-    this.calendar = calendar;
+  public void setTransform(boolean shouldTransform) {
+    this.shouldTransform = shouldTransform;
   }
 
   /**
@@ -246,7 +246,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
       case DATETIME:{
         long v = in.readSInt64();
         crc.update(v);
-        return DateUtils.ms2date(v, calendar);
+        return shouldTransform ? DateUtils.ms2date(v, DateUtils.LOCAL_CAL) : DateUtils.ms2date(v);
       }
       case DATE: {
         long v = in.readSInt64();

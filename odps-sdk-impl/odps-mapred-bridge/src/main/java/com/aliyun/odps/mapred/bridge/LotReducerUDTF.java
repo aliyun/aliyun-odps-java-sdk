@@ -24,6 +24,10 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 
+import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.mapred.bridge.utils.VersionUtils;
+import com.aliyun.odps.mapred.utils.SchemaUtils;
+import com.aliyun.odps.pipeline.Pipeline;
 import org.apache.commons.lang.ArrayUtils;
 
 import com.aliyun.odps.Column;
@@ -51,6 +55,14 @@ import com.aliyun.odps.utils.ReflectionUtils;
 public class LotReducerUDTF extends LotTaskUDTF {
 
   private TaskContext ctx;
+
+  public LotReducerUDTF() {
+    super();
+  }
+
+  public LotReducerUDTF(String functionName) {
+    super(functionName);
+  }
 
   class ReduceContextImpl extends UDTFTaskContextImpl implements TaskContext {
 
@@ -235,6 +247,39 @@ public class LotReducerUDTF extends LotTaskUDTF {
       }
       return getNextRowWapper();
     }
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public com.aliyun.odps.udf.OdpsType[] resolve(com.aliyun.odps.udf.OdpsType[] unused) {
+    String funtionName = conf.get("odps.mr.sql.functionName");
+    if (funtionName == null ){
+      try {
+        return super.resolve(unused);
+      } catch (com.aliyun.odps.udf.UDFException e) {
+        e.printStackTrace();
+      }
+    }
+    ctx = new ReduceContextImpl(conf);
+    Column[] ks = conf.getMapOutputKeySchema();
+    Column[] vs = conf.getMapOutputValueSchema();
+    inputSchema = (Column[]) ArrayUtils.addAll(ks, vs);
+    UDTFTaskContextImpl udtfCtx = (UDTFTaskContextImpl) ctx;
+
+    if(((UDTFTaskContextImpl) ctx).pipeMode) {
+      Pipeline pipeline = Pipeline.fromJobConf(conf);
+      int nodeId = Integer.parseInt(funtionName.split("_")[3]);
+      Pipeline.TransformNode pipeNode = pipeline.getNode(nodeId);
+      Column[] intermediateFields = (Column[]) ArrayUtils.addAll(pipeNode.getOutputKeySchema(), pipeNode.getOutputValueSchema());
+      if (pipeNode.getPartitionerClass() != null) {
+        intermediateFields = (Column[]) ArrayUtils.addAll(SchemaUtils.fromString("__partition_id__:BIGINT"), intermediateFields);
+      }
+      if (intermediateFields != null) {
+        OdpsType[] resolved = SchemaUtils.getTypes(intermediateFields);
+        return VersionUtils.getOdpsTypes(resolved);
+      }
+    }
+    return VersionUtils.getOdpsTypes(SchemaUtils.getTypes(udtfCtx.getPackagedOutputSchema()));
   }
 
   @Override

@@ -19,10 +19,11 @@
 
 package com.aliyun.odps;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +36,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
@@ -103,6 +106,16 @@ public class TableTest extends TestBase {
     odps.projects().get().getSecurityManager()
         .runQuery("SET LABEL D2 to TABLE " + TABLE_NAME + "(c3)", false);
 
+    // extended labels for column
+    odps.projects().get().getSecurityManager()
+        .runQuery("SET LABEl P2 TO TABLE " + TABLE_NAME + "(c1)", false);
+    // extended labels for column
+    odps.projects().get().getSecurityManager()
+        .runQuery("SET LABEl P1 TO TABLE " + TABLE_NAME + "(c3)", false);
+    // extended labels for table
+    odps.projects().get().getSecurityManager()
+        .runQuery("SET LABEl P5 TO TABLE " + TABLE_NAME, false);
+
     odps.tables().delete(TRUNCATE_TABLE_NAME, true);
 
     Instance i = SQLTask
@@ -122,6 +135,7 @@ public class TableTest extends TestBase {
     odps.tables().delete(HUB_TABLE_NAME_3, true);
     odps.tables().delete(HUB_TABLE_NAME_4, true);
   }
+
 
   @Test
   public void testGetSchema() throws OdpsException {
@@ -203,10 +217,20 @@ public class TableTest extends TestBase {
   @Test
   public void testColumnLabel() throws OdpsException {
     Table table = odps.tables().get(TABLE_NAME);
-    Assert.assertEquals(table.getSchema().getColumn("c3").getCategoryLabel(), "D2");
-    Assert.assertEquals(table.getSchema().getColumn("c3").getLabel(), new Long(0));
+    Assert.assertEquals(table.getSchema().getColumn("c3").getLabel(), null);
     Assert.assertEquals(table.getSchema().getColumn("c1").getLabel(), new Long(2));
     Assert.assertEquals(table.getSchema().getColumn("c2").getLabel(), null);
+  }
+
+  @Test
+  public void testExtendedLabel() throws OdpsException {
+    Table table = odps.tables().get(TABLE_NAME);
+    Assert.assertEquals(table.getSchema().getColumn("c1").getExtendedlabels(), Arrays.asList(new String [] {"P2"}));
+    Assert.assertEquals(table.getSchema().getColumn("c3").getExtendedlabels(), Arrays.asList(new String[] {"D2", "P1"}));
+    Assert.assertEquals(table.getTableExtendedLabels(), Arrays.asList(new String[] {"P5"}));
+
+    Assert.assertEquals(table.getMaxExtendedLabel(), "P5");
+
   }
 
   @Test

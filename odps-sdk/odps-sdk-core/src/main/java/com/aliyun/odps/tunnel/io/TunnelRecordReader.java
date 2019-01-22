@@ -137,10 +137,12 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     createNewReader();
   }
 
-  public void setCalendar(Calendar calendar) {
-    this.calendar = calendar;
-    this.reader.setCalendar(calendar);
+  @Override
+  public void setTransform(boolean shouldTransform) {
+    this.shouldTransform = shouldTransform;
+    this.reader.setTransform(shouldTransform);
   }
+
 
   /**
    * 构造此类对象
@@ -237,14 +239,14 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
           reader = RawTunnelRecordReader
                   .createTableTunnelReader(start + offset, count - offset, option, columnList,
                                            tunnelServiceClient, tableSession);
-          reader.setCalendar(this.calendar);
+          reader.setTransform(this.shouldTransform);
         }
 
         if (instanceSession != null) {
           reader = RawTunnelRecordReader
                   .createInstanceTunnelReader(start + offset, count - offset, option, columnList,
                                               tunnelServiceClient, instanceSession);
-          reader.setCalendar(this.calendar);
+          reader.setTransform(this.shouldTransform);
         }
 
         return;

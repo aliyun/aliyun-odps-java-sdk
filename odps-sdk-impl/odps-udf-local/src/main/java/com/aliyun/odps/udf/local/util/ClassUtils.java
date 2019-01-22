@@ -36,13 +36,9 @@ public class ClassUtils {
     }
   }
 
-  public static Method findMethod(Class<?> clz, String methodName, Object[] parameters)
+  public static Method findMethod(Class<?> clz, String methodName, Class[] parameterTypes)
       throws LocalRunException {
-    Class<?>[] parameterTypes = new Class<?>[parameters.length];
-    for (int i = 0; i < parameters.length; ++i) {
-      parameterTypes[i] = parameters[i].getClass();
-    }
-    Method method = null;
+    Method method;
     try {
       method = clz.getMethod(methodName, parameterTypes);
     } catch (SecurityException e) {

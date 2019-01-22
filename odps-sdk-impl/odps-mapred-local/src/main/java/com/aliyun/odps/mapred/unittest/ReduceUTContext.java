@@ -111,11 +111,7 @@ public class ReduceUTContext extends UTContext {
    *          {@link Reducer} 输入的 Value 对象
    */
   public void addInputKeyValue(Record k, Record v) {
-    WritableRecord wk = new WritableRecord(k.getColumns());
-    wk.set(k.toArray());
-    WritableRecord wv = new WritableRecord(v.getColumns());
-    wv.set(v.toArray());
-    inputKeyVals.add(new KeyValue<Record,Record>(wk, wv));
+    inputKeyVals.add(new KeyValue<Record,Record>(k.clone(), v.clone()));
   }
 
   /**

@@ -232,4 +232,12 @@ public class MetaExplorerImpl implements MetaExplorer {
   public Instance createInstance(Task task, int priority) throws OdpsException {
     return odps.instances().create(task, priority);
   }
+
+  public String getProjectProperty(String key) throws OdpsException {
+    String mode = odps.projects().get(odps.getDefaultProject()).getProperty(key);
+    if (mode == null) {
+      return odps.projects().get(odps.getDefaultProject()).getAllProperties().get(key);
+    }
+    return mode;
+  }
 }

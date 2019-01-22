@@ -36,6 +36,9 @@ public class LocalExecutionContext extends ExecutionContext {
 
   public LocalExecutionContext() {
     wareHouse = WareHouse.getInstance();
+    // reset worker retry information to zero because the defaults are -1 which means error
+    retryCount = 0;
+    backupWorkerID = 0;
   }
 
   @Override
@@ -149,9 +152,9 @@ public class LocalExecutionContext extends ExecutionContext {
     return null;
   }
 
-  //TODO
   @Override
   public FileSystem getTempFileSystem() throws IOException {
     return null;
   }
+
 }

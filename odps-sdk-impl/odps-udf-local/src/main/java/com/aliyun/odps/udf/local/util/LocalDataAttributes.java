@@ -6,7 +6,7 @@ import com.aliyun.odps.udf.DataAttributes;
 
 import java.util.*;
 
-public class LocalDataAttributes extends DataAttributes{
+public class LocalDataAttributes extends DataAttributes {
   private Map<String, String> attributes;
   private Column[] fullTableSchema;
   private Column[] outputSchema;
@@ -52,6 +52,11 @@ public class LocalDataAttributes extends DataAttributes{
   @Override
   public String getValueByKey(String key) {
     return this.attributes.get(key);
+  }
+
+  @Override
+  public Map<String, String> getAttributes() {
+    return attributes;
   }
 
   @Override

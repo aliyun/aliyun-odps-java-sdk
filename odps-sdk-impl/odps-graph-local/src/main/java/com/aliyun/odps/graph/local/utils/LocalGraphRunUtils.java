@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -57,13 +58,10 @@ import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.ReflectionUtils;
 import com.aliyun.odps.utils.StringUtils;
 
-import sun.misc.BASE64Decoder;
-
 public class LocalGraphRunUtils {
 
   private static final Log LOG = LogFactory.getLog(LocalGraphRunUtils.class);
 
-  private final static BASE64Decoder baseDecoder = new BASE64Decoder();
   private final static SimpleDateFormat DATETIME_FORMAT = new SimpleDateFormat(
       "yyyy-MM-dd HH:mm:ss");
 
@@ -166,7 +164,7 @@ public class LocalGraphRunUtils {
           return new LongWritable(Long.parseLong(val));
         case DataType.STRING:
           if (val.startsWith("ODPS-BASE64")) {
-            return new Text(baseDecoder.decodeBuffer(val.substring("ODPS-BASE64".length())));
+            return new Text(Base64.decodeBase64(val.substring("ODPS-BASE64".length())));
           } else {
             try {
               byte[] v = LocalRunUtils.fromReadableString(val);

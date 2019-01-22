@@ -35,12 +35,12 @@ public class DecimalTypeInfo extends AbstractPrimitiveTypeInfo {
   }
 
   private void validateParameter(int precision, int scale) {
-    if (precision < 1 || precision > DEFAULT_PRECISION) {
-      throw new IllegalArgumentException("Decimal precision " + precision +" out of range: [1, " + DEFAULT_PRECISION + "]");
+    if (precision < 1) {
+      throw new IllegalArgumentException("Decimal precision < 1");
     }
 
-    if (scale < 0 || scale > DEFAULT_SCALE) {
-      throw new IllegalArgumentException("Decimal scale " + scale + " out of range: [0, " + DEFAULT_SCALE + "]");
+    if (scale < 0) {
+      throw new IllegalArgumentException("Decimal scale < 0");
     }
 
     if (scale > precision) {

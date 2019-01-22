@@ -271,7 +271,7 @@ public class WritableRecord implements Record {
 
   @Override
   public void setDatetime(int idx, Date value) {
-    values[idx] = value == null ? null : new DatetimeWritable(DateUtils.date2ms(value));
+    values[idx] = value == null ? null : new DatetimeWritable(value.getTime());
   }
 
   @Override
@@ -282,7 +282,7 @@ public class WritableRecord implements Record {
     if (values[idx] == null) {
       return null;
     }
-    return DateUtils.ms2date(((DatetimeWritable) values[idx]).get());
+    return new Date(((DatetimeWritable) values[idx]).get());
   }
 
   @Override

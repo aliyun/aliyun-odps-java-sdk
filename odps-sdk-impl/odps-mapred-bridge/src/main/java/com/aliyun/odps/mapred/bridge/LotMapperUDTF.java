@@ -30,6 +30,9 @@ import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.TreeMap;
 
+import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.mapred.bridge.utils.VersionUtils;
+import com.aliyun.odps.mapred.utils.SchemaUtils;
 import org.apache.commons.lang.ArrayUtils;
 
 import com.aliyun.odps.Column;
@@ -57,6 +60,13 @@ import com.aliyun.odps.utils.ReflectionUtils;
 @PreferWritable
 @NotReuseArgumentObject
 public class LotMapperUDTF extends LotTaskUDTF {
+
+  public LotMapperUDTF() {
+    super();
+  }
+  public LotMapperUDTF(String functionName) {
+    super(functionName);
+  }
 
   class DirectMapContextImpl extends UDTFTaskContextImpl implements TaskContext {
 
@@ -610,6 +620,56 @@ public class LotMapperUDTF extends LotTaskUDTF {
   private long nextRecordCntr = 1;
   private Column[] inputSchema;
 
+  @SuppressWarnings("deprecation")
+  @Override
+  public com.aliyun.odps.udf.OdpsType[] resolve(com.aliyun.odps.udf.OdpsType[] sig) {
+    String funtionName = conf.get("odps.mr.sql.functionName");
+    if (funtionName == null ){
+      try {
+        return super.resolve(sig);
+      } catch (com.aliyun.odps.udf.UDFException e) {
+        e.printStackTrace();
+      }
+    }
+    OdpsType[] resolved = null;
+    UDTFTaskContextImpl ctx = new UDTFTaskContextImpl(conf) {
+      @Override
+      public void write(Record record) throws IOException {
+      }
+      @Override
+      public void write(Record record, String label) throws IOException {
+      }
+      @Override
+      public void write(Record key, Record value) throws IOException {
+      }
+    };
+
+    boolean hasReduce;
+    if (((UDTFTaskContextImpl) ctx).isPipelineMode()) {
+      hasReduce = ((UDTFTaskContextImpl) ctx).getPipeline().getNodeNum() > 1;
+    } else {
+      int numReduceTasks = conf.getInt("odps.stage.reducer.num", -1);
+      if (numReduceTasks == -1) {
+        numReduceTasks = conf.getInt("odps.mapred.reduce.tasks", -1);
+      }
+      if (numReduceTasks == -1) {
+        numReduceTasks = 1;
+      }
+      hasReduce = numReduceTasks > 0;
+    }
+
+    if (hasReduce) {
+      resolved = SchemaUtils.getTypes(ctx.getIntermediateOutputSchema());
+      if (((UDTFTaskContextImpl) ctx).isPipelineMode()) {
+        resolved = SchemaUtils.getTypes(ctx.getPipelineOutputSchema(0));
+      }
+    } else {
+      resolved = SchemaUtils.getTypes(ctx.getPackagedOutputSchema());
+    }
+
+    return VersionUtils.getOdpsTypes(resolved);
+  }
+
   TableInfo getTableInfoFromDesc(String inputSpec) {
     if (inputSpec == null || inputSpec.isEmpty()) {
       throw new RuntimeException(ErrorCode.INTERNAL_ERROR.toString()
@@ -655,9 +715,17 @@ public class LotMapperUDTF extends LotTaskUDTF {
     TableInfo[] inputs = InputUtils.getTables(conf);
 
     if (inputs != null && inputs.length > 0) {
-      String inputSpec = context.getTableInfo();
-      tableInfo = getTableInfo(inputs, inputSpec);
+      try {
+        String inputSpec = context.getTableInfo();
+        tableInfo = getTableInfo(inputs, inputSpec);
+      } catch (com.aliyun.odps.udf.InvalidInvocationException e) {
+        tableInfo = inputs[0];
+      }
+      if (inputs.length == 1 && !tableInfo.getTableName().equalsIgnoreCase(inputs[0].getTableName())) {
+        tableInfo = inputs[0];
+      }
     }
+
     if (tableInfo != null) {
       inputSchema = conf.getInputSchema(tableInfo);
     } else {

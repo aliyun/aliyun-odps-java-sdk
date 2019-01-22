@@ -21,7 +21,6 @@ package com.aliyun.odps.tunnel.io;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Calendar;
 
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
@@ -42,8 +41,13 @@ public class ProtobufRecordPack extends RecordPack {
   private TableSchema schema;
   private CompressOption option = null;
   private boolean isComplete = false;
-  private Calendar calendar = null;
+  private boolean shouldTransform = false;
 
+  public void checkTransConsistency(boolean expect) throws IOException {
+    if (shouldTransform != expect) {
+      throw new IOException("RecordPack breaks the restriction of session. Try session.newRecordPack()");
+    }
+  }
   /**
    * 新建一个ProtobufRecordPack
    *
@@ -112,17 +116,19 @@ public class ProtobufRecordPack extends RecordPack {
     this.schema = schema;
     if (null != option) {
       this.option = option;
+    } else {
+      this.option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
     }
 
-    writer = new ProtobufRecordStreamWriter(schema, byteos, option);
+    writer = new ProtobufRecordStreamWriter(schema, byteos, this.option);
     if (null != checksum) {
       writer.setCheckSum(checksum);
     }
   }
 
-  public void setCalendar(Calendar calendar) {
-    this.calendar = calendar;
-    this.writer.setCalendar(calendar);
+  public void setTransform(boolean shouldTransform) {
+    this.shouldTransform = shouldTransform;
+    this.writer.setTransform(shouldTransform);
   }
 
   @Override
@@ -201,7 +207,7 @@ public class ProtobufRecordPack extends RecordPack {
     }
     count = 0;
     this.writer = new ProtobufRecordStreamWriter(schema, byteos, option);
-    this.writer.setCalendar(calendar);
+    this.writer.setTransform(shouldTransform);
     isComplete = false;
   }
 

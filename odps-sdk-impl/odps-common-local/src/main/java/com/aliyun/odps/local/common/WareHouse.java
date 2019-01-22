@@ -20,6 +20,7 @@
 package com.aliyun.odps.local.common;
 
 import com.aliyun.odps.local.common.utils.TypeConvertUtils;
+import com.aliyun.odps.type.TypeInfo;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -924,27 +925,33 @@ public class WareHouse {
   }
 
   public List<Object[]> readData(String projName, String tblName, PartitionSpec partitionSpec,
-                                 String[] readCols, char inputColumnSeperator)
+                                 String[] readCols, char inputColumnSeparator)
       throws OdpsException, IOException {
-    List<File> dataFiles = getDataFiles(projName, tblName, partitionSpec, inputColumnSeperator);
+    List<File> dataFiles = getDataFiles(projName, tblName, partitionSpec, inputColumnSeparator);
     if (dataFiles == null || dataFiles.size() == 0) {
       return null;
     }
     File tableDir = getTableDir(projName, tblName);
     TableMeta tableMeta = SchemaUtils.readSchema(tableDir);
-    List<Integer> indexes = LocalRunUtils.genReadColsIndexes(tableMeta, readCols);
+    List<ColumnOrConstant> columnOrConstants = SchemaUtils.parseColumnConstant(readCols, tableMeta);
     CsvReader reader;
     List<Object[]> result = new ArrayList<Object[]>();
     for (File file : dataFiles) {
-      reader = DownloadUtils.newCsvReader(file.getAbsolutePath(), inputColumnSeperator, encoding);
+      reader = DownloadUtils.newCsvReader(file.getAbsolutePath(), inputColumnSeparator, encoding);
       while (reader.readRecord()) {
         String[] vals = reader.getValues();
         Object[] newVals;
-        if (indexes != null && !indexes.isEmpty()) {
-          newVals = new Object[indexes.size()];
-          for (int i = 0; i < indexes.size(); ++i) {
-            newVals[i] = TypeConvertUtils.fromString(tableMeta.getCols()[indexes.get(i)].getTypeInfo(),
-                vals[indexes.get(i)], false);
+        if (columnOrConstants != null && !columnOrConstants.isEmpty()) {
+          newVals = new Object[columnOrConstants.size()];
+          for (int i = 0; i < columnOrConstants.size(); ++i) {
+            ColumnOrConstant columnOrConstant = columnOrConstants.get(i);
+            if (columnOrConstant.isConstant()) {
+              newVals[i] = columnOrConstant.getConstantValue();
+            } else {
+              Integer colIndex = columnOrConstant.getColIndex();
+              newVals[i] = TypeConvertUtils.fromString(tableMeta.getCols()[colIndex].getTypeInfo(),
+                vals[colIndex], false);
+            }
           }
         } else {
           newVals = new Object[vals.length];
@@ -952,12 +959,40 @@ public class WareHouse {
             newVals[i] = TypeConvertUtils
               .fromString(tableMeta.getCols()[i].getTypeInfo(), vals[i], false);
           }
-          System.out.println();
         }
         result.add(newVals);
       }
       reader.close();
     }
+    return result;
+  }
+
+  public Class[] getColumnTypes(String projName, String tblName, String[] readCols) {
+    File tableDir = getTableDir(projName, tblName);
+    TableMeta tableMeta = SchemaUtils.readSchema(tableDir);
+    Column[] columns = tableMeta.getCols();
+    List<ColumnOrConstant> columnOrConstants = SchemaUtils.parseColumnConstant(readCols, tableMeta);
+    Class[] result;
+    if (columnOrConstants != null && !columnOrConstants.isEmpty()) {
+      result = new Class[columnOrConstants.size()];
+      for (int i = 0; i < columnOrConstants.size(); i++) {
+        ColumnOrConstant columnOrConstant = columnOrConstants.get(i);
+        TypeInfo typeInfo;
+        if (columnOrConstant.isConstant()) {
+          typeInfo = columnOrConstant.getConstantTypeInfo();
+        } else {
+          Integer colIndex = columnOrConstant.getColIndex();
+          typeInfo = columns[colIndex].getTypeInfo();
+        }
+        result[i] = TypeConvertUtils.getOdpsJavaType(typeInfo);
+      }
+    } else {
+      result = new Class[columns.length];
+      for (int i = 0; i < columns.length; i++) {
+        result[i] = TypeConvertUtils.getOdpsJavaType(columns[i].getTypeInfo());
+      }
+    }
+
     return result;
   }
 

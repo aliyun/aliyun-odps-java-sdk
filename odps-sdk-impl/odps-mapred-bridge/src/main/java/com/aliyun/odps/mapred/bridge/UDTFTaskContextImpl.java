@@ -28,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 
+import com.aliyun.odps.mapred.conf.SessionState;
+import com.aliyun.odps.mapred.utils.InputUtils;
+import com.aliyun.odps.mapred.utils.SchemaUtils;
 import org.apache.commons.lang.ArrayUtils;
 
 import com.aliyun.odps.Column;
@@ -96,6 +99,14 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
   @Override
   public Column[] getMapOutputKeySchema() {
     return conf.getMapOutputKeySchema();
+  }
+
+  public Column[] getMapOutputKeySchema4Pipeline(int nodeId) {
+    return conf.getMapOutputKeySchema4Pileline(nodeId);
+  }
+
+  public Column[] getMapOutputValueSchema4Pipeline(int nodeId) {
+    return conf.getMapOutputValueSchema4Pileline(nodeId);
   }
 
   @Override
@@ -246,6 +257,7 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
   protected Column[] packagedOutputSchema;
   private static final String MULTIDEST_LABEL = "MULTIDEST_LABEL";
   private static final String INNEROUTPUT_LABEL = "INNEROUTPUT_LABEL";
+  private static final String PARTITION_ID = "__partition_id__";
   protected int innerOutputIndex = 0;
 
   private void initOutputSchema() {
@@ -315,7 +327,27 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
   protected Column[] getIntermediateOutputSchema() {
     Column[] intermediateFields = (Column[]) ArrayUtils.addAll(getMapOutputKeySchema(),
                                                                getMapOutputValueSchema());
+    if (getPartitioner() != null) {
+      intermediateFields = (Column[]) ArrayUtils.addAll(SchemaUtils.fromString(String.format("%s:BIGINT", PARTITION_ID)), intermediateFields);
+    }
     return intermediateFields;
+  }
+
+  protected Column[] getPipelineOutputSchema(int nodeId) {
+    Column[] intermediateFields = (Column[]) ArrayUtils.addAll(getMapOutputKeySchema4Pipeline(nodeId),
+                                                               getMapOutputValueSchema4Pipeline(nodeId));
+    if (getPartitioner(nodeId) != null) {
+      intermediateFields = (Column[]) ArrayUtils.addAll(SchemaUtils.fromString(String.format("%s:BIGINT", PARTITION_ID)), intermediateFields);
+    }
+    return intermediateFields;
+  }
+
+  protected Class getPartitioner() {
+    return conf.getPartitionerClass();
+  }
+
+  protected String getPartitioner(int nodeId) {
+    return conf.getPartitioner(nodeId);
   }
 
   @Override
@@ -331,6 +363,14 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
       String tid = getTaskID().toString();
       System.out.println("Task ID: " + tid);
       this.pipeIndex = Integer.parseInt(tid.split("_")[0].substring(1)) - 1;
+      String exeMode = conf.get(SessionState.MR_EXECUTION_MODE);
+      if (exeMode != null && (exeMode.equalsIgnoreCase("sql") || exeMode.equalsIgnoreCase("hybrid"))) {
+        TableInfo[] infos = InputUtils.getTables(conf);
+        if (infos != null && infos.length > 1 && this.pipeIndex > 0) {
+          this.pipeIndex = this.pipeIndex - infos.length + 1;
+          this.pipeIndex = this.pipeIndex < 0 ? 0 :this.pipeIndex;
+        }
+      }
       this.pipeNode = pipeline.getNode(pipeIndex);
     }
 

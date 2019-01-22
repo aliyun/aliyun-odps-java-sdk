@@ -39,8 +39,19 @@ public abstract class ExecutionContext {
 
   protected String stageID;
   protected int workerID;
+  protected int retryCount = -1;
+  protected int backupWorkerID = -1;
   protected String tableInfo;
   protected String localResourceDirectory;
+  protected String instanceID;
+  protected String runningProject;
+
+  /**
+   * 获取ODPS Instance ID
+   */
+  public String getInstanceID() {
+    return instanceID;
+  }
 
   /**
    * 获取运行时StageID
@@ -58,6 +69,33 @@ public abstract class ExecutionContext {
    */
   public int getWorkerID() {
     return workerID;
+  }
+
+  /**
+   * 获取运行时的Project名
+   *
+   * @return Running project name
+   */
+  public String getRunningProject() {
+    return runningProject;
+  }
+
+  /**
+   * 获取运行时当前Worker的重试次数
+   *
+   * @return 当前Worker的重试次数，0代表还没有发生重试，当获取重试次数失败时，返回-1
+   */
+  public int getRetryCount() {
+    return retryCount;
+  }
+
+  /**
+   * 获取当前的backupWorkerID
+   *
+   * @return 如果当前worker不是backupWorker，返回0；否则返回当前的backupWorkerID；获取失败返回-1
+   */
+  public int getBackupWorkerID() {
+    return backupWorkerID;
   }
 
   /**

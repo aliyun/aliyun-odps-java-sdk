@@ -44,7 +44,7 @@ public class XFlowsTest {
 
   @BeforeClass
   public static void setup() throws OdpsException {
-    odps = OdpsTestUtils.newDefaultOdps();
+    odps = OdpsTestUtils.newTestOdps();
     testCreateDeleteUpadte();
     if (!odps.xFlows().exists("abc")) {
       String source =
@@ -119,6 +119,8 @@ public class XFlowsTest {
     XFlowInstance xFlowInstance = new XFlowInstance();
     xFlowInstance.setXflowName(TEST_XFLOW);
     xFlowInstance.setProject(odps.getDefaultProject());
+    xFlowInstance.setPriority(8);
+    xFlowInstance.setProperty("key1", "value1");
     Instance i = xflows.execute(xFlowInstance);
     System.out.println(i.getId());
     i.getStatus();
@@ -129,6 +131,7 @@ public class XFlowsTest {
     XFlowInstance xFlowInstance2 = xflows.getXFlowInstance(i);
     Assert.assertEquals(xFlowInstance.getXflowName(), xFlowInstance2.getXflowName());
     Assert.assertEquals(xFlowInstance.getProject(), xFlowInstance2.getProject());
+    Assert.assertEquals(xFlowInstance.getPriority(), xFlowInstance2.getPriority());
 
     System.out.println("XSOURCE" + xflows.getXSource(i));
     System.out.println(i.getStatus());
@@ -159,7 +162,15 @@ public class XFlowsTest {
   public void testXFlowCData() throws JAXBException {
     XFlowInstance instance = new XFlowInstance();
     instance.setParameter("abc", "\"<>\"");
+    instance.setPriority(2);
+    instance.setProperty("key1", "value1");
+    instance.setProperty("key2", "value2");
     String st = JAXBUtils.marshal(instance, XFlowInstance.class);
-    assertEquals(st, "<?xml version=\"1.0\" ?><XflowInstance><Parameters><Parameter><Key>abc</Key><Value><![CDATA[\"<>\"]]></Value></Parameter></Parameters></XflowInstance>");
+    assertEquals(st, "<?xml version=\"1.0\" ?>" +
+            "<XflowInstance><Parameters><Parameter><Key>abc</Key><Value><![CDATA[\"<>\"]]>" +
+            "</Value></Parameter></Parameters><Priority>2</Priority>" +
+            "<Config><Property><Name>key1</Name><Value>value1</Value></Property>" +
+            "<Property><Name>key2</Name><Value>value2</Value></Property>" +
+            "</Config></XflowInstance>");
   }
 }

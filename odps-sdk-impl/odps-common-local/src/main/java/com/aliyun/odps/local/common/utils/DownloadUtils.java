@@ -49,6 +49,7 @@ import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TableTunnel.DownloadSession;
 
+import com.aliyun.odps.local.common.ColumnOrConstant;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.DownloadMode;
 import com.aliyun.odps.local.common.ExceptionCode;
@@ -185,11 +186,8 @@ public class DownloadUtils {
         + WareHouse.getInstance().getDownloadMode());
 
     List<String[]> list = new LinkedList<String[]>();
-    TableMeta tableMeta = null;
-    int columnCount;
-
     Table table = odps.tables().get(projectName, tableName);
-    tableMeta = TableMeta.fromTable(table);
+    TableMeta tableMeta = TableMeta.fromTable(table);
     TableTunnel tunnel = new TableTunnel(odps);
     String tunnelEndpoint = WareHouse.getInstance().getTunnelEndpoint();
 
@@ -204,7 +202,7 @@ public class DownloadUtils {
 
       RecordReader reader = downloadSession.openRecordReader(0, limitDownloadRecordCount);
       Record record = null;
-      columnCount = tableMeta.getCols().length;
+      int columnCount = tableMeta.getCols().length;
       while ((record = reader.read()) != null) {
         // 下载的数据不包括分区数据，分区数据在目录结构中表示，防止Map或Reduce函数处理分区数据
         String[] vals = new String[columnCount];
@@ -222,17 +220,18 @@ public class DownloadUtils {
       return list;
     }
 
-    List<Integer> indexList = LocalRunUtils.genReadColsIndexes(tableMeta, readCols);
-
-    int indexLength = indexList == null ? columnCount : indexList.size();
-    if (indexLength == columnCount) {
-      return list;
-    }
+    List<ColumnOrConstant> columnOrConstants = SchemaUtils.parseColumnConstant(readCols, tableMeta);
+    int indexLength = columnOrConstants.size();
     List<String[]> result = new LinkedList<String[]>();
     for (String[] srcData : list) {
       String[] dstData = new String[indexLength];
       for (int i = 0; i < indexLength; ++i) {
-        dstData[i] = srcData[indexList.get(i)];
+        ColumnOrConstant columnOrConstant = columnOrConstants.get(i);
+        if (columnOrConstant.isConstant()) {
+          dstData[i] = TypeConvertUtils.toString(columnOrConstant.getConstantValue(), columnOrConstant.getConstantTypeInfo(), true);
+        } else {
+          dstData[i] = srcData[columnOrConstant.getColIndex()];
+        }
         result.add(dstData);
       }
     }

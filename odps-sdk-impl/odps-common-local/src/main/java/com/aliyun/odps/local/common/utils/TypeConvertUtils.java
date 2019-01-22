@@ -143,6 +143,53 @@ public class TypeConvertUtils {
     }
   }
 
+  public static Class getOdpsJavaType(TypeInfo typeInfo) {
+    switch (typeInfo.getOdpsType()) {
+      case BIGINT:
+        return Long.class;
+      case DOUBLE:
+        return Double.class;
+      case BOOLEAN:
+        return Boolean.class;
+      case DATETIME:
+        return Date.class;
+      case STRING:
+        return String.class;
+      case DECIMAL:
+        return BigDecimal.class;
+      case TINYINT:
+        return Byte.class;
+      case SMALLINT:
+        return Short.class;
+      case INT:
+        return Integer.class;
+      case FLOAT:
+        return Float.class;
+      case CHAR:
+        return Char.class;
+      case VARCHAR:
+        return Varchar.class;
+      case DATE:
+        return java.sql.Date.class;
+      case TIMESTAMP:
+        return Timestamp.class;
+      case BINARY:
+        return Binary.class;
+      case INTERVAL_DAY_TIME:
+        return IntervalDayTime.class;
+      case INTERVAL_YEAR_MONTH:
+        return IntervalYearMonth.class;
+      case STRUCT:
+        return Struct.class;
+      case MAP:
+        return Map.class;
+      case ARRAY:
+        return List.class;
+      default:
+        throw new RuntimeException("Unknown column type: " + typeInfo.getOdpsType());
+    }
+  }
+
   private static Object transOdpsToJava(Object value, TypeInfo typeInfo, boolean isBinary) {
     if (value == null) {
       return null;

@@ -19,39 +19,29 @@
 
 package com.aliyun.odps.rest;
 
-import java.io.ByteArrayInputStream;
-import java.io.StringWriter;
-import java.lang.reflect.Field;
-import java.lang.reflect.Proxy;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
+import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.commons.util.DateUtils;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
-import javax.xml.bind.annotation.XmlSeeAlso;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-
-import com.aliyun.odps.Task;
-import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.DateUtils;
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Utilities for JAXB marshal and unmarshal
  */
 public class JAXBUtils {
-
-  static {
-    injectInternalTasks();
-  }
 
   private static final ThreadLocal<Map<String, JAXBContext>>
       threadLocal =
@@ -326,28 +316,4 @@ public class JAXBUtils {
     }
   }
 
-  private static void injectInternalTasks() {
-    XmlSeeAlso annotation = Task.class.getAnnotation(XmlSeeAlso.class);
-    Class<?>[] oldValue = annotation.value();
-    Class<?>[] newValue = Arrays.copyOf(oldValue, oldValue.length + 1);
-    try {
-      newValue[oldValue.length] = Class.forName("com.aliyun.odps.task.InternalTask");
-      Object handler = Proxy.getInvocationHandler(annotation);
-      Field f = handler.getClass().getDeclaredField("memberValues");
-      f.setAccessible(true);
-      Map<String, Object> memberValues = (Map<String, Object>) f.get(handler);
-      memberValues.put("value", newValue);
-    } catch (ClassNotFoundException e1) {
-      // If class com.aliyun.odps.task.InternalTask not found
-      // DO Nothing
-    } catch (IllegalArgumentException e) {
-      throw new RuntimeException(e);
-    } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
-    } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
-    } catch (SecurityException e) {
-      throw new RuntimeException(e);
-    }
-  }
 }

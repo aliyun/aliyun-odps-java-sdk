@@ -38,6 +38,7 @@ public final class Column {
   private String comment;
   private String label;
   private List<OdpsType> genericOdpsTypeList;
+  private List<String> extendedlabels;
 
   /**
    * 构造Column对象
@@ -63,11 +64,17 @@ public final class Column {
   }
 
   Column(String name, TypeInfo typeInfo, String comment, String label) {
+    this(name, typeInfo, comment, label, null);
+  }
+
+
+  Column(String name, TypeInfo typeInfo, String comment, String label, List<String> extendedlabels) {
     this.name = name;
     this.comment = comment;
     this.typeInfo = typeInfo;
     this.label = label;
     this.type = typeInfo.getOdpsType();
+    this.extendedlabels = extendedlabels;
 
     // if it is array or map, should init genericOdpsTypeList.
     // otherwise, getGenericTypeList returns null when init column by this constructor
@@ -234,6 +241,15 @@ public final class Column {
         return 0L;
       }
     }
+  }
+
+  /**
+   * 获取 Column 的扩展标签
+   *
+   * @return 列扩展标签
+   */
+  public List<String> getExtendedlabels() {
+    return extendedlabels;
   }
 
   public String getCategoryLabel() {

@@ -218,6 +218,56 @@ public class JobConf extends Configuration {
     return SchemaUtils.fromString(rs);
   }
 
+  public Column[] getMapOutputKeySchema4Pileline(int nodeId) {
+    String rs = get(String.format(CONF.MR2SQL_PIPELINE_OUTPUT_KEY_SCHEMA, nodeId));
+    return SchemaUtils.fromString(rs);
+  }
+
+  public Column[] getMapOutputValueSchema4Pileline(int nodeId) {
+    String rs = get(String.format(CONF.MR2SQL_PIPELINE_OUTPUT_VALUE_SCHEMA, nodeId));
+    return SchemaUtils.fromString(rs);
+  }
+
+  public String getStreamProcessor(String taskType) {
+    return get(String.format(CONF.MR2SQL_STREAMJOB_PROCESSOR, taskType));
+  }
+
+  public String getPartitioner(int nodeId) {
+    return get(String.format(CONF.MR2SQL_PARTITION_CLASS, nodeId));
+  }
+
+  public boolean isStreamJob() {
+    return get(CONF.MR2SQL_STREAMJOB_ADDENVIRONMENT) != null;
+  }
+
+  public boolean isPipeline() {
+    return get(CONF.MR2SQL_PIPELINE_LIST) != null;
+  }
+
+  public void setFunctionResources(String resourceNames) {
+    set(CONF.MR2SQL_FUNCTION_RESOURCES, resourceNames);
+  }
+
+  public String[] getFunctionResources() {
+    return getStrings(CONF.MR2SQL_FUNCTION_RESOURCES);
+  }
+
+  public void setFunctionCreateText(String text) {
+    set(CONF.MR2SQL_FUNCTION_CREATE_TEXT, text);
+  }
+
+  public String getFunctionCreateText() {
+    return get(CONF.MR2SQL_FUNCTION_CREATE_TEXT);
+  }
+
+  public void setFunctionDropText(String text) {
+    set(CONF.MR2SQL_FUNCTION_DROP_TEXT, text);
+  }
+
+  public String getFunctionDropText() {
+    return get(CONF.MR2SQL_FUNCTION_DROP_TEXT);
+  }
+
   /**
    * 设置 {@link com.aliyun.odps.mapred.Mapper} 输出到
    * {@link com.aliyun.odps.mapred.Reducer} 的 Key 行属性
@@ -376,6 +426,7 @@ public class JobConf extends Configuration {
   @SuppressWarnings("rawtypes")
   public void setOutputKeyComparatorClass(Class<? extends RecordComparator> theClass) {
     setClass(CONF.OUTPUT_KEY_COMPARATOR_CLASS, theClass, RecordComparator.class);
+    set(SessionState.MR_EXECUTION_MODE, "lot");
   }
 
   /**
@@ -561,6 +612,7 @@ public class JobConf extends Configuration {
    */
   public void setNumMapTasks(int n) {
     setInt(CONF.MAP_TASKS, n);
+    setBoolean(CONF.MR2SQL_DYNAMIC_PARALLELISM, false);
   }
 
   /**
@@ -585,6 +637,8 @@ public class JobConf extends Configuration {
    */
   public void setNumReduceTasks(int n) {
     setInt(CONF.REDUCE_TASKS, n);
+    setInt(CONF.MR2SQL_REDUCE_INSTACNES, n);
+    setBoolean(CONF.MR2SQL_DYNAMIC_PARALLELISM, false);
   }
 
   /**
@@ -801,6 +855,8 @@ public class JobConf extends Configuration {
 
   /**
    * 设置Instance优先级。优先级的取值去见为[0, 9]的整型值，数字越大，优先级越低。
+   *
+   * (注：公共云环境此参数无效)
    *
    * @param priority
    *     优先级

@@ -1,3 +1,0 @@
-project=default_mr_unittest
-table=multi_in_t1
-columns=a:STRING,b:STRING

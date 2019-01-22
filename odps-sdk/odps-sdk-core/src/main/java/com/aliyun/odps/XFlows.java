@@ -293,8 +293,48 @@ public class XFlows implements Iterable<XFlow> {
 
   @XmlRootElement(name = "XflowInstance")
   @XmlAccessorType(XmlAccessType.FIELD)
-  @XmlType(name = "", propOrder = {"RunningMode", "project", "XflowName", "parameters", "guid"})
+  @XmlType(name = "", propOrder = {"RunningMode", "project", "XflowName",
+                                   "parameters", "guid", "priority", "config"})
   public static class XFlowInstance {
+    /**
+     * Property
+     */
+    @XmlAccessorType(XmlAccessType.FIELD)
+    @XmlType(name = "", propOrder = {"name", "value"})
+    public static class Property {
+
+      @XmlElement(name = "Name", required = true)
+      private String name;
+
+      @XmlElement(name = "Value", required = true)
+      private String value;
+
+      public String getName() {
+        return name;
+      }
+
+      public void setName(String name) {
+        this.name = name;
+      }
+
+      public String getValue() {
+        return value;
+      }
+
+      public void setValue(String value) {
+        this.value = value;
+      }
+    }
+
+    /**
+     * Config
+     */
+    @XmlRootElement(name = "Config")
+    @XmlAccessorType(XmlAccessType.FIELD)
+    static class Config {
+      @XmlElement(name = "Property")
+      Set<Property> config = new LinkedHashSet<Property>();
+    }
 
     /**
      * Parameter
@@ -352,6 +392,13 @@ public class XFlows implements Iterable<XFlow> {
     @XmlElement(name = "Guid")
     private String guid;
 
+    // Priority range [0,9], 0 is the highest priority in odps
+    @XmlElement(name = "Priority")
+    private int priority = 1;
+
+    @XmlElement(name = "Config")
+    private Config config = new Config();
+
     public String getXflowName() {
       return XflowName;
     }
@@ -398,6 +445,35 @@ public class XFlows implements Iterable<XFlow> {
     public String getGuid() { return guid; }
 
     public void setGuid(String guid) { this.guid = guid; }
+
+    public int getPriority() { return priority; }
+
+    /**
+     * 设置作业优先级。优先级的取值去见为[0, 9]的整型值，数字越大，优先级越低。
+     *
+     * @param priority
+     *     优先级 (注：公共云环境此参数无效)
+     */
+    public void setPriority(int priority) { this.priority = priority; }
+
+    public Config getConfig() {
+      return config;
+    }
+
+    @XmlTransient
+    public final void setConfig(Map<String, String> config) {
+      this.config = new Config();
+      for (Entry<String, String> p : config.entrySet()) {
+        setProperty(p.getKey(), p.getValue());
+      }
+    }
+
+    public void setProperty(String name, String value) {
+      Property p = new Property();
+      p.setName(name);
+      p.setValue(value);
+      config.config.add(p);
+    }
   }
 
   public Instance execute(XFlowInstance xFlowInstance) throws OdpsException {

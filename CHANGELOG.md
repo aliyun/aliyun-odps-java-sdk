@@ -1,3 +1,13 @@
+# 0.30.1
+- support java8_161+ xml problem
+- biggraph support set running cluster
+
+# 0.30.0
+- add extended labels
+- support java9
+- support biggraph flash job
+- expand decimal scale
+
 # 0.29.10
 - provide join key for udx
 
@@ -8,7 +18,7 @@
 - increase openmr volume input/output limit from 256 to 1024
 - add user env in task settings, include user ip and mac
 
-# 0.29.6 
+# 0.29.6
 - revert xflow priority
 
 # 0.29.4
@@ -19,7 +29,7 @@
 - support java1.8_161 xml problem, force to use cdata
 
 # 0.29.2
-- add biggraph 
+- add biggraph
 - biggraph support setting running cluster
 
 # 0.29.1
@@ -32,11 +42,10 @@
 - refactor tunnel buffered writer retry
 - add volume lifecycle
 - support parent and son quota
-- tunnel add logger 
+- tunnel add logger
 - openmr support sprint-boot jar
 - support create external table
 - remove remove jcabi dep
-
 
 # 0.27.0 
 - add InstanceQueueingInfo

@@ -26,9 +26,11 @@ import com.aliyun.odps.data.IntervalYearMonth;
 import com.aliyun.odps.data.Struct;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.CharTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.VarcharTypeInfo;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Date;
@@ -73,6 +75,10 @@ public class ArgumentConverterUtils {
       return "map";
     } else if (typeInfo instanceof StructTypeInfo) {
       return "struct";
+    } else if (typeInfo instanceof CharTypeInfo) { //char(5)
+      return "char";
+    } else if (typeInfo instanceof VarcharTypeInfo) {
+      return "varchar";
     } else {
       return typeInfo.getTypeName().toLowerCase();
     }

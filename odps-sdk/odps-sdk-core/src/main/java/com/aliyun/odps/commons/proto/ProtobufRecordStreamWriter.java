@@ -19,22 +19,6 @@
 
 package com.aliyun.odps.commons.proto;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.math.BigDecimal;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
-
-import org.apache.commons.io.output.CountingOutputStream;
-import org.xerial.snappy.SnappyFramedOutputStream;
-
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -56,6 +40,20 @@ import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
+import org.apache.commons.io.output.CountingOutputStream;
+import org.xerial.snappy.SnappyFramedOutputStream;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
 
 /**
  * @author chao.liu
@@ -70,7 +68,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
   private Deflater def;
-  private Calendar calendar = null;
+  private boolean shouldTransform = false;
 
   public ProtobufRecordStreamWriter(TableSchema schema, OutputStream out) throws IOException {
     this(schema, out, new CompressOption());
@@ -106,8 +104,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
     out.writeRawBytes(value);
   }
 
-  public void setCalendar(Calendar calendar) {
-    this.calendar = calendar;
+  public void setTransform(boolean shouldTransform) {
+    this.shouldTransform = shouldTransform;
   }
 
   @Override
@@ -194,7 +192,13 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       }
       case DATETIME: {
         Date value = (Date) v;
-        Long longValue = DateUtils.date2ms(value, calendar);
+
+        Long longValue = null;
+        if (!shouldTransform) {
+          longValue = DateUtils.date2ms(value);
+        } else {
+          longValue = DateUtils.date2ms(value, DateUtils.LOCAL_CAL);
+        }
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
@@ -390,6 +394,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
   public void write(RecordPack pack) throws IOException {
     if (pack instanceof ProtobufRecordPack) {
       ProtobufRecordPack pbPack = (ProtobufRecordPack) pack;
+      pbPack.checkTransConsistency(shouldTransform);
       pbPack.getProtobufStream().writeTo(bou);
       count += pbPack.getSize();
       setCheckSum(pbPack.getCheckSum());

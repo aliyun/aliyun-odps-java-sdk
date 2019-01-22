@@ -47,6 +47,11 @@ public abstract class LotTaskUDTF extends StandaloneUDTF {
     conf.addResource("jobconf.xml");
   }
 
+  public LotTaskUDTF(String functionName) {
+    this();
+    conf.set("odps.mr.sql.functionName", functionName);
+  }
+
   /**
    * A hack to work around with protected method forward(...)
    *

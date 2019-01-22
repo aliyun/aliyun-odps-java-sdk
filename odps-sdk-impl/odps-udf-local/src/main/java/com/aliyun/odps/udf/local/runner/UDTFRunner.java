@@ -83,7 +83,7 @@ public class UDTFRunner extends BaseRunner {
       throw new LocalRunException("You must specify @Resolve annotation.");
     }
     String info = r.value()[0];
-    String[] outs = parseResolutionInfo(info);
+    String[] outs = parseResolveInfo(info);
     List<TypeInfo> inputTypes = SchemaUtils.parseResolveTypeInfo(outs[0]);
     converters = new ArgumentConverter[inputTypes.size()];
     for (int i = 0; i < inputTypes.size(); i++) {
@@ -92,7 +92,7 @@ public class UDTFRunner extends BaseRunner {
     }
   }
 
-  private String[] parseResolutionInfo(String info) throws InvalidFunctionException {
+  public static String[] parseResolveInfo(String info) throws InvalidFunctionException {
     String errMsg = "@Resolve({\"" + info + "\"}) ";
     if (info.isEmpty()) {
       throw new InvalidFunctionException(errMsg + "must not be empty string");
@@ -112,7 +112,7 @@ public class UDTFRunner extends BaseRunner {
     if (!validTypeInfo(argTypeInfos)) {
       throw new InvalidFunctionException(errMsg + "annotates wrong arguments '" + args + "'");
     }
-    String rtypes = info.substring(pos + 2, info.length());
+    String rtypes = info.substring(pos + 2);
     List<TypeInfo> rtTypeInfos = SchemaUtils.parseResolveTypeInfo(rtypes);
     if (rtTypeInfos.isEmpty()) {
       throw new InvalidFunctionException(errMsg + "annotates no output types '" + args + "'");

@@ -1,3 +1,0 @@
-project=default_mr_unittest
-table=mr_empty
-columns=a:STRING,b:STRING

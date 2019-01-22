@@ -124,7 +124,7 @@ public class ValidatorFactory {
      *     Cache tables in the same group.
      * @throws OdpsException
      */
-    private void validateTable(TableInfo table, Map<String, Table> distinctTables)
+    private void validateTable(TableInfo table, Map<String, Table> distinctTables, boolean isInput)
         throws OdpsException {
 
       Table tableDesc = distinctTables.get(
@@ -138,7 +138,7 @@ public class ValidatorFactory {
         // view is now unsupported
         tableDesc = explorer.getTable(table.getProjectName(),
                                       table.getTableName());
-        if (tableDesc.isVirtualView()) {
+        if (tableDesc.isVirtualView() && (!isInput || job.isPipeline() || (InputUtils.getTables(job).length > 1))) {
           throwException(ErrorCode.VIEW_TABLE, table.toString());
         }
         distinctTables.put(table.getProjectName() + "." + table.getTableName(),
@@ -222,7 +222,7 @@ public class ValidatorFactory {
       Map<String, Table> distinctOutputTables = new HashMap<String, Table>();
       Set<String> labelNames = new HashSet<String>();
       for (TableInfo table : tables) {
-        validateTable(table, distinctOutputTables);
+        validateTable(table, distinctOutputTables, false);
         if (labelNames.contains(table.getLabel())) {
           throwException(ErrorCode.OUTPUT_LABEL_NOT_UNIQUE, table.getLabel());
         }
@@ -253,7 +253,7 @@ public class ValidatorFactory {
         }
         Map<String, Table> distinctInputTables = new HashMap<String, Table>();
         for (TableInfo table : tables) {
-          validateTable(table, distinctInputTables);
+          validateTable(table, distinctInputTables, true);
           if (distinctInputTables.size() > 64) {
             throwException(ErrorCode.TOO_MANY_INPUT_TABLE,
                            "Expecting no more than 64 distinct tables. ");
@@ -270,9 +270,9 @@ public class ValidatorFactory {
       // Validate input volumes
       VolumeInfo[] volumes = InputUtils.getVolumes(job);
       if (volumes != null && volumes.length > 0) {
-        if (volumes.length > 1024) {
+        if (volumes.length > 256) {
           throwException(ErrorCode.TOO_MANY_INPUT_VOLUME,
-                         "Expecting no more than 1024 partitions. ");
+                         "Expecting no more than 256 partitions. ");
         }
         validateVolumes(volumes);
       }
@@ -280,9 +280,9 @@ public class ValidatorFactory {
       // Validate output volumes
       volumes = OutputUtils.getVolumes(job);
       if (volumes != null && volumes.length > 0) {
-        if (volumes.length > 1024) {
+        if (volumes.length > 256) {
           throwException(ErrorCode.TOO_MANY_OUTPUT_VOLUME,
-                         "Expecting no more than 1024 partitions. ");
+                         "Expecting no more than 256 partitions. ");
         }
         validateVolumes(volumes);
       }
