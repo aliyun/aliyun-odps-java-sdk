@@ -13,17 +13,17 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-mapred</artifactId>
-            <version>0.30.7-public</version>
+            <version>0.30.8-public</version>
         </dependency>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-lot</artifactId>
-            <version>0.30.7-public</version>
+            <version>0.30.8-public</version>
         </dependency>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-udf</artifactId>
-            <version>0.30.7-public</version>
+            <version>0.30.8-public</version>
         </dependency>
     </dependencies>
 </project>
