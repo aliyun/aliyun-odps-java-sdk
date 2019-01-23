@@ -1,3 +1,6 @@
+# 0.30.8
+- move updateProject/listProject to odps-sdk-core
+
 # 0.30.1
 - support java8_161+ xml problem
 - biggraph support set running cluster
