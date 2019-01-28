@@ -189,10 +189,6 @@ public class Projects {
    *
    */
   public Iterator<Project> iterator(String owner) {
-    if (StringUtils.isNullOrEmpty(owner)) {
-      throw new IllegalArgumentException("Owner cannot be null or empty.");
-    }
-
     return new ProjectListIterator(owner, null, null);
   }
 
@@ -200,10 +196,6 @@ public class Projects {
    * 获取 Project 列表的 iterable 接口
    */
   public Iterable<Project> iterable(final String owner) {
-    if (StringUtils.isNullOrEmpty(owner)) {
-      throw new IllegalArgumentException("Owner cannot be null or empty.");
-    }
-
     return new Iterable<Project>() {
       @Override
       public Iterator<Project> iterator() {
