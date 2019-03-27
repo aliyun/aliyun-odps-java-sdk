@@ -91,7 +91,7 @@
                 <configuration>
                     <author>false</author>
                     <excludePackageNames>
-                        com.aliyun.odps.security:com.aliyun.odps.sql:com.aliyun.odps.commons.*:com.aliyun.odps.rest:com.aliyun.odps.utils:*example*:com.aliyun.odps.tunnel.io
+                        com.aliyun.odps.commons.*:com.aliyun.odps.rest:com.aliyun.odps.utils:*example*
                     </excludePackageNames>
                     <excludes>**/DefaultRecordReader.java</excludes>
                 </configuration>
