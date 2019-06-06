@@ -21,11 +21,12 @@ package com.aliyun.odps.task;
 
 import java.util.Map;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.mapred.bridge.MetaExplorer;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class JobUtils {
 
@@ -46,7 +47,7 @@ public class JobUtils {
     if (hints != null) {
       try {
         hints.put("odps.sql.submit.mode", "script");
-        String json = JSON.toJSONString(hints);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -56,7 +57,7 @@ public class JobUtils {
 
     if (aliases != null) {
       try {
-        String json = JSON.toJSONString(aliases);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(aliases);
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);

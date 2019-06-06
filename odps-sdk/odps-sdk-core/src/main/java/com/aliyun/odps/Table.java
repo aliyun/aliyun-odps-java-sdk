@@ -35,9 +35,6 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Partition.PartitionModel;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.DefaultRecordReader;
@@ -49,6 +46,8 @@ import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoParser;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.*;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * Table表示ODPS中的表
@@ -698,149 +697,132 @@ public class Table extends LazyLoad {
     return new DefaultRecordReader(new ByteArrayInputStream(resp.getBody()), getSchema());
   }
 
-  private TableSchema   loadSchemaFromJson(String json) {
+  private TableSchema loadSchemaFromJson(String json) {
     TableSchema s = new TableSchema();
     try {
-      JSONObject tree = JSON.parseObject(json);
-      String node = tree.getString("comment");
+      JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
 
-      if (node != null) {
-        model.comment = node;
+      if (tree.has("comment")) {
+        model.comment = tree.get("comment").getAsString();
       }
 
-      node = tree.getString("owner");
-      if (node != null) {
-        model.owner = node;
+      if (tree.has("owner")) {
+        model.owner = tree.get("owner").getAsString();
       }
 
-      Long node2 = tree.getLong("createTime");
-      if (node2 != null) {
-        model.createdTime = new Date(node2 * 1000);
+      if (tree.has("createTime")) {
+        model.createdTime = new Date(tree.get("createTime").getAsLong() * 1000);
       }
 
-      node2 = tree.getLong("lastModifiedTime");
-      if (node2 != null) {
-        model.lastModifiedTime = new Date(node2 * 1000);
+      if (tree.has("lastModifiedTime")) {
+        model.lastModifiedTime = new Date(tree.get("lastModifiedTime").getAsLong() * 1000);
       }
 
-      node2 = tree.getLong("lastDDLTime");
-      if (node2 != null) {
-        model.lastMetaModifiedTime = new Date(node2 * 1000);
+      if (tree.has("lastDDLTime")) {
+        model.lastMetaModifiedTime = new Date(tree.get("lastDDLTime").getAsLong() * 1000);
       }
 
-      Boolean node3 = tree.getBoolean("isVirtualView");
-      if (node3 != null) {
-        model.isVirtualView = node3;
+      if (tree.has("isVirtualView")) {
+        model.isVirtualView = tree.get("isVirtualView").getAsBoolean();
       }
 
-      node3 = tree.getBoolean("isExternal");
-      if (node3 != null) {
-        model.isExternalTable = node3;
+      if (tree.has("isExternal")) {
+        model.isExternalTable = tree.get("isExternal").getAsBoolean();
       }
 
-      node2 = tree.getLong("lifecycle");
-      if (node2 != null) {
-        model.life = node2;
+      if (tree.has("lifecycle")) {
+        model.life = tree.get("lifecycle").getAsLong();
       }
 
-      node2 = tree.getLong("hubLifecycle");
-      if (node2 != null) {
-        model.hubLifecycle = node2;
+      if (tree.has("hubLifecycle")) {
+        model.hubLifecycle = tree.get("hubLifecycle").getAsLong();
       }
 
-      node = tree.getString("viewText");
-      if (node != null) {
-        model.viewText = node;
+      if (tree.has("viewText")) {
+        model.viewText = tree.get("viewText").getAsString();
       }
 
-      node2 = tree.getLong("size");
-      if (node2 != null) {
-        model.size = node2;
+      if (tree.has("size")) {
+        model.size = tree.get("size").getAsLong();
       }
 
-      node3 = tree.getBoolean("IsArchived");
-      if (node3 != null) {
-        model.isArchived = node3;
+      if (tree.has("IsArchived")) {
+        model.isArchived = tree.get("IsArchived").getAsBoolean();
       }
 
-      node2 = tree.getLong("PhysicalSize");
-      if (node2 != null) {
-        model.physicalSize = node2;
+      if (tree.has("PhysicalSize")) {
+        model.physicalSize = tree.get("PhysicalSize").getAsLong();
       }
 
-      node2 = tree.getLong("FileNum");
-      if (node2 != null) {
-        model.fileNum = node2;
+      if (tree.has("FileNum")) {
+        model.fileNum = tree.get("FileNum").getAsLong();
       }
 
-      node = tree.getString("storageHandler");
-      if (node != null) {
-        model.storageHandler = node;
+      if (tree.has("storageHandler")) {
+        model.storageHandler = tree.get("storageHandler").getAsString();
       }
 
-      node = tree.getString("location");
-      if (node != null) {
-        model.location = node;
+      if (tree.has("location")) {
+        model.location = tree.get("location").getAsString();
       }
 
-      node = tree.getString("resources");
-      if (node != null) {
-        model.resources = node;
+      if (tree.has("resources")) {
+        model.resources = tree.get("resources").getAsString();
       }
 
-      node = tree.getString("serDeProperties");
-      if (node != null) {
-        model.serDeProperties = (Map)JSON.parse(node);
+      if (tree.has("serDeProperties")) {
+        model.serDeProperties = new GsonBuilder().disableHtmlEscaping().create()
+                .fromJson(tree.get("serDeProperties").getAsString(),
+                new TypeToken<Map<String, String>>() {}.getType());
       }
 
-      node3 = tree.getBoolean("shardExist");
-      if (node3 != null) {
-        boolean shardExist = node3;
-
-        JSONObject node4 = tree.getJSONObject("shardInfo");
-        if (shardExist && node4 != null) {
-          model.shard = Shard.parseShard(node4);
+      if (tree.has("shardExist")) {
+        boolean shardExist = tree.get("shardExist").getAsBoolean();
+        if (shardExist && tree.has("shardInfo")) {
+          model.shard = Shard.parseShard(tree.get("shardInfo").getAsJsonObject());
         } else {
           model.shard = null;
         }
       }
 
-      node = tree.getString("tableLabel");
-      if (node != null) {
-        model.tableLabel = node;
+      if (tree.has("tableLabel")) {
+        model.tableLabel = tree.get("tableLabel").getAsString();
         // Service will return 0 if nothing set
         if (model.tableLabel.equals("0")) {
           model.tableLabel = "";
         }
       }
 
-      JSONArray columnsNode = tree.getJSONArray("columns");
-      if (columnsNode != null) {
+      if (tree.has("columns") && tree.get("columns") != null) {
+        JsonArray columnsNode = tree.get("columns").getAsJsonArray();
         for (int i = 0; i < columnsNode.size(); ++i) {
-          JSONObject n = columnsNode.getJSONObject(i);
+          JsonObject n = columnsNode.get(i).getAsJsonObject();
           s.addColumn(parseColumn(n));
         }
       }
 
-      if (tree.containsKey("extendedLabel")) {
-        JSONArray tableExtendedLabels = tree.getJSONArray("extendedLabel");
-        if (!tableExtendedLabels.isEmpty()) {
-            model.tableExtendedLabels = tableExtendedLabels.toJavaList(String.class);
+      if (tree.has("extendedLabel")) {
+        JsonArray tableExtendedLabels = tree.get("extendedLabel").getAsJsonArray();
+        if (tableExtendedLabels.size() != 0) {
+          List<String> labelList = new LinkedList<String>();
+          for (JsonElement label : tableExtendedLabels) {
+            labelList.add(label.getAsString());
+          }
+          model.tableExtendedLabels = labelList;
         }
       }
 
-      columnsNode = tree.getJSONArray("partitionKeys");
-      if (columnsNode != null) {
-          for (int i = 0; i < columnsNode.size(); ++i) {
-             JSONObject n = columnsNode.getJSONObject(i);
-             s.addPartitionColumn(parseColumn(n));
+      if (tree.has("partitionKeys") && tree.get("partitionKeys") != null) {
+        JsonArray columnsNode = tree.get("partitionKeys").getAsJsonArray();
+        for (int i = 0; i < columnsNode.size(); ++i) {
+          JsonObject n = columnsNode.get(i).getAsJsonObject();
+          s.addPartitionColumn(parseColumn(n));
         }
       }
 
-      node = tree.getString("Reserved");
-      if (node != null) {
-        model.reserved = node;
-        loadReservedJson(node);
+      if (tree.has("Reserved")) {
+        model.reserved = tree.get("Reserved").getAsString();
+        loadReservedJson(model.reserved);
       }
 
     } catch (Exception e) {
@@ -851,35 +833,35 @@ public class Table extends LazyLoad {
   }
 
   private void loadReservedJson(String reserved) {
-    JSONObject reservedJson = JSON.parseObject(reserved);
+    JsonObject reservedJson = new JsonParser().parse(reserved).getAsJsonObject();
 
     // load cluster info
     model.clusterInfo = parseClusterInfo(reservedJson);
   }
 
-  public static ClusterInfo parseClusterInfo(JSONObject jsonObject) {
-    if (jsonObject.getString("ClusterType") == null) {
+  public static ClusterInfo parseClusterInfo(JsonObject jsonObject) {
+    if (!jsonObject.has("ClusterType")) {
       return null;
     }
 
     ClusterInfo clusterInfo = new ClusterInfo();
-    clusterInfo.clusterType = jsonObject.getString("ClusterType");
-    clusterInfo.bucketNum = jsonObject.getLong("BucketNum");
-    JSONArray array = jsonObject.getJSONArray("ClusterCols");
+    clusterInfo.clusterType = jsonObject.has("ClusterType") ? jsonObject.get("ClusterType").getAsString() : null;
+    clusterInfo.bucketNum = jsonObject.has("BucketNum") ? jsonObject.get("BucketNum").getAsLong() : 0L;
+    JsonArray array = jsonObject.has("ClusterCols") ? jsonObject.get("ClusterCols").getAsJsonArray() : null;
     if (array != null) {
       clusterInfo.clusterCols = new ArrayList<String>();
       for (int i = 0; i < array.size(); ++i) {
-        clusterInfo.clusterCols.add(array.getString(i));
+        clusterInfo.clusterCols.add(array.get(i).getAsString());
       }
     }
 
-    array = jsonObject.getJSONArray("SortCols");
-    if (array != null) {
+    if (jsonObject.has("SortCols")) {
+      array = jsonObject.get("SortCols").getAsJsonArray();
       clusterInfo.sortCols = new ArrayList<SortColumn>();
       for (int i = 0; i < array.size(); ++i) {
-        JSONObject obj = array.getJSONObject(i);
+        JsonObject obj = array.get(i).getAsJsonObject();
         if (obj != null) {
-          clusterInfo.sortCols.add(new SortColumn(obj.getString("col"), obj.getString("order")));
+          clusterInfo.sortCols.add(new SortColumn(obj.get("col").getAsString(), obj.get("order").getAsString()));
         }
       }
     }
@@ -1145,20 +1127,24 @@ public class Table extends LazyLoad {
   }
 
   /* private */
-  private Column parseColumn(JSONObject node) {
-    String name = node.getString("name");
-    String typeString = node.getString("type").toUpperCase();
+  private Column parseColumn(JsonObject node) {
+    String name = node.has("name") ? node.get("name").getAsString() : null;
+    String typeString = node.has("type") ? node.get("type").getAsString().toUpperCase() : null;
     TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
 
-    String comment = node.getString("comment");
+    String comment = node.has("comment") ? node.get("comment").getAsString() : null;
     String label = null;
-    if (node.containsKey("label") && (!node.getString("label").isEmpty())) {
-      label = node.getString("label");
+    if (node.has("label") && (!node.get("label").getAsString().isEmpty())) {
+      label = node.get("label").getAsString();
     }
 
     List<String> extendedLabels = null;
-    if (node.containsKey("extendedLabels") && (!node.getJSONArray("extendedLabels").isEmpty())) {
-      extendedLabels = node.getJSONArray("extendedLabels").toJavaList(String.class);
+    if (node.has("extendedLabels") && (node.get("extendedLabels").getAsJsonArray().size() != 0)) {
+      Iterator<JsonElement> it = node.get("extendedLabels").getAsJsonArray().iterator();
+      extendedLabels = new LinkedList<String>();
+      while (it.hasNext()) {
+        extendedLabels.add(it.next().getAsString());
+      }
     }
 
     return new Column(name, typeInfo, comment, label, extendedLabels);

@@ -76,12 +76,12 @@ public class CounterUtils {
   }
 
   private static void fromJson(CounterGroup group, JsonObject obj) {
-    JsonArray counterArray = obj.get("counters").getAsJsonArray();
+    JsonArray counterArray = obj.has("counters") ? obj.get("counters").getAsJsonArray() : new JsonArray();
     for (int i = 0; i < counterArray.size(); i++) {
       JsonObject subObj = counterArray.get(i).getAsJsonObject();
-      String counterName = subObj.get("name").getAsString();
+      String counterName = subObj.has("name") ? subObj.get("name").getAsString() : null;
       Counter counter = group.findCounter(counterName);
-      long value = subObj.get("value").getAsLong();
+      long value = subObj.has("value") ? subObj.get("value").getAsLong() : 0L;
       counter.increment(value);
     }
   }

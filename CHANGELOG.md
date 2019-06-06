@@ -1,5 +1,6 @@
-# 0.30.8
-- move updateProject/listProject to odps-sdk-core
+# 0.31.0
+- remove fastjson
+- async create download session
 
 # 0.30.1
 - support java8_161+ xml problem

@@ -66,6 +66,7 @@ public class ArgumentConverterUtils {
     validSigType.put("array", new ArrayConverter());
     validSigType.put("struct", new StructConverter());
     validSigType.put("void", new VoidConverter());
+    validSigType.put("any", new AnyConverter());
   }
 
   public static String getSigType(TypeInfo typeInfo) {
@@ -285,6 +286,12 @@ public class ArgumentConverterUtils {
         throw new RuntimeException("Input data type '" + o.getClass().getName()
           + "' can't cast to '" + Void.class.getName() + "'");
       }
+    }
+  }
+  public static class AnyConverter extends ArgumentConverter {
+    @Override
+    public void check(Object o) {
+
     }
   }
 }

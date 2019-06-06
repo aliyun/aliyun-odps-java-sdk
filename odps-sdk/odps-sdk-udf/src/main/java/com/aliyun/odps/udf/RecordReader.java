@@ -29,6 +29,6 @@ public interface RecordReader {
   /**
    *
    */
-  void close();
+  void close() throws IOException;
 }
 

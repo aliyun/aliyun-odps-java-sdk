@@ -33,9 +33,11 @@ import java.util.Map.Entry;
 import java.util.Properties;
 
 import com.aliyun.odps.mapred.utils.SqlUtils;
+import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.io.FileUtils;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsHook;
 import com.aliyun.odps.OdpsHooks;
@@ -172,7 +174,8 @@ public class SessionState {
     }
 
     String jsonStr = FileUtils.readFileToString(new File(fileName));
-    Map context = JSON.parseObject(jsonStr, Map.class);
+    Gson gson = GsonObjectBuilder.get();
+    Map context = gson.fromJson(jsonStr, Map.class);
     if (context == null) {
       return;
     }
@@ -197,6 +200,10 @@ public class SessionState {
       Object priority = ctx.get("priority");
       if (priority instanceof Integer) {
         defaultJob.setInstancePriority((Integer) priority);
+      } else if (priority instanceof Double) {
+        defaultJob.setInstancePriority(((Double) priority).intValue());
+      } else if (priority instanceof Long) {
+        defaultJob.setInstancePriority(((Long) priority).intValue());
       } else {
         defaultJob.setInstancePriority(Integer.parseInt((String) priority));
       }

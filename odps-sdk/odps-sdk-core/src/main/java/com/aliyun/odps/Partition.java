@@ -30,11 +30,11 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Partition类的对象表示ODPS分区表中一个特定的分区
@@ -266,29 +266,24 @@ public class Partition extends LazyLoad {
     String resource = ResourceBuilder.buildTableResource(project, table);
 
     PartitionMeta meta = client.request(PartitionMeta.class,
-                                        resource.toString(), "GET", params);
+            resource.toString(), "GET", params);
 
     try {
-      JSONObject tree = JSON.parseObject(meta.schema);
-      Long node = tree.getLong("createTime");
-
-      if (node != null) {
-        model.createdTime = new Date(node * 1000);
+      JsonObject tree = new JsonParser().parse(meta.schema).getAsJsonObject();
+      if (tree.has("createTime")) {
+        model.createdTime = new Date(tree.get("createTime").getAsLong() * 1000);
       }
 
-      node = tree.getLong("lastDDLTime");
-      if (node != null) {
-        model.lastMetaModifiedTime = new Date(node * 1000);
+      if (tree.has("lastDDLTime")) {
+        model.lastMetaModifiedTime = new Date(tree.get("lastDDLTime").getAsLong() * 1000);
       }
 
-      node = tree.getLong("lastModifiedTime");
-      if (node != null) {
-        model.lastDataModifiedTime = new Date(node * 1000);
+      if (tree.has("lastModifiedTime")) {
+        model.lastDataModifiedTime = new Date(tree.get("lastModifiedTime").getAsLong() * 1000);
       }
 
-      node = tree.getLong("partitionSize");
-      if (node != null) {
-        size = node;
+      if (tree.has("partitionSize")) {
+        size = tree.get("partitionSize").getAsLong();
       }
 
       setLoaded(true);
@@ -305,41 +300,34 @@ public class Partition extends LazyLoad {
 
       String resource = ResourceBuilder.buildTableResource(project, table);
       try {
-        PartitionMeta
-            meta =
-            client.request(PartitionMeta.class, resource.toString(), "GET", params);
+        PartitionMeta meta =
+                client.request(PartitionMeta.class, resource.toString(), "GET", params);
 
-        JSONObject tree = JSON.parseObject(meta.schema);
+        JsonObject tree = new JsonParser().parse(meta.schema).getAsJsonObject();
 
-        Boolean node = tree.getBoolean("IsArchived");
-        if (node != null) {
-          isArchived = node;
+        if (tree.has("IsArchived")) {
+          isArchived = tree.get("IsArchived").getAsBoolean();
         }
 
-        node = tree.getBoolean("IsExstore");
-        if (node != null) {
-          isExstore = node;
+        if (tree.has("IsExstore")) {
+          isExstore = tree.get("IsExstore").getAsBoolean();
         }
 
-        Long node2 = tree.getLong("LifeCycle");
-        if (node2 != null) {
-          lifeCycle = node2;
+        if (tree.has("LifeCycle")) {
+          lifeCycle = tree.get("LifeCycle").getAsLong();
         }
 
-        node2 = tree.getLong("PhysicalSize");
-        if (node2 != null) {
-          physicalSize = node2;
+        if (tree.has("PhysicalSize")) {
+          physicalSize = tree.get("PhysicalSize").getAsLong();
         }
 
-        node2 = tree.getLong("FileNum");
-        if (node2 != null) {
-          fileNum = node2;
+        if (tree.has("FileNum")) {
+          fileNum = tree.get("FileNum").getAsLong();
         }
 
-        String node3 = tree.getString("Reserved");
-        if (node3 != null) {
-          reserved = node3;
-          loadReservedJson(node3);
+        if (tree.has("Reserved")) {
+          reserved = tree.get("Reserved").getAsString();
+          loadReservedJson(reserved);
         }
       } catch (Exception e) {
         throw new ReloadException(e.getMessage(), e);
@@ -349,7 +337,7 @@ public class Partition extends LazyLoad {
   }
 
   private void loadReservedJson(String reserved) {
-    JSONObject reservedJson = JSON.parseObject(reserved);
+    JsonObject reservedJson = new JsonParser().parse(reserved).getAsJsonObject();
 
     // load cluster info
     clusterInfo = Table.parseClusterInfo(reservedJson);

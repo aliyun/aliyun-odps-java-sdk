@@ -89,8 +89,10 @@ public class Upload {
 
     job.setMapperClass(UploadMapper.class);
 
+    // 设置资源名字, 可以在map中通过jobconf获取到
     job.set("import.filename", args[0]);
 
+    // maponly作业需要显式设置reducer的数目为0
     job.setNumReduceTasks(0);
 
     job.setMapOutputKeySchema(SchemaUtils.fromString("key:bigint"));

@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -37,6 +36,8 @@ import com.aliyun.odps.mapred.RunningJob;
 import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.task.GraphTask;
 import com.aliyun.odps.utils.CommonUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * 用于向ODPS服务端提交Graph作业
@@ -102,7 +103,7 @@ public class NetworkJobRunner extends Configured implements JobRunner {
 
     // handle settings
     try {
-      String json = JSON.toJSONString(settings);
+      String json = new GsonBuilder().disableHtmlEscaping().create().toJson(settings);
       task.setProperty("settings", json);
     } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
@@ -112,7 +113,7 @@ public class NetworkJobRunner extends Configured implements JobRunner {
     Map<String, String> aliases = SessionState.get().getAliases();
     if (aliases != null) {
       try {
-        String json = JSON.toJSONString(aliases);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(aliases);
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);

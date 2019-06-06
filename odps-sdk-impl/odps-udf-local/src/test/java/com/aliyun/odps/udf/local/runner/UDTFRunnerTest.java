@@ -23,6 +23,7 @@ import com.aliyun.odps.local.common.utils.SchemaUtils;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.VarcharTypeInfo;
 import com.aliyun.odps.udf.local.InvalidFunctionException;
+import com.aliyun.odps.udf.local.examples.Udtf_any;
 import com.aliyun.odps.udf.local.examples.Udtf_complex;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -318,6 +319,16 @@ public class UDTFRunnerTest {
     Assert.assertEquals("A41,[A41x, A41y]", StringUtils.join(out.get(3), ","));
   }
 
+  @Test
+  public void testAny() throws LocalRunException, UDFException{
+    runner = new UDTFRunner(null, new Udtf_any());
+    runner.feed(new Object[]{"one", "one"}).feed(new Object[]{"two", "three"});
+    List<Object[]> out = runner.yield();
+    Assert.assertEquals(2, out.size());
+    Assert.assertEquals("true,one,one", StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("false,two,three", StringUtils.join(out.get(1), ","));
+  }
+
   @Test(expected = IllegalArgumentException.class)
   public void parseInvalidResolveTypeInfo() throws InvalidFunctionException{
     UDTFRunner.parseResolveInfo("long->long");
@@ -337,6 +348,12 @@ public class UDTFRunnerTest {
     List<TypeInfo> inputTypes = SchemaUtils.parseResolveTypeInfo(outs[0]);
     Assert.assertEquals(1, inputTypes.size());
     Assert.assertTrue(inputTypes.get(0) instanceof VarcharTypeInfo);
+
+    outs = UDTFRunner.parseResolveInfo("ANY, * -> boolean, *");
+    Assert.assertEquals(2, outs.length);
+    Assert.assertEquals("ANY, * ", outs[0]);
+    Assert.assertEquals(" boolean, *", outs[1]);
+
   }
 
 }

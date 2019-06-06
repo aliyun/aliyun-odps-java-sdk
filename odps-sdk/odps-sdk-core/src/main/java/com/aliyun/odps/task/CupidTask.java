@@ -19,11 +19,12 @@
 
 package com.aliyun.odps.task;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -51,19 +52,13 @@ public class CupidTask extends Task {
     task.setProperty("type", "cupid");
     if (hints != null) {
       try {
-        String json = JSON.toJSONString(hints);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
       }
     }
     return task;
-  }
-
-  public static Instance run(Odps odps, String project, String plan, Map<String, String> hints,
-                             Integer priority, String runningCluster, String jobName) throws OdpsException {
-    CupidTask task = GetCupidTask(plan, "cupid_task", hints);
-    return odps.instances().create(project, task, priority, runningCluster, jobName);
   }
 
   public static Instance run(Odps odps, String project, String plan, Map<String, String> hints,

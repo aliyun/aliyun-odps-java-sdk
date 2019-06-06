@@ -43,7 +43,7 @@ public class Grep {
   /**
    * RegexMapper
    **/
-  public class RegexMapper extends MapperBase {
+  public static class RegexMapper extends MapperBase {
     private Pattern pattern;
     private int group;
 
@@ -77,7 +77,7 @@ public class Grep {
   /**
    * LongSumReducer
    **/
-  public class LongSumReducer extends ReducerBase {
+  public static class LongSumReducer extends ReducerBase {
     private Record result = null;
 
     @Override
@@ -101,7 +101,7 @@ public class Grep {
   /**
    * A {@link Mapper} that swaps keys and values.
    **/
-  public class InverseMapper extends MapperBase {
+  public static class InverseMapper extends MapperBase {
     private Record word;
     private Record count;
 
@@ -125,7 +125,7 @@ public class Grep {
   /**
    * IdentityReducer
    **/
-  public class IdentityReducer extends ReducerBase {
+  public static class IdentityReducer extends ReducerBase {
     private Record result = null;
 
     @Override
@@ -164,6 +164,7 @@ public class Grep {
     InputUtils.addTable(TableInfo.builder().tableName(args[0]).build(), grepJob);
     OutputUtils.addTable(TableInfo.builder().tableName(args[1]).build(), grepJob);
 
+    // 设置grepJob的grep的正则表达式
     grepJob.set("mapred.mapper.regex", args[3]);
     if (args.length == 5) {
       grepJob.set("mapred.mapper.regex.group", args[4]);
@@ -172,6 +173,7 @@ public class Grep {
     @SuppressWarnings("unused")
     RunningJob rjGrep = JobClient.runJob(grepJob);
 
+    // grepJob的输出作为sortJob的输入
     JobConf sortJob = new JobConf();
 
     sortJob.setMapperClass(InverseMapper.class);

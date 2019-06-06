@@ -25,10 +25,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Map;
 
+import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang.StringUtils;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.TypeReference;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.Mapper;
 import com.aliyun.odps.mapred.bridge.streaming.io.InputWriter;
@@ -76,11 +77,10 @@ public class PipeMapper extends PipeMapRed implements Mapper {
     context.getJobConf().set("map.input.columns", StringUtils.join(ti.getCols(), ","));
 
     try {
-      Map<String, Object> inputConfigs =
-          JSON.parseObject(
-              context.getJobConf().get("stream.map.input.configs", null),
-              new TypeReference<Map<String, Object>>() {
-              }.getType());
+      Gson gson = GsonObjectBuilder.get();
+      Map<String, Object> inputConfigs = gson.fromJson(
+                      context.getJobConf().get("stream.map.input.configs", null),
+                      new TypeToken<Map<String, Object>>() {}.getType());
       if (inputConfigs == null) {
         throw new RuntimeException("input configs is null");
       }

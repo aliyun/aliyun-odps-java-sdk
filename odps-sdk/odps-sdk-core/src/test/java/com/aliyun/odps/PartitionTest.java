@@ -74,6 +74,7 @@ public class PartitionTest extends TestBase {
     Table table = odps.tables().get(TABLE_NAME);
     Partition partition = table.getPartition(new PartitionSpec("pt='1',ds='1'"));
     Assert.assertTrue("size must > 0", partition.getSize() > 0);
+    Assert.assertTrue("physical size must > 0", partition.getPhysicalSize() > 0);
     partition.getCreatedTime();
     partition.getLastMetaModifiedTime();
     partition.getLastDataModifiedTime();

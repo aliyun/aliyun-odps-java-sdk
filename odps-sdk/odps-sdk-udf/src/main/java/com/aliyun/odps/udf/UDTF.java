@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.udf;
 
+import com.aliyun.odps.type.TypeInfo;
 import java.io.IOException;
 
 /**
@@ -75,12 +76,27 @@ public abstract class UDTF implements ContextFunction {
    * @throws UDFException
    *     通用{@link UDF}异常
    */
+  @Deprecated
   public OdpsType[] resolve(OdpsType[] inputTypes) throws UDFException {
     try {
       return initialize(inputTypes);
     } catch (Exception e) {
       throw new UDFException(e);
     }
+  }
+
+  /**
+   * 用于输入、输出类型 {@link TypeInfo} 之间的转换
+   * 不存在转换问题通常不需要关心。
+   *
+   * @param typeInfos
+   *     输入的类型
+   * @return 转换后的输出类型
+   * @throws UDFException
+   *     通用{@link UDF}异常
+   */
+  public TypeInfo[] resolve(TypeInfo[] typeInfos) throws UDFException {
+    return null;
   }
 
   /**

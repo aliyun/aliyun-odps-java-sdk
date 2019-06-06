@@ -20,8 +20,6 @@ package com.aliyun.odps.io;
 
 import com.aliyun.odps.data.Varchar;
 
-import static com.sun.corba.se.spi.activation.IIOP_CLEAR_TEXT.value;
-
 /**
  * VarcharWritable 提供了 varchar 的 {@link Writable} 和 {@link WritableComparable} 的实现
  */
@@ -45,7 +43,11 @@ public class VarcharWritable extends Text {
   }
 
   public Varchar get() {
-    return new Varchar(value);
+    return new Varchar(getText());
+  }
+
+  public String getText() {
+    return super.toString();
   }
 
   public void set(Varchar varchar) {

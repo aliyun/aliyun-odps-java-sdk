@@ -25,13 +25,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.conf.Configuration;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.*;
 
 /**
  * JobConf 描述了一个ODPS Graph 作业的配置.
@@ -265,9 +263,10 @@ public class JobConf extends Configuration {
     tbl.validate();
     
     String inputDesc = get(GRAPH_CONF.INPUT_DESC, "[]");
-    JSONArray array = JSON.parseArray(inputDesc);
+    JsonArray array = new JsonParser().parse(inputDesc).getAsJsonArray();
     array.add(toJson(tbl, cols));
-    set(GRAPH_CONF.INPUT_DESC, JSON.toJSONString(array));
+    Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+    set(GRAPH_CONF.INPUT_DESC, gson.toJson(array));
   }
 
 
@@ -988,51 +987,51 @@ public class JobConf extends Configuration {
     }
   }
 
-  private static JSONObject toJson(TableInfo tbl, String[] cols) {
-    JSONObject obj = new JSONObject(true);
+  private static JsonObject toJson(TableInfo tbl, String[] cols) {
+    JsonObject obj = new JsonObject();
     String projectName = tbl.getProjectName();
     if (projectName == null) {
       projectName = "";
     }
-    obj.put("projName", projectName);
-    obj.put("tblName", tbl.getTableName());
-    JSONArray array = new JSONArray();
+    obj.addProperty("projName", projectName);
+    obj.addProperty("tblName", tbl.getTableName());
+    JsonArray array = new JsonArray();
     LinkedHashMap<String, String> partSpec = tbl.getPartSpec();
     for (Map.Entry<String, String> entry : partSpec.entrySet()) {
       String key = StringUtils.strip(entry.getKey(), "'\"");
       String value = StringUtils.strip(entry.getValue(), "'\"");
-      array.add(key + "=" + value);
+      array.add(new JsonPrimitive(key + "=" + value));
     }
-    obj.put("partSpec", array);
-    obj.put("cols", cols == null ? "" : StringUtils.join(cols, ','));
+    obj.add("partSpec", array);
+    obj.addProperty("cols", cols == null ? "" : StringUtils.join(cols, ','));
+    Gson gson = new GsonBuilder().disableHtmlEscaping().create(); // remove unicode characters
+    obj = new JsonParser().parse(gson.toJson(obj)).getAsJsonObject();
     return obj;
   }
 
-
   private void processOutput(TableInfo tbl, String label, boolean overwrite) {
     String outputDesc = get(GRAPH_CONF.OUTPUT_DESC, "[]");
-    JSONArray array = JSON.parseArray(outputDesc);
+    JsonArray array = new JsonParser().parse(outputDesc).getAsJsonArray();
     array.add(toJson(tbl, label, overwrite));
-    set(GRAPH_CONF.OUTPUT_DESC, JSON.toJSONString(array));
+    set(GRAPH_CONF.OUTPUT_DESC, new GsonBuilder().disableHtmlEscaping().create().toJson(array));
   }
 
-  private JSONObject toJson(TableInfo tbl, String label, boolean overwrite) {
-    JSONObject obj = new JSONObject(true);
+  private JsonObject toJson(TableInfo tbl, String label, boolean overwrite) {
+    JsonObject obj = new JsonObject();
     String projectName = tbl.getProjectName();
     if (projectName == null) {
       projectName = "";
     }
-    obj.put("projName", projectName);
-    obj.put("tblName", tbl.getTableName());
-    JSONArray array = new JSONArray();
+    obj.addProperty("projName", projectName);
+    obj.addProperty("tblName", tbl.getTableName());
+    JsonArray array = new JsonArray();
     LinkedHashMap<String, String> partSpec = tbl.getPartSpec();
     for (Map.Entry<String, String> entry : partSpec.entrySet()) {
-      array.add(entry.getKey() + "=" + entry.getValue());
+      array.add(new JsonPrimitive(entry.getKey() + "=" + entry.getValue()));
     }
-    obj.put("partSpec", array);
-    String lab = (label == null) ? "" : label;
-    obj.put("label", lab);
-    obj.put("overwrite", overwrite);
+    obj.add("partSpec", array);
+    obj.addProperty("label", label == null ? "" : label);
+    obj.addProperty("overwrite", overwrite);
     return obj;
   }
 

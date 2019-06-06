@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.30.9-public</version>
+        <version>0.31.3-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -30,10 +30,7 @@
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-mapper-asl</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-        </dependency>
+      
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -80,6 +77,10 @@
             <groupId>com.sun.xml.bind</groupId>
             <artifactId>jaxb-impl</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
 
     </dependencies>
 
@@ -114,49 +115,6 @@
                     <timestampFormat>{0,date,yyyy-MM-dd HH:mm:ss}</timestampFormat>
                     <shortRevisionLength>7</shortRevisionLength>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>1.8</version>
-                <executions>
-                    <execution>
-                        <id>compile-protoc</id>
-                        <phase>generate-sources</phase>
-                        <configuration>
-                            <tasks>
-                                <path id="proto.path">
-                                    <fileset dir="./src/main/resources/">
-                                        <include name="xstream_pack.proto" />
-                                    </fileset>
-                                </path>
-                                <pathconvert pathsep=" " property="proto.files" refid="proto.path" />
-                                <exec executable="../protoc/protoc-2.4.1.sh" failonerror="true"
-                                    osfamily="unix">
-                                    <arg value="--java_out=${basedir}/src/main/java" />
-                                    <arg value="-I${basedir}" />
-                                    <arg line="${proto.files}" />
-                                </exec>
-                                <exec executable="../protoc/protoc-2.4.1.sh" failonerror="true"
-                                    osfamily="mac">
-                                    <arg value="--java_out=${basedir}/src/main/java" />
-                                    <arg value="-I${basedir}" />
-                                    <arg line="${proto.files}" />
-                                </exec>
-                                <exec executable="${basedir}/../protoc/protoc.exe"
-                                    failonerror="true" osfamily="windows">
-                                    <arg value="--java_out=${basedir}/src/main/java" />
-                                    <arg value="-I${basedir}" />
-                                    <arg line="${proto.files}" />
-                                </exec>
-
-                            </tasks>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
         <resources>

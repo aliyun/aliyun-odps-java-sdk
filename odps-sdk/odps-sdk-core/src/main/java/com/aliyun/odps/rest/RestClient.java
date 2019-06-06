@@ -35,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.SSLHandshakeException;
 import javax.xml.bind.JAXBException;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.NoSuchObjectException;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
@@ -54,6 +53,8 @@ import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
 import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.commons.util.backoff.FixedBackOffStrategy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * RESTful API客户端
@@ -61,7 +62,8 @@ import com.aliyun.odps.commons.util.backoff.FixedBackOffStrategy;
 public class RestClient {
 
   static class RestRetryStrategy extends RetryStrategy {
-    RestRetryStrategy(int limit, BackOffStrategy strategy)  {
+
+    RestRetryStrategy(int limit, BackOffStrategy strategy) {
       super(limit, strategy);
     }
 
@@ -70,7 +72,7 @@ public class RestClient {
       if (e instanceof OdpsException) {
         OdpsException err = (OdpsException) e;
 
-        if(err.getStatus() != null && err.getStatus() / 100 == 4) {
+        if (err.getStatus() != null && err.getStatus() / 100 == 4) {
           return false;
         }
       }
@@ -127,7 +129,8 @@ public class RestClient {
   private static final String
       USER_AGENT_PREFIX =
       "JavaSDK" + " Revision:" + SvnRevisionUtils.getSvnRevision()
-      + " Version:" + SvnRevisionUtils.getMavenVersion() + " JavaVersion:" + SvnRevisionUtils.getJavaVersion();
+      + " Version:" + SvnRevisionUtils.getMavenVersion() + " JavaVersion:" + SvnRevisionUtils
+          .getJavaVersion();
 
   private String userAgent;
 
@@ -339,7 +342,7 @@ public class RestClient {
       if (deprecatedMaps.isEmpty()) {
         return;
       }
-      String deprecatedLogs = JSON.toJSONString(deprecatedMaps);
+      String deprecatedLogs = new GsonBuilder().disableHtmlEscaping().create().toJson(deprecatedMaps);
       OdpsDeprecatedLogger.getDeprecatedCalls().clear();
 
       String project = getDefaultProject();
@@ -360,6 +363,7 @@ public class RestClient {
 
     if (!resp.isOK()) {
       ErrorMessage error = null;
+
       try {
         error = JAXBUtils.unmarshal(resp, ErrorMessage.class);
       } catch (Exception e) {
@@ -376,8 +380,9 @@ public class RestClient {
       } else {
         if (error != null) {
           e = new OdpsException(error.getMessage(), new RestException(error));
-        } else {         
-          e = new OdpsException(String.valueOf(resp.getStatus()));          
+        } else {
+          String errorMessage = resp.getBody() == null ? null : new String(resp.getBody());
+          e = new OdpsException(errorMessage);
         }
       }
 

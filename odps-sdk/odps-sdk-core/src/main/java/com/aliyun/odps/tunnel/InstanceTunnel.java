@@ -26,7 +26,6 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -40,6 +39,8 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 
 public class InstanceTunnel {
@@ -430,30 +431,28 @@ public class InstanceTunnel {
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
         String json = IOUtils.readStreamAsString(is);
-        JSONObject tree = JSONObject.parseObject(json);
+        JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
 
         // session id
-        String node = tree.getString("DownloadID");
-        if (node != null) {
-          id = node;
+        if (tree.has("DownloadID")) {
+          id = tree.get("DownloadID").getAsString();
         }
 
         // status
-        node = tree.getString("Status");
-        if (node != null) {
-          status = DownloadStatus.valueOf(node.toUpperCase());
+        if (tree.has("Status")) {
+          String downloadStatus = tree.get("Status").getAsString().toUpperCase();
+          status = DownloadStatus.valueOf(downloadStatus);
         }
 
         // record count
-        Long node2 = tree.getLong("RecordCount");
-        if (node2 != null) {
-          count = node2.longValue();
+        if (tree.has("RecordCount")) {
+          count = tree.get("RecordCount").getAsLong();
         }
 
         // schema
-        JSONObject node3 = tree.getJSONObject("Schema");
-        if (node3 != null) {
-          schema = new TunnelTableSchema(node3);
+        if (tree.has("Schema")) {
+          JsonObject tunnelTableSchema = tree.get("Schema").getAsJsonObject();
+          schema = new TunnelTableSchema(tunnelTableSchema);
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);

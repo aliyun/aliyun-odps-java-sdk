@@ -32,7 +32,6 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.JAXBUtils;
@@ -40,6 +39,8 @@ import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * Tables表示ODPS中所有{@link Table}的集合
@@ -758,7 +759,7 @@ public class Tables implements Iterable<Table> {
       Map<String, String> hints, Map<String, String> aliases) throws OdpsException {
     if (hints != null) {
       try {
-        String json = JSON.toJSONString(hints);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -767,7 +768,7 @@ public class Tables implements Iterable<Table> {
 
     if (aliases != null) {
       try {
-        String json = JSON.toJSONString(aliases);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(aliases);
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);

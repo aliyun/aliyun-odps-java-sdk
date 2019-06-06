@@ -50,7 +50,7 @@ public class SqlGenerator {
     aliasSets.add("odps-sdk-core.jar");
     aliasSets.add("odps-sdk-mapred.jar");
     aliasSets.add("odps-mapred-bridge.jar");
-    aliasSets.add("fastjson.jar");
+//    aliasSets.add("fastjson.jar");
     aliasSets.add("jobconf.jar");
   }
 

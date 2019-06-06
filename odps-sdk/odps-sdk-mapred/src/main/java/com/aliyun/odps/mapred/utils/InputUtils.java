@@ -33,7 +33,7 @@ import com.google.gson.GsonBuilder;
  */
 public class InputUtils {
 
-  private static final Gson gson = new GsonBuilder().create();
+  private static final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 
   private final static String INPUT_DESC = "odps.mapred.input.desc";
 

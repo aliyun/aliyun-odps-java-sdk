@@ -27,13 +27,13 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.conf.Configuration;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.graph.Aggregator;
@@ -202,30 +202,30 @@ public class LocalGraphRunUtils {
   private static TableInfo[] getTables(JobConf conf, String descKey) throws IOException {
     String inputDesc = conf.get(descKey, "[]");
     if (inputDesc != "[]") {
-      JSONArray inputs = JSON.parseArray(inputDesc);
+      JsonArray inputs = new JsonParser().parse(inputDesc).getAsJsonArray();
       TableInfo[] infos = new TableInfo[inputs.size()];
       for (int i = 0; i < inputs.size(); i++) {
-        JSONObject input = inputs.getJSONObject(i);
-        String projName = input.getString("projName");
+        JsonObject input = inputs.get(i).getAsJsonObject();
+        String projName = input.has("projName") ? input.get("projName").getAsString() : null;
         if (StringUtils.isEmpty(projName)) {
           projName = SessionState.get().getOdps().getDefaultProject();
         }
-        String tblName = input.getString("tblName");
+        String tblName = input.has("tblName") ? input.get("tblName").getAsString() : null;
         if (StringUtils.isEmpty(tblName)) {
           throw new IOException(ExceptionCode.ODPS_0720001
-                                + " - input table name cann't be empty: " + input);
+                  + " - input table name cann't be empty: " + input);
         }
 
-        JSONArray parts = input.getJSONArray("partSpec");
+        JsonArray parts = input.has("partSpec") ? input.get("partSpec").getAsJsonArray() : new JsonArray();
         LinkedHashMap<String, String> partSpec = new LinkedHashMap<String, String>();
         for (int j = 0; j < parts.size(); j++) {
-          String part = parts.getString(j);
+          String part = parts.get(j).getAsString();
           String[] part_val = part.split("=");
           partSpec.put(part_val[0], part_val[1]);
         }
         String[] cols = null;
-        if (input.get("cols") != null) {
-          String readCols = input.getString("cols");
+        if (input.has("cols")) {
+          String readCols = input.get("cols").getAsString();
 
           // check column duplicate
           cols = readCols.split("\\,");
@@ -233,20 +233,20 @@ public class LocalGraphRunUtils {
             for (int k = cur + 1; k < cols.length; ++k) {
               if (cols[cur].equals(cols[k])) {
                 throw new IOException(ExceptionCode.ODPS_0720091 + " - "
-                                      + cols[cur]);
+                        + cols[cur]);
               }
             }
           }
         }
         String label = TableInfo.DEFAULT_LABEL;
-        if (input.get("label") != null) {
-          String tmpLabel = input.getString("label");
+        if (input.has("label")) {
+          String tmpLabel = input.get("label").getAsString();
           if (!StringUtils.isEmpty(tmpLabel)) {
             label = tmpLabel;
           }
         }
         TableInfo info = TableInfo.builder().tableName(tblName).projectName(projName)
-            .partSpec(partSpec).cols(cols).label(label).build();
+                .partSpec(partSpec).cols(cols).label(label).build();
         infos[i] = info;
       }
       return infos;

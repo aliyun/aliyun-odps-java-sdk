@@ -228,7 +228,7 @@ public class DownloadUtils {
       for (int i = 0; i < indexLength; ++i) {
         ColumnOrConstant columnOrConstant = columnOrConstants.get(i);
         if (columnOrConstant.isConstant()) {
-          dstData[i] = TypeConvertUtils.toString(columnOrConstant.getConstantValue(), columnOrConstant.getConstantTypeInfo(), true);
+          dstData[i] = TypeConvertUtils.toString(columnOrConstant.getConstantValue(), columnOrConstant.getConstantTypeInfo());
         } else {
           dstData[i] = srcData[columnOrConstant.getColIndex()];
         }
@@ -360,7 +360,7 @@ public class DownloadUtils {
 
   private static String getColumnValueString(TableMeta tableMeta, Record record, int colIndex) {
     Column col = tableMeta.getCols()[colIndex];
-    return TypeConvertUtils.toString(record.get(colIndex), col.getTypeInfo(), true);
+    return TypeConvertUtils.toString(record.get(colIndex), col.getTypeInfo());
   }
 
   private static boolean matches(PartitionSpec spec, Map<String, String> parts) {

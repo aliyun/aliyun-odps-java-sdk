@@ -19,35 +19,35 @@
 
 package com.aliyun.odps.tunnel;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoParser;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 class TunnelTableSchema extends TableSchema {
 
-  public TunnelTableSchema(JSONObject node) {
-    JSONArray columns = node.getJSONArray("columns");
+  public TunnelTableSchema(JsonObject node) {
+    JsonArray columns = node.has("columns") ? node.get("columns").getAsJsonArray() : new JsonArray();
     for (int i = 0; i < columns.size(); ++i) {
-      JSONObject column = columns.getJSONObject(i);
+      JsonObject column = columns.get(i).getAsJsonObject();
       Column col = parseColumn(column);
       addColumn(col);
     }
 
-    columns = node.getJSONArray("partitionKeys");
+    columns = node.has("partitionKeys") ? node.get("partitionKeys").getAsJsonArray() : new JsonArray();
     for (int i = 0; i < columns.size(); ++i) {
-      JSONObject column = columns.getJSONObject(i);
+      JsonObject column = columns.get(i).getAsJsonObject();
       Column col = parseColumn(column);
       addPartitionColumn(col);
     }
   }
 
-  private Column parseColumn(JSONObject column) {
-    String name = column.getString("name");
-    String type = column.getString("type");
-    String comment = column.getString("comment");
+  private Column parseColumn(JsonObject column) {
+    String name = column.has("name") ? column.get("name").getAsString() : null;
+    String type = column.has("type") ? column.get("type").getAsString() : null;
+    String comment = column.has("comment") ? column.get("comment").getAsString() : null;
     Column col = null;
     TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(type);
     col = new Column(name, typeInfo, comment);

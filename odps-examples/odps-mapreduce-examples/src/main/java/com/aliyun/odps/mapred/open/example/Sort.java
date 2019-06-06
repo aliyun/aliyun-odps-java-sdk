@@ -64,7 +64,7 @@ public class Sort {
 
   }
 
-  public class IdentityReducer extends ReducerBase {
+  public static class IdentityReducer extends ReducerBase {
 
     private Record result = null;
 
@@ -101,6 +101,8 @@ public class Sort {
     jobConf.setMapperClass(IdentityMapper.class);
     jobConf.setReducerClass(IdentityReducer.class);
 
+    // 为了全局有序，这里设置了reducer的个数为1，所有的数据都会集中到一个reducer上面
+    // 只能用于小数据量，大数据量需要考虑其他的方式，比如TeraSort
     jobConf.setNumReduceTasks(1);
 
     jobConf.setMapOutputKeySchema(SchemaUtils.fromString("key:bigint"));

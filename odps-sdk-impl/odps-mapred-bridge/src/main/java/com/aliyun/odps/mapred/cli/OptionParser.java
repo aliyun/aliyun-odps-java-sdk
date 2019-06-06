@@ -26,6 +26,9 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -35,13 +38,13 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.Account.AccountProvider;
 import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.mapred.conf.SessionState;
+
 
 /**
  * Cli argument parser.
@@ -144,7 +147,8 @@ public class OptionParser {
       String aliases = cmd.getOptionValue("aliases");
       Map<String, String> map;
       try {
-        map = JSON.parseObject(aliases, Map.class);
+        map = new GsonBuilder().disableHtmlEscaping().create()
+                .fromJson(aliases, new TypeToken<Map<String, String>>() {}.getType());
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

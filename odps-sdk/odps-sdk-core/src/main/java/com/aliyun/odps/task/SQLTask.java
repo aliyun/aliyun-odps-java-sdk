@@ -22,16 +22,11 @@ package com.aliyun.odps.task;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONException;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
@@ -49,6 +44,7 @@ import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.StringUtils;
 import com.csvreader.CsvReader;
+import com.google.gson.*;
 
 /**
  * SQLTask的定义
@@ -516,8 +512,17 @@ public class SQLTask extends Task {
     String warnings = instance.getTaskInfo(taskName, "warnings");
 
     try {
-      return JSON.parseArray(JSON.parseObject(warnings).getString("warnings"), String.class);
-    } catch (JSONException e) {
+      List<String> warningList = new LinkedList<String>();
+      JsonObject jsonObject = new JsonParser().parse(warnings).getAsJsonObject();
+      if (!jsonObject.has("warnings")) {
+        return null;
+      }
+      JsonArray array = jsonObject.get("warnings").getAsJsonArray();
+      for (JsonElement element : array) {
+        warningList.add(element.getAsString());
+      }
+      return warningList;
+    } catch (JsonParseException e) {
       return null;
     }
   }
@@ -589,24 +594,7 @@ public class SQLTask extends Task {
     return run(odps, project, sql, AnonymousSQLTaskName, hints, aliases, "sql");
   }
 
-  /**
-   * 运行SQL
-   *
-   * @param odps
-   *     {@link Odps}对象
-   * @param project
-   *     任务运行时所属的{@link Project}名称
-   * @param sql
-   *     需要运行的SQL查询
-   * @param taskName
-   *     任务名称
-   * @param hints
-   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
-   * @param aliases
-   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
-   * @return 作业运行实例 {@link Instance}
-   * @throws OdpsException
-   */
+  /*Un-document*/
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
                              Map<String, String> aliases) throws OdpsException {
@@ -654,7 +642,7 @@ public class SQLTask extends Task {
 
     if (hints != null) {
       try {
-        String json = JSON.toJSONString(hints);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
@@ -663,7 +651,7 @@ public class SQLTask extends Task {
 
     if (aliases != null) {
       try {
-        String json = JSON.toJSONString(aliases);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(aliases);
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
