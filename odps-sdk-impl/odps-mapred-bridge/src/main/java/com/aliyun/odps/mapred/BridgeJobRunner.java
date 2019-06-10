@@ -37,15 +37,16 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONException;
-import com.alibaba.fastjson.parser.Feature;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
@@ -121,8 +122,6 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
     applyFrameworkResource(Mapper.class, "odps-sdk-mapred.jar", padding, added);
     applyFrameworkResource(BridgeJobRunner.class, "odps-mapred-bridge.jar",
         padding, added);
-    applyFrameworkResource(JSON.class, "fastjson.jar",
-                           padding, added);
   }
 
   private void applyFrameworkResource(Class<?> clz, String alias,
@@ -176,9 +175,10 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
     if (job.get("stream.temp.resource.alias") != null) {
       String aliasJson = job.get("stream.temp.resource.alias");
       try {
-        aliasToTempResource.putAll((Map<String, String>) JSON.parseObject(
-            aliasJson, Map.class, Feature.OrderedField));
-      } catch (JSONException e) {
+        Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+        aliasToTempResource.putAll((Map<String, String>) gson.fromJson(aliasJson,
+                new TypeToken<Map<String, String>>() {}.getType()));
+      } catch (JsonParseException e) {
         throw new OdpsException("parse stream temp resource alias json failed!", e);
       }
     }

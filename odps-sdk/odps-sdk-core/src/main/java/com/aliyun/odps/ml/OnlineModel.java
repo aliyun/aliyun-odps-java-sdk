@@ -8,12 +8,13 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.LazyLoad;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.RestClient;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * OnlineModel表示ODPS中的在线模型
@@ -215,7 +216,8 @@ public class OnlineModel extends LazyLoad {
     if (this.modelDesc.usedRes == null && client != null) {
       lazyLoad();
     }
-    return JSON.parseObject(this.modelDesc.usedRes, ModelResource.class);
+    return new GsonBuilder().disableHtmlEscaping().create()
+            .fromJson(this.modelDesc.usedRes, ModelResource.class);
   }
 
   /**
@@ -227,7 +229,8 @@ public class OnlineModel extends LazyLoad {
     if (this.modelDesc.applyRes == null && client != null) {
       lazyLoad();
     }
-    return JSON.parseObject(this.modelDesc.applyRes, ModelResource.class);
+    return new GsonBuilder().disableHtmlEscaping().create()
+            .fromJson(this.modelDesc.applyRes, ModelResource.class);
   }
 
   /**

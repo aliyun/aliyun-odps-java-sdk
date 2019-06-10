@@ -111,6 +111,7 @@ public class UserDefinedCounters {
 
     RunningJob rJob = JobClient.runJob(job);
 
+    // 在作业成功结束后，可以获取到job里面的自定义counter的值
     Counters counters = rJob.getCounters();
     long m = counters.findCounter(MyCounter.MAP_TASKS).getValue();
     long r = counters.findCounter(MyCounter.REDUCE_TASKS).getValue();

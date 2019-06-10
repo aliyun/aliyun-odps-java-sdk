@@ -19,7 +19,7 @@ public abstract class Extractor {
    * @param inputs: set of input streams, each corresponding to one input file
    * @param attributes: encapsulate any attributes needed that describe the associated input data
    **/
-  public abstract void setup(ExecutionContext ctx, InputStreamSet inputs, DataAttributes attributes);
+  public abstract void setup(ExecutionContext ctx, InputStreamSet inputs, DataAttributes attributes) throws IOException;
 
   /**
    * Interface for extracting a schematized record from an input stream
@@ -30,5 +30,5 @@ public abstract class Extractor {
   /**
    * Interface for operations upon extractor exit, implementation can be no-op
    **/
-  public abstract void close();
+  public abstract void close() throws IOException;
 }

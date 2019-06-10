@@ -32,7 +32,7 @@ import com.google.gson.GsonBuilder;
  */
 public class OutputUtils {
 
-  private static final Gson gson = new GsonBuilder().create();
+  private static final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 
   private final static String OUTPUT_DESC = "odps.mapred.output.desc";
 

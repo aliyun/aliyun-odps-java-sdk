@@ -25,14 +25,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Instance.TaskSummary;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.counter.Counters;
 import com.aliyun.odps.graph.counters.MemoryCounter;
 import com.aliyun.odps.graph.counters.StatsCounter;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Graph作业LOG日志工具类
@@ -123,7 +123,7 @@ public class LogUtils {
           } else if (counterRawValue instanceof Long) {
             counterValue = (Long) counterRawValue;
           } else if (counterRawValue instanceof BigInteger) {
-            counterValue = ((BigInteger) counterRawValue).longValue();
+            counterValue = ((BigInteger) counterRawValue).longValue();  // ATTENTION, overflow is likely to occur here
           } else {
             throw new OdpsException("Invalid counter value type: " + counterRawValue.getClass());
           }
@@ -138,11 +138,11 @@ public class LogUtils {
     }
   }
 
-  static void addIfExists(JSONObject group, String counterName,
+  static void addIfExists(JsonObject group, String counterName,
                           String key, StringBuilder progress) {
-    if (group.containsKey(counterName)) {
+    if (group.has(counterName)) {
       progress.append(key + "=");
-      String value = group.getString(counterName);
+      String value = group.get(counterName).getAsString();
       if (counterName.equals(MemoryCounter.MAX_USED_MEMORY.toString())) {
         value = String.valueOf(Long.parseLong(value) / 1000000) + "M";
       }
@@ -150,7 +150,6 @@ public class LogUtils {
       progress.append(",");
     }
   }
-
 
   public static String assembleProgress(TaskSummary ts) throws IOException {
 
@@ -160,17 +159,16 @@ public class LogUtils {
       return progress.toString();
     }
 
-    JSONObject jsonSummary = JSON.parseObject(ts.getJsonSummary());
+    JsonObject jsonSummary = new JsonParser().parse(ts.getJsonSummary()).getAsJsonObject();
 
-    if (jsonSummary.containsKey(StatsCounter.class.getName())) {
-      JSONObject graphStats = jsonSummary.getJSONObject(
-          StatsCounter.class.getName());
+    if (jsonSummary.has(StatsCounter.class.getName())) {
+      JsonObject graphStats = jsonSummary.get(StatsCounter.class.getName()).getAsJsonObject();
 
       String name = StatsCounter.FINAL_STAGE.toString();
-      GraphStage stage = GraphStage.values()[graphStats.getIntValue(name)];
+      GraphStage stage = GraphStage.values()[graphStats.get(name).getAsInt()];
       progress.append(stage.getName());
       if (stage.equals(GraphStage.GRAPH_STAGE_SUPERSTEP)
-          && graphStats.entrySet().size() > 1) {
+              && graphStats.entrySet().size() > 1) {
         progress.append("\t[");
         addIfExists(graphStats, StatsCounter.TOTAL_SUPERSTEPS.toString(), "step", progress);
         addIfExists(graphStats, StatsCounter.TOTAL_VERTICES.toString(), "vertices", progress);
@@ -179,17 +177,17 @@ public class LogUtils {
         addIfExists(graphStats, StatsCounter.TOTAL_SENT_MESSAGES.toString(), "messages", progress);
         addIfExists(graphStats, StatsCounter.TOTAL_WORKERS.toString(), "workers", progress);
         addIfExists(graphStats, StatsCounter.TOTAL_RUNNING_WORKERS.toString(), "running", progress);
-        if (jsonSummary.containsKey(MemoryCounter.class.getName())) {
-          addIfExists(jsonSummary.getJSONObject(MemoryCounter.class.getName()),
-                      MemoryCounter.MAX_USED_MEMORY_WORKER.toString(), "max_mem_workerid",
-                      progress);
-          addIfExists(jsonSummary.getJSONObject(MemoryCounter.class.getName()),
-                      MemoryCounter.MAX_USED_MEMORY.toString(), "max_mem", progress);
+        if (jsonSummary.has(MemoryCounter.class.getName())) {
+          addIfExists(jsonSummary.get(MemoryCounter.class.getName()).getAsJsonObject(),
+                  MemoryCounter.MAX_USED_MEMORY_WORKER.toString(), "max_mem_workerid",
+                  progress);
+          addIfExists(jsonSummary.get(MemoryCounter.class.getName()).getAsJsonObject(),
+                  MemoryCounter.MAX_USED_MEMORY.toString(), "max_mem", progress);
         }
         progress.deleteCharAt(progress.length() - 1);
         progress.append("]");
       } else if (stage.equals(GraphStage.GRAPH_STAGE_WAIT_WORKER_UP)
-                 && graphStats.entrySet().size() > 1) {
+              && graphStats.entrySet().size() > 1) {
         progress.append("\t");
         addIfExists(graphStats, StatsCounter.TOTAL_RUNNING_WORKERS.toString(), "running", progress);
         progress.deleteCharAt(progress.length() - 1);

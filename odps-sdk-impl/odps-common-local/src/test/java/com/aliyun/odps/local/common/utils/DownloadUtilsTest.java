@@ -88,8 +88,8 @@ public class DownloadUtilsTest {
   }};
 
   static String [] NAMES = {"name", "age", "parents", "hehe", "salary", "hobbies"};
-  // char(10), int, Map<varchar(20), smallint>, decimal(20,10), float, Array<Varchar(100)>
-  static TypeInfo[] TYPES = {TypeInfoFactory.getCharTypeInfo(10), TypeInfoFactory.INT,
+  // char(1), int, Map<varchar(20), smallint>, decimal(20,10), float, Array<Varchar(100)>
+  static TypeInfo[] TYPES = {TypeInfoFactory.getCharTypeInfo(1), TypeInfoFactory.INT,
     TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.getVarcharTypeInfo(20), TypeInfoFactory.SMALLINT),
     TypeInfoFactory.getDecimalTypeInfo(20, 10), TypeInfoFactory.FLOAT,
     TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.getVarcharTypeInfo(100))};

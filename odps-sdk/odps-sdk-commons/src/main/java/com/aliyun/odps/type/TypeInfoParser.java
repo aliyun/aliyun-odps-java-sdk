@@ -19,7 +19,7 @@ public class TypeInfoParser {
   }
 
   private boolean isTypeInfoChar(char c) {
-    return Character.isLetterOrDigit(c) || (c == '_') || (c == '.');
+    return Character.isLetterOrDigit(c) || (c == '_') || (c == '.') || Character.isWhitespace(c);
   }
 
   // Tokenize the typeInfoString. The rule is simple: all consecutive

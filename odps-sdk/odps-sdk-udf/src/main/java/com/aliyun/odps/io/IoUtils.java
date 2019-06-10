@@ -48,7 +48,7 @@ public class IoUtils {
    */
   public static String[] parseOutputSubDirectoriesFromMeta(String metaContent) {
     // actual parsing
-    Gson gson = new Gson();
+    Gson gson = new GsonBuilder().disableHtmlEscaping().create();
     MetaContent content;
     try {
       content = gson.fromJson(metaContent, MetaContent.class);

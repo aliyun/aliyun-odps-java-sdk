@@ -106,4 +106,14 @@ public class OdpsException extends Exception {
   public String getErrorCode() {
     return errorCode;
   }
+
+
+  @Override
+  public String toString() {
+    if (status != null) {
+      return String.format("[%d] %s", status, super.toString());
+    }
+
+    return super.toString();
+  }
 }

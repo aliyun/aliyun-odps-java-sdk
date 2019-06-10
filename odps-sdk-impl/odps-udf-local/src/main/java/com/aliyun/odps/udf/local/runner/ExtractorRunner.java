@@ -35,15 +35,15 @@ public class ExtractorRunner extends ExtendedRunner{
 
   @Override
   public List<Record> yieldRecords() throws LocalRunException {
-    if (!this.extractorSetup) {
-      this.extractor.setup(
+    try {
+      if (!this.extractorSetup) {
+        this.extractor.setup(
           this.context,
           new LocalInputStreamSet(this.files),
           this.attributes);
-      this.extractorSetup = true;
-    }
-    List<Record> records = new ArrayList<Record>();
-    try {
+        this.extractorSetup = true;
+      }
+      List<Record> records = new ArrayList<Record>();
       while (true) {
         Record record = this.extractor.extract();
         if (record == null) {
@@ -52,12 +52,12 @@ public class ExtractorRunner extends ExtendedRunner{
           records.add(record.clone());
         }
       }
+      this.extractor.close();
+      this.extractor = null;
+      return records;
     } catch (IOException e) {
-      throw new LocalRunException(e.toString());
+      throw new LocalRunException(e);
     }
-    this.extractor.close();
-    this.extractor = null;
-    return records;
   }
 
   @Override

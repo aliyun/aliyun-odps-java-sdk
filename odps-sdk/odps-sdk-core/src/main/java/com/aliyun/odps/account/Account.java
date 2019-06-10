@@ -42,8 +42,6 @@ public interface Account {
     TAOBAO,
     // 阿里云账号
     ALIYUN,
-    //LDAP账号
-    LDAP,
     // logview token
     BEARER_TOKEN,
   }

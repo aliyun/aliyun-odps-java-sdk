@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class UdfComplex extends UDF {
 
@@ -52,7 +53,7 @@ public class UdfComplex extends UDF {
     return "List:" + list;
   }
   public String evaluate(Map map) {
-    return "Map:" + map;
+    return "Map:" + new TreeMap(map);
   }
   public String evaluate(Struct struct) {
     return "Struct:" + struct.getFieldValues().toString();

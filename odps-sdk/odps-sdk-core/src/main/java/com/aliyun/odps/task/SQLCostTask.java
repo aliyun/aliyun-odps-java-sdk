@@ -24,11 +24,12 @@ import java.util.Map;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * SQLCoastTask的定义
@@ -108,7 +109,7 @@ public class SQLCostTask extends Task {
     task.setName(taskName);
     if (hints != null) {
       try {
-        String json = JSON.toJSONString(hints);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);

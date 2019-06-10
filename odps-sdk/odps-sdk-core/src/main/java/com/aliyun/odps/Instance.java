@@ -21,6 +21,7 @@ package com.aliyun.odps;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -42,10 +43,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlValue;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.reflect.TypeToken;
 import org.apache.commons.codec.binary.Base64;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
 import com.aliyun.odps.Instance.TaskStatusModel.InstanceTaskModel;
 import com.aliyun.odps.Job.JobModel;
@@ -544,12 +549,15 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     TaskSummary summary = null;
     try {
-      Map<Object, Object> map = JSON.parseObject(result.getBody(), Map.class);
+      Gson gson = GsonObjectBuilder.get();
+      Map<Object, Object> map = gson
+              .fromJson(new String(result.getBody()),
+              new TypeToken<Map<Object, Object>>() {}.getType());
       if (map.get("Instance") != null) {
         Map mapReduce = (Map) map.get("Instance");
         String jsonSummary = (String) mapReduce.get("JsonSummary");
         if (jsonSummary != null) {
-          summary = (TaskSummary) JSON.parseObject(jsonSummary, TaskSummary.class);
+          summary = gson.fromJson(jsonSummary, TaskSummary.class);
         }
         if (summary != null) {
           summary.setSummaryText((String) mapReduce.get("Summary"));
@@ -1331,7 +1339,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
   public static class InstanceQueueingInfo {
 
-    InstanceQueueingInfo(JSONObject props) {
+    InstanceQueueingInfo(JsonObject props) {
       properties = props;
     }
 
@@ -1357,7 +1365,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       UNKNOWN;
     }
 
-    JSONObject properties;
+    JsonObject properties;
 
     /**
      * 根据关键字来获取属性值
@@ -1373,16 +1381,51 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       if (properties.get(key) == null) {
         return null;
       }
-      return properties.getObject(key, clz);
+
+      return cast(properties.get(key), clz);
     }
+
+    /**
+     *
+     * @param object
+     * @param clz
+     * @param <T>
+     * @return
+     */
+    private <T> T cast(Object object, Class<T> clz) {
+      if (object instanceof JsonPrimitive) {
+        if (clz.equals(Integer.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsInt());
+        } else if (clz.equals(Short.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsShort());
+        } else if (clz.equals(Boolean.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsBoolean());
+        } else if (clz.equals(Double.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsDouble());
+        } else if (clz.equals(Long.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsLong());
+        } else if (clz.equals(Float.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsFloat());
+        } else if (clz.equals(String.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsString());
+        } else if (clz.equals(Byte.class)) {
+          return clz.cast(((JsonPrimitive) object).getAsByte());
+        }
+      } else {
+        Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+        return gson.fromJson(gson.toJson(object), clz);
+      }
+      return null;
+    }
+
     /**
      * 获取 instance id
      *
      * @return instance id
      */
     public String getId() {
-      return properties.getString("instanceId");
-    }
+      return properties.has("instanceId") ? properties.get("instanceId").getAsString() : null;
+   }
 
     /**
      * 获取 instance 优先级
@@ -1390,7 +1433,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return instance 优先级
      */
     public Integer getPriority() {
-      return properties.getInteger("instancePriority");
+      return properties.has("instancePriority") ? properties.get("instancePriority").getAsInt() : null;
     }
 
     /**
@@ -1399,7 +1442,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return progress
      */
     public Double getProgress() {
-      return properties.getDouble("instanceProgress");
+      return properties.has("instanceProgress") ? properties.get("instanceProgress").getAsDouble() : null;
     }
 
     /**
@@ -1408,7 +1451,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return job name
      */
     public String getJobName() {
-      return properties.getString("jobName");
+      return properties.has("jobName") ? properties.get("jobName").getAsString() : null;
     }
 
     /**
@@ -1417,7 +1460,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return project name
      */
     public String getProject() {
-      return properties.getString("projectName");
+      return properties.has("projectName") ? properties.get("projectName").getAsString() : null;
     }
 
     /**
@@ -1426,7 +1469,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return skynetId
      */
     public String getSkyNetId() {
-      return properties.getString("skynetId");
+      return properties.has("skynetId") ? properties.get("skynetId").getAsString() : null;
     }
 
     /**
@@ -1435,7 +1478,19 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return instance 开始时间
      */
     public Date getStartTime() {
-      return properties.getDate("startTime");
+      String startTimeStr = properties.get("startTime").getAsString();
+      DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
+      Date startTime = null;
+      try {
+        startTime = format.parse(startTimeStr);
+      } catch (ParseException e1) {
+        try {
+          startTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSZ").parse(startTimeStr);
+        } catch (ParseException e2) {
+
+        }
+      }
+      return startTime;
     }
 
     /**
@@ -1444,7 +1499,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return task type
      */
     public String getTaskType() {
-      return properties.getString("taskType");
+      return properties.get("taskType").getAsString();
     }
 
     /**
@@ -1453,7 +1508,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return task name
      */
     public String getTaskName() {
-      return properties.getString("taskName");
+      return properties.get("taskName").getAsString();
     }
 
     /**
@@ -1462,7 +1517,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return userAcount
      */
     public String getUserAccount() {
-      return properties.getString("userAccount");
+      return properties.get("userAccount").getAsString();
     }
 
     /**
@@ -1471,10 +1526,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
      * @return 状态
      */
     public Status getStatus() {
-      String status = properties.getString("status");
-      if (status == null) {
+      if (!properties.has("status")) {
         return null;
       }
+      String status = properties.get("status").getAsString();
 
       try {
         return Status.valueOf(status.toUpperCase());
@@ -1496,7 +1551,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     params.put("cached", null);
 
     Response resp = client.request(getResource(), "GET", params, null, null);
-    JSONObject object = JSON.parseObject(resp.getBody(), JSONObject.class);
+    Gson gson = GsonObjectBuilder.get();
+    JsonObject object = gson.fromJson(new String(resp.getBody()), JsonObject.class);
     return new InstanceQueueingInfo(object);
   }
 }

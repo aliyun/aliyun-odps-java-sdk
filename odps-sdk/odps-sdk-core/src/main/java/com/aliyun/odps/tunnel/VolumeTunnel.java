@@ -29,9 +29,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Connection;
@@ -42,6 +39,9 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.VolumeInputStream;
 import com.aliyun.odps.tunnel.io.VolumeOutputStream;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * 访问ODPS Volume Tunnel服务的入口类
@@ -552,28 +552,26 @@ public class VolumeTunnel {
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
         String json = IOUtils.readStreamAsString(is);
-        JSONObject tree = JSONObject.parseObject(json);
+        JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
 
         // session id
-        String node = tree.getString("UploadID");
-        if (node != null) {
-          id = node;
+        if (tree.has("UploadID")) {
+          id = tree.get("UploadID").getAsString();
         }
 
         // status
-        node = tree.getString("Status");
-        if (node != null) {
-          status = UploadStatus.valueOf(node.toUpperCase());
+        if (tree.has("Status")) {
+          status = UploadStatus.valueOf(tree.get("Status").getAsString().toUpperCase());
         }
 
         // fileList
         fileLists.clear();
-        JSONArray node2 = tree.getJSONArray("FileList");
-        if (node2 != null) {
+        if (tree.has("FileList")) {
+          JsonArray node2 = tree.get("FileList").getAsJsonArray();
           for (int i = 0; i < node2.size(); ++i) {
-            JSONObject fileNode = node2.getJSONObject(i);
-            String fileName = fileNode.getString("FileName");
-            Long fileLength = fileNode.getLong("FileLength");
+            JsonObject fileNode = node2.get(i).getAsJsonObject();
+            String fileName = fileNode.has("FileName") ? fileNode.get("FileName").getAsString() : null;
+            Long fileLength = fileNode.has("FileLength") ? fileNode.get("FileLength").getAsLong() : 0L;
             fileLists.put(fileName, fileLength);
           }
         }
@@ -896,32 +894,38 @@ public class VolumeTunnel {
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
         String json = IOUtils.readStreamAsString(is);
-        JSONObject tree = JSON.parseObject(json);
+        JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
 
         // session id
-        String node = tree.getString("DownloadID");
-        if (node != null) {
-          id = node;
+        if (tree.has("DownloadID")) {
+          id = tree.get("DownloadID").getAsString();
         }
 
         // status
-        node = tree.getString("Status");
-        if (node != null) {
-          status = DownloadStatus.valueOf(node.toUpperCase());
+        if (tree.has("Status")) {
+          status = DownloadStatus.valueOf(tree.get("Status").getAsString().toUpperCase());
         }
 
         // file
-        JSONObject node2 = tree.getJSONObject("File");
-        if (node2 != null) {
-          fileName = node2.getString("FileName");
-          fileLength = node2.getLong("FileLength");
+        if (tree.has("File")) {
+          JsonObject jsonObject = tree.get("File").getAsJsonObject();
+          if (jsonObject.has("FileName")) {
+            fileName = jsonObject.get("FileName").getAsString();
+          }
+          if (jsonObject.has("FileLength")) {
+            fileLength = jsonObject.get("FileLength").getAsLong();
+          }
         }
 
         // partition
-        node2 = tree.getJSONObject("Partition");
-        if (node2 != null) {
-          volumeName = node2.getString("Volume");
-          partitionSpec = node2.getString("Partition");
+        if (tree.has("Partition")) {
+          JsonObject jsonObject = tree.get("Partition").getAsJsonObject();
+          if (jsonObject.has("Volume")) {
+            volumeName = jsonObject.get("Volume").getAsString();
+          }
+          if (jsonObject.has("Partition")) {
+            partitionSpec = jsonObject.get("Partition").getAsString();
+          }
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);

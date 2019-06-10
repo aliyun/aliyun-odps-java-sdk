@@ -1,8 +1,5 @@
 package com.aliyun.odps.local.common.utils;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.Char;
 import com.aliyun.odps.data.IntervalDayTime;
@@ -17,23 +14,23 @@ import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.VarcharTypeInfo;
+import com.google.gson.*;
+
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.sql.Timestamp;
+import java.text.DateFormat;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class TypeConvertUtils {
 
-  private static Charset UTF8 = Charset.forName("UTF-8");
+  public static final Charset UTF8 = Charset.forName("UTF-8");
+  public static DateFormat DATE_FORMAT = LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2);
+  public static boolean ENCODE_STRING = false;
 
-  public static String toString(Object value, TypeInfo typeInfo, boolean isBinary) {
-    Object javaVal = transOdpsToJava(value, typeInfo, isBinary);
+  public static String toString(Object value, TypeInfo typeInfo) {
+    Object javaVal = transOdpsToJava(value, typeInfo);
     if (javaVal == null) {
       return Constants.NULL_TOKEN;
     }
@@ -61,7 +58,7 @@ public class TypeConvertUtils {
       case STRUCT:
       case MAP:
       case ARRAY:
-        rawVal = JSON.toJSONString(javaVal);
+        rawVal = new GsonBuilder().disableHtmlEscaping().create().toJson(javaVal);
         break;
       default:
         throw new RuntimeException(" Unknown column type: " + typeInfo.getOdpsType());
@@ -70,7 +67,7 @@ public class TypeConvertUtils {
     return rawVal.replaceAll("\\\\N", "\"\\\\N\"");
   }
 
-  public static Object fromString(TypeInfo typeInfo, String token, boolean isBinary) {
+  public static Object fromString(TypeInfo typeInfo, String token, boolean toBinary) {
     if (token == null || Constants.NULL_TOKEN.equals(token)) {
       return null;
     }
@@ -83,16 +80,20 @@ public class TypeConvertUtils {
         return Boolean.parseBoolean(token);
       case DATETIME:
         try {
-          return LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2).parse(token);
+          return DATE_FORMAT.parse(token);
         } catch (ParseException e) {
           throw new RuntimeException(" parse date failed:" + token, e);
         }
       case STRING:
         try {
-          byte[] v = LocalRunUtils.fromReadableString(token);
-          return isBinary ? v : new String(v, UTF8);
+          if (ENCODE_STRING) {
+            byte[] bytes = LocalRunUtils.fromReadableString(token);
+            return toBinary ? bytes : new String(bytes, UTF8);
+          } else {
+            return toBinary ? token.getBytes(UTF8) : token;
+          }
         } catch (Exception e) {
-          throw new RuntimeException(" from readable string failed!", e);
+          throw new RuntimeException(" from string failed!", e);
         }
       case DECIMAL:
         return new BigDecimal(token);
@@ -119,24 +120,24 @@ public class TypeConvertUtils {
           throw new RuntimeException(" from readable string failed!" + e);
         }
       case INTERVAL_DAY_TIME: {
-        JSONObject json = JSON.parseObject(token);
-        return new IntervalDayTime(json.getInteger("totalSeconds"), json.getInteger("nanos"));
+        JsonObject json = new JsonParser().parse(token).getAsJsonObject();
+        return new IntervalDayTime(json.get("totalSeconds").getAsInt(), json.get("nanos").getAsInt());
       }
       case INTERVAL_YEAR_MONTH: {
-        JSONObject json = JSON.parseObject(token);
-        return new IntervalYearMonth(json.getInteger("years"), json.getInteger("months"));
+        JsonObject json = new JsonParser().parse(token).getAsJsonObject();
+        return new IntervalYearMonth(json.get("years").getAsInt(), json.get("months").getAsInt());
       }
       case STRUCT: {
-        JSONObject json = JSON.parseObject(token);
-        return parseStruct(json, (StructTypeInfo) typeInfo, isBinary);
+        JsonObject json = new JsonParser().parse(token).getAsJsonObject();
+        return parseStruct(json, (StructTypeInfo) typeInfo);
       }
       case MAP: {
-        JSONObject json = JSON.parseObject(token);
-        return parseMap(json, (MapTypeInfo) typeInfo, isBinary);
+        JsonObject json = new JsonParser().parse(token).getAsJsonObject();
+        return parseMap(json, (MapTypeInfo) typeInfo);
       }
       case ARRAY: {
-        JSONArray json = JSON.parseArray(token);
-        return parseArray(json, (ArrayTypeInfo) typeInfo, isBinary);
+        JsonArray json = new JsonParser().parse(token).getAsJsonArray();
+        return parseArray(json, (ArrayTypeInfo) typeInfo);
       }
       default:
         throw new RuntimeException("Unknown column type: " + typeInfo.getOdpsType());
@@ -190,7 +191,7 @@ public class TypeConvertUtils {
     }
   }
 
-  private static Object transOdpsToJava(Object value, TypeInfo typeInfo, boolean isBinary) {
+  public static Object transOdpsToJava(Object value, TypeInfo typeInfo) {
     if (value == null) {
       return null;
     }
@@ -212,7 +213,7 @@ public class TypeConvertUtils {
       case STRING:
         try {
           if (value instanceof byte[]) {
-            return isBinary ? LocalRunUtils.toReadableString((byte[])value) : new String((byte[])value, UTF8);
+            return ENCODE_STRING ? LocalRunUtils.toReadableString((byte[])value) : new String((byte[])value, UTF8);
           } else {
             return value;
           }
@@ -220,7 +221,7 @@ public class TypeConvertUtils {
           throw new RuntimeException(" to readable string failed!", e);
         }
       case DATETIME:
-        return LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2).format((Date) value);
+        return DATE_FORMAT.format((Date) value);
       case INTERVAL_DAY_TIME:
         return transIntervalDayTimeToJavaMap((IntervalDayTime)value);
       case INTERVAL_YEAR_MONTH:
@@ -262,7 +263,7 @@ public class TypeConvertUtils {
       String fieldName = odpsStruct.getFieldName(i);
       Object fieldValue = odpsStruct.getFieldValue(i);
       TypeInfo fieldType = odpsStruct.getFieldTypeInfo(i);
-      Object javaVal = transOdpsToJava(fieldValue, fieldType, false);
+      Object javaVal = transOdpsToJava(fieldValue, fieldType);
       result.put(fieldName, javaVal);
     }
     return result;
@@ -274,8 +275,8 @@ public class TypeConvertUtils {
     TypeInfo valueType = typeInfo.getValueTypeInfo();
     Set<Map.Entry> entrySet = odpsMap.entrySet();
     for (Map.Entry entry : entrySet) {
-      Object key = transOdpsToJava(entry.getKey(), keyType, false);
-      Object value = transOdpsToJava(entry.getValue(), valueType, false);
+      Object key = transOdpsToJava(entry.getKey(), keyType);
+      Object value = transOdpsToJava(entry.getValue(), valueType);
       result.put(key, value);
     }
     return result;
@@ -285,45 +286,53 @@ public class TypeConvertUtils {
     List result = new ArrayList();
     TypeInfo eleType = typeInfo.getElementTypeInfo();
     for (Object item : odpsArray) {
-      Object javaVal = transOdpsToJava(item, eleType, false);
+      Object javaVal = transOdpsToJava(item, eleType);
       result.add(javaVal);
     }
     return result;
   }
 
-  private static Struct parseStruct(JSONObject json, StructTypeInfo typeInfo, boolean isBinary) {
+  private static Struct parseStruct(JsonObject json, StructTypeInfo typeInfo) {
     List<String> fieldNames = typeInfo.getFieldNames();
     List<TypeInfo> typeInfos = typeInfo.getFieldTypeInfos();
     List<Object> structValues = new ArrayList<Object>();
     for (int i = 0; i < fieldNames.size(); i++) {
       String fieldName = fieldNames.get(i);
       TypeInfo fieldType = typeInfos.get(i);
-      structValues.add(fromString(fieldType, json.getString(fieldName), isBinary));
+      structValues.add(fromString(fieldType, asString(json.get(fieldName)), false));
     }
     return new SimpleStruct(typeInfo, structValues);
   }
 
-  private static Map parseMap(JSONObject json, MapTypeInfo typeInfo, boolean isBinary) {
+  private static Map parseMap(JsonObject json, MapTypeInfo typeInfo) {
     Map result = new HashMap();
-    Set<String> keys = json.keySet();
+
     TypeInfo keyType = typeInfo.getKeyTypeInfo();
     TypeInfo valueType = typeInfo.getValueTypeInfo();
-    for (String item : keys) {
-      Object key = fromString(keyType, item, isBinary);
-      Object value = fromString(valueType, json.getString(item), isBinary);
+    for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+      Object key = fromString(keyType, entry.getKey(), false);
+      Object value = fromString(valueType, asString(entry.getValue()), false);
       result.put(key, value);
     }
     return result;
   }
 
-  private static List parseArray(JSONArray jsonArray, ArrayTypeInfo arrayTypeInfo, boolean isBinary) {
+  private static List parseArray(JsonArray jsonArray, ArrayTypeInfo arrayTypeInfo) {
     List result = new ArrayList();
     TypeInfo eleType = arrayTypeInfo.getElementTypeInfo();
     for (int i = 0; i  < jsonArray.size(); i++) {
-      Object value = fromString(eleType, jsonArray.getString(i), isBinary);
+      Object value = fromString(eleType, asString(jsonArray.get(i)), false);
       result.add(value);
     }
     return result;
+  }
+
+  private static String asString(JsonElement jsonElement) {
+    try {
+      return jsonElement.getAsString();
+    } catch (Exception e) {
+      return jsonElement.toString();
+    }
   }
 
 }

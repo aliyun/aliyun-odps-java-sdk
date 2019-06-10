@@ -28,11 +28,11 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -57,6 +57,9 @@ import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Tunnel 是 ODPS 的数据通道，用户可以通过 Tunnel 向 ODPS 中上传或者下载数据。<br />
@@ -136,6 +139,7 @@ import com.aliyun.odps.utils.StringUtils;
 public class TableTunnel {
 
   private Configuration config;
+  private Random random = new Random();
 
   /**
    * 构造此类对象
@@ -510,40 +514,6 @@ public class TableTunnel {
     }
     return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
         .replaceAll("'", ""), shardId, id);
-  }
-
-  /**
-   * 创建Stream上传Client
-   *
-   * @param projectName
-   *     Project名称
-   * @param tableName
-   *     table名称
-   * @return {@link com.aliyun.odps.tunnel.StreamClient}
-   * @throws TunnelException
-   */
-  @Deprecated
-  public StreamClient createStreamClient(String projectName, String tableName)
-      throws TunnelException {
-    return new StreamClient(config, projectName, tableName);
-  }
-
-  /**
-   * 创建流式上传Writer
-   *
-   * @param projectName
-   *     Project名称
-   * @param tableName
-   *     Table 名称
-   * @return {@link com.aliyun.odps.tunnel.StreamUploadWriter}
-   * @throws com.aliyun.odps.tunnel.TunnelException,
-   *     java.io.IOException
-   */
-  @Deprecated
-  public StreamUploadWriter createStreamUploadWriter(String projectName, String tableName)
-      throws TunnelException, IOException {
-    RestClient tunnelServiceClient = config.newRestClient(projectName);
-    return new StreamUploadWriter(tunnelServiceClient, getResource(projectName, tableName));
   }
 
   private String getResource(String projectName, String tableName) {
@@ -1139,33 +1109,34 @@ public class TableTunnel {
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
         String json = IOUtils.readStreamAsString(is);
-        JSONObject tree = JSONObject.parseObject(json);
+        JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
 
         // session id
-        String node = tree.getString("UploadID");
-        if (node != null) {
-          id = node;
+        if (tree.has("UploadID")) {
+          id = tree.get("UploadID").getAsString();
         }
 
         // status
-        node = tree.getString("Status");
-        if (node != null) {
-          status = UploadStatus.valueOf(node.toUpperCase());
+        if (tree.has("Status")) {
+          String uploadStatus = tree.get("Status").getAsString().toUpperCase();
+          status = UploadStatus.valueOf(uploadStatus);
         }
 
         // blocks
         blocks.clear();
-        JSONArray node2 = tree.getJSONArray("UploadedBlockList");
-        if (node2 != null) {
-          for (int i = 0; i < node2.size(); ++i) {
-            blocks.add(node2.getJSONObject(i).getLong("BlockID"));
+        if (tree.has("UploadedBlockList")) {
+          JsonArray blockList = tree.get("UploadedBlockList").getAsJsonArray();
+          for (int i = 0; i < blockList.size(); ++i) {
+            if (blockList.get(i).getAsJsonObject().has("BlockID")) {
+              blocks.add(blockList.get(i).getAsJsonObject().get("BlockID").getAsLong());
+            }
           }
         }
 
         // schema
-        JSONObject node3 = tree.getJSONObject("Schema");
-        if (node != null) {
-          schema = new TunnelTableSchema(node3);
+        if (tree.has("Schema")) {
+          JsonObject tunnelTableSchema = tree.get("Schema").getAsJsonObject();
+          schema = new TunnelTableSchema(tunnelTableSchema);
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
@@ -1181,7 +1152,7 @@ public class TableTunnel {
    * EXPIRED 过期
    */
   public static enum DownloadStatus {
-    UNKNOWN, NORMAL, CLOSED, EXPIRED
+    UNKNOWN, NORMAL, CLOSED, EXPIRED, INITIATING
   }
 
   /**
@@ -1332,6 +1303,7 @@ public class TableTunnel {
                                                List<Column> columns)
         throws TunnelException, IOException {
       TunnelRecordReader reader = new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
+
       reader.setTransform(shouldTransform);
 
       return reader;
@@ -1344,6 +1316,7 @@ public class TableTunnel {
       HashMap<String, String> headers = getCommonHeader();
 
       params.put(TunnelConstants.DOWNLOADS, null);
+      params.put(TunnelConstants.ASYNC_MODE, "true");
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
@@ -1365,6 +1338,11 @@ public class TableTunnel {
         } else {
           throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
         }
+
+        while (status == DownloadStatus.INITIATING) {
+          Thread.sleep(random.nextInt(30 * 1000) + 5 * 1000);
+          reload();
+        }
       } catch (IOException e) {
         throw new TunnelException("Failed to create download session with tunnel endpoint "
                                   + tunnelServiceClient.getEndpoint(), e);
@@ -1372,6 +1350,8 @@ public class TableTunnel {
         // Do not delete here! TunnelException extends from OdpsException.
         throw e;
       } catch (OdpsException e) {
+        throw new TunnelException(e.getMessage(), e);
+      } catch (InterruptedException e) {
         throw new TunnelException(e.getMessage(), e);
       } finally {
         if (conn != null) {
@@ -1485,30 +1465,28 @@ public class TableTunnel {
     private void loadFromJson(InputStream is) throws TunnelException {
       try {
         String json = IOUtils.readStreamAsString(is);
-        JSONObject tree = JSONObject.parseObject(json);
+        JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
 
         // session id
-        String node = tree.getString("DownloadID");
-        if (node != null) {
-          id = node;
+        if (tree.has("DownloadID")) {
+          id = tree.get("DownloadID").getAsString();
         }
 
         // status
-        node = tree.getString("Status");
-        if (node != null) {
-          status = DownloadStatus.valueOf(node.toUpperCase());
+        if (tree.has("Status")) {
+          String downloadStatus = tree.get("Status").getAsString().toUpperCase();
+          status = DownloadStatus.valueOf(downloadStatus);
         }
 
         // record count
-        Long node2 = tree.getLong("RecordCount");
-        if (node2 != null) {
-          count = node2;
+        if (tree.has("RecordCount")) {
+          count =  tree.get("RecordCount").getAsLong();
         }
 
         // schema
-        JSONObject node3 = tree.getJSONObject("Schema");
-        if (node3 != null) {
-          schema = new TunnelTableSchema(node3);
+        if (tree.has("Schema")) {
+          JsonObject tunnelTableSchema = tree.get("Schema").getAsJsonObject();
+          schema = new TunnelTableSchema(tunnelTableSchema);
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);

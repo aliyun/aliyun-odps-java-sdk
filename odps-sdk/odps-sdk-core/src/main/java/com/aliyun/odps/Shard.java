@@ -21,9 +21,11 @@ package com.aliyun.odps;
 
 import java.util.ArrayList;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.codehaus.jackson.JsonNode;
 
 /**
@@ -42,35 +44,33 @@ public final class Shard {
     hubLifecycle = -1;
   }
 
-  public static Shard parseShard(JSONObject tree) {
+  public static Shard parseShard(JsonObject tree) {
     try {
       Shard shard = new Shard();
 
-      Long node = tree.getLong("ShardNum");
-      if (node != null) {
-        shard.setShardNum(node);
+      if (tree.has("ShardNum")) {
+        shard.setShardNum(tree.get("ShardNum").getAsLong());
       }
 
-      node = tree.getLong("HubLifecycle");
-      if (node != null) {
-        shard.setHubLifecycle(node);
+      if (tree.has("HubLifecycle")) {
+        shard.setHubLifecycle(tree.get("HubLifecycle").getAsLong());
       }
 
-      JSONArray distributeCols = tree.getJSONArray("DistributeCols");
-      if (distributeCols != null) {
+      if (tree.has("DistributeCols")) {
+        JsonArray distributeCols = tree.get("DistributeCols").getAsJsonArray();
         ArrayList<String> shardDistributeCols = new ArrayList<String>();
         for (int i = 0; i < distributeCols.size(); ++i) {
-          String col = distributeCols.getString(i);
+          String col = distributeCols.get(i).getAsString();
           shardDistributeCols.add(col);
         }
         shard.setDistributeColumnNames(shardDistributeCols);
       }
 
-      JSONArray sortCols = tree.getJSONArray("SortCols");
-      if (sortCols != null) {
+      if (tree.has("SortCols")) {
+        JsonArray sortCols = tree.get("SortCols").getAsJsonArray();
         ArrayList<String> shardSortCols = new ArrayList<String>();
         for (int i = 0; i < sortCols.size(); ++i) {
-          String col = sortCols.getString(i);
+          String col = sortCols.get(i).getAsString();
           shardSortCols.add(col);
         }
         shard.setSortColumnNames(shardSortCols);

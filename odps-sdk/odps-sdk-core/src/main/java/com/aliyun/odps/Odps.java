@@ -76,8 +76,6 @@ public class Odps {
   private Resources resources;
   private Functions functions;
   private Volumes volumes;
-  private Topologies topologies;
-  private StreamJobs streamJobs;
   private XFlows xflows;
   private OfflineModels offlineModels;
 
@@ -115,8 +113,6 @@ public class Odps {
     resources = new Resources(this);
     functions = new Functions(this);
     volumes = new Volumes(client);
-    topologies = new Topologies(this);
-    streamJobs = new StreamJobs(this);
     xflows = new XFlows(this);
     offlineModels = new OfflineModels(this);
   }
@@ -183,24 +179,6 @@ public class Odps {
    */
   public Volumes volumes() {
     return volumes;
-  }
-
-  /**
-   * 获取表示Project下所有TOPOLOGY的集合对象
-   *
-   * @return {@link Topologies}
-   */
-  public Topologies topologies() {
-    return topologies;
-  }
-
-  /**
-   * 获取表示Project下所有STREAMJOB的集合对象
-   *
-   * @return {@link StreamJobs}
-   */
-  public StreamJobs streamJobs() {
-    return streamJobs;
   }
 
   /**
