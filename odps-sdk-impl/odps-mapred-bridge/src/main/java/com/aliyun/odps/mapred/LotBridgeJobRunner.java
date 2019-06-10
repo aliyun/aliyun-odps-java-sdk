@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Resource;
@@ -37,6 +36,8 @@ import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.pipeline.Pipeline;
 import com.aliyun.odps.task.LOTTask;
 import com.aliyun.odps.task.LOTTask.Plan;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class LotBridgeJobRunner extends BridgeJobRunner {
 
@@ -70,7 +71,8 @@ public class LotBridgeJobRunner extends BridgeJobRunner {
     }
 
     try {
-      String json = JSON.toJSONString(JobHintTranslator.apply(job));
+      String json = new GsonBuilder().disableHtmlEscaping().create()
+              .toJson(JobHintTranslator.apply(job));
       task.setProperty("settings", json);
     } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
@@ -81,7 +83,8 @@ public class LotBridgeJobRunner extends BridgeJobRunner {
       Map<String, String> aliases = new HashMap<String, String>();
       aliases.putAll(aliasToTempResource);
       aliases.putAll(SessionState.get().getAliases());
-      String json = JSON.toJSONString(aliases);
+      String json = new GsonBuilder().disableHtmlEscaping().create()
+              .toJson(aliases);
       task.setProperty("aliases", json);
     } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);

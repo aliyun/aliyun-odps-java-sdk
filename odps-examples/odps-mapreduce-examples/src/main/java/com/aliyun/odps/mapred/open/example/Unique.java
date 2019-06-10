@@ -94,6 +94,8 @@ public class Unique {
       ops = args[2];
     }
 
+    // reduce的输入分组是由setOutputGroupingColumns的设置来决定的，这个参数如果不设置
+    // 默认就是MapOutputKeySchema
     // Key Unique
     if (ops.equals("key")) {
       JobConf job = new JobConf();

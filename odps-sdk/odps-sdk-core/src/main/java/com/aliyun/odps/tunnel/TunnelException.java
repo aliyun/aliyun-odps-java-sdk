@@ -23,9 +23,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.util.IOUtils;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * 该异常在DataTunnel服务访问失败时抛出。
@@ -138,14 +139,15 @@ public class TunnelException extends OdpsException {
   public void loadFromJson(InputStream is) throws TunnelException, IOException {
     try {
       String json = IOUtils.readStreamAsString(is);
-      JSONObject tree = JSONObject.parseObject(json);
-      String node = tree.getString("Code");
-      if (node != null) {
+      JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
+      String node = null;
+      if (tree.has("Code")) {
+        node = tree.get("Code").getAsString();
         errorCode = node;
       }
 
-      node = tree.getString("Message");
-      if (node != null) {
+      if (tree.has("Message")) {
+        node = tree.get("Message").getAsString();
         errorMsg = node;
       }
     } catch (Exception e) {

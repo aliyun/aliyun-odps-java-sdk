@@ -1,9 +1,20 @@
-# 0.30.8
-- move updateProject/listProject to odps-sdk-core
+# 0.31.3
+- import maven source plugin explicitly to avoid problems
+
+# 0.31.2
+- support optional strict data validation for String and datetime
+- support new typeinfo
+
+# 0.31.0
+- remove fastjson
+- async create download session
 
 # 0.30.1
 - support java8_161+ xml problem
 - biggraph support set running cluster
+
+# 0.30.8
+- move updateProject/listProject to odps-sdk-core
 
 # 0.30.0
 - add extended labels

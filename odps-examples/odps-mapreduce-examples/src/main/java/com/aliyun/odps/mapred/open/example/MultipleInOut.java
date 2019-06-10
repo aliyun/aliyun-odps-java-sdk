@@ -63,6 +63,7 @@ public class MultipleInOut {
 
     @Override
     public void setup(TaskContext context) throws IOException {
+      // 对于不同的输出需要创建不同的record，通过label来区分
       result = context.createOutputRecord();
       result1 = context.createOutputRecord("out1");
       result2 = context.createOutputRecord("out2");
@@ -113,6 +114,7 @@ public class MultipleInOut {
     }
   }
 
+  // 将分区字符串如"ds=1/pt=2"转为map的形式
   public static LinkedHashMap<String, String> convertPartSpecToMap(String partSpec) {
     LinkedHashMap<String, String> map = new LinkedHashMap<String, String>();
     if (partSpec != null && !partSpec.trim().isEmpty()) {

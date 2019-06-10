@@ -25,9 +25,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.lang.StringUtils;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Instance.StageProgress;
 import com.aliyun.odps.Instance.Status;
@@ -286,7 +287,8 @@ public class BridgeRunningJob implements RunningJob {
       Map task = (Map) e;
       Map countersValue = (Map) task.get("UserCounters");
       if (countersValue != null) {
-        tmpCounters = CounterUtils.createFromJsonString(JSON.toJSONString(countersValue));
+        tmpCounters = CounterUtils.createFromJsonString(new GsonBuilder().disableHtmlEscaping().create()
+                .toJson(countersValue));
         Iterator<CounterGroup> iter = tmpCounters.iterator();
         while (iter.hasNext()) {
           if (iter.next().getName().equals("ODPS_SDK_FRAMEWORK_COUNTER_GROUP")) {

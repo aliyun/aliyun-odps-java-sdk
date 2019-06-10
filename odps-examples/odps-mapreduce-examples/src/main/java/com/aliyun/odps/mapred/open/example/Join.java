@@ -77,18 +77,23 @@ public class Join {
       result = context.createOutputRecord();
     }
 
+    // reduce函数每次的输入会是key相同的所有record
     @Override
     public void reduce(Record key, Iterator<Record> values, TaskContext context) throws IOException {
       long k = key.getBigint(0);
       List<Object[]> leftValues = new ArrayList<Object[]>();
 
+      // 由于设置了outputKeySortColumn是key + tag组合，这样可以保证reduce函数的输入record中，left表的record数据在前面
       while (values.hasNext()) {
         Record value = values.next();
         long tag = (Long) key.get(1);
 
+        // 左表的数据会先缓存到内存中
         if (tag == 0) {
           leftValues.add(value.toArray().clone());
         } else {
+          // 碰到右表的数据，会与所有左表的数据进行join输出，此时左表的数据已经全部在内存里了
+          // 这个实现只是一个功能展示，性能比较低，不建议用于实际生产
           for (Object[] leftValue : leftValues) {
             int index = 0;
             result.set(index++, k);

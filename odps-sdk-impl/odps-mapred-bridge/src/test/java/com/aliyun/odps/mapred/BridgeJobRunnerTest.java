@@ -38,10 +38,10 @@ public class BridgeJobRunnerTest {
       @Override
       protected Instance submitInternal() throws OdpsException {
         //System.err.println(Arrays.toString(job.getResources()));
-        Assert.assertEquals(7, job.getResources().length);
+        Assert.assertEquals(6, job.getResources().length);
         Assert.assertEquals("foo", job.getResources()[0]);
 
-        Assert.assertEquals(6, aliasToTempResource.size());
+        Assert.assertEquals(5, aliasToTempResource.size());
         return null;
       }
 
@@ -64,10 +64,10 @@ public class BridgeJobRunnerTest {
 
       @Override
       protected Instance submitInternal() throws OdpsException {
-        Assert.assertEquals(7+2, job.getResources().length);
+        Assert.assertEquals(6+2, job.getResources().length);
         Assert.assertEquals("foo", job.getResources()[0]);
 
-        Assert.assertEquals(6+2, aliasToTempResource.size());
+        Assert.assertEquals(5+2, aliasToTempResource.size());
         return null;
       }
 

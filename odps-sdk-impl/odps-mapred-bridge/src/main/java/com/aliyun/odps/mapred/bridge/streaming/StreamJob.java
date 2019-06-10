@@ -33,6 +33,8 @@ import java.util.StringTokenizer;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -44,7 +46,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.OdpsType;
@@ -262,7 +263,8 @@ public class StreamJob {
         }
       }
 
-      config_.set("stream.temp.resource.alias", JSON.toJSONString(aliasToTempResource));
+      config_.set("stream.temp.resource.alias",
+              new GsonBuilder().disableHtmlEscaping().create().toJson(aliasToTempResource));
 
       String[] res = config_.getResources();
       Set<String> resources = aliasToTempResource.keySet();
@@ -350,7 +352,7 @@ public class StreamJob {
     }
     try {
       config_.set("stream.map.input.configs",
-                  JSON.toJSONString(inputConfigs));
+              new GsonBuilder().disableHtmlEscaping().create().toJson(inputConfigs));
     } catch (Exception e) {
       throw new RuntimeException("fail to set input configs");
     }

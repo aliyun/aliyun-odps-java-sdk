@@ -68,6 +68,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
   private Deflater def;
+
   private boolean shouldTransform = false;
 
   public ProtobufRecordStreamWriter(TableSchema schema, OutputStream out) throws IOException {
@@ -103,6 +104,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
     out.writeRawVarint32(value.length);
     out.writeRawBytes(value);
   }
+
 
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;
@@ -192,6 +194,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       }
       case DATETIME: {
         Date value = (Date) v;
+
 
         Long longValue = null;
         if (!shouldTransform) {

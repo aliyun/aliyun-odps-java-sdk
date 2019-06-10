@@ -78,11 +78,21 @@ public class WordCountPipeline {
   }
 
   public static class IdentityReducer extends ReducerBase {
+    private Record result = null;
+
+    @Override
+    public void setup(TaskContext context) throws IOException {
+      result = context.createOutputRecord();
+    }
 
     @Override
     public void reduce(Record key, Iterator<Record> values, TaskContext context) throws IOException {
+      result.set(1, key.get(0));
+
       while (values.hasNext()) {
-        context.write(values.next());
+        Record val = values.next();
+        result.set(0, val.get(0));
+        context.write(result);
       }
     }
   }
@@ -114,11 +124,14 @@ public class WordCountPipeline {
 
             .addReducer(IdentityReducer.class).createPipeline();
 
+    // 将pipeline的设置到jobconf中，如果需要设置combiner，是通过jobconf来设置
     job.setPipeline(pipeline);
 
+    // 设置输入输出表
     job.addInput(TableInfo.builder().tableName(args[0]).build());
     job.addOutput(TableInfo.builder().tableName(args[1]).build());
 
+    // 作业提交并等待结束
     job.submit();
     job.waitForCompletion();
     System.exit(job.isSuccessful() == true ? 0 : 1);

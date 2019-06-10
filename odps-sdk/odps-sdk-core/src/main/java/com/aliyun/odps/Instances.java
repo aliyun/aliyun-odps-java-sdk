@@ -31,8 +31,6 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import com.aliyun.odps.Instance.InstanceResultModel;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
 import com.aliyun.odps.Instance.TaskStatusModel;
@@ -42,6 +40,8 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 /**
  * Instances表示ODPS中所有{@link Instance}的集合
@@ -663,8 +663,8 @@ public class Instances implements Iterable<Instance> {
 
         List<Instance.InstanceQueueingInfo> result = new ArrayList<Instance.InstanceQueueingInfo>();
         if (resp.queue != null) {
-          for (JSONObject item : JSON.parseArray(resp.queue, JSONObject.class)) {
-            result.add(new Instance.InstanceQueueingInfo(item));
+          for (JsonElement item : new JsonParser().parse(resp.queue).getAsJsonArray()) {
+            result.add(new Instance.InstanceQueueingInfo(item.getAsJsonObject()));
           }
         }
         return result;

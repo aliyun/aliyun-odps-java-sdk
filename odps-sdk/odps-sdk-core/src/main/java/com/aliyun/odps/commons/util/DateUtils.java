@@ -353,13 +353,12 @@ public class DateUtils {
    * @return 偏移量
    */
   public static long getDayOffset(java.sql.Date date) {
-    Calendar localCal = (Calendar) CAL.clone();
     Calendar gmtCal = (Calendar) GMT_CAL.clone();
-    localCal.clear();
     gmtCal.clear();
 
-    localCal.setTime(date);
-    gmtCal.set(localCal.get(Calendar.YEAR), localCal.get(Calendar.MONTH), localCal.get(Calendar.DATE),
+    gmtCal.setTime(date);
+    // to clip the hour, min, second
+    gmtCal.set(gmtCal.get(Calendar.YEAR), gmtCal.get(Calendar.MONTH), gmtCal.get(Calendar.DATE),
              0, 0, 0);
     return gmtCal.getTimeInMillis() / MILLIS_OF_DAY;
   }
@@ -372,15 +371,11 @@ public class DateUtils {
    * @return Date 对象
    */
   public static java.sql.Date fromDayOffset(long offset) {
-    Calendar localCal = (Calendar) CAL.clone();
     Calendar gmtCal = (Calendar) GMT_CAL.clone();
-    localCal.clear();
     gmtCal.clear();
 
     gmtCal.setTimeInMillis(offset *  MILLIS_OF_DAY);
-    localCal.set(gmtCal.get(Calendar.YEAR), gmtCal.get(Calendar.MONTH), gmtCal.get(Calendar.DATE),
-               0, 0, 0);
 
-    return new java.sql.Date(localCal.getTimeInMillis());
+    return new java.sql.Date(gmtCal.getTimeInMillis());
   }
 }

@@ -21,7 +21,9 @@ package com.aliyun.odps.commons.util;
 
 import java.util.Map;
 
-import com.alibaba.fastjson.JSON;
+import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * Cost计费预测模式结果解析器
@@ -65,7 +67,8 @@ public class CostResultParser {
   public static String parse(String result, String taskType) {
     Map<String, Object> node = null;
     try {
-      Map cost = JSON.parseObject(result, Map.class);
+      Gson gson = GsonObjectBuilder.get();
+      Map cost = gson.fromJson(result, Map.class);
       node = (Map) ((Map) cost.get("Cost")).get(taskType);
     } catch (Exception e) {
       return result;

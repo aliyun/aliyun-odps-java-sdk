@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.local.common.utils;
 
+import com.aliyun.odps.local.common.AnyTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoParser;
 import java.io.BufferedReader;
@@ -304,9 +305,6 @@ public class SchemaUtils {
    * @param str : like string,array<string>
    */
   public static List<TypeInfo> parseResolveTypeInfo(String str) throws IllegalArgumentException {
-    if (str.contains("*")) {
-      throw new IllegalArgumentException("* is not supported");
-    }
     List<TypeInfo> types = new ArrayList<TypeInfo>();
     String remain = str;
     int pos = 0; //indicate the position we find
@@ -316,9 +314,14 @@ public class SchemaUtils {
       if (pos < 0) { //last one
         pos = remain.length();
       }
-      String candidate = remain.substring(0, pos);
+      String candidate = remain.substring(0, pos).trim();
       try {
-        TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(candidate);
+        TypeInfo typeInfo;
+        if ("*".equals(candidate) || "ANY".equalsIgnoreCase(candidate)) {
+          typeInfo = new AnyTypeInfo();
+        } else {
+          typeInfo = TypeInfoParser.getTypeInfoFromTypeString(candidate);
+        }
         if (typeInfo != null) { //find a valid type
           exception = null;
           types.add(typeInfo);

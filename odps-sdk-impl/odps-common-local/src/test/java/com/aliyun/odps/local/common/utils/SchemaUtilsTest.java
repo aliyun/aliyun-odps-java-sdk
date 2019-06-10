@@ -3,6 +3,7 @@ package com.aliyun.odps.local.common.utils;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.local.common.ColumnOrConstant;
+import com.aliyun.odps.local.common.AnyTypeInfo;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.CharTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
@@ -59,9 +60,12 @@ public class SchemaUtilsTest {
     Assert.assertEquals(TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BINARY), typeInfos.get(1));
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void parseStarResolveTypeInfo() {
-    SchemaUtils.parseResolveTypeInfo("string,*");
+    List<TypeInfo> typeInfos = SchemaUtils.parseResolveTypeInfo("ANY,*");
+    Assert.assertTrue(typeInfos.size() == 2);
+    Assert.assertTrue(typeInfos.get(0) instanceof AnyTypeInfo);
+    Assert.assertTrue(typeInfos.get(1) instanceof AnyTypeInfo);
   }
 
   @Test(expected = IllegalArgumentException.class)

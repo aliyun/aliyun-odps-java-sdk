@@ -26,7 +26,6 @@ import java.util.Date;
 import java.util.Properties;
 import java.util.UUID;
 
-import com.alibaba.fastjson.JSON;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -43,6 +42,8 @@ import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.VolumeTunnel;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class OdpsTestUtils {
 
@@ -104,7 +105,8 @@ public class OdpsTestUtils {
   public static String getCurrentUser() throws OdpsException, IOException {
     Odps odps = newDefaultOdps();
     String userDetail = odps.projects().get().getSecurityManager().runQuery("whoami", true);
-    String owner = JSON.parseObject(userDetail).getString("DisplayName");
+    JsonObject jsonObject = new JsonParser().parse(userDetail).getAsJsonObject();
+    String owner = jsonObject.has("DisplayName") ? jsonObject.get("DisplayName").getAsString() : null;
     return owner;
   }
 

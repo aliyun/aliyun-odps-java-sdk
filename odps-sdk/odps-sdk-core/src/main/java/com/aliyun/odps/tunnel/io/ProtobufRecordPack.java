@@ -41,6 +41,7 @@ public class ProtobufRecordPack extends RecordPack {
   private TableSchema schema;
   private CompressOption option = null;
   private boolean isComplete = false;
+
   private boolean shouldTransform = false;
 
   public void checkTransConsistency(boolean expect) throws IOException {
@@ -125,6 +126,7 @@ public class ProtobufRecordPack extends RecordPack {
       writer.setCheckSum(checksum);
     }
   }
+
 
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;

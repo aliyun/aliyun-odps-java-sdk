@@ -43,16 +43,26 @@ public class ArrayRecord implements Record {
 
   private Column[] columns;
   private final Object[] values;
-
   private HashMap<String, Integer> nameMap = new HashMap<String, Integer>();
 
+  /**
+   * When strictTypeValidation is enabled, max length of string and range of datetime are
+   * restricted.
+   */
+  private boolean strictTypeValidation;
+
   public ArrayRecord(Column[] columns) {
+    this(columns, true);
+  }
+
+  public ArrayRecord(Column[] columns, boolean strictTypeValidation) {
 
     if (columns == null) {
       throw new IllegalArgumentException();
     }
 
     this.columns = columns;
+    this.strictTypeValidation = strictTypeValidation;
 
     values = new Object[columns.length];
 
@@ -62,8 +72,12 @@ public class ArrayRecord implements Record {
 
   }
 
-  public ArrayRecord(Column[] columns, Object[] values){
-    this(columns);
+  public ArrayRecord(Column[] columns, Object[] values) {
+    this(columns, values, true);
+  }
+
+  public ArrayRecord(Column[] columns, Object[] values, boolean strictTypeValidation){
+    this(columns, strictTypeValidation);
     if (values.length != columns.length) {
       throw new IllegalArgumentException("Lengths of schema and column values of the Record mismatches.");
     }
@@ -73,7 +87,11 @@ public class ArrayRecord implements Record {
   }
 
   public ArrayRecord(TableSchema schema) {
-    this(schema.getColumns().toArray(new Column[0]));
+    this(schema, true);
+  }
+
+  public ArrayRecord(TableSchema schema, boolean strictTypeValidation) {
+    this(schema.getColumns().toArray(new Column[0]), strictTypeValidation);
   }
 
   @Override
@@ -95,7 +113,8 @@ public class ArrayRecord implements Record {
       return;
     }
 
-    values[idx] = OdpsTypeTransformer.transform(value, columns[idx].getTypeInfo());
+    values[idx] =
+        OdpsTypeTransformer.transform(value, columns[idx].getTypeInfo(), strictTypeValidation);
   }
 
   @Override

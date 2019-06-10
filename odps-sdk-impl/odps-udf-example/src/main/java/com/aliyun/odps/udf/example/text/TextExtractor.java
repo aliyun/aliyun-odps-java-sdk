@@ -1,16 +1,22 @@
 package com.aliyun.odps.udf.example.text;
 
-import com.aliyun.odps.*;
+import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.io.InputStreamSet;
 import com.aliyun.odps.io.SourceInputStream;
-import com.aliyun.odps.udf.*;
+import com.aliyun.odps.udf.DataAttributes;
+import com.aliyun.odps.udf.ExecutionContext;
+import com.aliyun.odps.udf.Extractor;
 import com.aliyun.odps.utils.StringUtils;
+import org.apache.commons.lang.StringEscapeUtils;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.util.ArrayList;
@@ -35,10 +41,14 @@ public class TextExtractor extends Extractor {
   private int[] outputIndexes;
   private boolean complexText;
   private boolean isGzip;
+  private boolean strict = true;
+  private boolean ignoreLineFeed = true;
+  private boolean handleQuote = true;
   // used for case where all input columns have been pruned (for case like COUNT(*))
   private boolean allColumnsPruned = false;
   final private ArrayRecord emptyRecord = new ArrayRecord(new Column[0]);
   final private ArrayList<String> emptyList =  new ArrayList<String>(0);
+  private ExecutionContext ctx;
 
   public TextExtractor() {
     this.linebreakChar = '\n';
@@ -51,16 +61,24 @@ public class TextExtractor extends Extractor {
   public void setup(ExecutionContext ctx, InputStreamSet inputs, DataAttributes attributes) {
     this.inputs = inputs;
     this.attributes = attributes;
+    this.ctx = ctx;
     // check if "delimiter" attribute is supplied via SQL query
     String columnDelimiter = this.attributes.getValueByKey("delimiter");
     if ( columnDelimiter != null) {
       if (columnDelimiter.length() == 1){
         this.delimiterChar = columnDelimiter.charAt(0);
       } else{
-        throw new RuntimeException("column delimiter cannot be more than one character, sees: " + columnDelimiter);
+        throw new IllegalArgumentException("column delimiter cannot be more than one character, sees: " + columnDelimiter);
       }
     } else {
       this.delimiterChar = ',';
+    }
+    String lineTerminator = attributes.getValueByKey("line.terminator");
+    if (lineTerminator != null && !lineTerminator.isEmpty()) {
+      if (lineTerminator.length() > 1) {
+        throw new IllegalArgumentException("line terminator cannot be more than one character, sees: " + lineTerminator);
+      }
+      linebreakChar = lineTerminator.charAt(0);
     }
     String isComplexText = this.attributes.getValueByKey("odps.text.option.complex.text.enabled");
     if ( isComplexText != null && isComplexText.toLowerCase().equals("true")) {
@@ -72,8 +90,25 @@ public class TextExtractor extends Extractor {
       this.isGzip = true;
     }
 
-    System.out.println("TextExtractor set up with delimiter [" + this.delimiterChar + "], with complex text flag set to"
-        + this.complexText + " and reading gzip file set to " + this.isGzip);
+    String strictMode = attributes.getValueByKey("odps.text.option.strict.mode");
+    if (!StringUtils.isNullOrEmpty(strictMode)) {
+      strict = Boolean.valueOf(strictMode);
+    }
+
+    String ignoreLineFeedStr = attributes.getValueByKey("odps.text.option.ignore.line.feed");
+    if (!StringUtils.isNullOrEmpty(ignoreLineFeedStr)) {
+      ignoreLineFeed = Boolean.valueOf(ignoreLineFeedStr);
+    }
+
+    String quoteEnable = attributes.getValueByKey("odps.text.option.quote.enable");
+    if (!StringUtils.isNullOrEmpty(quoteEnable)) {
+      handleQuote = Boolean.valueOf(quoteEnable);
+    }
+
+    System.out.println(
+      org.apache.commons.lang.StringEscapeUtils.escapeJava(("TextExtractor set up with delimiter [" + this.delimiterChar + "], " +
+        " line terminator [" + linebreakChar + "], with complex text flag set to "
+        + this.complexText + " and reading gzip file set to " + this.isGzip)));
     // note: more properties can be inited from attributes if needed
     this.outputColumns = this.attributes.getRecordColumns();
     this.outputTypes = new OdpsType[this.outputColumns.length];
@@ -130,6 +165,7 @@ public class TextExtractor extends Extractor {
           // TODO: make NULL representation configurable
           if (parts[i].equals("NULL")) {
             record.set(index, null);
+            index++;
             continue;
           }
           switch (this.outputTypes[index]) {
@@ -200,9 +236,11 @@ public class TextExtractor extends Extractor {
     }
     boolean emptyLine = true;
     int colIndx = 0;
-    while (ch == '\r') {
-      //ignore linefeed characters wherever they are, particularly just before end of file
-      ch = r.read();
+    if (ignoreLineFeed) {
+      while (ch == '\r') {
+        //ignore linefeed characters wherever they are, particularly just before end of file
+        ch = r.read();
+      }
     }
     if (ch < 0) {
       return null;
@@ -221,7 +259,7 @@ public class TextExtractor extends Extractor {
         }
       }
       else {
-        if (ch == '\"') {
+        if (ch == '\"' && handleQuote) {
           hasQuotes = true;
           if (quoteStarted) {
             // if this is the second quote in a value, add a quote to handle double quote in the middle of a value
@@ -229,11 +267,11 @@ public class TextExtractor extends Extractor {
           }
         }
         else if (ch == this.delimiterChar && !quoteStarted) {
-          this.lineParts[colIndx++] = curPart.toString();
+          setLinePart(colIndx++, curPart.toString());
           curPart = new StringBuffer();
           quoteStarted = false;
         }
-        else if (ch == '\r') {
+        else if (ch == '\r' && ignoreLineFeed) {
           //ignore LF characters
         }
         else if (ch == this.linebreakChar) {
@@ -251,17 +289,42 @@ public class TextExtractor extends Extractor {
       }
       ch = r.read();
     }
-    this.lineParts[colIndx++] = curPart.toString();
+    setLinePart(colIndx++, curPart.toString());
+    if (colIndx != fullSchemaColumns.length) {
+      handleMismatchLine(colIndx);
+    }
+    return lineParts;
+  }
 
-    if (colIndx != this.fullSchemaColumns.length){
-      String errorMsg = "SCHEMA MISMATCH: External Table schema specified a total of [" +
-              this.fullSchemaColumns.length + "] columns, but current text line parsed into ["
-              + colIndx + "] columns delimited by [" + this.delimiterChar + "]. Current line is read as: "
-              + StringUtils.join(this.lineParts, this.delimiterChar);
+  private void setLinePart(int idx, String value) {
+    if (idx >= fullSchemaColumns.length) {
+      handleMismatchLine(idx);
+    } else {
+      lineParts[idx] = value;
+    }
+  }
+
+  private void handleMismatchLine(int colIndx) {
+    if (colIndx < fullSchemaColumns.length) {
+      ctx.getCounter("text.parse", "schema.partial").increment(1);
+      // fill remaining columns with NULLs
+      for (int i = colIndx; i < fullSchemaColumns.length; i++) {
+        lineParts[i] = "NULL";
+      }
+    } else {
+      ctx.getCounter("text.parse", "schema.oversize").increment(1);
+    }
+    String errorMsg = "SCHEMA MISMATCH: External Table schema specified a total of [" +
+      this.fullSchemaColumns.length + "] columns, but current text line parsed into ["
+      + colIndx + "] columns delimited by [" + this.delimiterChar + "]. Current line is read as: "
+      + StringUtils.join(this.lineParts, this.delimiterChar);
+    errorMsg = StringEscapeUtils.escapeJava(errorMsg);
+    if (strict) {
       throw new RuntimeException(errorMsg);
     }
-    return this.lineParts;
+    System.err.println(errorMsg);
   }
+
   /**
    * Read next line from underlying input streams.
    * @return The next line as a collection of String objects, separated by line delimiter.
@@ -272,6 +335,7 @@ public class TextExtractor extends Extractor {
       firstRead = false;
       // the first read, initialize things
       currentReader = moveToNextStream();
+
       if (currentReader == null) {
         // empty input stream set
         return null;
@@ -323,4 +387,5 @@ public class TextExtractor extends Extractor {
       }
     }
   }
+
 }

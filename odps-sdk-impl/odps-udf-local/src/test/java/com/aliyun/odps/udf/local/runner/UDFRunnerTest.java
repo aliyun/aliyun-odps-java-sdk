@@ -519,7 +519,7 @@ public class UDFRunnerTest {
     inputSource = new TableInputSource(project, table, null, columns);
     runner.addInputSource(inputSource);
     out = runner.yield();
-    Assert.assertEquals("Map:{name=ZhanShan, age=111}", StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("Map:{age=111, name=ZhanShan}", StringUtils.join(out.get(0), ","));
 
     runner = new UDFRunner(odps, new UdfComplex());
     columns = new String[]{"c_struct"};

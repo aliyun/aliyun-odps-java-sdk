@@ -1,5 +1,4 @@
 package com.aliyun.odps.ml;
-import com.alibaba.fastjson.annotation.JSONField;
 
 /**
  * ModelResource表示在线模型使用的资源
@@ -16,12 +15,10 @@ public class ModelResource {
     this.cpu = cpu;
   }
 
-  @JSONField(name="mem")
   public long getMemory() {
     return memory;
   }
 
-  @JSONField(name="mem")
   public void setMemory(long memory) {
     this.memory = memory;
   }

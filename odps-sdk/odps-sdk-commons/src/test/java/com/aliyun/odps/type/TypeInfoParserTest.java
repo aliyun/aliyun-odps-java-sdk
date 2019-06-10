@@ -344,5 +344,11 @@ public class TypeInfoParserTest {
     typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
     Assert.assertTrue(typeInfo instanceof  StructTypeInfo);
     Assert.assertEquals(typeInfo.getTypeName(), "STRUCT<a:INT,un:CHAR(10)>");
+
+    name = "struct< a b : int, un xs:     char(20)>";
+    typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
+    Assert.assertTrue(typeInfo instanceof StructTypeInfo);
+    Assert.assertEquals(typeInfo.getTypeName(), "STRUCT<a b:INT,un xs:CHAR(20)>");
+    Assert.assertEquals(((StructTypeInfo)typeInfo).getFieldNames().get(0), "a b");
   }
 }

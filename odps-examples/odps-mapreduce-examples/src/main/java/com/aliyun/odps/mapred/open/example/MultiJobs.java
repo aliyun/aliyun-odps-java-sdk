@@ -57,6 +57,7 @@ public class MultiJobs {
       long v = -1;
       int count = 0;
 
+      // 读取资源表里面的数据，这个表是上一个job的输出表
       Iterator<Record> iter = context.readResourceTable("multijobs_res_table");
       while (iter.hasNext()) {
         Record r = iter.next();
@@ -75,6 +76,7 @@ public class MultiJobs {
       v--;
       record.set(0, v);
       context.write(record);
+      // 设置counter，counter在作业成功结束后，可以在main函数中获取到
       context.getCounter("multijobs", "value").setValue(v);
     }
   }
@@ -100,6 +102,7 @@ public class MultiJobs {
     initJob.setMapOutputKeySchema(SchemaUtils.fromString("key:string"));
     initJob.setMapOutputValueSchema(SchemaUtils.fromString("value:string"));
 
+    // maponly作业需要显式设置reducer的数目为0
     initJob.setNumReduceTasks(0);
 
     JobClient.runJob(initJob);
@@ -115,12 +118,14 @@ public class MultiJobs {
       InputUtils.addTable(TableInfo.builder().tableName("mr_empty").build(), decJob);
       OutputUtils.addTable(TableInfo.builder().tableName(tbl).build(), decJob);
 
+      // maponly作业需要显式设置reducer的数目为0
       decJob.setNumReduceTasks(0);
 
       RunningJob rJob = JobClient.runJob(decJob);
 
       iterCount--;
 
+      // 如果迭代次数已经达到，则退出循环
       if (rJob.getCounters().findCounter("multijobs", "value").getValue() == 0) {
         break;
       }

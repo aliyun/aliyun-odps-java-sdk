@@ -4,6 +4,7 @@ import com.aliyun.odps.data.SessionQueryResult;
 import com.aliyun.odps.task.SQLRTTask;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
@@ -29,7 +30,7 @@ public class Session {
   private Instance instance;
   private String logView;
 
-  private static Gson gson = new Gson();
+  private static Gson gson = new GsonBuilder().disableHtmlEscaping().create();
   private static int OBJECT_STATUS_RUNNING = 2;
   private static int OBJECT_STATUS_FAILED = 4;
   private static int OBJECT_STATUS_TERMINATED = 5;

@@ -56,7 +56,6 @@ import com.aliyun.odps.task.*;
     SQLRTTask.class,
     XLibTask.class,
     SQLCostTask.class,
-    StreamTask.class,
     MoyeTask.class,
     GalaxyTask.class,
     CupidTask.class,

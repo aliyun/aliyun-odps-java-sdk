@@ -19,7 +19,6 @@
 
 package com.aliyun.odps.mapred.local;
 
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.local.common.utils.TypeConvertUtils;
 import java.io.File;
 import java.io.IOException;
@@ -55,12 +54,7 @@ public class CSVRecordWriter implements RecordWriter {
     Object[] fields = record.toArray();
     String[] vals = new String[fields.length];
     for (int i = 0; i < fields.length; i++) {
-      String rawVal;
-      if (record.getColumns()[i].getType() == OdpsType.STRING) {
-        rawVal = TypeConvertUtils.toString(record.getBytes(i), record.getColumns()[i].getTypeInfo(), true);
-      } else {
-        rawVal = TypeConvertUtils.toString(record.get(i), record.getColumns()[i].getTypeInfo(), false);
-      }
+      String rawVal = TypeConvertUtils.toString(record.get(i), record.getColumns()[i].getTypeInfo());
       vals[i] = rawVal;
     }
     writer.writeRecord(vals);
