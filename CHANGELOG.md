@@ -1,3 +1,10 @@
+# 0.31.3
+- import maven source plugin explicitly to avoid problems
+
+# 0.31.2
+- support optional strict data validation for String and datetime
+- support new typeinfo
+
 # 0.31.0
 - remove fastjson
 - async create download session
