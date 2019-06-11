@@ -335,42 +335,13 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>1.4</version>
-                <configuration>
-                    <artifactSet>
-                        <includes>
-                            <include>com.google.protobuf:protobuf-java:jar:</include>
-                        </includes>
-                    </artifactSet>
-                    <relocations>
-                        <relocation>
-                            <pattern>com.google.protobuf</pattern>
-                            <shadedPattern>com.aliyun.odps.thirdparty.com.google.protobuf
-                            </shadedPattern>
-                        </relocation>
-                    </relocations>
-                    <shadedClassifierName>jar-with-dependencies</shadedClassifierName>
-                    <shadedArtifactAttached>true</shadedArtifactAttached>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
                     <archive>
                         <manifestEntries>
                             <Specification-Version>${version}</Specification-Version>
                             <Implementation-Version>${version}</Implementation-Version>
-                            <Build-Time>${maven.build.timestamp}</Build-Time>
+                            <Build-Time>${timestamp}</Build-Time>
                             <Build-path>${basedir}</Build-path>
                         </manifestEntries>
                     </archive>
@@ -470,7 +441,6 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <phase>package</phase>
                         <id>attach-javadocs</id>
                         <goals>
                             <goal>jar</goal>
@@ -503,19 +473,6 @@
                     </dependency>
                 </dependencies>
             </plugin>
-            <plugin>
-                <groupId>com.jcabi</groupId>
-                <artifactId>jcabi-maven-plugin</artifactId>
-                <version>0.12</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>ajc</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
