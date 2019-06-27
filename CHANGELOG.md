@@ -1,3 +1,6 @@
+# 0.31.4
+- support tunnel download session async mode
+
 # 0.31.3
 - import maven source plugin explicitly to avoid problems
 
