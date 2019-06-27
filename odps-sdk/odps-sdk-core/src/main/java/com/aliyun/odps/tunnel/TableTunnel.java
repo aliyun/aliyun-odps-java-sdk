@@ -356,7 +356,24 @@ public class TableTunnel {
    */
   public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName)
       throws TunnelException {
-    return new TableTunnel.DownloadSession(projectName, tableName, null, null, null);
+      return createDownloadSession(projectName, tableName, false);
+  }
+
+  /**
+   * 在非分区表上创建下载会话
+   *
+   * @param projectName
+   *     Project名称
+   * @param tableName
+   *     表名，非视图
+   * @param async
+   *     异步创建session,小文件多的场景下可以避免连接超时的问题
+   * @return {@link TableTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName, boolean async)
+          throws TunnelException {
+    return new TableTunnel.DownloadSession(projectName, tableName, null, null, null, async);
   }
 
   /**
@@ -378,7 +395,31 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
     return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), null, null);
+        .replaceAll("'", ""), null, null, false);
+  }
+
+  /**
+   * 在分区表上创建下载会话
+   *
+   * @param projectName
+   *     Project名
+   * @param tableName
+   *     表名，非视图
+   * @param partitionSpec
+   *     指定分区 {@link PartitionSpec}
+   * @param async
+   *     异步创建session,小文件多的场景下可以避免连接超时的问题
+   * @return {@link TableTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName,
+                                                           PartitionSpec partitionSpec, boolean async)
+      throws TunnelException {
+    if (partitionSpec == null || partitionSpec.keys().size() == 0) {
+      throw new IllegalArgumentException("Invalid arguments, partition spec required.");
+    }
+    return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
+        .replaceAll("'", ""), null, null, async);
   }
 
   /**
@@ -398,7 +439,7 @@ public class TableTunnel {
     if (shardId < 0) {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
-    return new TableTunnel.DownloadSession(projectName, tableName, null, shardId, null);
+    return new TableTunnel.DownloadSession(projectName, tableName, null, shardId, null, false);
   }
 
   /**
@@ -425,7 +466,7 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
     return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), shardId, null);
+        .replaceAll("'", ""), shardId, null, false);
   }
 
   /**
@@ -442,7 +483,7 @@ public class TableTunnel {
    */
   public TableTunnel.DownloadSession getDownloadSession(String projectName, String tableName,
                                                         String id) throws TunnelException {
-    return new TableTunnel.DownloadSession(projectName, tableName, null, null, id);
+    return new TableTunnel.DownloadSession(projectName, tableName, null, null, id, false);
   }
 
   /**
@@ -460,7 +501,7 @@ public class TableTunnel {
   public TableTunnel.DownloadSession getDownloadSession(String projectName, String tableName,
                                                         long shardId, String id)
       throws TunnelException {
-    return new TableTunnel.DownloadSession(projectName, tableName, null, shardId, id);
+    return new TableTunnel.DownloadSession(projectName, tableName, null, shardId, id, false);
   }
 
   /**
@@ -484,7 +525,7 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
     return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), null, id);
+        .replaceAll("'", ""), null, id, false);
   }
 
   /**
@@ -513,7 +554,7 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
     return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), shardId, id);
+        .replaceAll("'", ""), shardId, id, false);
   }
 
   private String getResource(String projectName, String tableName) {
@@ -1195,9 +1236,11 @@ public class TableTunnel {
      *     下载数据表的shard标识
      * @param downloadId
      *     Download的唯一标识符
+     * @param async
+     *     异步创建session,小文件多的场景下可以避免连接超时的问题
      */
     DownloadSession(String projectName, String tableName, String partitionSpec, Long shardId,
-                    String downloadId) throws TunnelException {
+                    String downloadId, boolean async) throws TunnelException {
       this.conf = TableTunnel.this.config;
       this.projectName = projectName;
       this.tableName = tableName;
@@ -1208,7 +1251,7 @@ public class TableTunnel {
       tunnelServiceClient = conf.newRestClient(projectName);
 
       if (id == null) {
-        initiate();
+        initiate(async);
       } else {
         reload();
       }
@@ -1311,12 +1354,16 @@ public class TableTunnel {
 
 
     // initiate a new download session
-    private void initiate() throws TunnelException {
+    private void initiate(boolean async) throws TunnelException {
       HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = getCommonHeader();
 
       params.put(TunnelConstants.DOWNLOADS, null);
-      params.put(TunnelConstants.ASYNC_MODE, "true");
+
+      if (async) {
+        params.put(TunnelConstants.ASYNC_MODE, "true");
+      }
+
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
