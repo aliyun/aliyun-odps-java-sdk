@@ -266,7 +266,7 @@ public class TextExtractor extends Extractor {
             curPart.append('\"');
           }
         }
-        else if (ch == this.delimiterChar && !quoteStarted) {
+        else if (ch == this.delimiterChar) {
           setLinePart(colIndx++, curPart.toString());
           curPart = new StringBuffer();
           quoteStarted = false;
