@@ -248,7 +248,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
       case DATETIME:{
         long v = in.readSInt64();
         crc.update(v);
-        return shouldTransform ? DateUtils.ms2date(v, DateUtils.LOCAL_CAL) : DateUtils.ms2date(v);
+        return shouldTransform ? DateUtils.ms2date(v, DateUtils.LOCAL_CAL) : new java.util.Date(v);
       }
       case DATE: {
         long v = in.readSInt64();

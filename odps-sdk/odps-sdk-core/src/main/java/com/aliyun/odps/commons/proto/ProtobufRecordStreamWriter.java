@@ -198,7 +198,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
 
         Long longValue = null;
         if (!shouldTransform) {
-          longValue = DateUtils.date2ms(value);
+          longValue = ((Date) v).getTime();
         } else {
           longValue = DateUtils.date2ms(value, DateUtils.LOCAL_CAL);
         }
