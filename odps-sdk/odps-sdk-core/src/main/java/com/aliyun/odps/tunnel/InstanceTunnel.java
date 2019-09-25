@@ -97,21 +97,6 @@ public class InstanceTunnel {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, null, limitEnabled);
   }
 
-  /**
-   * 获得在Instance 上获取的下载会话
-   *
-   * @param projectName
-   *     Project名
-   * @param id
-   *     下载会话ID {@link InstanceTunnel.DownloadSession#getId()}
-   * @return {@link InstanceTunnel.DownloadSession}
-   * @throws TunnelException
-   */
-  public InstanceTunnel.DownloadSession getDownloadSession(String projectName, String id)
-      throws TunnelException {
-    return new InstanceTunnel.DownloadSession(projectName, null, id);
-  }
-
   private String getResource(String projectName, String instanceID) {
     return ResourceBuilder.buildInstanceResource(projectName, instanceID);
   }
@@ -297,7 +282,10 @@ public class InstanceTunnel {
       return reader;
     }
 
-    // initiate a new download session
+    /**
+     * initiate a new download session
+     * @throws TunnelException
+     */
     private void initiate() throws TunnelException {
       HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = TableTunnel.getCommonHeader();

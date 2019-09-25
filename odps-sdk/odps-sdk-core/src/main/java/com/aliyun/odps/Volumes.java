@@ -19,18 +19,18 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.Volume.VolumeModel;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -42,16 +42,17 @@ import com.aliyun.odps.rest.RestClient;
  */
 public class Volumes implements Iterable<Volume> {
 
-  @XmlRootElement(name = "Volumes")
+  @Root(name = "Volumes", strict = false)
   private static class ListVolumesResponse {
 
-    @XmlElement(name = "Volume")
+    @ElementList(entry = "Volume", inline = true, required = false)
     private List<VolumeModel> volumes = new ArrayList<VolumeModel>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 
@@ -244,8 +245,8 @@ public class Volumes implements Iterable<Volume> {
 
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(model, Volume.VolumeModel.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(model);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 
@@ -302,16 +303,18 @@ public class Volumes implements Iterable<Volume> {
     Volume.VolumeModel model = new Volume.VolumeModel();
     model.name = volumeName;
     model.comment = comment;
-    if(type != null)
+    if(type != null) {
       model.type = type.name().toLowerCase();
+    }
 
-    if (lifecycle != null)
+    if (lifecycle != null) {
       model.lifecycle = lifecycle;
+    }
 
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(model, Volume.VolumeModel.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(model);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 
@@ -342,8 +345,8 @@ public class Volumes implements Iterable<Volume> {
     Volume.VolumeModel model = new Volume.VolumeModel();
     model.lifecycle = volume.getLifecycle();
     try {
-      xml = JAXBUtils.marshal(model, Volume.VolumeModel.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(model);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 

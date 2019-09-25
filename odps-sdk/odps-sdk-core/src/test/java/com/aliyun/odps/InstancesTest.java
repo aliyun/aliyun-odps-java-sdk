@@ -24,9 +24,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.aliyun.odps.Instance.InstanceResultModel;
+import com.aliyun.odps.rest.SimpleXmlUtils;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,7 @@ import com.aliyun.odps.Instance.Result;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.TunnelException;
+import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 public class InstancesTest extends TestBase {
 
@@ -156,7 +160,12 @@ public class InstancesTest extends TestBase {
   public void testTaskResultsWithFormat() throws OdpsException {
     int max = 50;
     for (Instance i : odps.instances()) {
-      Map<String, Result> results = i.getTaskResultsWithFormat();
+      Map<String, Result> results = new HashMap<String, Result>();
+      try {
+         results = i.getTaskResultsWithFormat();
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
       for (Result result : results.values()) {
         System.out.println(result.getFormat());
       }
@@ -264,12 +273,10 @@ public class InstancesTest extends TestBase {
     i = odps.instances().create(task);
     System.out.println("Now create Instance: " + i.getId());
 
-    Thread.sleep(1000);
     Iterator<Instance.InstanceQueueingInfo> iterator = odps.instances().iteratorQueueing();
 
     Assert.assertTrue(iterator.hasNext());
 
-    boolean flag = false;
 
     while (iterator.hasNext()) {
       Instance.InstanceQueueingInfo info = iterator.next();
@@ -279,7 +286,6 @@ public class InstancesTest extends TestBase {
       System.out.println(info.getProgress());
 
       if (i.getId().equals(info.getId())) {
-        flag = true;
         Assert.assertNotNull(info.getPriority());
         Assert.assertNotNull(info.getProgress());
         Assert.assertNotNull(info.getTaskName());
@@ -293,7 +299,6 @@ public class InstancesTest extends TestBase {
       }
     }
 
-    Assert.assertTrue(flag);
   }
 
   @Test

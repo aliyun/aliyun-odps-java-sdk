@@ -19,18 +19,17 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.ElementListUnion;
+import com.aliyun.odps.simpleframework.xml.Path;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.task.*;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
-import com.aliyun.odps.rest.JAXBUtils;
 
 /**
  * ODPS Job定义。ODPS内部使用。
@@ -39,34 +38,50 @@ import com.aliyun.odps.rest.JAXBUtils;
  */
 public class Job {
 
-  @XmlRootElement(name = "Job")
+  @Root(name = "Job", strict = false)
   static class JobModel {
-
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Comment")
+    @Element(name = "Comment", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date creationTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModified;
 
-    @XmlElement(name = "Priority")
+    @Element(name = "Priority", required = false)
     int priority = 9; // Default value 9.
 
-    @XmlElement(name = "RunningCluster")
+    @Element(name = "RunningCluster", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String runningCluster;
 
-    @XmlElementWrapper(name = "Tasks")
-    @XmlElementRef
+    @Path(value = "Tasks")
+    @ElementListUnion({
+        @ElementList(entry = "Graph", inline = true, type = GraphTask.class),
+        @ElementList(entry = "LOT", inline = true, type = LOTTask.class),
+        @ElementList(entry = "SQLPlan", inline = true, type = SqlPlanTask.class),
+        @ElementList(entry = "SQL", inline = true, type = SQLTask.class),
+        @ElementList(entry = "SQLRT", inline = true, type = SQLRTTask.class),
+        @ElementList(entry = "XLib", inline = true, type = XLibTask.class),
+        @ElementList(entry = "SQLCost", inline = true, type = SQLCostTask.class),
+        @ElementList(entry = "MOYE", inline = true, type = MoyeTask.class),
+        @ElementList(entry = "Galaxy", inline = true, type = GalaxyTask.class),
+        @ElementList(entry = "CUPID", inline = true, type = CupidTask.class),
+        @ElementList(entry = "Merge", inline = true, type = MergeTask.class),
+        @ElementList(entry = "AlgoTask", inline = true, type = AlgoTask.class),
+    })
     List<Task> tasks = new LinkedList<Task>();
   }
 
@@ -152,8 +167,8 @@ public class Job {
   /* Un-document */
   public String toXmlString() throws OdpsException {
     try {
-      return JAXBUtils.marshal(model, JobModel.class);
-    } catch (JAXBException e) {
+      return SimpleXmlUtils.marshal(model);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
   }

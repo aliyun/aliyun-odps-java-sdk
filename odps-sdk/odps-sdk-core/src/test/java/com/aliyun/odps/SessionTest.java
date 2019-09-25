@@ -30,9 +30,15 @@ public class SessionTest extends TestBase{
 
   @BeforeClass
   public static void testCreateSession() throws OdpsException {
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("c1", OdpsType.STRING));
+    schema.addColumn(new Column("c2", OdpsType.BIGINT));
+
+    odps.tables().create("src", schema, true);
+
     Map<String, String> flags = new HashMap<String, String>();
     flags.put("odps.sql.session.worker.count", "5");
-    flags.put("odps.sql.session.worker.sparespan", "2-3");
+    flags.put("odps.sql.session.worker.sparespan", "0-0");
     flags.put("odps.sql.session.enable.start.service", "true");
     flags.put("odps.sql.session.split.cache.by.page", "false");
     flags.put("odps.sql.jobconf.odps2", "true");

@@ -20,23 +20,24 @@
 package com.aliyun.odps.ml;
 
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.*;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.ml.OfflineModel.OfflineModelDesc;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+
 
 /**
  * OfflineModels表示ODPS中所有离线模型的集合
@@ -45,16 +46,17 @@ import com.aliyun.odps.rest.RestClient;
  */
 public class OfflineModels implements Iterable<OfflineModel> {
 
-  @XmlRootElement(name = "OfflineModels")
+  @Root(name = "OfflineModels", strict = false)
   private static class ListOfflineModelsResponse {
 
-    @XmlElement(name = "OfflineModel")
+    @ElementList(entry = "OfflineModel", inline = true, required = false)
     private List<OfflineModelDesc> offlineModelDescs = new ArrayList<OfflineModelDesc>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 
@@ -229,8 +231,8 @@ public class OfflineModels implements Iterable<OfflineModel> {
   public Instance create(String project, OfflineModelInfo modelInfo) throws OdpsException {
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(modelInfo, OfflineModelInfo.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(modelInfo);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 
@@ -266,8 +268,8 @@ public class OfflineModels implements Iterable<OfflineModel> {
   public Instance copy(String project, OfflineModelInfo modelInfo) throws OdpsException {
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(modelInfo, OfflineModelInfo.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(modelInfo);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 

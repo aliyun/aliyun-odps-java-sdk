@@ -19,9 +19,16 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Attribute;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,37 +37,27 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-
 import com.aliyun.odps.Instance.InstanceResultModel;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
 import com.aliyun.odps.Instance.TaskStatusModel;
 import com.aliyun.odps.XFlow.XFlowModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 
 public class XFlows implements Iterable<XFlow> {
 
-  @XmlRootElement(name = "xflows")
+  @Root(name = "xflows", strict = false)
   private static class ListXFlowsResponse {
 
-    @XmlElement(name = "xflow")
+    @ElementList(entry = "xflow", inline = true, required = false)
     private List<XFlowModel> xFlows = new ArrayList<XFlowModel>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 
@@ -73,8 +70,7 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 获取 XFlow 对象
    *
-   * @param XFlow
-   *     name
+   * @param name XFlow
    * @return
    */
   public XFlow get(String name) {
@@ -84,10 +80,8 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 获取 XFlow 对象
    *
-   * @param XFlow
-   *     name
-   * @param project
-   *     Name
+   * @param name Xflow
+   * @param projectName
    * @return
    */
   public XFlow get(String name, String projectName) {
@@ -99,8 +93,7 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 判断 XFlow 对象是否存在
    *
-   * @param XFlow
-   *     name
+   * @param name XFlow
    * @return
    * @throws OdpsException
    */
@@ -111,10 +104,8 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 判断 XFlow 对象是否存在
    *
-   * @param XFlow
-   *     name
-   * @param project
-   *     Name
+   * @param name XFlow
+   * @param projectName
    * @return
    * @throws OdpsException
    */
@@ -178,7 +169,7 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 创建 XFlow 对象
    *
-   * @param 创建
+   * @param model
    *     xflow 描述 model
    * @throws OdpsException
    */
@@ -189,7 +180,7 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 创建 XFlow 对象
    *
-   * @param 创建
+   * @param model
    *     xflow 描述 model
    * @param projectName
    *     所在{@link Project}名称
@@ -230,7 +221,7 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 更新 XFlow 对象
    *
-   * @param 更新
+   * @param model
    *     xflow 描述 model
    * @throws OdpsException
    */
@@ -241,7 +232,7 @@ public class XFlows implements Iterable<XFlow> {
   /**
    * 更新 XFlow 对象
    *
-   * @param XFlow
+   * @param model
    *     描述 model
    * @param projectName
    *     所在{@link Project}名称
@@ -284,29 +275,26 @@ public class XFlows implements Iterable<XFlow> {
   }
 
 
-  @XmlRootElement(name = "Instance")
+  @Root(name = "Instance", strict = false)
   static class AnnoymousXFlowInstance {
 
-    @XmlElement(name = "XflowInstance")
+    @Element(name = "XflowInstance", required = false)
     XFlowInstance xFlowInstance;
   }
 
-  @XmlRootElement(name = "XflowInstance")
-  @XmlAccessorType(XmlAccessType.FIELD)
-  @XmlType(name = "", propOrder = {"RunningMode", "project", "XflowName",
-                                   "parameters", "guid", "priority", "config"})
+  @Root(name = "XflowInstance", strict = false)
   public static class XFlowInstance {
     /**
      * Property
      */
-    @XmlAccessorType(XmlAccessType.FIELD)
-    @XmlType(name = "", propOrder = {"name", "value"})
     public static class Property {
 
-      @XmlElement(name = "Name", required = true)
+      @Element(name = "Name")
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       private String name;
 
-      @XmlElement(name = "Value", required = true)
+      @Element(name = "Value")
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       private String value;
 
       public String getName() {
@@ -329,24 +317,32 @@ public class XFlows implements Iterable<XFlow> {
     /**
      * Config
      */
-    @XmlRootElement(name = "Config")
-    @XmlAccessorType(XmlAccessType.FIELD)
+    @Root(name = "Config", strict = false)
     static class Config {
-      @XmlElement(name = "Property")
       Set<Property> config = new LinkedHashSet<Property>();
+
+      @ElementList(entry = "Property", inline = true, required = false)
+      private List<Property> getConfigList() {
+        return new ArrayList<Property>(config);
+      }
+
+      @ElementList(entry = "Property", inline = true, required = false)
+      private void setConfigList(List<Property> configList) {
+        config = new LinkedHashSet<Property>(configList);
+      }
     }
 
     /**
      * Parameter
      */
-    @XmlAccessorType(XmlAccessType.FIELD)
-    @XmlType(name = "", propOrder = {"key", "value"})
     public static class Parameter {
 
-      @XmlElement(name = "Key", required = true)
+      @Element(name = "Key")
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       private String key;
 
-      @XmlElement(name = "Value", required = true)
+      @Element(name = "Value")
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       private String value;
 
       public String getKey() {
@@ -369,34 +365,46 @@ public class XFlows implements Iterable<XFlow> {
     /**
      * Parameters
      */
-    @XmlRootElement(name = "Parameters")
-    @XmlAccessorType(XmlAccessType.FIELD)
+    @Root(name = "Parameters", strict = false)
     static class Parameters {
 
-      @XmlElement(name = "Parameter")
       Set<Parameter> parameters = new LinkedHashSet<Parameter>();
+
+      @ElementList(entry = "Parameter", inline = true, required = false)
+      private List<Parameter> getParamList() {
+        return new ArrayList<Parameter>(parameters);
+      }
+
+      @ElementList(entry = "Parameter", inline = true, required = false)
+      private void setParamList(List<Parameter> paramList) {
+        parameters = new LinkedHashSet<Parameter>(paramList);
+      }
     }
 
-    @XmlElement(name = "Xflow")
-    private String XflowName;
-
-    @XmlElement(name = "RunningMode")
+    @Element(name = "RunningMode", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String RunningMode;
 
-    @XmlElement(name = "Project")
+    @Element(name = "Project", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String project;
 
-    @XmlElement(name = "Parameters")
+    @Element(name = "Xflow", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    private String XflowName;
+
+    @Element(name = "Parameters", required = false)
     private Parameters parameters = new Parameters();
 
-    @XmlElement(name = "Guid")
+    @Element(name = "Guid", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String guid;
 
     // Priority range [0,9], 0 is the highest priority in odps
-    @XmlElement(name = "Priority")
+    @Element(name = "Priority", required = false)
     private int priority = 1;
 
-    @XmlElement(name = "Config")
+    @Element(name = "Config", required = false)
     private Config config = new Config();
 
     public String getXflowName() {
@@ -427,7 +435,6 @@ public class XFlows implements Iterable<XFlow> {
       return parameters;
     }
 
-    @XmlTransient
     public final void setParameters(Map<String, String> parameters) {
       this.parameters = new Parameters();
       for (Entry<String, String> p : parameters.entrySet()) {
@@ -460,7 +467,6 @@ public class XFlows implements Iterable<XFlow> {
       return config;
     }
 
-    @XmlTransient
     public final void setConfig(Map<String, String> config) {
       this.config = new Config();
       for (Entry<String, String> p : config.entrySet()) {
@@ -493,8 +499,8 @@ public class XFlows implements Iterable<XFlow> {
     AnnoymousXFlowInstance i = new AnnoymousXFlowInstance();
     i.xFlowInstance = xFlowInstance;
     try {
-      xml = JAXBUtils.marshal(i, AnnoymousXFlowInstance.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(i);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
     HashMap<String, String> headers = new HashMap<String, String>();
@@ -514,11 +520,11 @@ public class XFlows implements Iterable<XFlow> {
 
     if (resp.getStatus() == 200 && resp.getBody() != null && resp.getBody().length > 0) {
       try {
-        InstanceResultModel result = JAXBUtils.unmarshal(resp, InstanceResultModel.class);
+        InstanceResultModel result = SimpleXmlUtils.unmarshal(resp, InstanceResultModel.class);
         for (TaskResult r : result.taskResults) {
           results.put(r.name, r.result);
         }
-      } catch (JAXBException e) {
+      } catch (Exception e) {
         throw new OdpsException("Invalid create instance response.", e);
       }
     }
@@ -549,25 +555,35 @@ public class XFlows implements Iterable<XFlow> {
       return nodeType;
     }
 
-    @XmlAttribute(name = "NodeType")
+    @Attribute(name = "NodeType", required = false)
     String nodeType;
 
-    @XmlElement(name = "InstanceId")
+    @Element(name = "InstanceId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String instanceId;
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Result")
+    @Element(name = "Result", required = false)
     Instance.Result result;
   }
 
-  @XmlRootElement(name = "Xinstance")
+  @Root(name = "Xinstance", strict = false)
   private static class XFlowResult {
 
-    @XmlElementWrapper(name = "Actions")
-    @XmlElement(name = "Action")
     private Set<XResult> xresults = new LinkedHashSet<XResult>();
+
+    @ElementList(name = "Actions", entry = "Action", required = false)
+    private List<XResult> getXResultList() {
+      return new ArrayList<XResult>(xresults);
+    }
+
+    @ElementList(name = "Actions", entry = "Action", required = false)
+    private void setXResultList(List<XResult> xResultList) {
+      xresults = new LinkedHashSet<XResult>(xResultList);
+    }
 
     public Set<XResult> getXResults() {
       return xresults;
@@ -607,10 +623,10 @@ public class XFlows implements Iterable<XFlow> {
   public XFlowInstance getXFlowInstance(Instance instance) throws OdpsException {
     try {
       AnnoymousXFlowInstance annoymousXFlowInstance =
-          JAXBUtils.unmarshal(getXSource(instance).getBytes(), AnnoymousXFlowInstance.class);
+          SimpleXmlUtils.unmarshal(getXSource(instance).getBytes(), AnnoymousXFlowInstance.class);
 
       return annoymousXFlowInstance.xFlowInstance;
-    } catch (JAXBException e) {
+    } catch (Exception e) {
       throw new OdpsException("Invalid create XFlow instance response.", e);
     }
   }

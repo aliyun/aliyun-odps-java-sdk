@@ -20,6 +20,10 @@
 package com.aliyun.odps.security;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
@@ -123,6 +127,45 @@ public class SecurityManagerTest extends TestBase {
     CheckPermissionResult r;
     r = sm.checkPermission(ObjectType.Project, "", ActionType.List);
     assertEquals(CheckPermissionResult.Allow, r);
+  }
+
+  @Test
+  public void testGetSecurityConfigurationWithoutExceptionPolicy() throws OdpsException {
+    // Enable project protection
+    SecurityConfiguration sc = sm.getSecurityConfiguration();
+    sc.enableProjectProtection(
+        "   {\n"
+        + "      \"Version\": \"1\",\n"
+        + "      \"Statement\":\n"
+        + "      [{\n"
+        + "          \"Effect\":\"Allow\",\n"
+        + "          \"Principal\":\"*\",\n"
+        + "          \"Action\":[\"odps:*\"],\n"
+        + "          \"Resource\":\"acs:odps:*:projects/<project>/*/*\"\n"
+        + "      }]\n"
+        + "    }");
+    sm.setSecurityConfiguration(sc);
+
+    // Since security manager caches the exception policy, we have to create a new one
+    SecurityManager newSm = new SecurityManager(odps.getDefaultProject(), odps.getRestClient());
+    sc = newSm.getSecurityConfiguration(true);
+    // With strip equals true, getProjectProtectionExceptionPolicy should throw a NPE
+    try {
+      sc.projectProtection();
+      sc.getProjectProtectionExceptionPolicy();
+      fail("Should throw a null pointer exception here");
+    } catch (NullPointerException e) {
+      // Ignore
+    }
+
+    // With strip equals false, getProjectProtectionExceptionPolicy should return the above json
+    sc = newSm.getSecurityConfiguration(false);
+    assertTrue(sc.projectProtection());
+    assertNotNull(sc.getProjectProtectionExceptionPolicy());
+
+    // Disable project protection
+    sc.disableProjectProtection();
+    sm.setSecurityConfiguration(sc);
   }
 
 }

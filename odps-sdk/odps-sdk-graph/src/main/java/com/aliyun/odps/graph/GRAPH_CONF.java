@@ -25,6 +25,11 @@ package com.aliyun.odps.graph;
 public class GRAPH_CONF {
 
   public final static String JOB_PRIORITY = "odps.graph.job.priority";
+  public final static String ODPS_INSTANCE_PRIORITY = "odps.instance.priority";
+  public final static String RUNNING_CLUSTER = "odps.running.cluster";
+
+  public final static int DEFAULT_PRIORITY = 9;
+
   public final static String CACHE_RESOURCES = "odps.graph.cache.resources";
   public final static String CLASSPATH_RESOURCES = "odps.graph.classpath.resources";
 

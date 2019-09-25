@@ -19,29 +19,33 @@
 
 package com.aliyun.odps.task;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.Task;
-import com.aliyun.odps.commons.util.TrimmedStringXmlAdapter;
-
-//import com.aliyun.odps.xlib.task.TrimmedStringXmlAdapter;
-
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 /**
  * XDebug 开发时，提交计算任务用
  *
  * @author yangxu
  */
-@XmlType(name = "XLib", propOrder = {"method", "parameters",
-                                     "inputTablenames", "outputTablenames"})
-@XmlRootElement(name = "XLib")
+@Root(name = "XLib", strict = false)
 public class XLibTask extends Task {
 
+  @Element(name = "Method", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String method;
+
+  @Element(name = "Parameters", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String parameters;
+
+  @Element(name = "InputTablenames", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String inputTablenames;
+
+  @Element(name = "OutputTablenames", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String outputTablenames;
 
   // Package-visible. Only for JAXB to construct the instance.
@@ -90,8 +94,6 @@ public class XLibTask extends Task {
    * @param method
    *     方法名。
    */
-  @XmlElement(name = "Method")
-  @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
   public void setMethod(String method) {
     this.method = method;
   }
@@ -111,8 +113,6 @@ public class XLibTask extends Task {
    * @param parameters
    *     参数。
    */
-  @XmlElement(name = "Parameters")
-  @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
   public void setParameters(String parameters) {
     this.parameters = parameters;
   }
@@ -128,8 +128,6 @@ public class XLibTask extends Task {
    * @param inputTablenames
    *     the inputTablenames to set
    */
-  @XmlElement(name = "InputTablenames")
-  @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
   public void setInputTablenames(String inputTablenames) {
     this.inputTablenames = inputTablenames;
   }
@@ -145,8 +143,6 @@ public class XLibTask extends Task {
    * @param outputTablenames
    *     the outputTablenames to set
    */
-  @XmlElement(name = "OutputTablenames")
-  @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
   public void setOutputTablenames(String outputTablenames) {
     this.outputTablenames = outputTablenames;
   }

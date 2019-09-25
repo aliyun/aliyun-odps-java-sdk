@@ -25,4 +25,11 @@ public class VarCharTest {
     Assert.assertEquals(varchar.length(), 2);
     Assert.assertEquals(varchar.toString(), "he");
   }
+
+  @Test
+  public void testNull() {
+    String str = null;
+    Varchar varchar = new Varchar(str);
+    Assert.assertNull(varchar.getValue());
+  }
 }

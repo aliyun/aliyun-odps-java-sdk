@@ -137,7 +137,6 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     createNewReader();
   }
 
-
   @Override
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;
@@ -240,7 +239,6 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
           reader = RawTunnelRecordReader
                   .createTableTunnelReader(start + offset, count - offset, option, columnList,
                                            tunnelServiceClient, tableSession);
-
           reader.setTransform(this.shouldTransform);
         }
 
@@ -248,7 +246,6 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
           reader = RawTunnelRecordReader
                   .createInstanceTunnelReader(start + offset, count - offset, option, columnList,
                                               tunnelServiceClient, instanceSession);
-
           reader.setTransform(this.shouldTransform);
         }
 

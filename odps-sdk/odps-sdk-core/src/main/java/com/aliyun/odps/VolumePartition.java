@@ -19,6 +19,11 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -26,15 +31,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.VolumeFile.VolumeFileModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -46,30 +46,33 @@ import com.aliyun.odps.rest.RestClient;
  */
 public class VolumePartition extends LazyLoad {
 
-  @XmlRootElement(name = "Meta")
+  @Root(name = "Meta", strict = false)
   static class VolumePartitionModel {
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Comment")
+    @Element(name = "Comment", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
 
-    @XmlElement(name = "Length")
+    @Element(name = "Length", required = false)
     Long length;
 
-    @XmlElement(name = "FileNumber")
+    @Element(name = "FileNumber", required = false)
     Integer fileNumber;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date createdTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
   }
 
@@ -96,7 +99,7 @@ public class VolumePartition extends LazyLoad {
     Response resp = client.request(resource, "GET", params, null, null);
 
     try {
-      model = JAXBUtils.unmarshal(resp, VolumePartitionModel.class);
+      model = SimpleXmlUtils.unmarshal(resp, VolumePartitionModel.class);
       model.lastModifiedTime = DateUtils.parseRfc822Date(resp.getHeader("Last_Modified"));
       model.createdTime = DateUtils.parseRfc822Date(resp.getHeader("x-odps-creation-time"));
       model.owner = resp.getHeader(Headers.ODPS_OWNER);
@@ -190,16 +193,17 @@ public class VolumePartition extends LazyLoad {
   }
 
   // for list file response
-  @XmlRootElement(name = "Items")
+  @Root(name = "Items", strict = false)
   private static class ListFilesResponse {
 
-    @XmlElement(name = "Item")
+    @ElementList(entry = "Item", inline = true, required = false)
     private List<VolumeFileModel> items = new ArrayList<VolumeFileModel>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 

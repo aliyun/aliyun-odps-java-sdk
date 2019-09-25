@@ -19,21 +19,18 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.aliyun.odps.Resources.ResourceHeaders;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -84,37 +81,42 @@ public class Resource extends LazyLoad {
   /**
    * Resource model
    */
-  @XmlRootElement(name = "Resource")
-  @XmlAccessorType(XmlAccessType.FIELD)
+  @Root(name = "Resource", strict = false)
   static class ResourceModel {
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "Comment")
+    @Element(name = "Comment", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
 
-    @XmlElement(name = "ResourceType")
+    @Element(name = "ResourceType", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String type;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date createdTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
 
-    @XmlElement(name = "LastUpdator")
+    @Element(name = "LastUpdator", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String lastUpdator;
 
-    @XmlElement(name = "ResourceSize")
+    @Element(name = "ResourceSize", required = false)
     Long size;
 
-    @XmlElement(name = "TableName")
+    @Element(name = "TableName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String sourceTableName;
 
     String contentMD5;

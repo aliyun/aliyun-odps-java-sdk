@@ -188,6 +188,17 @@ public class SecurityUtils {
     return null;
 
   }
+
+  public static String getApplicationSignature(
+      String accountProvider, String accessId, String signedString) {
+    String signature = String.format(
+        "account_provider:%s,signature_method:%s,access_id:%s,signature:%s",
+        accountProvider,
+        "hmac-sha1",
+        accessId,
+        signedString);
+    return signature;
+  }
 }
 
 

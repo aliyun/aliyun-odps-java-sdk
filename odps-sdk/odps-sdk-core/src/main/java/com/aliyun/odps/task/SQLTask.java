@@ -19,13 +19,14 @@
 
 package com.aliyun.odps.task;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
 import java.util.*;
-
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
@@ -51,9 +52,11 @@ import com.google.gson.*;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
-@XmlRootElement(name = "SQL")
+@Root(name = "SQL", strict = false)
 public class SQLTask extends Task {
 
+  @Element(name = "Query", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String query;
   
   private static Map<String,String> defaultHints;
@@ -78,7 +81,6 @@ public class SQLTask extends Task {
    * @param query
    *     需要执行的SQL查询
    */
-  @XmlElement(name = "Query")
   public void setQuery(String query) {
     this.query = query;
   }

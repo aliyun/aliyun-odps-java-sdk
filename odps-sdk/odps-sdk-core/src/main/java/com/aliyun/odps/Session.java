@@ -24,11 +24,13 @@ public class Session {
     this.sessionName = sessionName;
     this.instance = instance;
     this.logView = new LogView(odps).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
+    this.startSessionMessage = "";
   }
 
   private String sessionName;
   private Instance instance;
   private String logView;
+  private String startSessionMessage;
 
   private static Gson gson = new GsonBuilder().disableHtmlEscaping().create();
   private static int OBJECT_STATUS_RUNNING = 2;
@@ -42,6 +44,10 @@ public class Session {
 
   public void setLogView(String logView) {
     this.logView = logView;
+  }
+
+  public String getStartSessionMessage() {
+    return startSessionMessage;
   }
 
   public class SubQueryResponse {
@@ -120,7 +126,7 @@ public class Session {
     hints.put("odps.sql.session.share.id", sessionName);
 
     try {
-      return createInternal(odps, null, null, null, null, null, hints, timeout);
+      return createInternal(odps, null, null, null, null, null, hints, timeout, null);
     } finally {
       hints.remove("odps.sql.session.share.id");
     }
@@ -192,7 +198,40 @@ public class Session {
 
     return createInternal(odps, projectName, sessionName, workerCount, workerMemory,
                           workerSpareSpan, hints,
-                          timeout);
+                          timeout, null);
+  }
+
+  /**
+   * 创建 session
+   *
+   * @param odps
+   *     odps 对象
+   * @param workerCount
+   *     session work 数量（单位：个）
+   * @param workerMemory
+   *     session work 内存 （单位： MB）
+   * @param sessionName
+   *     指定 session 名字
+   * @param workerSpareSpan
+   *     session 对应 cg service 的服务休息时间, 格式是 startHour-endHour
+   *     例如 0-12 表示0点到12点 worker 数会降为 0。
+   * @param hints
+   *     能够影响 SQL 执行的Set 参数
+   * @param timeout
+   *     等待 session 启动的超时时间，单位: 秒
+   *     其中: null 表示从不等待； 0 表示阻塞等待
+   * @param priority
+   *     session 优先级
+   * @return session 对象
+   * @throws OdpsException
+   */
+  public static Session create(Odps odps, int workerCount, int workerMemory, String sessionName,
+                               String projectName, String workerSpareSpan,
+                               Map<String, String> hints, Long timeout, Integer priority) throws OdpsException {
+
+    return createInternal(odps, projectName, sessionName, workerCount, workerMemory,
+                          workerSpareSpan, hints,
+                          timeout, priority);
   }
 
   /**
@@ -209,9 +248,28 @@ public class Session {
    * @throws OdpsException
    */
   public static Session create(Odps odps, String sessionName, String projectName, Map<String, String> hints, Long timeout) throws OdpsException {
-
     return createInternal(odps, projectName, sessionName, null, null,
-        null, hints, timeout);
+                          null, hints, timeout, null);
+  }
+
+  /**
+   * 创建 session
+   *
+   * @param odps
+   *     odps 对象
+   * @param hints
+   *     能够影响 SQL 执行的Set 参数
+   * @param timeout
+   *     等待 session 启动的超时时间，单位: 秒
+   *     其中: null 表示从不等待； 0 表示阻塞等待
+   * @param priority
+   *     session 优先级
+   * @return session 对象
+   * @throws OdpsException
+   */
+  public static Session create(Odps odps, String sessionName, String projectName, Map<String, String> hints, Long timeout, Integer priority) throws OdpsException {
+    return createInternal(odps, projectName, sessionName, null, null,
+        null, hints, timeout, priority);
   }
 
   /**
@@ -326,10 +384,17 @@ public class Session {
       if (response == null || response.status == null) {
         checkTaskStatus();
       } else if (response.status == OBJECT_STATUS_RUNNING) {
+        if (response.result != null && response.result.length() > 0) {
+          startSessionMessage += response.result;
+        }
         return;
       } else if (response.status == OBJECT_STATUS_FAILED) {
         throw new OdpsException(
             String.format("Start session[%s] failed: %s ", sessionName, response.result));
+      }
+
+      if (response != null && response.result != null && response.result.length() > 0) {
+        startSessionMessage += response.result;
       }
 
       sleep();
@@ -358,7 +423,7 @@ public class Session {
   private static Session createInternal(Odps odps, String projectName, String sessionName,
                                         Integer workerCount, Integer workerMemory,
                                         String workerSpareSpan, Map<String, String> hints,
-                                        Long timeout) throws OdpsException {
+                                        Long timeout, Integer priority) throws OdpsException {
     if (projectName != null && projectName.trim().isEmpty()) {
       throw new IllegalArgumentException("Project name can not be empty.");
     }
@@ -397,12 +462,13 @@ public class Session {
       throw new OdpsException(e.getMessage(), e);
     }
 
-    Instance instance = odps.instances().create(projectName, task);
     if (userSubmitMode == null || userSubmitMode.isEmpty()) {
       hints.remove("odps.sql.submit.mode");
     } else {
       hints.put("odps.sql.submit.mode", userSubmitMode);
     }
+
+    Instance instance = odps.instances().create(projectName, task, priority, null);
 
     Session session = new Session(odps, instance, sessionName);
     session.printLogView();

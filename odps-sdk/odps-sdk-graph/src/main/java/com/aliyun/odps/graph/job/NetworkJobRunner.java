@@ -124,7 +124,7 @@ public class NetworkJobRunner extends Configured implements JobRunner {
 
     Odps odps = SessionState.get().getOdps();
     String project = odps.getDefaultProject();
-    Instance instance = GraphTask.run(odps, project, task, priority);
+    Instance instance = GraphTask.run(odps, project, task, priority, confInJob.get(GRAPH_CONF.RUNNING_CLUSTER, null));
     if (instance == null) {
       throw new RuntimeException("Client-side submit job failed.");
     }

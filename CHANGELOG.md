@@ -1,3 +1,8 @@
+# 0.32.5
+- java8+ required
+- replace jaxb with simple xml
+- add parameter to enable/disable type validation in ArrayRecord
+
 # 0.31.5
 - delete dateutils related in tunnel r/w, to unify timezone logic with oversea version
 

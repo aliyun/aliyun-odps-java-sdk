@@ -76,7 +76,7 @@ public class ResourcesTest extends TestBase {
     assertNotNull(testFile);
     FileResource
         r =
-        odps.resources().createTempResource(odps.getDefaultProject(), testFile.getFile(),
+         odps.resources().createTempResource(odps.getDefaultProject(), testFile.getFile(),
                                             Resource.Type.JAR);
     assertTrue(r instanceof JarResource);
     assertTrue(r.getName().endsWith("resource.jar"));

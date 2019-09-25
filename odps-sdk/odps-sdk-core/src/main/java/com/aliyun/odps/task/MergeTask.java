@@ -22,21 +22,23 @@
  */
 package com.aliyun.odps.task;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
 
 import com.aliyun.odps.Task;
-import com.aliyun.odps.commons.util.TrimmedStringXmlAdapter;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 /**
  * 表示执行一个Merge查询的任务。
  *
  * @author fengyin.zym
  */
-@XmlRootElement(name = "Merge")
+@Root(name = "Merge", strict = false)
 public class MergeTask extends Task {
 
+  @Element(name = "TableName", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String table;
 
   // Package-visible. Only for JAXB to construct the instance.
@@ -58,7 +60,7 @@ public class MergeTask extends Task {
    *
    * @param name
    *     任务名。
-   * @param tb
+   * @param table
    *     表、分区信息。
    */
   public MergeTask(String name, String table) {
@@ -79,11 +81,9 @@ public class MergeTask extends Task {
   /**
    * 设置查询语句。
    *
-   * @param query
+   * @param table
    *     查询语句。
    */
-  @XmlElement(name = "TableName")
-  @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
   public void setTable(String table) {
     this.table = table;
   }

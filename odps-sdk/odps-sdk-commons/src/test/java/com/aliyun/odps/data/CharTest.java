@@ -25,4 +25,11 @@ public class CharTest {
     Assert.assertEquals(chars.length(), 2);
     Assert.assertEquals(chars.toString(), "he");
   }
+
+  @Test
+  public void testNull() {
+    String str = null;
+    Char c = new Char(str);
+    Assert.assertNull(c.getValue());
+  }
 }

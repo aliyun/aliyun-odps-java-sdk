@@ -19,20 +19,20 @@
 
 package com.aliyun.odps.security;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.security.CheckPermissionConstants.ActionType;
@@ -53,13 +53,14 @@ public class SecurityManager {
   private RestClient client;
   private SecurityConfiguration securityConfigration;
 
-  @XmlRootElement(name = "Authorization")
+  @Root(name = "Authorization", strict = false)
   private static class AuthorizationQueryRequest {
 
-    @XmlElement(name = "Query")
+    @Element(name = "Query", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String query;
 
-    @XmlElement(name = "ResponseInJsonFormat")
+    @Element(name = "ResponseInJsonFormat", required = false)
     private boolean responseInJsonFormat;
 
     @SuppressWarnings("unused")
@@ -75,10 +76,11 @@ public class SecurityManager {
 
   }
 
-  @XmlRootElement(name = "Authorization")
+  @Root(name = "Authorization", strict = false)
   private static class AuthorizationQueryResponse {
 
-    @XmlElement(name = "Result")
+    @Element(name = "Result", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String result;
 
     public String getResult() {
@@ -92,12 +94,15 @@ public class SecurityManager {
     FAILED;
   }
 
-  @XmlRootElement(name = "AuthorizationQuery")
+  @Root(name = "AuthorizationQuery", strict = false)
   private static class AuthorizationQueryStatusModel {
 
-    @XmlElement(name = "Result")
+    @Element(name = "Result", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String result;
-    @XmlElement(name = "Status")
+
+    @Element(name = "Status", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String status;
 
     public String getResult() {
@@ -210,25 +215,25 @@ public class SecurityManager {
     }
   }
 
-  @XmlRootElement(name = "Users")
+  @Root(name = "Users", strict = false)
   private static class ListUsersResponse {
 
-    @XmlElement(name = "User")
+    @ElementList(entry = "User", inline = true, required = false)
     private List<UserModel> users = new ArrayList<UserModel>();
   }
 
-  @XmlRootElement(name = "Roles")
+  @Root(name = "Roles", strict = false)
   private static class ListRolesResponse {
 
-    @XmlElement(name = "Role")
+    @ElementList(entry = "Role", inline = true, required = false)
     private List<RoleModel> roles = new ArrayList<RoleModel>();
   }
 
-  @XmlRootElement(name = "Auth")
-
+  @Root(name = "Auth", strict = false)
   private static class CheckPermissionResponse {
 
-    @XmlElement(name = "Result")
+    @Element(name = "Result", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String result;
 
     public String getResult() {
@@ -244,10 +249,27 @@ public class SecurityManager {
   }
 
   public SecurityConfiguration getSecurityConfiguration() {
-    if (this.securityConfigration == null) {
-      this.securityConfigration = new SecurityConfiguration(project, client);
+    return getSecurityConfiguration(false);
+  }
+
+  public SecurityConfiguration getSecurityConfiguration(boolean strip) {
+    SecurityConfiguration securityConfiguration;
+    if (strip) {
+      if (this.securityConfigration == null) {
+        securityConfiguration = new SecurityConfiguration(project, client, true);
+      } else {
+        // If security configuration is cached, return it
+        securityConfiguration = this.securityConfigration;
+      }
+    } else {
+      if (this.securityConfigration == null) {
+        // If strip is false and security configuration is not cached, cache it
+        this.securityConfigration = new SecurityConfiguration(project, client, false);
+      }
+      securityConfiguration = this.securityConfigration;
     }
-    return this.securityConfigration;
+
+    return securityConfiguration;
   }
 
   public void setSecurityConfiguration(
@@ -282,6 +304,27 @@ public class SecurityManager {
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
     client.stringRequest(resource, "PUT", params, null, policy);
+  }
+
+  public String getSecurityPolicy() throws OdpsException {
+    String resource = ResourceBuilder.buildProjectResource(project);
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("security_policy", null);
+    Response response = client.request(resource, "GET", params, null, null);
+    try {
+      return new String(response.getBody(), "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      throw new OdpsException("Can't parse response!", e);
+    }
+  }
+
+  public void putSecurityPolicy(String securityPolicy) throws OdpsException {
+    String resource = ResourceBuilder.buildProjectResource(project);
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("security_policy", null);
+    Map<String, String> headers = new HashMap<String, String>();
+    headers.put("Content-type", "application/json");
+    client.stringRequest(resource, "PUT", params, headers, securityPolicy);
   }
 
   public String getRolePolicy(String roleName) throws OdpsException {
@@ -527,8 +570,8 @@ public class SecurityManager {
 
     String xmlRequest;
     try {
-      xmlRequest = JAXBUtils.marshal(request, AuthorizationQueryRequest.class);
-    } catch (JAXBException e) {
+      xmlRequest = SimpleXmlUtils.marshal(request);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
     HashMap<String, String> headers = new HashMap<String, String>();
@@ -541,14 +584,14 @@ public class SecurityManager {
         client.stringRequest(resource.toString(), "POST", null, headers, xmlRequest);
     try {
       AuthorizationQueryResponse queryResponse =
-          JAXBUtils.unmarshal(response, AuthorizationQueryResponse.class);
+          SimpleXmlUtils.unmarshal(response, AuthorizationQueryResponse.class);
 
       if (response.getStatus() == 200) {
         return new AuthorizationQueryInstance(queryResponse.getResult());
       }
 
       return new AuthorizationQueryInstance(project, queryResponse.getResult(), this);
-    } catch (JAXBException e) {
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
   }

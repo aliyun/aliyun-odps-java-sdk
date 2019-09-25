@@ -19,18 +19,19 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.Function.FunctionModel;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -45,17 +46,18 @@ public class Functions implements Iterable<Function> {
   private Odps odps;
 
   /* only for function listing */
-  @XmlRootElement(name = "Functions")
-  private static class ListFunctionsResponse {
+  @Root(name = "Functions", strict = false)
+  static class ListFunctionsResponse {
 
-    @XmlElement(name = "Function")
-    private List<FunctionModel> functions = new ArrayList<FunctionModel>();
+    @ElementList(entry = "Function", inline = true, required = false)
+    List<FunctionModel> functions = new ArrayList<FunctionModel>();
 
-    @XmlElement(name = "Marker")
-    private String marker;
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String marker;
 
-    @XmlElement(name = "MaxItems")
-    private Integer maxItems;
+    @Element(name = "MaxItems", required = false)
+    Integer maxItems;
   }
 
   /* create a new instance with RestClient */
@@ -140,8 +142,8 @@ public class Functions implements Iterable<Function> {
 
     String ret;
     try {
-      ret = JAXBUtils.marshal(func.model, FunctionModel.class);
-    } catch (JAXBException e) {
+      ret = SimpleXmlUtils.marshal(func.model);
+    } catch (Exception e) {
       throw new OdpsException(e);
     }
     client.stringRequest(resource, "PUT", null, header, ret);
@@ -176,8 +178,8 @@ public class Functions implements Iterable<Function> {
 
     String ret;
     try {
-      ret = JAXBUtils.marshal(func.model, FunctionModel.class);
-    } catch (JAXBException e) {
+      ret = SimpleXmlUtils.marshal(func.model);
+    } catch (Exception e) {
       throw new OdpsException(e);
     }
     client.stringRequest(resource, "POST", null, header, ret);
@@ -286,7 +288,7 @@ public class Functions implements Iterable<Function> {
       params.put("expectmarker", "true"); // since sprint-11
 
       String lastMarker = params.get("marker");
-      if (params.containsKey("marker") && lastMarker.length() == 0) {
+      if (params.containsKey("marker") && StringUtils.isNullOrEmpty(lastMarker)) {
         return null;
       }
 
