@@ -19,23 +19,22 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.Project.ProjectModel;
 import com.aliyun.odps.account.AccountFormat;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Projects表示ODPS中所有{@link Project}的集合
@@ -45,17 +44,18 @@ public class Projects {
   /**
    * the response of list projects call
    */
-  @XmlRootElement(name = "Projects")
-  private static class ListProjectResponse {
+  @Root(name = "Projects", strict = false)
+  static class ListProjectResponse {
 
-    @XmlElement(name = "Project")
-    private List<ProjectModel> projects = new LinkedList<ProjectModel>();
+    @ElementList(entry = "Project", inline = true, required = false)
+    List<ProjectModel> projects = new LinkedList<ProjectModel>();
 
-    @XmlElement(name = "Marker")
-    private String marker;
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String marker;
 
-    @XmlElement(name = "MaxItems")
-    private int maxItems;
+    @Element(name = "MaxItems", required = false)
+    int maxItems;
   }
 
   private Odps odps;
@@ -291,7 +291,7 @@ public class Projects {
 
     // Properties
     if (properties != null) {
-      model.properties = new HashMap<String, String>(properties);
+      model.properties = new LinkedHashMap<String, String>(properties);
     }
 
     if (clusters != null) {
@@ -301,8 +301,8 @@ public class Projects {
 
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(model, Project.ProjectModel.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(model);
+    } catch (Exception e) {
       throw new OdpsException("Marshal project model failed", e);
     }
     return xml;

@@ -19,6 +19,11 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -31,9 +36,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.Resource.ResourceModel;
 import com.aliyun.odps.commons.transport.Headers;
@@ -82,17 +84,18 @@ public class Resources implements Iterable<Resource> {
   }
 
   /* for resource listing */
-  @XmlRootElement(name = "Resources")
+  @Root(name = "Resources", strict = false)
   private static class ListResourcesResponse {
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
 
-    @XmlElement(name = "Resource")
-    private final List<ResourceModel> resources = new ArrayList<ResourceModel>();
+    @ElementList(entry = "Resource", inline = true, required = false)
+    private List<ResourceModel> resources = new ArrayList<ResourceModel>();
 
   }
 
@@ -549,6 +552,7 @@ public class Resources implements Iterable<Resource> {
     }
 
     create(projectName, resource, input);
+    IOUtils.closeSilently(input);
     return (FileResource) get(projectName, resourceName);
   }
 

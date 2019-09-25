@@ -19,28 +19,29 @@
 
 package com.aliyun.odps.task;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.Map;
-
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-@XmlRootElement(name = "MOYE")
+@Root(name = "MOYE", strict = false)
 public class MoyeTask extends Task {
-
+  
+  @Element(name = "Plan", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String Plan;
 
   public String getPlan() {
     return Plan;
   }
 
-  @XmlElement(name = "Plan")
   public void setPlan(String plan) {
     Plan = plan;
   }

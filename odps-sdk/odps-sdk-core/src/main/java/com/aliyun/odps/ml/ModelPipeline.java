@@ -1,12 +1,11 @@
 package com.aliyun.odps.ml;
 
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
-@XmlRootElement(name = "Pipeline")
+@Root(name = "Pipeline", strict = false)
 public class ModelPipeline {
-	@XmlElement(name = "Processor")
+	@ElementList(entry = "Processor", inline = true, required = false)
 	public List<ModelProcessor> processors;
 }

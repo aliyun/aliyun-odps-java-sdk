@@ -282,6 +282,39 @@ public class LotReducerUDTF extends LotTaskUDTF {
     return VersionUtils.getOdpsTypes(SchemaUtils.getTypes(udtfCtx.getPackagedOutputSchema()));
   }
 
+  @SuppressWarnings("deprecation")
+  @Override
+  public com.aliyun.odps.type.TypeInfo[] resolve(com.aliyun.odps.type.TypeInfo[] unused) {
+    String funtionName = conf.get("odps.mr.sql.functionName");
+    if (funtionName == null ){
+      try {
+        return super.resolve(unused);
+      } catch (com.aliyun.odps.udf.UDFException e) {
+        e.printStackTrace();
+      }
+    }
+    ctx = new ReduceContextImpl(conf);
+    Column[] ks = conf.getMapOutputKeySchema();
+    Column[] vs = conf.getMapOutputValueSchema();
+    inputSchema = (Column[]) ArrayUtils.addAll(ks, vs);
+    UDTFTaskContextImpl udtfCtx = (UDTFTaskContextImpl) ctx;
+
+    if(((UDTFTaskContextImpl) ctx).pipeMode) {
+      Pipeline pipeline = Pipeline.fromJobConf(conf);
+      int nodeId = Integer.parseInt(funtionName.split("_")[3]);
+      Pipeline.TransformNode pipeNode = pipeline.getNode(nodeId);
+      Column[] intermediateFields = (Column[]) ArrayUtils.addAll(pipeNode.getOutputKeySchema(), pipeNode.getOutputValueSchema());
+      if (pipeNode.getPartitionerClass() != null) {
+        intermediateFields = (Column[]) ArrayUtils.addAll(SchemaUtils.fromString("__partition_id__:BIGINT"), intermediateFields);
+      }
+      if (intermediateFields != null) {
+        com.aliyun.odps.type.TypeInfo[] resolved = SchemaUtils.getTypeInfos(intermediateFields);
+        return resolved;
+      }
+    }
+    return SchemaUtils.getTypeInfos(udtfCtx.getPackagedOutputSchema());
+  }
+
   @Override
   public void setup(ExecutionContext eCtx) {
     ctx = new ReduceContextImpl(conf);

@@ -1,40 +1,53 @@
 package com.aliyun.odps.ml;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
-@XmlRootElement(name = "Offlinemodel")
+@Root(name = "Offlinemodel", strict = false)
 public class OfflineModelInfo {
-	@XmlElement(name = "Name")
-	public String modelName;
+	@Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    public String modelName;
 
-	@XmlElement(name = "ModelPath")
+	@Element(name = "ModelPath", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String modelPath;
 
-	@XmlElement(name = "Rolearn")
+	@Element(name = "Rolearn", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String rolearn;
 
-	@XmlElement(name = "Type")
+	@Element(name = "Type", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String type;
 
-	@XmlElement(name = "Version")
+	@Element(name = "Version", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String version;
 
-	@XmlElement(name = "Processor")
+	@Element(name = "Processor", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String processor;
 
-	@XmlElement(name = "Configuration")
+	@Element(name = "Configuration", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String configuration;
 
-	@XmlElement(name = "SrcProject")
+	@Element(name = "SrcProject", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String srcProject;
 
-	@XmlElement(name = "SrcModel")
+	@Element(name = "SrcModel", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String srcModel;
 
-	@XmlElement(name = "DestProject")
+	@Element(name = "DestProject", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String destProject;
 
-	@XmlElement(name = "DestModel")
+	@Element(name = "DestModel", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String destModel;
 }

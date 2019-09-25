@@ -1,18 +1,25 @@
 package com.aliyun.odps.ml;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
-@XmlRootElement(name = "Processor")
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+
+@Root(name = "Processor", strict = false)
 public class ModelProcessor {
-	@XmlElement(name = "Id")
-	public String className;
+	@Element(name = "Id", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    public String className;
 	
-	@XmlElement(name = "LibName")
+	@Element(name = "LibName", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String libName;
 	
-	@XmlElement(name = "RefResource")
+	@Element(name = "RefResource", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String refResource;
 	
-	@XmlElement(name = "Configuration")
+	@Element(name = "Configuration", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String configuration;
 }

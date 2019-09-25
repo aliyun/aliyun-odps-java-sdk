@@ -21,6 +21,11 @@ package com.aliyun.odps.mapred.utils;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.type.CharTypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
+import com.aliyun.odps.type.TypeInfoParser;
+import com.aliyun.odps.type.VarcharTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,9 +53,10 @@ public class SchemaUtils {
     }
     String remain = str;
     ArrayList<Column> cols = new ArrayList<Column>();
-    int pos;
+    int pos = 0;
+    IllegalArgumentException exception = null;
     while (remain.length() > 0) {
-      pos = remain.indexOf(SEPERATOR);
+      pos = remain.indexOf(SEPERATOR, pos);
       if (pos < 0) {
         // Last one
         pos = remain.length();
@@ -61,24 +67,33 @@ public class SchemaUtils {
         throw new IllegalArgumentException(
                 "Malformed schema definition, expecting \"name:type\" but was \"" + tok + "\"");
       }
-      if (knv[1].toUpperCase().startsWith("MAP")) {
-        // We need to find the next SEPARATOR
-        pos = remain.indexOf(SEPERATOR, pos + 1);
-        if (pos < 0) {
-          pos = remain.length();
+      try {
+        TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(knv[1].trim());
+        if (typeInfo != null) {
+          exception = null;
+          cols.add(new Column(knv[0].trim(), typeInfo));
+          if (pos == remain.length()) {
+            remain = "";
+          } else {
+            remain = remain.substring(pos + 1);
+            pos = 0;
+          }
+          continue;
         }
-        tok = remain.substring(0, pos);
-        // Re-split
-        knv = tok.split(DELIMITER, 2);
+      } catch (IllegalArgumentException e) {
+        exception = e;
       }
       if (pos == remain.length()) {
         remain = "";
       } else {
-        remain = remain.substring(pos + 1);
+        pos = pos + 1;
       }
-      cols.add(getColumn(knv[0], knv[1]));
     }
-    return cols.toArray(new Column[]{});
+    if (exception != null) {
+      throw exception;
+    } else {
+      return cols.toArray(new Column[]{});
+    }
   }
 
   /**
@@ -101,7 +116,11 @@ public class SchemaUtils {
       if (sb.length() > 0) {
         sb.append(SEPERATOR);
       }
-      sb.append(c.getName()).append(DELIMITER).append(getOdpsTypeString(c));
+      if (c.getTypeInfo() != null) {
+        sb.append(c.getName()).append(DELIMITER).append(c.getTypeInfo().toString());
+      } else {
+        sb.append(c.getName()).append(DELIMITER).append(getOdpsTypeString(c));
+      }
     }
     return sb.toString();
   }
@@ -132,6 +151,21 @@ public class SchemaUtils {
     OdpsType[] types = new OdpsType[cols.length];
     for (int i = 0; i < cols.length; i++) {
       types[i] = cols[i].getType();
+    }
+    return types;
+  }
+
+  /**
+   * 获取行属性的类型数组
+   *
+   * @param cols
+   *     行属性
+   * @return 类型数组
+   */
+  public static com.aliyun.odps.type.TypeInfo[] getTypeInfos(Column[] cols) {
+    com.aliyun.odps.type.TypeInfo[] types = new com.aliyun.odps.type.TypeInfo[cols.length];
+    for (int i = 0; i < cols.length; i++) {
+      types[i] = cols[i].getTypeInfo();
     }
     return types;
   }
@@ -180,9 +214,33 @@ public class SchemaUtils {
       Column col = new Column(name, OdpsType.MAP);
       col.setGenericTypeList(Arrays.asList(OdpsType.valueOf(knv[0]), OdpsType.valueOf(knv[1])));
       return col;
+    } else if (typeStr.startsWith("CHAR")) {
+      String remain = typeStr.substring(4).trim();
+      int length = 255;
+      if (!remain.isEmpty()) {
+        if (!(remain.startsWith("(") && remain.endsWith(")"))) {
+          throw new IllegalArgumentException(
+                  "Malformed schema , not a valid map type: " + typeStr);
+        }
+        length = Integer.parseInt(remain.substring(1, remain.length()-1));
+      }
+      CharTypeInfo type = TypeInfoFactory.getCharTypeInfo(length);
+      return new Column(name, type);
+    } else if (typeStr.startsWith("VARCHAR")) {
+      String remain = typeStr.substring(7).trim();
+      int length = 65535;
+      if (!remain.isEmpty()) {
+        if (!(remain.startsWith("(") && remain.endsWith(")"))) {
+          throw new IllegalArgumentException(
+                  "Malformed schema , not a valid map type: " + typeStr);
+        }
+        length = Integer.parseInt(remain.substring(1, remain.length()-1));
+      }
+      VarcharTypeInfo type = TypeInfoFactory.getVarcharTypeInfo(length);
+      Column col = new Column(name, type);
+      return col;
     } else {
       return new Column(name, OdpsType.valueOf(typeStr));
     }
   }
-
 }

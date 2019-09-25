@@ -19,27 +19,32 @@
 
 package com.aliyun.odps;
 
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import java.util.Map.Entry;
 
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.security.SecurityManager;
 import com.aliyun.odps.utils.StringUtils;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.simpleframework.xml.convert.Converter;
+import com.aliyun.odps.simpleframework.xml.stream.InputNode;
+import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 
 /**
  * ODPS项目空间
@@ -75,42 +80,46 @@ public class Project extends LazyLoad {
   /**
    * Project model
    */
-  @XmlRootElement(name = "Project")
+  @Root(name = "Project", strict = false)
   static class ProjectModel {
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Comment")
+    @Element(name = "Comment", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date creationTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModified;
 
-    @XmlElement(name = "ProjectGroupName")
+    @Element(name = "ProjectGroupName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String projectGroupName;
 
-    @XmlElement(name = "Properties")
-    @XmlJavaTypeAdapter(PropertyAdapter.class)
-    HashMap<String, String> properties;
+    @Element(name = "Properties", required = false)
+    @Convert(PropertyConverter.class)
+    LinkedHashMap<String, String> properties;
 
-    @XmlElement(name = "ExtendedProperties")
-    @XmlJavaTypeAdapter(PropertyAdapter.class)
-    HashMap<String, String> extendedProperties;
+    @Element(name = "ExtendedProperties", required = false)
+    @Convert(PropertyConverter.class)
+    LinkedHashMap<String, String> extendedProperties;
 
-
-    @XmlElement(name = "State")
+    @Element(name = "State", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String state;
 
-    @XmlElement(name = "Clusters")
+    @Element(name = "Clusters", required = false)
     Clusters clusters;
   }
 
@@ -127,10 +136,12 @@ public class Project extends LazyLoad {
       this.quotaID = quotaID;
     }
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "QuotaID")
+    @Element(name = "QuotaID", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String quotaID;
 
     public String getName() {
@@ -143,11 +154,11 @@ public class Project extends LazyLoad {
   }
 
   static class Clusters {
-
-    @XmlElement(name = "Cluster")
+    @ElementList(entry = "Cluster", inline = true, required = false)
     List<Cluster> entries = new ArrayList<Cluster>();
   }
 
+  @Root(name = "Property", strict = false)
   static class Property {
 
     Property() {
@@ -158,51 +169,49 @@ public class Project extends LazyLoad {
       this.value = value;
     }
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Value")
+    @Element(name = "Value", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String value;
   }
 
+  @Root(name = "Properties", strict = false)
   static class Properties {
-
-    @XmlElement(name = "Property")
+    @ElementList(entry = "Property", inline = true, required = false)
     List<Property> entries = new ArrayList<Property>();
   }
 
-  static class PropertyAdapter extends XmlAdapter<Properties, HashMap<String, String>> {
-
+  static class PropertyConverter implements Converter<LinkedHashMap<String, String>> {
     @Override
-    public HashMap<String, String> unmarshal(Properties in) throws Exception {
-      if (in == null) {
-        return null;
+    public void write(OutputNode outputNode, LinkedHashMap<String, String> properties) throws Exception {
+      for (Entry<String, String> entry : properties.entrySet()) {
+        String name = entry.getKey();
+        String value = entry.getValue();
+        SimpleXmlUtils.marshal(new Property(name, value), outputNode);
       }
-      HashMap<String, String> hashMap = new HashMap<String, String>();
-      for (Property entry : in.entries) {
-        hashMap.put(entry.name, entry.value);
-      }
-      return hashMap;
+
+      outputNode.commit();
     }
 
     @Override
-    public Properties marshal(HashMap<String, String> map) throws Exception {
-      if (map == null) {
-        return null;
+    public LinkedHashMap<String, String> read(InputNode inputNode) throws Exception {
+      LinkedHashMap<String, String> properties = new LinkedHashMap<String, String>();
+      Properties props = SimpleXmlUtils.unmarshal(inputNode, Properties.class);
+      for (Property entry : props.entries) {
+        properties.put(entry.name, entry.value);
       }
-      Properties props = new Properties();
-      for (Map.Entry<String, String> entry : map.entrySet()) {
-        props.entries.add(new Property(entry.getKey(), entry.getValue()));
-      }
-      return props;
+      return properties;
     }
   }
 
   private ProjectModel model;
   private RestClient client;
 
-  private HashMap<String, String> properties = new HashMap<String, String>();
-  private HashMap<String, String> allProperties;
+  private Map<String, String> properties = new LinkedHashMap<String, String>();
+  private Map<String, String> allProperties;
   private SecurityManager securityManager = null;
   private Clusters clusters;
 
@@ -217,7 +226,7 @@ public class Project extends LazyLoad {
     String resource = ResourceBuilder.buildProjectResource(model.name);
     Response resp = client.request(resource, "GET", null, null, null);
     try {
-      model = JAXBUtils.unmarshal(resp, ProjectModel.class);
+      model = SimpleXmlUtils.unmarshal(resp, ProjectModel.class);
       Map<String, String> headers = resp.getHeaders();
       model.owner = headers.get(Headers.ODPS_OWNER);
       model.creationTime = DateUtils.parseRfc822Date(headers
@@ -257,7 +266,7 @@ public class Project extends LazyLoad {
   /**
    * 设置Project注释
    *
-   * @param Project注释
+   * @param comment Project注释
    */
   void setComment(String comment) {
     model.comment = comment;
@@ -343,11 +352,11 @@ public class Project extends LazyLoad {
     if (allProperties == null) {
 
       String resource = ResourceBuilder.buildProjectResource(model.name);
-      HashMap<String, String> params = new HashMap<String, String>();
+      Map<String, String> params = new LinkedHashMap<String, String>();
       params.put("properties", "all");
       Response resp = client.request(resource, "GET", params, null, null);
       try {
-        ProjectModel model = JAXBUtils.unmarshal(resp, ProjectModel.class);
+        ProjectModel model = SimpleXmlUtils.unmarshal(resp, ProjectModel.class);
 
         allProperties = model.properties;
       } catch (Exception e) {
@@ -388,7 +397,7 @@ public class Project extends LazyLoad {
    * @return 以 key, value 保存的配置信息
    */
   public Map<String, String> getExtendedProperties() throws OdpsException {
-    HashMap<String, String> param = new HashMap<String, String>();
+    Map<String, String> param = new LinkedHashMap<String, String>();
     param.put("extended", null);
     String resource = ResourceBuilder.buildProjectResource(model.name);
     ProjectModel extendedModel = client.request(ProjectModel.class, resource, "GET", param);

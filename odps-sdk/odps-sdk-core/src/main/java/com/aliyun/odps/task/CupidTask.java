@@ -23,23 +23,25 @@ import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
-import com.google.gson.Gson;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.google.gson.GsonBuilder;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 import java.util.Map;
 
-@XmlRootElement(name = "CUPID")
+@Root(name = "CUPID", strict = false)
 public class CupidTask extends Task {
 
+  @Element(name = "Plan", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String Plan;
 
   public String getPlan() {
     return Plan;
   }
 
-  @XmlElement(name = "Plan")
   public void setPlan(String plan) {
     Plan = plan;
   }
@@ -59,6 +61,12 @@ public class CupidTask extends Task {
       }
     }
     return task;
+  }
+
+  public static Instance run(Odps odps, String project, String plan, Map<String, String> hints,
+                             Integer priority, String runningCluster, String jobName) throws OdpsException {
+    CupidTask task = GetCupidTask(plan, "cupid_task", hints);
+    return odps.instances().create(project, task, priority, runningCluster, jobName);
   }
 
   public static Instance run(Odps odps, String project, String plan, Map<String, String> hints,

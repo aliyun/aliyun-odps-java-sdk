@@ -40,6 +40,51 @@ public class TypeUtils {
       case DECIMAL:
         r = TypesProtos.Type.Decimal;
         break;
+      case MAP:
+        r = TypesProtos.Type.Map;
+        break;
+      case ARRAY:
+        r = TypesProtos.Type.Array;
+        break;
+      case VOID:
+        r = TypesProtos.Type.Void;
+        break;
+      case TINYINT:
+        r = TypesProtos.Type.Tinyint;
+        break;
+      case SMALLINT:
+        r = TypesProtos.Type.Smallint;
+        break;
+      case INT:
+        r = TypesProtos.Type.Int;
+        break;
+      case FLOAT:
+        r = TypesProtos.Type.Float;
+        break;
+      case CHAR:
+        r = TypesProtos.Type.Char;
+        break;
+      case VARCHAR:
+        r = TypesProtos.Type.Varchar;
+        break;
+      case DATE:
+        r = TypesProtos.Type.Date;
+        break;
+      case TIMESTAMP:
+        r = TypesProtos.Type.Timestamp;
+        break;
+      case BINARY:
+        r = TypesProtos.Type.Binary;
+        break;
+      case INTERVAL_DAY_TIME:
+        r = TypesProtos.Type.Interval_day_time;
+        break;
+      case INTERVAL_YEAR_MONTH:
+        r = TypesProtos.Type.Interval_year_month;
+        break;
+      case STRUCT:
+        r = TypesProtos.Type.Struct;
+        break;
       default:
         throw new IllegalArgumentException("unknown type:" + t);
     }
@@ -58,12 +103,22 @@ public class TypeUtils {
   }
 
   public static Column createColumnWithNewName(String name, Column src) {
+    if (src.getTypeInfo() != null) {
+      Column col = new Column(name, src.getTypeInfo(), src.getComment());
+      col.setGenericTypeList(src.getGenericTypeList());
+      return col;
+    }
     Column col = new Column(name, src.getType(), src.getComment());
     col.setGenericTypeList(src.getGenericTypeList());
     return col;
   }
 
   public static Column cloneColumn(Column src) {
+    if (src.getTypeInfo() != null) {
+      Column col = new Column(src.getName(), src.getTypeInfo(), src.getComment());
+      col.setGenericTypeList(src.getGenericTypeList());
+      return col;
+    }
     Column col = new Column(src.getName(), src.getType(), src.getComment());
     col.setGenericTypeList(src.getGenericTypeList());
     return col;

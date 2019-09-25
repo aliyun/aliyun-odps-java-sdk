@@ -1,19 +1,22 @@
 package com.aliyun.odps.ml;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
-
-@XmlRootElement(name = "Onlinemodel")
+@Root(name = "Onlinemodel", strict = false)
 public class ModelAbTestInfo{
 	
-	@XmlElement(name = "Project")
-	public String project;
+	@Element(name = "Project", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    public String project;
 	
-	@XmlElement(name = "Name")
+	@Element(name = "Name", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String modelName;
 	
-	@XmlElement(name = "ABTest")
+	@Element(name = "ABTest", required = false)
 	public ModelAbTestConf abTestConf;
-	
+
 }

@@ -19,25 +19,30 @@
 
 package com.aliyun.odps.rest;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 /**
  * 表示ODPS RESTful API返回的出错信息
  */
-@XmlRootElement(name = "Error")
+@Root(name = "Error", strict = false)
 public class ErrorMessage {
 
-  @XmlElement(name = "Code")
+  @Element(name = "Code", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String errorcode;
 
-  @XmlElement(name = "Message")
+  @Element(name = "Message", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String message;
 
-  @XmlElement(name = "RequestId")
+  @Element(name = "RequestId", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String requestId;
 
-  @XmlElement(name = "HostId")
+  @Element(name = "HostId", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   public String HostId;
 
   public String getErrorcode() {

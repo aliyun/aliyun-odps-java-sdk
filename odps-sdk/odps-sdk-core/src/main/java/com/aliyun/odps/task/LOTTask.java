@@ -19,39 +19,42 @@
 
 package com.aliyun.odps.task;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.Map;
-
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
 
 /**
  * LOTTask的定义
  *
  * @author garr.feng@alibaba-inc.com
  */
-@XmlRootElement(name = "LOT")
+@Root(name = "LOT", strict = false)
 public class LOTTask extends Task {
 
-  @XmlType(name = "plan", propOrder = {"resourceName", "project"})
+  @Root(name = "plan", strict = false)
   public static class Plan {
 
+    @Element(name = "ResourceName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String resourceName;
 
+    @Element(name = "Project", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String project;
 
     public void setResourceName(String resourceName) {
       this.resourceName = resourceName;
     }
 
-    @XmlElement(name = "ResourceName")
     public String getResourceName() {
       return this.resourceName;
     }
@@ -60,18 +63,15 @@ public class LOTTask extends Task {
       this.project = project;
     }
 
-    @XmlElement(name = "Project")
     public String getProject() {
       return this.project;
     }
   }
 
+  @Element(name = "Plan", required = false)
   private Plan plan;
 
-  public Plan getPlan() {
-    return plan;
-  }
-
+  @Element(name = "Query", required = false)
   private String query;
 
   public String getQuery() {
@@ -83,9 +83,12 @@ public class LOTTask extends Task {
    *
    * @param query
    */
-  @XmlElement(name = "Query")
   public void setQuery(String query) {
     this.query = query;
+  }
+
+  public Plan getPlan() {
+    return plan;
   }
 
   /**
@@ -93,7 +96,6 @@ public class LOTTask extends Task {
    *
    * @param plan
    */
-  @XmlElement(name = "Plan")
   public void setPlan(Plan plan) {
     this.plan = plan;
   }

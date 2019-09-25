@@ -27,17 +27,12 @@
 
 package com.aliyun.odps.task;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
-
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
-
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
 
 /**
  * <p>Java class for GraphType complex type.
@@ -56,16 +51,12 @@ import com.aliyun.odps.Task;
  * &lt;/complexType>
  * </pre>
  */
-@XmlAccessorType(XmlAccessType.FIELD)
-@XmlType(name = "", propOrder = {
-    "jobConf"
-})
-@XmlRootElement(name = "Graph")
+
+@Root(name = "Graph", strict = false)
 public class GraphTask extends Task {
 
-  @XmlElement(name = "JobConf", required = true)
+  @Element(name = "JobConf")
   protected Properties jobConf;
-
 
   GraphTask() {
   }
@@ -96,13 +87,9 @@ public class GraphTask extends Task {
     this.jobConf = value;
   }
 
-  public static Instance run(Odps odps, String project, GraphTask graphTask) throws OdpsException {
-    return odps.instances().create(project, graphTask);
-  }
-
-  public static Instance run(Odps odps, String project, GraphTask graphTask, int priority)
+  public static Instance run(Odps odps, String project, GraphTask graphTask, int priority, String runningCluster)
       throws OdpsException {
-    return odps.instances().create(project, graphTask, priority);
+    return odps.instances().create(project, graphTask, priority, runningCluster);
   }
 
 }

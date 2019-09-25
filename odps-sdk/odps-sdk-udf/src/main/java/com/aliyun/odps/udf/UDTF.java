@@ -86,7 +86,7 @@ public abstract class UDTF implements ContextFunction {
   }
 
   /**
-   * 用于输入、输出类型 {@link TypeInfo} 之间的转换
+   * 用于输入、输出类型 {@link TypeInfo} 之间的转换，默认调用 {@link #resolve(OdpsType[])}
    * 不存在转换问题通常不需要关心。
    *
    * @param typeInfos

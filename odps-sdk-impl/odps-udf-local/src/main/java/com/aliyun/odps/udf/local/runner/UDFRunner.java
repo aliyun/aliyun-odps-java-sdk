@@ -21,6 +21,8 @@ package com.aliyun.odps.udf.local.runner;
 
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.local.common.WareHouse;
+
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -76,6 +78,8 @@ public class UDFRunner extends BaseRunner {
       throw e;
     } catch (UDFException e) {
       throw new LocalRunException(e);
+    } catch (IOException e) {
+      throw new LocalRunException(e);
     } finally {
       SecurityClient.close();
     }
@@ -109,6 +113,8 @@ public class UDFRunner extends BaseRunner {
       SecurityClient.open();
       udf.close();
     } catch (UDFException e) {
+      throw new LocalRunException(e);
+    } catch (IOException e) {
       throw new LocalRunException(e);
     } finally {
       SecurityClient.close();

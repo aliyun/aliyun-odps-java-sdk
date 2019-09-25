@@ -1,17 +1,17 @@
 package com.aliyun.odps.ml;
 
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.ElementListUnion;
+import com.aliyun.odps.simpleframework.xml.Root;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElements;
-import javax.xml.bind.annotation.XmlRootElement;
 
-@XmlRootElement(name = "Pipeline")
+@Root(name = "Pipeline", strict = false)
 public class ModelPipelineNew {
-	@XmlElements({
-        @XmlElement(name = "Processor", type = Processor.class),
-        @XmlElement(name = "BuiltinProcessor", type = BuiltinProcessor.class),
-        @XmlElement(name = "PmmlProcessor", type = PmmlProcessor.class)
+	@ElementListUnion({
+        @ElementList(entry = "Processor", inline = true, type = Processor.class),
+        @ElementList(entry = "BuiltinProcessor", inline = true, type = BuiltinProcessor.class),
+        @ElementList(entry = "PmmlProcessor", inline = true, type = PmmlProcessor.class)
     })
 	public List<AbstractProcessor> processors;
 }

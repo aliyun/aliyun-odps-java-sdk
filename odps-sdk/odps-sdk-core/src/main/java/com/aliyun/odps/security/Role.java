@@ -19,22 +19,25 @@
 
 package com.aliyun.odps.security;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.LazyLoad;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 public class Role extends LazyLoad {
 
-  @XmlRootElement(name = "Role")
+  @Root(name = "Role", strict = false)
   static class RoleModel {
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Comment")
+    @Element(name = "Comment", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
   }
 

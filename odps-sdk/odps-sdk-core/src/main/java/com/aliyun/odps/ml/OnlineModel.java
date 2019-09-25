@@ -1,19 +1,16 @@
 package com.aliyun.odps.ml;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.Date;
 import java.util.HashMap;
-
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.aliyun.odps.LazyLoad;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.RestClient;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 /**
@@ -23,69 +20,85 @@ import com.google.gson.GsonBuilder;
  */
 public class OnlineModel extends LazyLoad {
 
-  @XmlRootElement(name = "Onlinemodel")
+  @Root(name = "Onlinemodel", strict = false)
   static class OnlineModelDesc {
 
-    @XmlElement(name = "Project")
+    @Element(name = "Project", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String project;
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String modelName;
 
-    @XmlElement(name = "Version")
+    @Element(name = "Version", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String version;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "CreateTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreateTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date createTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
 
-    @XmlElement(name = "OfflinemodelProject")
+    @Element(name = "OfflinemodelProject", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String offlinemodelProject;
 
-    @XmlElement(name = "OfflinemodelName")
+    @Element(name = "OfflinemodelName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String offlinemodelName;
 
-    @XmlElement(name = "OfflinemodelId")
+    @Element(name = "OfflinemodelId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String offlinemodelId;
 
-    @XmlElement(name = "ApplyRes")
+    @Element(name = "ApplyRes", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String applyRes;
 
-    @XmlElement(name = "UsedRes")
+    @Element(name = "UsedRes", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String usedRes;
 
-    @XmlElement(name = "QOS")
+    @Element(name = "QOS", required = false)
     short applyQos;
 
-    @XmlElement(name = "InstanceNum")
+    @Element(name = "InstanceNum", required = false)
     short instanceNum;
 
-    @XmlElement(name = "Status")
+    @Element(name = "Status", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String status;
 
-    @XmlElement(name = "ServiceTag")
+    @Element(name = "ServiceTag", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String serviceTag;
 
-    @XmlElement(name = "ServiceName")
+    @Element(name = "ServiceName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String serviceName;
 
-    @XmlElement(name = "LastFailMsg")
+    @Element(name = "LastFailMsg", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String lastFailMsg;
 
-    @XmlElement(name = "PredictDesc")
+    @Element(name = "PredictDesc", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String predictDesc;
 
-    @XmlElement(name = "ABTest")
+    @Element(name = "ABTest", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String ABTest;
 
-    @XmlElement(name = "Runtime")
+    @Element(name = "Runtime", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String runtime;
   }
 
@@ -407,8 +420,8 @@ public class OnlineModel extends LazyLoad {
   public void update(ModelAbTestInfo abTestInfo) throws OdpsException {
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(abTestInfo, ModelAbTestInfo.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(abTestInfo);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 
@@ -432,8 +445,8 @@ public class OnlineModel extends LazyLoad {
   private void updateInternally(OnlineModelInfo modelInfo) throws OdpsException {
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(modelInfo, OnlineModelInfo.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(modelInfo);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 
@@ -453,8 +466,8 @@ public class OnlineModel extends LazyLoad {
   private void updateInternally(OnlineModelInfoNew modelInfo) throws OdpsException {
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(modelInfo, OnlineModelInfoNew.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(modelInfo);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 

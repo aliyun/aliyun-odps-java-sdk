@@ -1,13 +1,13 @@
 package com.aliyun.odps.ml;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
 
-@XmlRootElement(name = "PredictDesc")
+@Root(name = "PredictDesc", strict = false)
 public class ModelPredictDescNew {
-	@XmlElement(name = "Pipeline")
+	@Element(name = "Pipeline", required = false)
 	public ModelPipelineNew pipeline;
 
-	@XmlElement(name = "Target")
+	@Element(name = "Target", required = false)
 	public Target target;
 }

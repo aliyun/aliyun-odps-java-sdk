@@ -21,9 +21,13 @@ package com.aliyun.odps.udf.local.runner;
 
 import static org.junit.Assert.fail;
 
+import com.aliyun.odps.local.common.Constants;
+import com.aliyun.odps.local.common.utils.LocalRunUtils;
 import com.aliyun.odps.udf.local.examples.UdfComplex;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -426,7 +430,7 @@ public class UDFRunnerTest {
   }
 
   @Test
-  public void testNewType() throws LocalRunException, UDFException{
+  public void testNewType() throws LocalRunException, UDFException, ParseException {
     BaseRunner runner = new UDFRunner(odps, new UdfComplex());
     String project = "project_name";
     String table = "max_compute_basic_types";
@@ -483,14 +487,15 @@ public class UDFRunnerTest {
     inputSource = new TableInputSource(project, table, null, columns);
     runner.addInputSource(inputSource);
     out = runner.yield();
-    Assert.assertEquals("Long:1510333261000", StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("Long:" + LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2)
+        .parse("2017-11-11 01:01:01 000").getTime(), StringUtils.join(out.get(0), ","));
 
     runner = new UDFRunner(odps, new UdfComplex());
     columns = new String[]{"a_timestamp"};
     inputSource = new TableInputSource(project, table, null, columns);
     runner.addInputSource(inputSource);
     out = runner.yield();
-    Assert.assertEquals("Long:1515052675229", StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("Long:" + Timestamp.valueOf("2018-01-04 15:57:55.229").getTime(), StringUtils.join(out.get(0), ","));
 
     runner = new UDFRunner(odps, new UdfComplex());
     columns = new String[]{"a_binary"};

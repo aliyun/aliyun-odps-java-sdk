@@ -19,6 +19,12 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -27,17 +33,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.Instance.InstanceResultModel;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
 import com.aliyun.odps.Instance.TaskStatusModel;
 import com.aliyun.odps.Job.JobModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.google.gson.JsonElement;
@@ -51,30 +52,32 @@ import com.google.gson.JsonParser;
 public class Instances implements Iterable<Instance> {
 
   /* for instance listing */
-  @XmlRootElement(name = "Instances")
+  @Root(name = "Instances", strict = false)
   private static class ListInstanceResponse {
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
 
-    @XmlElement(name = "Instance")
+    @ElementList(entry = "Instance", inline = true, required = false)
     private List<TaskStatusModel> instances = new ArrayList<TaskStatusModel>();
-
   }
 
-  @XmlRootElement(name = "Instances")
+  @Root(name = "Instances", strict = false)
   private static class ListInstanceQueueResponse {
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
 
-    @XmlElement(name = "Content")
+    @Element(name = "Content", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String queue;
   }
 
@@ -328,10 +331,10 @@ public class Instances implements Iterable<Instance> {
   /*
    * 表示匿名Instance的请求内容
    */
-  @XmlRootElement(name = "Instance")
+  @Root(name = "Instance", strict = false)
   private static class AnonymousInstance {
 
-    @XmlElement(name = "Job")
+    @Element(name = "Job", required = false)
     JobModel job;
   }
 
@@ -346,7 +349,7 @@ public class Instances implements Iterable<Instance> {
    * @throws OdpsException
    */
   Instance create(String project, Job job) throws OdpsException {
-    if (project == null) {
+    if (StringUtils.isNullOrEmpty(project)) {
       throw new IllegalArgumentException("project required.");
     }
 
@@ -379,8 +382,8 @@ public class Instances implements Iterable<Instance> {
     i.job = job.model;
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(i, AnonymousInstance.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(i);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 
@@ -405,13 +408,13 @@ public class Instances implements Iterable<Instance> {
     if (resp.getStatus() == 200 && resp.getBody() != null
         && resp.getBody().length > 0) {
       try {
-        InstanceResultModel result = JAXBUtils.unmarshal(resp,
+        InstanceResultModel result = SimpleXmlUtils.unmarshal(resp,
                                                          InstanceResultModel.class);
         for (TaskResult taskResult : result.taskResults) {
           model.tasks.add(createInstanceTaskModel(taskResult));
           results.put(taskResult.name, taskResult.result);
         }
-      } catch (JAXBException e) {
+      } catch (Exception e) {
         throw new OdpsException("Invalid create instance response.", e);
       }
     }
@@ -628,16 +631,22 @@ public class Instances implements Iterable<Instance> {
 
     InstanceFilter filter;
     String project;
+    Integer maxItemsPerRequest;
 
-    InstanceQueueListIterator(String projectName, InstanceFilter filter) {
+    InstanceQueueListIterator(String projectName, InstanceFilter filter, Integer maxItemsPerRequest) {
       this.filter = filter;
       this.project = projectName;
+      this.maxItemsPerRequest = maxItemsPerRequest;
     }
 
     @Override
     protected List<Instance.InstanceQueueingInfo> list() {
       if ((params.containsKey("marker")) && (params.get("marker").length() == 0)){
         return null;
+      }
+
+      if (maxItemsPerRequest != null) {
+        params.put("maxitems", maxItemsPerRequest.toString());
       }
 
       if (filter != null) {
@@ -720,6 +729,23 @@ public class Instances implements Iterable<Instance> {
    * @return 迭代器
    */
   public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(String project, InstanceFilter filter) {
-    return new InstanceQueueListIterator(project, filter);
+    return iteratorQueueing(project, filter, null);
+  }
+
+  /**
+   * 获取运行队列中的所有 instance 的排队信息
+   *
+   * @param project
+   *          项目名称
+   * @param filter
+   *          过滤器
+   * @param maxItemsPerRequest
+   *          每次request取到的Instance的数量上限, 默认为1000
+   *
+   * @return 迭代器
+   */
+  public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(
+      String project, InstanceFilter filter, Integer maxItemsPerRequest) {
+    return new InstanceQueueListIterator(project, filter, maxItemsPerRequest);
   }
 }

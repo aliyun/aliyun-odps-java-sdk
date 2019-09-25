@@ -21,12 +21,12 @@ package com.aliyun.odps.task;
 
 import com.aliyun.odps.Task;
 
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.simpleframework.xml.Root;
 
 /**
  * Created by dejun.xiedj on 2017/10/26.
  */
 
-@XmlRootElement(name = "SQLRT")
+@Root(name = "SQLRT", strict = false)
 public class SQLRTTask extends Task {
 }

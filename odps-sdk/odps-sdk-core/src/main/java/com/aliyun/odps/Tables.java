@@ -19,6 +19,11 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,20 +31,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.commons.transport.Headers;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.utils.StringUtils;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 /**
@@ -49,30 +46,32 @@ import com.google.gson.GsonBuilder;
  */
 public class Tables implements Iterable<Table> {
 
-  @XmlRootElement(name = "Tables")
+  @Root(name = "Tables", strict = false)
   private static class ListTablesResponse {
 
-    @XmlElement(name = "Table")
+    @ElementList(entry = "Table", inline = true, required = false)
     private List<TableModel> tables = new ArrayList<TableModel>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 
-  @XmlRootElement(name = "Tables")
+  @Root(name = "Tables", strict = false)
   private static class QueryTables {
 
-    @XmlAccessorType(XmlAccessType.FIELD)
-    @XmlRootElement(name = "Table")
+    @Root(name = "Table", strict = false)
     private static class QueryTable {
 
-      @XmlElement(name = "Project")
+      @Element(name = "Project", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       private String projectName;
 
-      @XmlElement(name = "Name")
+      @Element(name = "Name", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       private String tableName;
 
       QueryTable() {
@@ -84,7 +83,7 @@ public class Tables implements Iterable<Table> {
       }
     }
 
-    @XmlElement(name = "Table")
+    @ElementList(entry = "Table", inline = true, required = false)
     private List<QueryTable> tables = new ArrayList<QueryTable>();
   }
 
@@ -729,8 +728,8 @@ public class Tables implements Iterable<Table> {
 
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(queryTables, QueryTables.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(queryTables);
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 

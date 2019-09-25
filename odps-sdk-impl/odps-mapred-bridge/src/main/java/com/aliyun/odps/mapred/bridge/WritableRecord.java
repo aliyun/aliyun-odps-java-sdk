@@ -21,6 +21,7 @@ package com.aliyun.odps.mapred.bridge;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -28,6 +29,11 @@ import java.util.HashMap;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.data.Binary;
+import com.aliyun.odps.data.Char;
+import com.aliyun.odps.data.Varchar;
+import com.aliyun.odps.data.IntervalYearMonth;
+import com.aliyun.odps.data.IntervalDayTime;
 import com.aliyun.odps.io.BigDecimalWritable;
 import com.aliyun.odps.io.BooleanWritable;
 import com.aliyun.odps.io.DatetimeWritable;
@@ -37,6 +43,20 @@ import com.aliyun.odps.io.NullWritable;
 import com.aliyun.odps.io.Text;
 import com.aliyun.odps.io.Writable;
 import com.aliyun.odps.io.WritableUtils;
+import com.aliyun.odps.io.CharWritable;
+import com.aliyun.odps.io.VarcharWritable;
+import com.aliyun.odps.io.StructWritable;
+import com.aliyun.odps.io.FloatWritable;
+import com.aliyun.odps.io.DateWritable;
+import com.aliyun.odps.io.TimestampWritable;
+import com.aliyun.odps.io.IntWritable;
+import com.aliyun.odps.io.BytesWritable;
+import com.aliyun.odps.io.IntervalDayTimeWritable;
+import com.aliyun.odps.io.IntervalYearMonthWritable;
+import com.aliyun.odps.io.ArrayWritable;
+import com.aliyun.odps.io.MapWritable;
+import com.aliyun.odps.io.ByteWritable;
+import com.aliyun.odps.io.ShortWritable;
 
 /**
  * 基于数组的{@link Record}实现
@@ -143,6 +163,40 @@ public class WritableRecord implements Record {
           setDecimal(idx, new BigDecimal( (String) value));
         }
         break;
+      case TINYINT:
+        setTinyint(idx, (Byte)value);
+        break;
+      case SMALLINT:
+        setSmallint(idx, (Short)value);
+        break;
+      case INT:
+        setInt(idx, (Integer)value);
+        break;
+      case FLOAT:
+        setFloat(idx, (Float)value);
+        break;
+      case CHAR:
+        setChar(idx, (Char) value);
+        break;
+      case VARCHAR:
+        setVarchar(idx, (Varchar) value);
+        break;
+      case DATE:
+        setDate(idx, (java.sql.Date) value);
+        break;
+      case TIMESTAMP:
+        setTimestamp(idx, (java.sql.Timestamp) value);
+        break;
+      case BINARY:
+        setBinary(idx, (Binary) value);
+        break;
+      case INTERVAL_DAY_TIME:
+        setIntervalDayTime(idx, (IntervalDayTime) value);
+        break;
+      case INTERVAL_YEAR_MONTH:
+        setIntervalYearMonth(idx, (IntervalYearMonth) value);
+        break;
+      case STRUCT:
       case MAP:
       case ARRAY:
         values[idx] = (Writable)value;
@@ -150,7 +204,6 @@ public class WritableRecord implements Record {
         throw new RuntimeException("Unsupported type " + columns[idx].getType());
     }
   }
-
 
   @Override
   public Object get(int idx) {
@@ -167,6 +220,29 @@ public class WritableRecord implements Record {
         return getDatetime(idx);
       case DECIMAL:
         return getDecimal(idx);
+      case TINYINT:
+        return getTinyint(idx);
+      case SMALLINT:
+        return getSmallint(idx);
+      case INT:
+        return getInt(idx);
+      case FLOAT:
+        return getFloat(idx);
+      case CHAR:
+        return getChar(idx);
+      case VARCHAR:
+        return getVarchar(idx);
+      case DATE:
+        return getDate(idx);
+      case TIMESTAMP:
+        return getTimestamp(idx);
+      case BINARY:
+        return getBinary(idx);
+      case INTERVAL_DAY_TIME:
+        return getIntervalDayTime(idx);
+      case INTERVAL_YEAR_MONTH:
+        return getIntervalYearMonth(idx);
+      case STRUCT:
       case MAP:
       case ARRAY:
         if (enableColumnAccessStat) {
@@ -430,6 +506,249 @@ public class WritableRecord implements Record {
   @Override
   public BigDecimal getDecimal(String columnName) {
     return getDecimal(getColumnIndex(columnName));
+  }
+
+  @SuppressWarnings({"unchecked"})
+  private <T> T getInternal(int idx) {
+    if (enableColumnAccessStat) {
+      columnAccessMark(idx);
+    }
+    return values[idx] == null ? null : (T) values[idx];
+  }
+
+  public void setChar(int idx, Char value) {
+    values[idx] = value == null ? null : new CharWritable(value);
+  }
+
+  public void setChar(String columnName, Char value) {
+    setChar(getColumnIndex(columnName), value);
+  }
+
+  public Char getChar(int idx) {
+    CharWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public Char getChar(String columnName) {
+    return getChar(getColumnIndex(columnName));
+  }
+
+  public void setVarchar(int idx, Varchar value) {
+    values[idx] = value == null ? null : new VarcharWritable(value);
+  }
+
+  public void setVarchar(String columnName, Varchar value) {
+    setVarchar(getColumnIndex(columnName), value);
+  }
+
+  public Varchar getVarchar(int idx) {
+    VarcharWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public Varchar getVarchar(String columnName) {
+    return getVarchar(getColumnIndex(columnName));
+  }
+
+  public void setDate(int idx, java.sql.Date value) {
+    values[idx] = value == null ? null : new DateWritable(value.getTime());
+  }
+
+  public java.sql.Date getDate(int idx) {
+    DateWritable writable = getInternal(idx);
+    return writable == null ? null : new java.sql.Date(((DateWritable) values[idx]).get());
+  }
+
+  public void setDate(String columnName, java.sql.Date value) {
+    setDate(getColumnIndex(columnName), value);
+  }
+
+  public java.sql.Date getDate(String columnName) {
+    return getDate(getColumnIndex(columnName));
+  }
+
+  public void setTimestamp(int idx, Timestamp value) {
+    values[idx] = value == null ? null : new TimestampWritable(value.getTime());
+  }
+
+  public Timestamp getTimestamp(int idx) {
+    TimestampWritable writable = getInternal(idx);
+    return writable == null ? null : new java.sql.Timestamp(writable.get());
+  }
+
+  public void setTimestamp(String columnName, Timestamp value) {
+    setTimestamp(getColumnIndex(columnName), value);
+  }
+
+  public Timestamp getTimestamp(String columnName) {
+    return getTimestamp(getColumnIndex(columnName));
+  }
+
+  public void setFloat(int idx, Float value) {
+    values[idx] = value == null ? null : new FloatWritable(value);
+  }
+
+  public void setFloat(String columnName, Float value) {
+    setFloat(getColumnIndex(columnName), value);
+  }
+
+  public Float getFloat(int idx) {
+    FloatWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public Float getFloat(String columnName) {
+    return getFloat(getColumnIndex(columnName));
+  }
+
+  public void setInt(int idx, Integer value) {
+    values[idx] = value == null ? null : new IntWritable(value);
+  }
+
+  public void setInt(String columnName, Integer value) {
+    setInt(getColumnIndex(columnName), value);
+  }
+
+  public Integer getInt(int idx) {
+    IntWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public Integer getInt(String columnName) {
+    return getInt(getColumnIndex(columnName));
+  }
+
+  public void setTinyint(int idx, Byte value) {
+    values[idx] = value == null ? null : new ByteWritable(value);
+  }
+
+  public void setTinyint(String columnName, Byte value) {
+    setTinyint(getColumnIndex(columnName), value);
+  }
+
+  public Byte getTinyint(int idx) {
+    ByteWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public Byte getTinyint(String columnName) {
+    return getTinyint(getColumnIndex(columnName));
+  }
+
+  public void setSmallint(int idx, Short value) {
+    values[idx] = value == null ? null : new ShortWritable(value);
+  }
+
+  public void setSmallint(String columnName, Short value) {
+    setSmallint(getColumnIndex(columnName), value);
+  }
+
+  public Short getSmallint(int idx) {
+    ShortWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public Short getSmallint(String columnName) {
+    return getSmallint(getColumnIndex(columnName));
+  }
+
+  public void setBinary(int idx, Binary value) {
+    values[idx] = value == null ? null : new BytesWritable(value.data());
+  }
+
+  public void setBinary(String columnName, Binary value) {
+    setBinary(getColumnIndex(columnName), value);
+  }
+
+  public Binary getBinary(int idx) {
+    BytesWritable writable = getInternal(idx);
+    return writable == null ? null : new Binary(writable.getBytes());
+  }
+
+  public Binary getBinary(String columnName) {
+    return getBinary(getColumnIndex(columnName));
+  }
+
+  public IntervalYearMonth getIntervalYearMonth(int idx) {
+    IntervalYearMonthWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public IntervalYearMonth getIntervalYearMonth(String columnName) {
+    return getIntervalYearMonth(getColumnIndex(columnName));
+  }
+
+  public void setIntervalYearMonth(int idx, IntervalYearMonth value) {
+    values[idx] = value == null ? null : new IntervalYearMonthWritable(value);
+  }
+
+  public void setIntervalYearMonth(String columnName, IntervalYearMonth value) {
+    setIntervalYearMonth(getColumnIndex(columnName), value);
+  }
+
+  public IntervalDayTime getIntervalDayTime(int idx) {
+    IntervalDayTimeWritable writable = getInternal(idx);
+    return writable == null ? null : writable.get();
+  }
+
+  public IntervalDayTime getIntervalDayTime(String columnName) {
+    return getIntervalDayTime(getColumnIndex(columnName));
+  }
+
+  public void setIntervalDayTime(int idx, IntervalDayTime value) {
+    values[idx] = value == null ? null : new IntervalDayTimeWritable(value);
+  }
+
+  public void setIntervalDayTime(String columnName, IntervalDayTime value) {
+    setIntervalDayTime(getColumnIndex(columnName), value);
+  }
+
+  public void setArray(String columnName, Writable value) {
+    setArray(getColumnIndex(columnName), value);
+  }
+
+  public void setArray(int idx, Writable value) {
+    set(idx, value);
+  }
+
+  public void setMap(int idx, Writable value) {
+    set(idx, value);
+  }
+
+  public void setMap(String columnName, Writable value) {
+    setMap(getColumnIndex(columnName), value);
+  }
+
+  public void setStruct(int idx, Writable value) {
+    set(idx, value);
+  }
+
+  public void setStruct(String columnName, Writable value) {
+    setStruct(getColumnIndex(columnName), value);
+  }
+
+  public ArrayWritable getArray(String columnName) {
+    return getArray(getColumnIndex(columnName));
+  }
+
+  public ArrayWritable getArray(int idx) {
+    return getInternal(idx);
+  }
+
+  public MapWritable getMap(String columnName) {
+    return getMap(getColumnIndex(columnName));
+  }
+
+  public MapWritable getMap(int idx) {
+    return getInternal(idx);
+  }
+
+  public StructWritable getStruct(int idx) {
+    return getInternal(idx);
+  }
+
+  public StructWritable getStruct(String columnName) {
+    return getStruct(getColumnIndex(columnName));
   }
 
   @Override

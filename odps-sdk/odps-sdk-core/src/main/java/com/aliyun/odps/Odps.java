@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.account.AppAccount;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -66,6 +67,7 @@ public class Odps {
   private static final String defaultEndpoint = "http://service.odps.aliyun.com/api";
 
   private Account account;
+  private AppAccount appAccount;
   private String endpoint;
   private String defaultProject;
 
@@ -92,6 +94,11 @@ public class Odps {
     this.account = account;
   }
 
+  public void setAppAccount(AppAccount appAccount) {
+    this.client.setAppAccount(appAccount);
+    this.appAccount = appAccount;
+  }
+
   /**
    * 指定{@link Account}构造Odps对象
    *
@@ -99,10 +106,16 @@ public class Odps {
    *     认证信息
    */
   public Odps(Account account) {
+    this(account, null);
+  }
+
+  public Odps(Account account, AppAccount appAccount) {
     this.account = account;
+    this.appAccount = appAccount;
 
     client = new RestClient(new DefaultTransport());
     client.setAccount(account);
+    client.setAppAccount(appAccount);
     setUserAgent("");
 
     setEndpoint(defaultEndpoint);
@@ -118,7 +131,7 @@ public class Odps {
   }
 
   public Odps(Odps odps) {
-    this(odps.account);
+    this(odps.account, odps.appAccount);
     setDefaultProject(odps.getDefaultProject());
     setUserAgent(odps.getUserAgent());
     setEndpoint(odps.getEndpoint());
@@ -191,6 +204,14 @@ public class Odps {
   }
 
   /**
+   * 获取{@link AppAccount}
+   * @return {@link AppAccount}
+   */
+  public AppAccount getAppAccount() {
+    return appAccount;
+  }
+
+  /**
    * 获取ODPS服务的地址
    *
    * @return ODPS服务地址
@@ -230,7 +251,7 @@ public class Odps {
    * 指定默认使用的{@link Project}名称
    *
    * @param defaultProject
-   *     默认{@link Project}名称
+   *     默认{@link Project}名称，不允许为null或空串
    */
   public void setDefaultProject(String defaultProject) {
     this.defaultProject = defaultProject;

@@ -19,11 +19,10 @@
 
 package com.aliyun.odps.task;
 
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.Task;
+import com.aliyun.odps.simpleframework.xml.Root;
 
-@XmlRootElement(name = "Galaxy")
+@Root(name = "Galaxy", strict = false)
 public class GalaxyTask extends Task {
 
   public void setOperationType(String operationType) {

@@ -14,6 +14,11 @@
  */
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -21,15 +26,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request.Method;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.HttpHeaders;
@@ -57,40 +56,61 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
 
 
 
-  @XmlRootElement(name = "Item")
+  @Root(name = "Item", strict = false)
   static class VolumeFSFileModel {
-    @XmlElement(name = "Project")
+    @Element(name = "Project", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String project;
-    @XmlElement(name = "Volume")
+
+    @Element(name = "Volume", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String volume;
-    @XmlElement(name = "Path")
+
+    @Element(name = "Path", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String path;
-    @XmlElement(name = "Isdir")
+
+    @Element(name = "Isdir", required = false)
     Boolean isdir;
-    @XmlElement(name = "Permission")
+
+    @Element(name = "Permission", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String permission;
-    @XmlElement(name = "BlockReplications")
+
+    @Element(name = "BlockReplications", required = false)
     Integer blockReplications;
-    @XmlElement(name = "Length")
+
+    @Element(name = "Length", required = false)
     Long length;
-    @XmlElement(name = "Quota")
+
+    @Element(name = "Quota", required = false)
     Long quota;
-    @XmlElement(name = "BlockSize")
+
+    @Element(name = "BlockSize", required = false)
     Long blockSize;
-    @XmlElement(name = "Owner")
+
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
-    @XmlElement(name = "Group")
+
+    @Element(name = "Group", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String group;
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date creationTime;
-    @XmlElement(name = "AccessTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+
+    @Element(name = "AccessTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date accessTime;
-    @XmlElement(name = "ModificationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+
+    @Element(name = "ModificationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date modificationTime;
-    @XmlElement(name = "Symlink")
+
+    @Element(name = "Symlink", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String symlink;
 
     public String getPath() {
@@ -98,24 +118,29 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     }
   }
 
-  @XmlRootElement(name = "Items")
+  @Root(name = "Items", strict = false)
   private static class VolumeFSList {
 
-    @XmlElement(name = "Item")
+    @ElementList(entry = "Item", inline = true, required = false)
     private List<VolumeFSFileModel> files = new ArrayList<VolumeFSFileModel>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 
-  @XmlRootElement(name = "Item")
+  @Root(name = "Item", strict = false)
   private static class FileForCreate {
-    @XmlElement(name = "Type")
+
+    @Element(name = "Type", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String type;
-    @XmlElement(name = "Path")
+
+    @Element(name = "Path", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String path;
 
     public void setType(String type) {
@@ -127,11 +152,14 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     }
   }
 
-  @XmlRootElement(name = "Item")
+  @Root(name = "Item", strict = false)
   private static class FileForUpdate {
-    @XmlElement(name = "Path")
+    @Element(name = "Path", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String path;
-    @XmlElement(name = "Replication")
+
+    @Element(name = "Replication", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String replication;
 
     public void setPath(String path) {
@@ -203,8 +231,8 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     headers.put(HttpHeaders.HEADER_ODPS_VOLUME_FS_PATH, path);
     Response resp = client.request(resource, Method.GET.name(), params, headers, null);
     try {
-      model = JAXBUtils.unmarshal(resp, VolumeFSFileModel.class);
-    } catch (JAXBException e) {
+      model = SimpleXmlUtils.unmarshal(resp, VolumeFSFileModel.class);
+    } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + VolumeFSFileModel.class, e);
     }
     setLoaded(true);
@@ -236,8 +264,8 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
 
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(file, FileForCreate.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(file);
+    } catch (Exception e) {
       throw new VolumeException(e.getMessage(), e);
     }
 
@@ -289,8 +317,8 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
 
     String xml = null;
     try {
-      xml = JAXBUtils.marshal(file, FileForUpdate.class);
-    } catch (JAXBException e) {
+      xml = SimpleXmlUtils.marshal(file);
+    } catch (Exception e) {
       throw new VolumeException(e.getMessage(), e);
     }
 

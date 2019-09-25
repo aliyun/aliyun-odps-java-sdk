@@ -22,6 +22,7 @@ package com.aliyun.odps.commons.util;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.TimeZone;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -33,18 +34,18 @@ import com.aliyun.odps.TestBase;
 
 public class DateUtilsTest extends TestBase {
 
-  private static Calendar c1 = Calendar.getInstance();    //0001-01-01 00:00:00
-  private static Calendar c2 = Calendar.getInstance();    //1927-12-31 23:54:07
-  private static Calendar c3 = Calendar.getInstance();    //1928-01-01 00:00:00
-  private static Calendar c4 = Calendar.getInstance();    //1970-01-01 00:00:00
-  private static Calendar c5 = Calendar.getInstance();    //1997-08-31 23:59:59
-  private static Calendar c6 = Calendar.getInstance();    //1997-09-01 00:59:59
-  private static Calendar c7 = Calendar.getInstance();    //2000-02-29 23:59:59
-  private static Calendar c8 = Calendar.getInstance();    //2014-08-26 15:22:46
-  private static Calendar c9 = Calendar.getInstance();    //2018-11-30 23:59:59
-  private static Calendar c10 = Calendar.getInstance();   //2499-01-01 00:00:00
-  private static Calendar c11 = Calendar.getInstance();   //1986-05-04 01:00:00
-  private static Calendar c12 = Calendar.getInstance();   //1986-05-04 02:00:00
+  private static Calendar c1 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //0001-01-01 00:00:00
+  private static Calendar c2 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //1927-12-31 23:54:07
+  private static Calendar c3 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //1928-01-01 00:00:00
+  private static Calendar c4 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //1970-01-01 00:00:00
+  private static Calendar c5 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //1997-08-31 23:59:59
+  private static Calendar c6 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //1997-09-01 00:59:59
+  private static Calendar c7 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //2000-02-29 23:59:59
+  private static Calendar c8 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //2014-08-26 15:22:46
+  private static Calendar c9 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //2018-11-30 23:59:59
+  private static Calendar c10 = (Calendar)DateUtils.SHANGHAI_CAL.clone();   //2499-01-01 00:00:00
+  private static Calendar c11 = (Calendar)DateUtils.SHANGHAI_CAL.clone();   //1986-05-04 01:00:00
+  private static Calendar c12 = (Calendar)DateUtils.SHANGHAI_CAL.clone();   //1986-05-04 02:00:00
 
   private static long __0001_01_01_00_00_00 = -62135625952L;
   private static long __1927_12_31_23_54_07 = -1325491905L;

@@ -19,8 +19,12 @@
 
 package com.aliyun.odps.rest;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.AppAccount;
+import com.aliyun.odps.commons.transport.Request;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -87,5 +91,23 @@ public class RestClientTest extends TestBase {
     Odps errorOdps = odps.clone();
     errorOdps.setEndpoint("http://error");
     errorOdps.projects().get().getCreatedTime();
+  }
+
+  @Test
+  public void testApplicationAuthentication() {
+    String accessId = "id";
+    String accessKey = "key";
+    String appAccessId = "app_id";
+    String appAccessKey = "app_key";
+    Odps odps = new Odps(new AliyunAccount(accessId, accessKey),
+        new AppAccount(new AliyunAccount(appAccessId, appAccessKey)));
+    RestClient restClient = odps.getRestClient();
+
+    Map<String, String> params = new HashMap<String, String>();
+    Map<String, String> headers = new HashMap<String, String>();
+    headers.put("x-odps-user-agent", "JavaSDK Revision:295ed47 Version:0.30.3 JavaVersion:1.8.0_172 CLT(0.30.0 : c36da9d); Mac OS X(30.5.26.135/jondeMacBook-Pro.local)");
+    headers.put("Date", "Fri, 30 Nov 2018 03:31:29 GMT");
+    Request request = restClient.buildRequest("/projects/project_name/instances/instance_name", "POST", params, headers);
+    assertTrue(request.getHeaders().containsKey("application-authentication"));
   }
 }

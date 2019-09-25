@@ -19,16 +19,16 @@
 
 package com.aliyun.odps.task;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.Map;
-
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 /**
@@ -37,9 +37,11 @@ import com.google.gson.GsonBuilder;
  * @author garr.feng
  */
 
-@XmlRootElement(name = "SQLCost")
+@Root(name = "SQLCost", strict = false)
 public class SQLCostTask extends Task {
 
+  @Element(name = "Query", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String query;
 
   public SQLCostTask() {
@@ -55,7 +57,6 @@ public class SQLCostTask extends Task {
    *
    * @param query
    */
-  @XmlElement(name = "Query")
   public void setQuery(String query) {
     this.query = query;
   }
@@ -82,7 +83,6 @@ public class SQLCostTask extends Task {
    * @param odps
    * @param project
    * @param sql
-   * @param taskName
    * @param hints
    * @return
    * @throws OdpsException
@@ -98,6 +98,7 @@ public class SQLCostTask extends Task {
    * @param odps
    * @param project
    * @param sql
+   * @param taskName
    * @param hints
    * @return
    * @throws OdpsException

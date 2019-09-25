@@ -19,22 +19,19 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.Resource.ResourceModel;
 import com.aliyun.odps.commons.transport.Headers;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -48,25 +45,26 @@ public class Function extends LazyLoad {
   /**
    * Function model
    */
-  @XmlRootElement(name = "Function")
-  @XmlAccessorType(XmlAccessType.FIELD)
+  @Root(name = "Function", strict = false)
   static class FunctionModel {
 
-    @XmlElement(name = "Alias")
+    @Element(name = "Alias", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date createdTime;
 
-    @XmlElement(name = "ClassType")
+    @Element(name = "ClassType", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String classType;
 
-    @XmlElementWrapper(name = "Resources")
-    @XmlElement(name = "ResourceName")
+    @ElementList(name = "Resources", entry = "ResourceName", required = false)
     ArrayList<String> resources;
   }
 

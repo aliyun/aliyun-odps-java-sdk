@@ -24,6 +24,10 @@ import com.aliyun.odps.FieldSchema;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.bridge.WritableRecord;
+import com.aliyun.odps.type.CharTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
+import com.aliyun.odps.type.VarcharTypeInfo;
 
 /**
  * Adapt old Record definition to new API. Will remove this after jni

@@ -1,14 +1,15 @@
 package com.aliyun.odps.ml;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.ListIterator;
 import com.aliyun.odps.NoSuchObjectException;
@@ -16,7 +17,6 @@ import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.ml.OnlineModel.OnlineModelDesc;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.RestClient;
 
 /**
@@ -26,16 +26,17 @@ import com.aliyun.odps.rest.RestClient;
  */
 public class OnlineModels implements Iterable<OnlineModel> {
 
-  @XmlRootElement(name = "Onlinemodels")
+  @Root(name = "Onlinemodels", strict = false)
   private static class ListOnlineModelsResponse {
 
-    @XmlElement(name = "Onlinemodel")
+    @ElementList(entry = "Onlinemodel", inline = true, required = false)
     private List<OnlineModelDesc> onlineModelDescs = new ArrayList<OnlineModelDesc>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 
@@ -320,8 +321,8 @@ public class OnlineModels implements Iterable<OnlineModel> {
 	private OnlineModel createInternally(OnlineModelInfo modelInfo) throws OdpsException{
 		String xml = null;
 		try {
-			xml = JAXBUtils.marshal(modelInfo, OnlineModelInfo.class);
-		} catch (JAXBException e) {
+			xml = SimpleXmlUtils.marshal(modelInfo);
+		} catch (Exception e) {
 			throw new OdpsException(e.getMessage(), e);
 		}
 
@@ -350,8 +351,8 @@ public class OnlineModels implements Iterable<OnlineModel> {
 	private OnlineModel createInternally(OnlineModelInfoNew modelInfo) throws OdpsException{
 		String xml = null;
 		try {
-			xml = JAXBUtils.marshal(modelInfo, OnlineModelInfoNew.class);
-		} catch (JAXBException e) {
+			xml = SimpleXmlUtils.marshal(modelInfo);
+		} catch (Exception e) {
 			throw new OdpsException(e.getMessage(), e);
 		}
 

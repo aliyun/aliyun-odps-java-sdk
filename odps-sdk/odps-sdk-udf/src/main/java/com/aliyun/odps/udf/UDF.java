@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.udf;
 
+import java.io.IOException;
+
 /**
  * UDF 基类
  * UDF (User Defined Scalar Function) 自定义函数，其输入输出是一对一的关系，即读入一行数据，写出一条输出值。
@@ -40,10 +42,10 @@ package com.aliyun.odps.udf;
 public class UDF implements ContextFunction {
 
   @Override
-  public void setup(ExecutionContext ctx) throws UDFException {
+  public void setup(ExecutionContext ctx) throws UDFException, IOException {
   }
 
   @Override
-  public void close() throws UDFException {
+  public void close() throws UDFException, IOException {
   }
 }

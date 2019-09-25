@@ -19,20 +19,17 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.UnsupportedEncodingException;
 import java.util.Date;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.Resources.ResourceHeaders;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 
 public class XFlow extends LazyLoad {
@@ -42,22 +39,22 @@ public class XFlow extends LazyLoad {
   private String project;
 
   // XXX 先不会解析 XFlow, 直接利用 xml
-  @XmlRootElement(name = "xflow")
-  @XmlAccessorType(XmlAccessType.FIELD)
+  @Root(name = "xflow", strict = false)
   public static class XFlowModel {
-
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date createdTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
 
     private String xmlSource;

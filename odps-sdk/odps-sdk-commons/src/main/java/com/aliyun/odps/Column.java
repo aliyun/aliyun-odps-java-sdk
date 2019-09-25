@@ -37,6 +37,11 @@ public final class Column {
   private TypeInfo typeInfo;
   private String comment;
   private String label;
+
+  private String defaultValue = null;
+  private boolean isNullable = true;
+  private boolean hasDefaultValue = false;
+
   private List<OdpsType> genericOdpsTypeList;
   private List<String> extendedlabels;
 
@@ -265,4 +270,61 @@ public final class Column {
     this.genericOdpsTypeList = genericOdpsTypeList;
     initTypeInfo();
   }
+
+  /**
+   * 获取 Column 的默认值， 若没有设置，则返回 NULL
+   * 注意: 目前不论 column type 是什么，都返回的是字符串形式的默认值
+   *
+   * @return 列默认值
+   */
+  public String getDefaultValue()
+  {
+    return defaultValue;
+  }
+
+  /**
+   * 设置 Column 的默认值
+   * 注意: 目前不论 column type 是什么，都是字符串形式的默认值
+   * @param defaultValue
+   */
+  public void setDefaultValue(String defaultValue)
+  {
+    this.defaultValue = defaultValue;
+
+    if (defaultValue != null) {
+      this.hasDefaultValue = true;
+    } else {
+      this.hasDefaultValue = false;
+    }
+  }
+
+  /**
+   * Column 是否可以为 NULL
+   *
+   * @return 是否可以是 null
+   */
+  public boolean isNullable()
+  {
+    return isNullable;
+  }
+
+  /**
+   * 设置 Column 是否可以为 null
+   * @param nullable
+   */
+  public void setNullable(boolean nullable)
+  {
+    isNullable = nullable;
+  }
+
+  /**
+   * Column 是否有默认值
+   *
+   * @return 是否有默认值
+   */
+  public boolean hasDefaultValue()
+  {
+    return hasDefaultValue;
+  }
+
 }
