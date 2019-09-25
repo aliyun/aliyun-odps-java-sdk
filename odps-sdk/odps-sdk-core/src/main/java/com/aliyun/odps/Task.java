@@ -19,27 +19,28 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Order;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.simpleframework.xml.convert.Converter;
+import com.aliyun.odps.simpleframework.xml.stream.InputNode;
+import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlSeeAlso;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.commons.util.OSUtils;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
-import com.aliyun.odps.task.*;
 
 
 /**
@@ -47,21 +48,6 @@ import com.aliyun.odps.task.*;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
-@XmlType(propOrder = {"name", "comment", "properties"})
-@XmlSeeAlso(value = {
-    GraphTask.class,
-    LOTTask.class,
-    SqlPlanTask.class,
-    SQLTask.class,
-    SQLRTTask.class,
-    XLibTask.class,
-    SQLCostTask.class,
-    MoyeTask.class,
-    GalaxyTask.class,
-    CupidTask.class,
-    MergeTask.class,
-    AlgoTask.class
-})
 public abstract class Task {
   private static final Map<String, String> DEFAULT_SETTINGS = new HashMap<String, String>();
   static {
@@ -77,14 +63,16 @@ public abstract class Task {
   /**
    * Task property
    */
-  @XmlAccessorType(XmlAccessType.FIELD)
-  @XmlType(name = "", propOrder = {"name", "value"})
+  @Root(name = "Property", strict = false)
+  @Order(elements = {"Name", "Value"})
   public static class Property {
 
-    @XmlElement(name = "Name", required = true)
+    @Element(name = "Name")
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String name;
 
-    @XmlElement(name = "Value", required = true)
+    @Element(name = "Value")
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String value;
 
     Property() {
@@ -145,12 +133,20 @@ public abstract class Task {
   /**
    * Task properties
    */
-  @XmlRootElement(name = "Config")
-  @XmlAccessorType(XmlAccessType.FIELD)
+  @Root(name = "Config", strict = false)
   public static class Properties {
 
-    @XmlElement(name = "Property")
     Set<Property> properties = new LinkedHashSet<Property>();
+
+    @ElementList(entry = "Property", inline = true, required = false)
+    private List<Property> getPropertyList() {
+      return new ArrayList<Property>(properties);
+    }
+
+    @ElementList(entry = "Property", inline = true, required = false)
+    private void setPropertyList(List<Property> propertyList) {
+      properties = new LinkedHashSet<Property>(propertyList);
+    }
 
     public void addProperty(Property property) {
       properties.add(property);
@@ -161,12 +157,39 @@ public abstract class Task {
     }
   }
 
+  static class PropertyConverter implements Converter<LinkedHashMap<String, String>> {
+    @Override
+    public void write(OutputNode outputNode, LinkedHashMap<String, String> properties) throws Exception {
+      for (Entry<String, String> entry : properties.entrySet()) {
+        String name = entry.getKey();
+        String value = entry.getValue();
+        SimpleXmlUtils.marshal(new Project.Property(name, value), outputNode);
+      }
+
+      outputNode.commit();
+    }
+
+    @Override
+    public LinkedHashMap<String, String> read(InputNode inputNode) throws Exception {
+      LinkedHashMap<String, String> properties = new LinkedHashMap<String, String>();
+      Project.Properties props = SimpleXmlUtils.unmarshal(inputNode, Project.Properties.class);
+      for (Project.Property entry : props.entries) {
+        properties.put(entry.name, entry.value);
+      }
+      return properties;
+    }
+  }
+
+  @Element(name = "Name", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String name;
 
+  @Element(name = "Comment", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String comment;
 
-  @XmlElement(name = "Config")
-  @XmlJavaTypeAdapter(XmlPropertyMapAdapter.class)
+  @Element(name = "Config", required = false)
+  @Convert(PropertyConverter.class)
   private LinkedHashMap<String, String> properties = new LinkedHashMap<String, String>();
 
   /**
@@ -184,7 +207,6 @@ public abstract class Task {
    * @param name
    *     Task名称
    */
-  @XmlElement(name = "Name")
   public void setName(String name) {
     this.name = name;
   }
@@ -204,7 +226,6 @@ public abstract class Task {
    * @param comment
    *     注释信息
    */
-  @XmlElement(name = "Comment")
   public void setComment(String comment) {
     this.comment = comment;
   }
@@ -226,7 +247,6 @@ public abstract class Task {
    * @param properties
    *     配置项名称
    */
-  @XmlTransient
   public final void setProperties(Map<String, String> properties) {
     this.properties = new LinkedHashMap<String, String>();
     this.properties.putAll(properties);

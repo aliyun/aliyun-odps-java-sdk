@@ -22,24 +22,25 @@
  */
 package com.aliyun.odps.task;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.Task;
-import com.aliyun.odps.commons.util.TrimmedStringXmlAdapter;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 /**
  * 执行SQL Plan的任务。
  *
  * @author xiaoming.yin
  */
-@XmlRootElement(name = "SQLPlan")
+@Root(name = "SQLPlan", strict = false)
 public class SqlPlanTask extends Task {
 
   SqlPlanTask() {
   }
 
+  @Element(name = "Query", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String query;
 
   /**
@@ -81,8 +82,6 @@ public class SqlPlanTask extends Task {
    * @param query
    *     查询语句。
    */
-  @XmlElement(name = "Query")
-  @XmlJavaTypeAdapter(TrimmedStringXmlAdapter.class)
   public void setQuery(String query) {
     this.query = query;
   }

@@ -23,20 +23,31 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.gson.Gson;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.task.GraphTask;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.util.HashMap;
-import java.util.Map;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlSeeAlso;
 
 import org.junit.Test;
 
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.task.SQLTask;
 
 public class TaskTest {
+  private String sqlTaskXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+      + "<SQL>\n"
+      + "   <Name>name</Name>\n"
+      + "   <Config>\n"
+      + "      <Property>\n"
+      + "         <Name>a</Name>\n"
+      + "         <Value>b</Value>\n"
+      + "      </Property>\n"
+      + "      <Property>\n"
+      + "         <Name>c</Name>\n"
+      + "         <Value>d</Value>\n"
+      + "      </Property>\n"
+      + "   </Config>\n"
+      + "   <Query>select count(*) from src;</Query>\n"
+      + "</SQL>";
 
   @Test
   public void testGetCommandText() {
@@ -47,23 +58,31 @@ public class TaskTest {
   }
 
   @Test
-  public void testMarshalTask() throws JAXBException {
+  public void testMarshalSQLTask() throws Exception {
     SQLTask task = new SQLTask();
     task.setName("name");
     task.setQuery("select count(*) from src;");
     task.setProperty("a", "b");
-    String st = JAXBUtils.marshal(task, Task.class);
-    assertEquals(
-        "<?xml version=\"1.0\" ?><SQL><Name>name</Name><Config><Property><Name>a</Name><Value>b</Value></Property></Config><Query>select count(*) from src;</Query></SQL>",
-        st);
+    task.setProperty("c", "d");
+    String st = SimpleXmlUtils.marshal(task);
+
+    assertEquals(sqlTaskXml, st);
   }
 
   @Test
-  public void testInternalTaskInject() throws JAXBException {
-    XmlSeeAlso anotation = Task.class.getAnnotation(XmlSeeAlso.class);
-    Class<?>[] value = anotation.value();
-    assertEquals(false,
-                 "com.aliyun.odps.task.InternalTask".equals(value[value.length - 1].getName()));
+  public void testUnmarshalSQLTask() throws Exception {
+    SQLTask sqlTask = SimpleXmlUtils.unmarshal(sqlTaskXml.getBytes(), SQLTask.class);
+
+    System.out.println("Name: " + sqlTask.getName());
+    System.out.println("Query: " + sqlTask.getQuery());
+    System.out.println("Properties: " + sqlTask.getProperties());
+
+    assertEquals("select count(*) from src;", sqlTask.getQuery());
+    assertEquals("name", sqlTask.getName());
+    assertTrue(sqlTask.getProperties().containsKey("a"));
+    assertEquals("b", sqlTask.getProperties().get("a"));
+    assertTrue(sqlTask.getProperties().containsKey("c"));
+    assertEquals("d", sqlTask.getProperties().get("c"));
   }
 
   @Test

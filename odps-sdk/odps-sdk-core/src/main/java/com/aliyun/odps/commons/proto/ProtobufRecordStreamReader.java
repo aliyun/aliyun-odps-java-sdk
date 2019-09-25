@@ -69,7 +69,6 @@ public class ProtobufRecordStreamReader implements RecordReader {
   private long bytesReaded = 0;
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
-
   protected boolean shouldTransform = false;
 
   public ProtobufRecordStreamReader() {
@@ -115,7 +114,6 @@ public class ProtobufRecordStreamReader implements RecordReader {
     }
     this.in.setSizeLimit(Integer.MAX_VALUE);
   }
-
 
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;

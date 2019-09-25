@@ -1,43 +1,52 @@
 package com.aliyun.odps.ml;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
-@XmlRootElement(name = "Onlinemodel")
+@Root(name = "Onlinemodel", strict = false)
 public class OnlineModelInfo {
-	@XmlElement(name = "Project")
-	public String project;
+	@Element(name = "Project", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    public String project;
 
-	@XmlElement(name = "Name")
+	@Element(name = "Name", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String modelName;
 
-	@XmlElement(name = "QOS")
+	@Element(name = "QOS", required = false)
 	public short QOS = 100;
 
-	@XmlElement(name = "InstanceNum")
+	@Element(name = "InstanceNum", required = false)
 	public short instanceNum = 1;
 
-	@XmlElement(name = "Version")
+	@Element(name = "Version", required = false)
 	public short version = 0;
 
-	@XmlElement(name = "OfflinemodelProject")
+	@Element(name = "OfflinemodelProject", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String offlineProject;
 
-	@XmlElement(name = "OfflinemodelName")
+	@Element(name = "OfflinemodelName", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String offlineModelName;
 
-	@XmlElement(name = "PredictDesc")
+	@Element(name = "PredictDesc", required = false)
 	public ModelPredictDesc predictDesc;
 
-	@XmlElement(name = "Runtime")
+	@Element(name = "Runtime", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String runtime = "Native";
 
-	@XmlElement(name = "Resource")
+	@Element(name = "Resource", required = false)
 	public Resource resource;
 
-	@XmlElement(name = "ServiceTag")
+	@Element(name = "ServiceTag", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String serviceTag;
 
-	@XmlElement(name = "ServiceName")
+	@Element(name = "ServiceName", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String serviceName;
 }

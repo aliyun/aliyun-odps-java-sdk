@@ -19,18 +19,17 @@
 
 package com.aliyun.odps.security;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Attribute;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.HashMap;
 import java.util.Map;
-
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.LazyLoad;
 import com.aliyun.odps.NoSuchObjectException;
 import com.aliyun.odps.OdpsException;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -44,79 +43,90 @@ import com.aliyun.odps.utils.StringUtils;
  */
 public class SecurityConfiguration extends LazyLoad {
 
-  @XmlRootElement(name = "SecurityConfiguration")
+  @Root(name = "SecurityConfiguration", strict = false)
   static class SecurityConfigurationModel {
 
-    @XmlElement(name = "CheckPermissionUsingAcl")
+    @Element(name = "CheckPermissionUsingAcl", required = false)
     boolean checkPermissionUsingAcl;
 
-    @XmlElement(name = "CheckPermissionUsingPolicy")
+    @Element(name = "CheckPermissionUsingPolicy", required = false)
     boolean checkPermissionUsingPolicy;
 
-    @XmlElement(name = "LabelSecurity")
+    @Element(name = "LabelSecurity", required = false)
     boolean labelSecurity;
 
-    @XmlElement(name = "ObjectCreatorHasAccessPermission")
+    @Element(name = "ObjectCreatorHasAccessPermission", required = false)
     boolean objectCreatorHasAccessPermission;
 
-    @XmlElement(name = "ObjectCreatorHasGrantPermission")
+    @Element(name = "ObjectCreatorHasGrantPermission", required = false)
     boolean objectCreatorHasGrantPermission;
 
-    @XmlRootElement(name = "ProjectProtection")
+    @Root(name = "ProjectProtection", strict = false)
     static class ProjectProtection {
 
-      @XmlAttribute(name = "Protected")
+      @Attribute(name = "Protected", required = false)
       String protectedFlag;
 
-      @XmlElement(name = "Exceptions")
+      @Element(name = "Exceptions", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       String exceptionPolicy;
     }
 
-    @XmlElement(name = "ProjectProtection")
+    @Element(name = "ProjectProtection", required = false)
     ProjectProtection projectProtection;
 
-    @XmlElement(name = "CheckPermissionUsingAclV2")
+    @Element(name = "CheckPermissionUsingAclV2", required = false)
     boolean checkPermissionUsingAclV2;
 
-    @XmlElement(name = "CheckPermissionUsingPackageV2")
+    @Element(name = "CheckPermissionUsingPackageV2", required = false)
     boolean checkPermissionUsingPackageV2;
 
-    @XmlElement(name = "SupportACL")
+    @Element(name = "SupportACL", required = false)
     boolean supportAcl;
 
-    @XmlElement(name = "SupportPolicy")
+    @Element(name = "SupportPolicy", required = false)
     boolean supportPolicy;
 
-    @XmlElement(name = "SupportPackage")
+    @Element(name = "SupportPackage", required = false)
     boolean supportPackage;
 
-    @XmlElement(name = "SupportACLV2")
+    @Element(name = "SupportACLV2", required = false)
     boolean supportAclV2;
 
-    @XmlElement(name = "SupportPackageV2")
+    @Element(name = "SupportPackageV2", required = false)
     boolean supportPackageV2;
 
-    @XmlElement(name = "CheckPermissionUsingPackage")
+    @Element(name = "CheckPermissionUsingPackage", required = false)
     boolean checkPermissionUsingPackage;
 
-    @XmlElement(name = "CreatePackage")
+    @Element(name = "CreatePackage", required = false)
     boolean createPackage;
 
-    @XmlElement(name = "CreatePackageV2")
+    @Element(name = "CreatePackageV2", required = false)
     boolean createPackageV2;
 
-    @XmlElement(name = "AuthorizationVersion")
+    @Element(name = "AuthorizationVersion", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String authorizationVersion;
   }
 
   private SecurityConfigurationModel model;
   private String project;
   private RestClient client;
+  /**
+   * If strip is true, 'Exception Policy' will not be returned
+   */
+  private boolean strip;
 
   SecurityConfiguration(String project, RestClient client) {
+    this(project, client, false);
+  }
+
+  SecurityConfiguration(String project, RestClient client, boolean strip) {
     this.model = null;
     this.project = project;
     this.client = client;
+    this.strip = strip;
     lazyLoad();
   }
 
@@ -125,7 +135,11 @@ public class SecurityConfiguration extends LazyLoad {
     StringBuilder resource = new StringBuilder();
     resource.append("/projects/").append(project);
     Map<String, String> params = new HashMap<String, String>();
-    params.put("security_configuration", null);
+    if (!strip) {
+      params.put("security_configuration", null);
+    } else {
+      params.put("security_configuration_without_exception_policy", null);
+    }
     model = client.request(SecurityConfigurationModel.class,
                            resource.toString(), "GET", params, null, null);
     setLoaded(true);
@@ -137,8 +151,7 @@ public class SecurityConfiguration extends LazyLoad {
       resource.append("/projects/").append(project);
       Map<String, String> params = new HashMap<String, String>();
       params.put("security_configuration", null);
-      String xmlSecurityConfiguration = JAXBUtils.marshal(model,
-                                                          SecurityConfigurationModel.class);
+      String xmlSecurityConfiguration = SimpleXmlUtils.marshal(model);
       HashMap<String, String> headers = null;
       if (supervisionToken != null) {
         headers = new HashMap<String, String>();
@@ -148,7 +161,7 @@ public class SecurityConfiguration extends LazyLoad {
                            xmlSecurityConfiguration);
     } catch (OdpsException e) {
       throw e;
-    } catch (JAXBException e) {
+    } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }
 

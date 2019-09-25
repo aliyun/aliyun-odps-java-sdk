@@ -151,7 +151,6 @@ public class OdpsTestUtils {
     return odps;
   }
 
-
   /**
    * 根据test.properties的设置创建一个新的Odps对象
    *
@@ -170,26 +169,6 @@ public class OdpsTestUtils {
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
 
-    return odps;
-  }
-
-  /**
-   * 根据test.properties的设置创建一个新的Odps对象
-   *
-   * @return
-   */
-  public static Odps newTestOdps() {
-    Odps odps = null;
-
-    String accessId = props.getProperty("test.access.id");
-    String accessKey = props.getProperty("test.access.key");
-    String endpoint = props.getProperty("test.endpoint");
-    String project = props.getProperty("test.project");
-
-    Account account = new AliyunAccount(accessId, accessKey);
-    odps = new Odps(account);
-    odps.setDefaultProject(project);
-    odps.setEndpoint(endpoint);
     return odps;
   }
 

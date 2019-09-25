@@ -179,9 +179,23 @@ public class SecurityTest extends TestBase {
       sm.putRolePolicy("testrole", policy);
       result = sm.getRolePolicy("testrole");
       Assert.assertTrue(result.contains("odps:*"));
+
+      // test security policy
+      sm.putSecurityPolicy("");
+      result = sm.getSecurityPolicy();
+      Assert.assertEquals("", result);
+      String securityPolicy =
+          "{\"Statement\":[{\"Action\":[\"odps:GrantPrivs\",\"odps:RevokePrivs\",\"odps:ShowAclGrants\"],\"Effect\":\"Deny\",\"Principal\":[\"*\"],\"Resource\":[\"acs:odps:*:projects/security_test_shuxu_2/authorization/acl/resources/tables/shuxu_test_*\"]}],\"Version\":\"1\"}";
+      sm.putSecurityPolicy(securityPolicy);
+      // The json sent by server-end is well-formatted, so we have to get rid of the \n and spaces
+      // so that it can match the original string.
+      result = sm.getSecurityPolicy()
+          .replace("\n", "")
+          .replace(" ", "");
+      Assert.assertEquals(securityPolicy, result);
     } catch (OdpsException e) {
       e.printStackTrace();
-      Assert.assertTrue(false);
+      Assert.fail();
     }
     try {
       sm = odps.projects().get().getSecurityManager();
@@ -202,7 +216,7 @@ public class SecurityTest extends TestBase {
       Assert.assertTrue(result.length() > policy.length());
     } catch (OdpsException e) {
       e.printStackTrace();
-      Assert.assertTrue(false);
+      Assert.fail();
     }
   }
 }

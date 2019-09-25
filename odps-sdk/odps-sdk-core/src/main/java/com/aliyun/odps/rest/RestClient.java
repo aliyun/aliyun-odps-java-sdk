@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.rest;
 
+import com.aliyun.odps.account.AppAccount;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,7 +34,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.net.ssl.SSLHandshakeException;
-import javax.xml.bind.JAXBException;
 
 import com.aliyun.odps.NoSuchObjectException;
 import com.aliyun.odps.OdpsDeprecatedLogger;
@@ -53,7 +53,6 @@ import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
 import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.commons.util.backoff.FixedBackOffStrategy;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 /**
@@ -121,6 +120,7 @@ public class RestClient {
   private final Transport transport;
 
   private Account account;
+  private AppAccount appAccount;
   private String endpoint;
   private boolean ignoreCerts = DEFAULT_IGNORE_CERTS;
 
@@ -228,8 +228,8 @@ public class RestClient {
 
     Response resp = request(resource, method, params, headers, body);
     try {
-      r = JAXBUtils.unmarshal(resp, clazz);
-    } catch (JAXBException e) {
+      r = SimpleXmlUtils.unmarshal(resp, clazz);
+    } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + clazz.getName(), e);
     }
 
@@ -365,7 +365,7 @@ public class RestClient {
       ErrorMessage error = null;
 
       try {
-        error = JAXBUtils.unmarshal(resp, ErrorMessage.class);
+        error = SimpleXmlUtils.unmarshal(resp, ErrorMessage.class);
       } catch (Exception e) {
         //
       }
@@ -422,6 +422,8 @@ public class RestClient {
           IOUtils.resetInputStream(body);
           headers.put(Headers.CONTENT_MD5, contentMd5);
         }
+      } else {
+        headers.put(Headers.CONTENT_LENGTH, "0");
       }
 
       Request req = buildRequest(resource, method, params, headers);
@@ -492,6 +494,14 @@ public class RestClient {
     return account;
   }
 
+  public void setAppAccount(AppAccount appAccount) {
+    this.appAccount = appAccount;
+  }
+
+  public AppAccount getAppAccount() {
+    return appAccount;
+  }
+
   public void setEndpoint(String endpoint) {
     this.endpoint = endpoint;
   }
@@ -513,7 +523,7 @@ public class RestClient {
     return transport;
   }
 
-  private Request buildRequest(String resource, String method, Map<String, String> params,
+  protected Request buildRequest(String resource, String method, Map<String, String> params,
                                Map<String, String> headers) {
     if (resource == null || !resource.startsWith("/")) {
       throw new IllegalArgumentException("Invalid resource: " + resource);
@@ -576,10 +586,13 @@ public class RestClient {
         req.setHeader("x-odps-user-agent", userAgent);
       }
 
-      req.getHeaders().put("Date", DateUtils.formatRfc822Date(new Date()));
+      req.setHeader(Headers.DATE, DateUtils.formatRfc822Date(new Date()));
 
       // Sign the request
       account.getRequestSigner().sign(resource, req);
+      if (appAccount != null) {
+        appAccount.getRequestSigner().sign(resource, req);
+      }
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }

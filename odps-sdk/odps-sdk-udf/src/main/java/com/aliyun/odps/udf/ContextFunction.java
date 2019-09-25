@@ -20,13 +20,15 @@
 package com.aliyun.odps.udf;
 
 
+import java.io.IOException;
+
 /**
  * 拥有 {@link ExecutionContext}的一类自定义函数。
  */
 public interface ContextFunction {
 
-  public void setup(ExecutionContext ctx) throws UDFException;
+  public void setup(ExecutionContext ctx) throws UDFException, IOException;
 
-  public void close() throws UDFException;
+  public void close() throws UDFException, IOException;
 
 }

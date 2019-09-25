@@ -150,4 +150,14 @@ public class IOUtils {
   public static String readStreamAsString(InputStream in) throws IOException {
     return new String(readFully(in), "utf-8");
   }
+
+  public static void closeSilently(InputStream in) {
+    if (in != null) {
+      try {
+        in.close();
+      } catch (IOException e) {
+        // ignore
+      }
+    }
+  }
 }

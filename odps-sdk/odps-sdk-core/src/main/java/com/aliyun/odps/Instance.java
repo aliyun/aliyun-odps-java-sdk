@@ -19,6 +19,13 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Attribute;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.Text;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
@@ -32,16 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlValue;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.google.gson.Gson;
@@ -58,7 +55,6 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -151,20 +147,23 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     this.client = odps.getRestClient();
   }
 
-  @XmlRootElement(name = "Instance")
+  @Root(name = "Instance", strict = false)
   private static class InstanceStatusModel {
 
-    @XmlElement(name = "Status")
+    @Element(name = "Status", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String status;
   }
 
-  @XmlRootElement
+  @Root(strict = false)
   private static class InstanceDebugModel {
 
-    @XmlElement(name = "LogId")
+    @Element(name = "LogId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String logId;
 
-    @XmlElement(name = "DebugId")
+    @Element(name = "DebugId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String debugId;
   }
 
@@ -173,40 +172,41 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    *
    * @author shenggong.wang@alibaba-inc.com
    */
-  @XmlRootElement(name = "Instance")
+  @Root(name = "Instance", strict = false)
   static class InstanceResultModel {
 
     static class TaskResult {
 
-      @XmlAttribute(name = "Type")
+      @Attribute(name = "Type", required = false)
       String type;
 
-      @XmlElement(name = "Name")
+      @Element(name = "Name", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       String name;
 
-      @XmlElement(name = "Result")
+      @Element(name = "Result", required = false)
       Result result;
 
-      @XmlElement(name = "Status")
+      @Element(name = "Status", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       String status;
     }
 
-    @XmlElementWrapper(name = "Tasks")
-    @XmlElement(name = "Task")
+    @ElementList(name = "Tasks", entry = "Task", required = false)
     List<TaskResult> taskResults = new ArrayList<TaskResult>();
   }
 
-  @XmlRootElement
+  @Root(strict = false)
   public static class Result {
 
-    @XmlAttribute(name = "Transform")
+    @Attribute(name = "Transform", required = false)
     String transform;
 
-    @XmlAttribute(name = "Format")
+    @Attribute(name = "Format", required = false)
     String format;
 
-    @XmlValue
-    String text;
+    @Text(required = false)
+    String text = "";
 
     /**
      * {@link Instance}执行后，无论成功与否，返回给客户端的结果或失败信息。
@@ -240,13 +240,15 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    *
    * @author dejun.xiedj@alibaba-inc.com
    */
-  @XmlRootElement(name = "Instance")
+  @Root(name = "Instance", strict = false)
   static class InstanceTaskInfoModel {
 
-    @XmlElement(name = "Key")
+    @Element(name = "Key", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String key;
 
-    @XmlElement(name = "Value")
+    @Element(name = "Value", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String value;
   }
 
@@ -269,7 +271,6 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     String endTimeStr = resp.getHeaders().get("x-odps-end-time");
     try {
       model.startTime = DateUtils.parseRfc822Date(startTimeStr);
-
     } catch (ParseException e) {
       throw new OdpsException("Invalid response, x-odps-start-time:" + startTimeStr);
     }
@@ -281,9 +282,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
 
     try {
-      InstanceStatusModel sm = JAXBUtils.unmarshal(resp, InstanceStatusModel.class);
+      InstanceStatusModel sm = SimpleXmlUtils.unmarshal(resp, InstanceStatusModel.class);
       status = Status.valueOf(sm.status.toUpperCase());
-    } catch (JAXBException e) {
+    } catch (Exception e) {
       throw new OdpsException("Invalid instance status response.", e);
     }
 
@@ -299,7 +300,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     InstanceStatusModel sm = new InstanceStatusModel();
     sm.status = "Terminated";
     try {
-      String ret = JAXBUtils.marshal(sm, InstanceStatusModel.class);
+      String ret = SimpleXmlUtils.marshal(sm);
       HashMap<String, String> headers = new HashMap<String, String>();
       headers.put(Headers.CONTENT_TYPE, "application/xml");
       client.stringRequest(getResource(), "PUT", null, headers, ret);
@@ -522,7 +523,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     sm.key = infoKey;
     sm.value = infoValue;
     try {
-      String kv = JAXBUtils.marshal(sm, InstanceTaskInfoModel.class);
+      String kv = SimpleXmlUtils.marshal(sm);
       HashMap<String, String> headers = new HashMap<String, String>();
       headers.put(Headers.CONTENT_TYPE, "application/xml");
       Response result = client.stringRequest(getResource(), "PUT", params, headers, kv);
@@ -571,52 +572,55 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   }
 
   /* Response of get instance task status8 */
-  @XmlRootElement(name = "Instance")
+  @Root(name = "Instance", strict = false)
   static class TaskStatusModel {
 
     static class InstanceTaskModel {
 
-      @XmlElement(name = "Name")
+      @Element(name = "Name", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       String name;
 
-      @XmlAttribute(name = "Type")
+      @Attribute(name = "Type", required = false)
       String type;
 
-      @XmlElement(name = "StartTime")
-      @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+      @Element(name = "StartTime", required = false)
+      @Convert(SimpleXmlUtils.DateConverter.class)
       Date startTime;
 
-      @XmlElement(name = "EndTime")
-      @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+      @Element(name = "EndTime", required = false)
+      @Convert(SimpleXmlUtils.DateConverter.class)
       Date endTime;
 
-      @XmlElement(name = "Status")
+      @Element(name = "Status", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       String status;
 
-      @XmlElementWrapper(name = "Histories")
-      @XmlElement(name = "History")
+      @ElementList(name = "Histories", entry = "History", required = false)
       List<InstanceTaskModel> histories = new ArrayList<InstanceTaskModel>();
     }
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "StartTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "StartTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date startTime;
 
-    @XmlElement(name = "EndTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "EndTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date endTime;
 
-    @XmlElement(name = "Status")
+    @Element(name = "Status", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String status;
 
-    @XmlElementWrapper(name = "Tasks")
-    @XmlElement(name = "Task")
+    @ElementList(name = "Tasks", entry = "Task", required = false)
     List<InstanceTaskModel> tasks = new ArrayList<InstanceTaskModel>();
   }
 
@@ -815,7 +819,6 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   /**
    * StageProgress表示{@link Task}执行过程中各阶段的进度统计
    */
-  @XmlAccessorType(XmlAccessType.FIELD)
   public static class StageProgress {
 
 
@@ -830,31 +833,32 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       CANCELLING,
     }
 
-    @XmlAttribute(name = "ID")
+    @Attribute(name = "ID", required = false)
     String name;
 
-    @XmlElement(name = "Status")
+    @Element(name = "Status", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String status;
 
-    @XmlElement(name = "BackupWorkers")
+    @Element(name = "BackupWorkers", required = false)
     int backupSysInstances;
 
-    @XmlElement(name = "TerminatedWorkers")
+    @Element(name = "TerminatedWorkers", required = false)
     int terminatedSysInstances;
 
-    @XmlElement(name = "RunningWorkers")
+    @Element(name = "RunningWorkers", required = false)
     int runningSysInstances;
 
-    @XmlElement(name = "TotalWorkers")
+    @Element(name = "TotalWorkers", required = false)
     int totalSysInstances;
 
-    @XmlElement(name = "InputRecords")
+    @Element(name = "InputRecords", required = false)
     long inputRecords;
 
-    @XmlElement(name = "OutputRecords")
+    @Element(name = "OutputRecords", required = false)
     long outputRecords;
 
-    @XmlElement(name = "FinishedPercentage")
+    @Element(name = "FinishedPercentage", required = false)
     int finishedPercentage;
 
     public Status getStatus() {
@@ -956,11 +960,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     return result.toString();
   }
 
-  @XmlRootElement(name = "Progress")
-  @XmlAccessorType(XmlAccessType.FIELD)
+  @Root(name = "Progress", strict = false)
   private static class TaskProgress {
 
-    @XmlElement(name = "Stage")
+    @ElementList(entry = "Stage", inline = true, required = false)
     List<StageProgress> stages = new LinkedList<StageProgress>();
 
     /**
@@ -1326,7 +1329,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     model.logId = workerId;
 
     try {
-      String body = JAXBUtils.marshal(model, InstanceDebugModel.class);
+      String body = SimpleXmlUtils.marshal(model);
       HashMap<String, String> headers = new HashMap<String, String>();
       headers.put(Headers.CONTENT_TYPE, "application/xml");
 

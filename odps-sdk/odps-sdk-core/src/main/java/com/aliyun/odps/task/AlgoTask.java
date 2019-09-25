@@ -1,21 +1,23 @@
 package com.aliyun.odps.task;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
 import com.aliyun.odps.Task;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 /**
  * Created by ruibo.lirb on 2016-12-06.
  */
-@XmlRootElement(name = "AlgoTask")
+@Root(name = "AlgoTask", strict = false)
 public class AlgoTask extends Task {
 
   AlgoTask() {}
 
+  @Element(name = "TaskPlan", required = false)
+  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String taskPlan;
 
-  @XmlElement(name = "TaskPlan")
   public void setTaskPlan(String taskPlan) {
     this.taskPlan = taskPlan;
   }

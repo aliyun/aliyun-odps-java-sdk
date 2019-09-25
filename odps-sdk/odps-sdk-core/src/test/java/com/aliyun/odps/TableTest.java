@@ -24,6 +24,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.aliyun.odps.Table.TableModel;
+import com.aliyun.odps.Table.TableModel.Schema;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,8 +33,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -42,6 +42,8 @@ import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.task.SQLTask;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.sun.org.apache.xml.internal.utils.URI;
 
 public class TableTest extends TestBase {
@@ -221,6 +223,26 @@ public class TableTest extends TestBase {
     Assert.assertEquals(table.getSchema().getColumn("c1").getLabel(), new Long(2));
     Assert.assertEquals(table.getSchema().getColumn("c2").getLabel(), null);
   }
+
+  @Test
+  public void TestColumnNullable() throws Exception {
+   Column column = new Column("c0", OdpsType.STRING);
+   Assert.assertFalse(column.hasDefaultValue());
+
+   column.setDefaultValue("abc");
+   column.setNullable(false);
+
+   Assert.assertTrue(column.hasDefaultValue());
+   Assert.assertFalse(column.isNullable());
+   Assert.assertEquals("abc", column.getDefaultValue());
+
+   column.setNullable(true);
+   column.setDefaultValue(null);
+
+   Assert.assertTrue(column.isNullable());
+   Assert.assertFalse(column.hasDefaultValue());
+  }
+
 
   @Test
   public void testExtendedLabel() throws OdpsException {

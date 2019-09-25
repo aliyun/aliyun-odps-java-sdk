@@ -45,4 +45,21 @@ enum Type
     MapDecimalDatetime = 34;
     MapDecimalBool = 35;
     MapDecimalDecimal = 36;
+
+    Map = 107;
+    Array = 108;
+    Void = 109;
+    Tinyint =110;
+    Smallint = 111;
+    Int = 112;
+    Float = 113;
+    Char = 114;
+    Varchar = 115;
+    Date = 116;
+    Timestamp = 117;
+    Binary = 118;
+    Interval_day_time = 119;
+    Interval_year_month = 120;
+    Struct = 121;
+
 }

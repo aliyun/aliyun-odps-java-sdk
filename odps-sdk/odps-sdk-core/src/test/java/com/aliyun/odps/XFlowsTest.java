@@ -23,9 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
 import java.util.Map;
-
-import javax.xml.bind.JAXBException;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -35,7 +34,6 @@ import com.aliyun.odps.XFlow.XFlowModel;
 import com.aliyun.odps.XFlows.XFlowInstance;
 import com.aliyun.odps.XFlows.XResult;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.task.SQLTask;
 
 public class XFlowsTest {
@@ -44,7 +42,7 @@ public class XFlowsTest {
 
   @BeforeClass
   public static void setup() throws OdpsException {
-    odps = OdpsTestUtils.newTestOdps();
+    odps = OdpsTestUtils.newDefaultOdps();
     testCreateDeleteUpadte();
     if (!odps.xFlows().exists("abc")) {
       String source =
@@ -159,18 +157,33 @@ public class XFlowsTest {
   }
 
   @Test
-  public void testXFlowCData() throws JAXBException {
+  public void testXFlowCData() throws Exception {
     XFlowInstance instance = new XFlowInstance();
     instance.setParameter("abc", "\"<>\"");
     instance.setPriority(2);
     instance.setProperty("key1", "value1");
     instance.setProperty("key2", "value2");
-    String st = JAXBUtils.marshal(instance, XFlowInstance.class);
-    assertEquals(st, "<?xml version=\"1.0\" ?>" +
-            "<XflowInstance><Parameters><Parameter><Key>abc</Key><Value><![CDATA[\"<>\"]]>" +
-            "</Value></Parameter></Parameters><Priority>2</Priority>" +
-            "<Config><Property><Name>key1</Name><Value>value1</Value></Property>" +
-            "<Property><Name>key2</Name><Value>value2</Value></Property>" +
-            "</Config></XflowInstance>");
+    String st = SimpleXmlUtils.marshal(instance);
+    assertEquals(st,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        + "<XflowInstance>\n"
+        + "   <Parameters>\n"
+        + "      <Parameter>\n"
+        + "         <Key>abc</Key>\n"
+        + "         <Value><![CDATA[\"<>\"]]></Value>\n"
+        + "      </Parameter>\n"
+        + "   </Parameters>\n"
+        + "   <Priority>2</Priority>\n"
+        + "   <Config>\n"
+        + "      <Property>\n"
+        + "         <Name>key1</Name>\n"
+        + "         <Value>value1</Value>\n"
+        + "      </Property>\n"
+        + "      <Property>\n"
+        + "         <Name>key2</Name>\n"
+        + "         <Value>value2</Value>\n"
+        + "      </Property>\n"
+        + "   </Config>\n"
+        + "</XflowInstance>");
   }
 }

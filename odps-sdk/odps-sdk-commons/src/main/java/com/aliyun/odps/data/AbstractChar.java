@@ -4,7 +4,11 @@ public abstract class  AbstractChar<T extends AbstractChar> {
   protected String value;
 
   AbstractChar(String value) {
-    this(value, value.length());
+    if (value == null) {
+      this.value = null;
+    } else {
+      this.value = enforceMaxLength(value, value.length());
+    }
   }
 
   AbstractChar(String value, int maxLength) {

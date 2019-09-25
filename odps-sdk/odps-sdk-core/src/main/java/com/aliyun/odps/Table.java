@@ -19,6 +19,13 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Attribute;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.Text;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Date;
@@ -29,17 +36,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlValue;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.Partition.PartitionModel;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.DefaultRecordReader;
 import com.aliyun.odps.data.RecordReader;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.SQLTask;
@@ -56,49 +56,56 @@ import com.google.gson.reflect.TypeToken;
  */
 public class Table extends LazyLoad {
 
-  @XmlRootElement(name = "Table")
+  @Root(name = "Table", strict = false)
   static class TableModel {
 
-    @XmlRootElement(name = "Schema")
+    @Root(name = "Schema", strict = false)
     static class Schema {
 
-      @XmlValue
+      @Text(required = false)
       String content;
     }
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "TableId")
+    @Element(name = "TableId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String ID;
 
-    @XmlAttribute(name = "format")
+    @Attribute(name = "format", required = false)
     private String format;
 
-    @XmlElement(name = "Schema")
+    @Element(name = "Schema", required = false)
     private Schema schema;
 
-    @XmlElement(name = "Comment")
+    @Element(name = "Comment", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "Project")
+    @Element(name = "Project", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String projectName;
 
-    @XmlElement(name = "TableLabel")
+    @Element(name = "TableLabel", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String tableLabel;
 
-    @XmlElement(name = "CryptoAlgo")
+    @Element(name = "CryptoAlgo", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String cryptoAlgoName;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date createdTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
 
     Date lastMetaModifiedTime;
@@ -963,16 +970,17 @@ public class Table extends LazyLoad {
   }
 
   // for list partition response
-  @XmlRootElement(name = "Partitions")
+  @Root(name = "Partitions", strict = false)
   private static class ListPartitionsResponse {
 
-    @XmlElement(name = "Partition")
+    @ElementList(entry = "Partition", inline = true, required = false)
     private List<PartitionModel> partitions = new LinkedList<PartitionModel>();
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 
@@ -1147,7 +1155,17 @@ public class Table extends LazyLoad {
       }
     }
 
-    return new Column(name, typeInfo, comment, label, extendedLabels);
+    Column column = new Column(name, typeInfo, comment, label, extendedLabels);
+
+    if (node.has("isNullable")) {
+      column.setNullable(node.get("isNullable").getAsBoolean());
+    }
+
+    if (node.has("defaultValue")) {
+      column.setDefaultValue(node.get("defaultValue").getAsString());
+    }
+
+    return column;
   }
 
   private void lazyLoadExtendInfo() {

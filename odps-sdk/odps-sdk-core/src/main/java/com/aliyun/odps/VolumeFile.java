@@ -19,8 +19,10 @@
 
 package com.aliyun.odps;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 /**
  * VolumeFile表示ODPS中的volume file
@@ -30,10 +32,11 @@ import javax.xml.bind.annotation.XmlRootElement;
  */
 public class VolumeFile {
 
-  @XmlRootElement(name = "VolumeFileModel")
+  @Root(name = "VolumeFileModel", strict = false)
   static class VolumeFileModel {
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
   }
 

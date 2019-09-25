@@ -15,6 +15,11 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -22,17 +27,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
 import com.aliyun.odps.utils.StringUtils;
 
 import com.aliyun.odps.VolumePartition.VolumePartitionModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -47,36 +47,40 @@ public class Volume extends LazyLoad {
     NEW, OLD
   }
 
-  @XmlRootElement(name = "Meta")
+  @Root(name = "Meta", strict = false)
   static class VolumeModel {
 
-    @XmlElement(name = "Name")
+    @Element(name = "Name", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
 
-    @XmlElement(name = "Comment")
+    @Element(name = "Comment", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
 
-    @XmlElement(name = "Type")
+    @Element(name = "Type", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String type;
 
-    @XmlElement(name = "Length")
+    @Element(name = "Length", required = false)
     Long length;
 
-    @XmlElement(name = "FileNumber")
+    @Element(name = "FileNumber", required = false)
     Integer fileNumber;
 
-    @XmlElement(name = "Owner")
+    @Element(name = "Owner", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
-    @XmlElement(name = "Lifecycle")
+    @Element(name = "Lifecycle", required = false)
     Long lifecycle;
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date createdTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
   }
 
@@ -109,7 +113,7 @@ public class Volume extends LazyLoad {
     Response resp = client.request(resource, "GET", params, null, null);
 
     try {
-      model = JAXBUtils.unmarshal(resp, VolumeModel.class);
+      model = SimpleXmlUtils.unmarshal(resp, VolumeModel.class);
       model.lastModifiedTime = DateUtils.parseRfc822Date(resp.getHeader("Last_Modified"));
       model.createdTime = DateUtils.parseRfc822Date(resp.getHeader("x-odps-creation-time"));
       model.owner = resp.getHeader(Headers.ODPS_OWNER);
@@ -248,7 +252,7 @@ public class Volume extends LazyLoad {
   /**
    * 获取指定分区信息
    *
-   * @param spec 分区定义
+   * @param partitionName
    * @return 分区信息
    */
   public VolumePartition getVolumePartition(String partitionName) {
@@ -260,7 +264,7 @@ public class Volume extends LazyLoad {
   /**
    * 删除指定分区
    *
-   * @param spec 分区描述
+   * @param partitionName
    * @throws OdpsException
    */
   public void deleteVolumePartition(String partitionName) throws OdpsException {
@@ -269,24 +273,25 @@ public class Volume extends LazyLoad {
     client.request(resource, "DELETE", null, null, null);
   }
 
-  @XmlRootElement(name = "Partitions")
+  @Root(name = "Partitions", strict = false)
   private static class Partitions {
 
-    @XmlElement(name = "Partition")
+    @ElementList(entry = "Partition", inline = true, required = false)
     List<VolumePartitionModel> partitions = new ArrayList<VolumePartitionModel>();
   }
 
   // for list partition response
-  @XmlRootElement(name = "Volume")
+  @Element(name = "Volume", required = false)
   private static class ListPartitionsResponse {
 
-    @XmlElement(name = "Partitions")
+    @Element(name = "Partitions", required = false)
     private Partitions partitions;
 
-    @XmlElement(name = "Marker")
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String marker;
 
-    @XmlElement(name = "MaxItems")
+    @Element(name = "MaxItems", required = false)
     private Integer maxItems;
   }
 

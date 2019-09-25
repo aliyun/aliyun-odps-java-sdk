@@ -19,18 +19,18 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Attribute;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
-import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.google.gson.JsonObject;
@@ -41,31 +41,32 @@ import com.google.gson.JsonParser;
  */
 public class Partition extends LazyLoad {
 
-  @XmlRootElement(name = "Partition")
+  @Root(name = "Partition", strict = false)
   static class PartitionModel {
 
-    @XmlElement(name = "Column")
+    @ElementList(entry = "Column", inline = true, required = false)
     private List<ColumnModel> columns = new ArrayList<ColumnModel>();
 
-    @XmlElement(name = "CreationTime")
-    @XmlJavaTypeAdapter(JAXBUtils.EpochBinding.class)
+    @Element(name = "CreationTime", required = false)
+    @Convert(SimpleXmlUtils.EpochConverter.class)
     Date createdTime;
 
-    @XmlElement(name = "LastDDLTime")
-    @XmlJavaTypeAdapter(JAXBUtils.EpochBinding.class)
+    @Element(name = "LastDDLTime", required = false)
+    @Convert(SimpleXmlUtils.EpochConverter.class)
     Date lastMetaModifiedTime;
 
-    @XmlElement(name = "LastModifiedTime")
-    @XmlJavaTypeAdapter(JAXBUtils.EpochBinding.class)
+    @Element(name = "LastModifiedTime", required = false)
+    @Convert(SimpleXmlUtils.EpochConverter.class)
     Date lastDataModifiedTime;
   }
 
-  @XmlRootElement(name = "Column")
+  @Root(name = "Column", strict = false)
   static class ColumnModel {
 
-    @XmlAttribute(name = "Name")
+    @Attribute(name = "Name", required = false)
     private String columnName;
-    @XmlAttribute(name = "Value")
+
+    @Attribute(name = "Value", required = false)
     private String columnValue;
   }
 
@@ -251,10 +252,11 @@ public class Partition extends LazyLoad {
     return clusterInfo;
   }
 
-  @XmlRootElement(name = "Partition")
+  @Root(name = "Partition", strict = false)
   private static class PartitionMeta {
 
-    @XmlElement(name = "Schema")
+    @Element(name = "Schema", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String schema;
   }
 

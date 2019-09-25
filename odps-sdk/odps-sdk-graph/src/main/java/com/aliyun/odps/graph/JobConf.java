@@ -31,6 +31,8 @@ import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.*;
 
+import static com.aliyun.odps.graph.GRAPH_CONF.DEFAULT_PRIORITY;
+
 /**
  * JobConf 描述了一个ODPS Graph 作业的配置.
  *
@@ -367,7 +369,13 @@ public class JobConf extends Configuration {
    * @return 作业优先级
    */
   public int getJobPriority() {
-    return getInt(GRAPH_CONF.JOB_PRIORITY, 9);
+      int graphPriority = getInt(GRAPH_CONF.JOB_PRIORITY, DEFAULT_PRIORITY);
+      int instancePriority = getInt(GRAPH_CONF.ODPS_INSTANCE_PRIORITY, DEFAULT_PRIORITY);
+      if (graphPriority != DEFAULT_PRIORITY) {
+          return graphPriority;
+      } else {
+         return instancePriority;
+      }
   }
 
   /**

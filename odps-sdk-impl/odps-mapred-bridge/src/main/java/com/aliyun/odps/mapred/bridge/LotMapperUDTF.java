@@ -33,6 +33,7 @@ import java.util.TreeMap;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.mapred.bridge.utils.VersionUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
+import com.aliyun.odps.type.TypeInfo;
 import org.apache.commons.lang.ArrayUtils;
 
 import com.aliyun.odps.Column;
@@ -668,6 +669,56 @@ public class LotMapperUDTF extends LotTaskUDTF {
     }
 
     return VersionUtils.getOdpsTypes(resolved);
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public com.aliyun.odps.type.TypeInfo[] resolve(com.aliyun.odps.type.TypeInfo[] sig) {
+    String funtionName = conf.get("odps.mr.sql.functionName");
+    if (funtionName == null ){
+      try {
+        return super.resolve(sig);
+      } catch (com.aliyun.odps.udf.UDFException e) {
+        e.printStackTrace();
+      }
+    }
+    TypeInfo[] resolved = null;
+    UDTFTaskContextImpl ctx = new UDTFTaskContextImpl(conf) {
+      @Override
+      public void write(Record record) throws IOException {
+      }
+      @Override
+      public void write(Record record, String label) throws IOException {
+      }
+      @Override
+      public void write(Record key, Record value) throws IOException {
+      }
+    };
+
+    boolean hasReduce;
+    if (((UDTFTaskContextImpl) ctx).isPipelineMode()) {
+      hasReduce = ((UDTFTaskContextImpl) ctx).getPipeline().getNodeNum() > 1;
+    } else {
+      int numReduceTasks = conf.getInt("odps.stage.reducer.num", -1);
+      if (numReduceTasks == -1) {
+        numReduceTasks = conf.getInt("odps.mapred.reduce.tasks", -1);
+      }
+      if (numReduceTasks == -1) {
+        numReduceTasks = 1;
+      }
+      hasReduce = numReduceTasks > 0;
+    }
+
+    if (hasReduce) {
+      resolved = SchemaUtils.getTypeInfos(ctx.getIntermediateOutputSchema());
+      if (((UDTFTaskContextImpl) ctx).isPipelineMode()) {
+        resolved = SchemaUtils.getTypeInfos(ctx.getPipelineOutputSchema(0));
+      }
+    } else {
+      resolved = SchemaUtils.getTypeInfos(ctx.getPackagedOutputSchema());
+    }
+
+    return resolved;
   }
 
   TableInfo getTableInfoFromDesc(String inputSpec) {

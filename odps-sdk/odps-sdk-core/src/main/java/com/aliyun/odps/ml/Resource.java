@@ -1,16 +1,16 @@
 package com.aliyun.odps.ml;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
 
-@XmlRootElement(name = "Resource")
+@Root(name = "Resource", strict = false)
 public class Resource {
-	@XmlElement(name = "CPU")
+	@Element(name = "CPU", required = false)
 	public int CPU = 0;
 
-	@XmlElement(name = "Memory")
+	@Element(name = "Memory", required = false)
 	public long memory = 0;
 
-	@XmlElement(name = "GPU")
+	@Element(name = "GPU", required = false)
 	public long GPU = 0;
 }

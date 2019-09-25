@@ -1,15 +1,21 @@
 package com.aliyun.odps.ml;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 
-@XmlRootElement(name = "PmmlProcessor")
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+
+@Root(name = "PmmlProcessor", strict = false)
 public class PmmlProcessor extends AbstractProcessor {
-	@XmlElement(name = "Pmml")
-	public String pmml;
+	@Element(name = "Pmml", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    public String pmml;
 	
-	@XmlElement(name = "RefResource")
+	@Element(name = "RefResource", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String refResource;
 	
-	@XmlElement(name = "RunMode")
+	@Element(name = "RunMode", required = false)
+	@Convert(SimpleXmlUtils.EmptyStringConverter.class)
 	public String runMode;
 }
