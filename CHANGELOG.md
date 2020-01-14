@@ -1,3 +1,9 @@
+# 0.33.1
+- support list table
+- table tunnel supports overwrite mode
+- support global settings
+- support enable/disable download privilege
+
 # 0.32.5
 - java8+ required
 - replace jaxb with simple xml
