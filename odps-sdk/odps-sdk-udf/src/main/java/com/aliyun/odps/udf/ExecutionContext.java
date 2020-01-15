@@ -269,8 +269,13 @@ public abstract class ExecutionContext {
    * @throws IOException
    *     资源未声明、资源类型不匹配以及其他读取错误抛异常
    */
+  @Deprecated
   public abstract Iterable<Object[]> readResourceTable(String resourceName)
       throws IOException;
+
+  public TableRecordReader getResourceTableReader(String resourceName) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * 读取压缩档案类型资源，返回 BufferedInputStream 的迭代器.

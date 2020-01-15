@@ -25,6 +25,7 @@ import java.io.InputStream;
 
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.util.IOUtils;
+import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -83,7 +84,11 @@ public class TunnelException extends OdpsException {
       ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
       loadFromJson(bis);
     } catch (Exception e) {
-      throw new RuntimeException("Parse responsed failed: '" + message + "'", e);
+      if (StringUtils.isNullOrEmpty(message)) {
+        message = "Error message not available";
+      }
+      this.errorMsg = message;
+      this.errorCode = TunnelConstants.LOCAL_ERROR_CODE;
     }
   }
 

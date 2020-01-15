@@ -21,11 +21,21 @@ package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
 
+import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.task.SQLTask;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.aliyun.odps.commons.transport.OdpsTestUtils;
 
 public class OdpsTest {
 
@@ -64,4 +74,65 @@ public class OdpsTest {
 
 
 
+  @Test
+  public void testSetGetGlobalSettings() {
+    final String SETTINGS = "settings";
+    final String USER_DEFINED_SETTING = "hello";
+    final String USER_DEFINED_SETTING_2 = "hello2";
+    final String USER_DEFINED_VAL = "world";
+
+    AliyunAccount account = new AliyunAccount("foo", "bar");
+    Odps odps = new Odps(account);
+
+    // Test set global settings
+    Map<String, String> globalSettings = new HashMap<>();
+    globalSettings.put(USER_DEFINED_SETTING, USER_DEFINED_VAL);
+    globalSettings.put(USER_DEFINED_SETTING_2, USER_DEFINED_VAL);
+    odps.setGlobalSettings(globalSettings);
+    Task task = new SQLTask();
+    task.loadGlobalSettings();
+    String settingsStr = task.getProperties().get(SETTINGS);
+    assertNotNull(settingsStr);
+    JsonParser parser = new JsonParser();
+    JsonObject jsonObject = parser.parse(settingsStr).getAsJsonObject();
+    assertEquals(USER_DEFINED_VAL, jsonObject.get(USER_DEFINED_SETTING).getAsString());
+    assertEquals(USER_DEFINED_VAL, jsonObject.get(USER_DEFINED_SETTING_2).getAsString());
+
+    // Test get global settings
+    Map<String, String> globalSettingsCopy = odps.getGlobalSettings();
+    assertNotSame(globalSettingsCopy, globalSettings);
+    assertEquals(globalSettings, globalSettingsCopy);
+  }
+
+  @Test
+  public void testGlobalSettingsPriority() {
+    // The priority of global settings is lower than settings set by users explicitly
+    final String SETTINGS = "settings";
+    final String SETTING_NAME = "hello";
+    final String GLOBAL_VAL = "world";
+    final String SETTING_VAL = "human";
+
+    // Add global setting, this should be overwrote later
+    AliyunAccount account = new AliyunAccount("foo", "bar");
+    Odps odps = new Odps(account);
+    Map<String, String> globalSettings = new HashMap<>();
+    globalSettings.put(SETTING_NAME, GLOBAL_VAL);
+    odps.setGlobalSettings(globalSettings);
+
+    // Set the setting explicitly
+    Task task = new SQLTask();
+    Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+    Map<String, String> settings = new HashMap<>();
+    settings.put(SETTING_NAME, SETTING_VAL);
+    gson.toJson(settings);
+    task.setProperty(SETTINGS, gson.toJson(settings));
+
+    // Check if the global setting is overwrote
+    task.loadGlobalSettings();
+    String settingsStr = task.getProperties().get(SETTINGS);
+    assertNotNull(settingsStr);
+    JsonParser parser = new JsonParser();
+    JsonObject jsonObject = parser.parse(settingsStr).getAsJsonObject();
+    assertEquals(SETTING_VAL, jsonObject.get(SETTING_NAME).getAsString());
+  }
 }

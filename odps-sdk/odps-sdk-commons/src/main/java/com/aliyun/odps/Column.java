@@ -68,12 +68,12 @@ public final class Column {
     this(name, typeInfo, null);
   }
 
-  Column(String name, TypeInfo typeInfo, String comment, String label) {
+  public Column(String name, TypeInfo typeInfo, String comment, String label) {
     this(name, typeInfo, comment, label, null);
   }
 
 
-  Column(String name, TypeInfo typeInfo, String comment, String label, List<String> extendedlabels) {
+  public Column(String name, TypeInfo typeInfo, String comment, String label, List<String> extendedlabels) {
     this.name = name;
     this.comment = comment;
     this.typeInfo = typeInfo;
@@ -104,7 +104,7 @@ public final class Column {
     }
   }
 
-  Column(String name, OdpsType type, String comment, String label,
+  public Column(String name, OdpsType type, String comment, String label,
          List<OdpsType> genericOdpsTypeList) {
     this.name = name;
     this.comment = comment;

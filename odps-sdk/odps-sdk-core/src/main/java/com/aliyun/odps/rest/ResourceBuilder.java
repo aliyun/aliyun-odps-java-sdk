@@ -51,6 +51,7 @@ public class ResourceBuilder {
   private static final String OFFLINEMODELS = "/offlinemodels";
   private static final String USERS = "/users";
   private static final String ROLES = "/roles";
+  private static final String SESSIONS = "/session";
 
   public static String buildProjectsResource() {
     return PROJECTS;
@@ -369,4 +370,11 @@ public class ResourceBuilder {
     return sb.toString();
   }
 
+  public static String buildSessionsResource(String projectName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(SESSIONS);
+
+    return sb.toString();
+  }
 }

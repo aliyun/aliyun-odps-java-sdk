@@ -1,4 +1,4 @@
-# 0.33.1
+# 0.33.7
 - support list table
 - table tunnel supports overwrite mode
 - support global settings

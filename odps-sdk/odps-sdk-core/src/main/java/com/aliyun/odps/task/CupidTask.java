@@ -53,6 +53,9 @@ public class CupidTask extends Task {
     task.setPlan(plan);
     task.setProperty("type", "cupid");
     if (hints != null) {
+      if (hints.containsKey("odps.cupid.task.subtype")) {
+        task.setProperty("subtype", hints.get("odps.cupid.task.subtype"));
+      }
       try {
         String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
         task.setProperty("settings", json);

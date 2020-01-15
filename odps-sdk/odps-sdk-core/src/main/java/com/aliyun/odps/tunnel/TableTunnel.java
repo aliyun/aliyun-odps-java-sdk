@@ -150,6 +150,10 @@ public class TableTunnel {
     this.config = new Configuration(odps);
   }
 
+  public Configuration getConfig() {
+    return this.config;
+  }
+
   /**
    * 在非分区表上创建上传会话
    *
@@ -162,7 +166,26 @@ public class TableTunnel {
    */
   public TableTunnel.UploadSession createUploadSession(String projectName, String tableName)
       throws TunnelException {
-    return new TableTunnel.UploadSession(projectName, tableName, null, null);
+    return new TableTunnel.UploadSession(
+        projectName, tableName, null, null, false);
+  }
+
+  /**
+   * 在非分区表上创建上传会话
+   *
+   * @param projectName
+   *     Project名称
+   * @param tableName
+   *     表名，非视图
+   * @param overwrite
+   *     Overwrite模式
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession createUploadSession(String projectName, String tableName,
+      boolean overwrite) throws TunnelException {
+    return new TableTunnel.UploadSession(
+        projectName, tableName, null, null, overwrite);
   }
 
   /**
@@ -182,13 +205,35 @@ public class TableTunnel {
    * @throws TunnelException
    */
   public TableTunnel.UploadSession createUploadSession(String projectName, String tableName,
-                                                       PartitionSpec partitionSpec)
-      throws TunnelException {
+      PartitionSpec partitionSpec) throws TunnelException {
+    return createUploadSession(projectName, tableName, partitionSpec, false);
+  }
+
+  /**
+   * 在分区表上创建上传会话
+   *
+   * <p>
+   * 注: 分区必须为最末级分区,如表有两级分区pt,ds, 则必须全部指定值, 不支持只指定其中一个值
+   * </p>
+   *
+   * @param projectName
+   *     Project名
+   * @param tableName
+   *     表名，非视图
+   * @param partitionSpec
+   *     指定分区 {@link PartitionSpec}
+   * @param overwrite
+   *     Overwrite模式
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession createUploadSession(String projectName, String tableName,
+      PartitionSpec partitionSpec, boolean overwrite) throws TunnelException {
     if (partitionSpec == null || partitionSpec.keys().size() == 0) {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
     return new TableTunnel.UploadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), null);
+        .replaceAll("'", ""), null, overwrite);
   }
 
   /**
@@ -589,7 +634,7 @@ public class TableTunnel {
    * CRITICAL 严重错误
    */
   public static enum UploadStatus {
-    UNKNOWN, NORMAL, CLOSING, CLOSED, CANCELED, EXPIRED, CRITICAL
+    UNKNOWN, NORMAL, CLOSING, CLOSED, CANCELED, EXPIRED, CRITICAL, COMMITTING
   }
 
   /**
@@ -648,6 +693,7 @@ public class TableTunnel {
 
     private static final int RETRY_SLEEP_SECONDS = 5;
     private boolean shouldTransform = false;
+    private boolean overwrite = false;
 
     /**
      * 根据已有的uploadId构造一个{@link UploadSession}对象
@@ -667,11 +713,17 @@ public class TableTunnel {
      */
     UploadSession(String projectName, String tableName, String partitionSpec, String uploadId)
         throws TunnelException {
+      this(projectName, tableName, partitionSpec, uploadId, false);
+    }
+
+    UploadSession(String projectName, String tableName, String partitionSpec, String uploadId,
+        boolean overwrite) throws TunnelException {
       this.conf = TableTunnel.this.config;
       this.projectName = projectName;
       this.tableName = tableName;
       this.partitionSpec = partitionSpec;
       this.id = uploadId;
+      this.overwrite = overwrite;
 
       tunnelServiceClient = conf.newRestClient(projectName);
       if (id == null) {
@@ -689,6 +741,9 @@ public class TableTunnel {
 
       if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
+      }
+      if (this.overwrite) {
+        params.put(TunnelConstants.OVERWRITE, "true");
       }
 
       HashMap<String, String> headers = getCommonHeader();

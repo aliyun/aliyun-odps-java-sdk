@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.AfterClass;
@@ -38,10 +39,14 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.aliyun.odps.Table.TableModel;
+import com.aliyun.odps.Table.TableType;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
+import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.type.TypeInfoFactory;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.org.apache.xml.internal.utils.URI;
@@ -68,6 +73,10 @@ public class TableTest extends TestBase {
   private static String TRUNCATE_TABLE_NAME = TableTest.class.getSimpleName() + "_truncate_test";
   private static String SOURCE_TABLE_NAME = TableTest.class.getSimpleName() + "_test_table_test";
   private static String NO_CHECK_TALBE = TableTest.class.getSimpleName() + "_no_check_table";
+  private static String NON_PARTITION_TABLE =
+      TableTest.class.getSimpleName() + "_non_partition_table";
+  private static String PARTITIONED_TABLE_NAME =
+      TableTest.class.getSimpleName() + "_partitioned_table";
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -101,6 +110,7 @@ public class TableTest extends TestBase {
     odps.tables().create(odps.getDefaultProject(), TABLE_NAME_3, schema, true);
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_2, schema, true);
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_4, schema, true);
+    odps.tables().create(odps.getDefaultProject(), PARTITIONED_TABLE_NAME, schema, true);
 
     odps.projects().get().getSecurityManager()
         .runQuery("SET LABEL 2 to TABLE " + TABLE_NAME + "(c1)", false);
@@ -124,6 +134,11 @@ public class TableTest extends TestBase {
         .run(odps, "create table " + TRUNCATE_TABLE_NAME + " as select * from " + SOURCE_TABLE_NAME
                    + ";");
     i.waitForSuccess();
+
+    Table partitionedTable = odps.tables().get(PARTITIONED_TABLE_NAME);
+    partitionedTable.createPartition(new PartitionSpec("p1=1,p2=foo"), true);
+    partitionedTable.createPartition(new PartitionSpec("p1=1,p2=bar"), true);
+    partitionedTable.createPartition(new PartitionSpec("p1=1,p2=baz"), true);
   }
 
   @AfterClass
@@ -136,8 +151,9 @@ public class TableTest extends TestBase {
     odps.tables().delete(TRUNCATE_TABLE_NAME, true);
     odps.tables().delete(HUB_TABLE_NAME_3, true);
     odps.tables().delete(HUB_TABLE_NAME_4, true);
+    odps.tables().delete(NON_PARTITION_TABLE, true);
+    odps.tables().delete(PARTITIONED_TABLE_NAME, true);
   }
-
 
   @Test
   public void testGetSchema() throws OdpsException {
@@ -420,6 +436,24 @@ public class TableTest extends TestBase {
     assertEquals("B2", Table.calculateMaxLabel(Arrays.asList(new String[]{"B2", "B1"})));
     assertEquals("C4", Table.calculateMaxLabel(Arrays.asList(new String[]{"C4", "S2"})));
     assertEquals("L4", Table.calculateMaxLabel(Arrays.asList(new String[]{"C4", "B4", "S2"})));
+  }
+
+  @Test
+  public void testMarshal() throws Exception {
+    // Table type should not be marshaled
+    TableModel model = new TableModel();
+    model.projectName = "foo";
+    model.name = "bar";
+    // This field should not be included in the xml
+    model.type = TableType.MANAGED_TABLE;
+    String xml = SimpleXmlUtils.marshal(model);
+    String expected =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            + "<Table>\n"
+            + "   <Name>bar</Name>\n"
+            + "   <Project>foo</Project>\n"
+            + "</Table>";
+    assertEquals(expected, xml);
   }
 
 

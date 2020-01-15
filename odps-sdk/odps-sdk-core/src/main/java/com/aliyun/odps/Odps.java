@@ -28,6 +28,7 @@ import com.aliyun.odps.account.AccountFormat;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
+import java.util.Map;
 
 /**
  * Odps类是ODPS SDK的入口
@@ -346,5 +347,23 @@ public class Odps {
    */
   public AccountFormat getAccountFormat() {
     return this.accountFormat;
+  }
+
+  /**
+   * 设置全局配置，全局配置将会被替换为参数传入的配置
+   * @param settings
+   *     新的全局配置
+   */
+  public void setGlobalSettings(Map<String, String> settings) {
+    Task.setGlobalSettings(settings);
+  }
+
+  /**
+   * 获取全局配置的副本（deep copy）
+   * @return
+   *     全局配置的副本
+   */
+  public Map<String, String> getGlobalSettings() {
+    return Task.getGlobalSettings();
   }
 }

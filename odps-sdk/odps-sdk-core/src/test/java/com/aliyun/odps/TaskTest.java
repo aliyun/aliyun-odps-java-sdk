@@ -21,16 +21,14 @@ package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.task.GraphTask;
+import com.aliyun.odps.task.SQLTask;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-
 import org.junit.Test;
-
-import com.aliyun.odps.task.SQLTask;
 
 public class TaskTest {
   private String sqlTaskXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
@@ -86,29 +84,36 @@ public class TaskTest {
   }
 
   @Test
-  public void testDefaultSettings() {
+  public void testLoadSystemSettings() {
+    final String SETTINGS = "settings";
+    final String USERENV = "odps.idata.userenv";
+
     Task task = new SQLTask();
-    task.loadDefaultSettings();
-    assertTrue(task.getProperties().containsKey("settings"));
+    task.loadSystemSettings();
+    String settingsStr = task.getProperties().get(SETTINGS);
+    assertNotNull(settingsStr);
+    JsonParser parser = new JsonParser();
+    JsonObject jsonObject = parser.parse(settingsStr).getAsJsonObject();
+    assertTrue(jsonObject.has(USERENV));
   }
 
   @Test
   public void testMergeSettingsWithDefault() {
-    String userDefinedValue = "user defined value";
-    String[] defaultSettings = {"odps.idata.userenv"};
+    final String SETTINGS = "settings";
+    final String USERENV = "odps.idata.userenv";
+    final String USER_DEFINED_VALUE = "user defined value";
 
     Task task = new SQLTask();
     JsonObject userSettings = new JsonObject();
-    for (String setting : defaultSettings) {
-      userSettings.addProperty(setting, userDefinedValue);
-    }
-    task.setProperty("settings", userSettings.toString());
 
-    task.loadDefaultSettings();
+    // Add user-defined value, which should be overwrite by loadSystemSettings()
+    userSettings.addProperty(USERENV, USER_DEFINED_VALUE);
+    task.setProperty(SETTINGS, userSettings.toString());
+
+    task.loadSystemSettings();
+
     JsonParser parser = new JsonParser();
-    JsonObject settings = parser.parse(task.getProperties().get("settings")).getAsJsonObject();
-    for (String setting : defaultSettings) {
-      assertNotEquals(userDefinedValue, settings.get(setting));
-    }
+    JsonObject settings = parser.parse(task.getProperties().get(SETTINGS)).getAsJsonObject();
+    assertNotEquals(USER_DEFINED_VALUE, settings.get(USERENV));
   }
 }

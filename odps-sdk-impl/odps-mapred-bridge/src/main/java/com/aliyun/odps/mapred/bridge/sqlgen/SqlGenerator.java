@@ -19,6 +19,19 @@
 
 package com.aliyun.odps.mapred.bridge.sqlgen;
 
+import java.io.StringWriter;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Properties;
+import java.util.Set;
+
+import org.apache.velocity.Template;
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.app.Velocity;
+import org.apache.velocity.exception.MethodInvocationException;
+import org.apache.velocity.exception.ParseErrorException;
+import org.apache.velocity.exception.ResourceNotFoundException;
+
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.data.VolumeInfo;
 import com.aliyun.odps.mapred.bridge.MetaExplorer;
@@ -28,18 +41,6 @@ import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.pipeline.Pipeline;
-import org.apache.velocity.Template;
-import org.apache.velocity.VelocityContext;
-import org.apache.velocity.app.Velocity;
-import org.apache.velocity.exception.MethodInvocationException;
-import org.apache.velocity.exception.ParseErrorException;
-import org.apache.velocity.exception.ResourceNotFoundException;
-
-import java.io.StringWriter;
-import java.util.Arrays;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Properties;
 
 
 public class SqlGenerator {
@@ -50,7 +51,7 @@ public class SqlGenerator {
     aliasSets.add("odps-sdk-core.jar");
     aliasSets.add("odps-sdk-mapred.jar");
     aliasSets.add("odps-mapred-bridge.jar");
-//    aliasSets.add("fastjson.jar");
+    aliasSets.add("fastjson.jar");
     aliasSets.add("jobconf.jar");
   }
 
