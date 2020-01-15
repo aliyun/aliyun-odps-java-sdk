@@ -69,4 +69,20 @@ public class TableInfoTest {
     Assert.assertEquals("table", info.getTableName());
   }
 
+  @Test
+  public void testPartitionSpecToString() {
+    PartitionSpec spec = new PartitionSpec();
+    spec.set("pt1", "foo");
+    spec.set("pt2", "bar");
+
+    Assert.assertEquals("pt1=\'foo\',pt2=\'bar\'",
+                        spec.toString(true, false));
+    Assert.assertEquals("pt1=foo,pt2=bar",
+                        spec.toString(false, false));
+    Assert.assertEquals("pt1=\'foo\'/pt2=\'bar\'",
+                        spec.toString(true, true));
+    Assert.assertEquals("pt1=foo/pt2=bar",
+                        spec.toString(false, true));
+  }
+
 }

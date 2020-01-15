@@ -1,6 +1,5 @@
 package com.aliyun.odps.rest;
 
-import com.aliyun.odps.simpleframework.xml.strategy.SimpleTreeStrategy;
 import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
 import java.text.ParseException;
@@ -8,20 +7,19 @@ import java.util.Date;
 
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
+import com.aliyun.odps.simpleframework.xml.Serializer;
+import com.aliyun.odps.simpleframework.xml.convert.AnnotationStrategy;
 import com.aliyun.odps.simpleframework.xml.convert.Converter;
+import com.aliyun.odps.simpleframework.xml.core.Persister;
+import com.aliyun.odps.simpleframework.xml.strategy.SimpleTreeStrategy;
+import com.aliyun.odps.simpleframework.xml.strategy.Strategy;
 import com.aliyun.odps.simpleframework.xml.stream.Format;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.simpleframework.xml.stream.Style;
 import com.aliyun.odps.simpleframework.xml.stream.Verbosity;
-import com.aliyun.odps.simpleframework.xml.Serializer;
-import com.aliyun.odps.simpleframework.xml.convert.AnnotationStrategy;
-import com.aliyun.odps.simpleframework.xml.core.Persister;
-import com.aliyun.odps.simpleframework.xml.strategy.Strategy;
 
-/**
- * @author: Jon (wanghzong.zw@alibaba-inc.com)
- */
+
 public class SimpleXmlUtils {
     /**
      * Parameters to specify the format of XML files. Format is for global auto-cdata-wrapping.

@@ -23,9 +23,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.JarURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,10 +38,6 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParseException;
-import com.google.gson.reflect.TypeToken;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
@@ -69,6 +66,10 @@ import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
+import com.google.gson.reflect.TypeToken;
 
 public abstract class BridgeJobRunner extends Configured implements JobRunner, EventListener {
 
@@ -118,15 +119,15 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
 
     Set<String> added = new HashSet<String>();
 
-    applyFrameworkResource(Odps.class, "odps-sdk-core.jar", padding, added);
-    applyFrameworkResource(Mapper.class, "odps-sdk-mapred.jar", padding, added);
-    applyFrameworkResource(BridgeJobRunner.class, "odps-mapred-bridge.jar",
+    applyFrameworkResource(findJarFromClass(Odps.class), "odps-sdk-core.jar", padding, added);
+    applyFrameworkResource(findJarFromClass(Mapper.class), "odps-sdk-mapred.jar", padding, added);
+    applyFrameworkResource(findJarFromClass(BridgeJobRunner.class), "odps-mapred-bridge.jar",
         padding, added);
+
   }
 
-  private void applyFrameworkResource(Class<?> clz, String alias,
-      String padding, Set<String> added) throws OdpsException {
-    String jarFilePath = "";
+  private String findJarFromClass(Class<?> clz) throws OdpsException {
+    String jarFilePath;
     try {
       URL jarUrl = clz.getProtectionDomain().getCodeSource().getLocation();
       String protocol = jarUrl.getProtocol();
@@ -141,7 +142,11 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
     } catch (Exception e) {
       throw new OdpsException("Get jar file path failed!", e);
     }
+    return jarFilePath;
+  }
 
+  private void applyFrameworkResource(String jarFilePath, String alias,
+      String padding, Set<String> added) throws OdpsException {
     if (added.contains(jarFilePath)) {
       return;
     }
@@ -305,7 +310,9 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
         new ByteArrayInputStream(jarOut.toByteArray()), jobId + ".jar", Resource.Type.JAR);
     aliasToTempResource.put("jobconf.jar", resName);
 
-    applyFrameworkResources();
+    if (job.getBoolean("odps.mapred.upload.framework.resources.enable", true)) {
+      applyFrameworkResources();
+    }
 
     List<String> totalRes = new ArrayList<String>();
     String[] resources = job.getResources();
