@@ -44,10 +44,19 @@ public abstract class DataAttributes {
   public abstract String getCustomizedDataLocation();
 
   /**
-   * @param isExtractor flag to distinguish extractor or outputer
+   * This method is deprecated, use getHiveTableProperties() instead
+   * @param ignored this argument will be ignored
    * @return Serde properties specified in DDL statement and table information (e.g., columns name/type)
    */
-  public abstract Properties getHiveTableProperties(boolean isExtractor);
+  @Deprecated
+  public Properties getHiveTableProperties(boolean ignored) {
+    return getHiveTableProperties();
+  }
+
+  /**
+   * @return Serde properties specified in DDL statement and table information (e.g., columns name/type)
+   */
+  public abstract Properties getHiveTableProperties();
 
   /**
    * Getter for columns describing expected Record schema: un-used columns may have been pruned and this schema

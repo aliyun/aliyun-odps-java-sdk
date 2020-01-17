@@ -70,6 +70,12 @@ public class Partition extends LazyLoad {
     private String columnValue;
   }
 
+  @Root(name = "Partition", strict = false)
+  static class PartitionSpecModel{
+    @Element(name = "Name", required = false)
+    String partitionSpec;
+  }
+
   private PartitionModel model;
   private PartitionSpec spec;
   private String project;

@@ -20,6 +20,7 @@
 package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -40,7 +41,6 @@ import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.type.TypeInfoFactory;
-
 import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
@@ -331,6 +331,25 @@ public class TablesTest extends TestBase {
 
     fail();
   }
+
+  @Test
+  public void testIteratorExtended() {
+    Iterator<Table> it = odps.tables().iterator(odps.getDefaultProject(), null, true);
+
+    int counter = 0;
+    while (it.hasNext() && counter < 100) {
+      Table t = it.next();
+      // The following fields should be loaded when listing table with extended flag
+      t.isExternalTable();
+      t.isVirtualView();
+      t.getComment();
+
+      // The above method calls should not trigger reloading
+      assertFalse(t.isLoaded());
+      counter += 1;
+    }
+  }
+
 
   private void checkReloadResult(List<Table> reloadedTables) {
     for (Table t : reloadedTables) {

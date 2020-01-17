@@ -49,9 +49,17 @@ import com.aliyun.odps.commons.util.SvnRevisionUtils;
  * @author shenggong.wang@alibaba-inc.com
  */
 public abstract class Task {
-  private static final Map<String, String> DEFAULT_SETTINGS = new HashMap<String, String>();
+  /**
+   * Global settings set by users, will be applied to every single task. The priority of global
+   * settings is the lowest and will not overwrite any other settings.
+   */
+  private static Map<String, String> GLOBAL_SETTINGS = new HashMap<>();
+  /**
+   * System settings, must not be modified by uses
+   */
+  private static final Map<String, String> SYSTEM_SETTINGS = new HashMap<>();
   static {
-    DEFAULT_SETTINGS.put(
+    SYSTEM_SETTINGS.put(
         "odps.idata.userenv",
         "JavaSDK Revision:" + SvnRevisionUtils.getSvnRevision() +
         ",Version:" + SvnRevisionUtils.getMavenVersion() +
@@ -277,7 +285,15 @@ public abstract class Task {
     }
   }
 
-  void loadDefaultSettings() {
+  static Map<String, String> getGlobalSettings() {
+    return new HashMap<>(GLOBAL_SETTINGS);
+  }
+
+  static void setGlobalSettings(Map<String, String> globalSettings) {
+    GLOBAL_SETTINGS = globalSettings;
+  }
+
+  void loadSystemSettings() {
     JsonObject settings;
     if (properties.containsKey("settings")) {
       JsonParser parser = new JsonParser();
@@ -285,8 +301,25 @@ public abstract class Task {
     } else {
       settings = new JsonObject();
     }
-    for (Entry<String, String> setting : DEFAULT_SETTINGS.entrySet()) {
+    for (Entry<String, String> setting : SYSTEM_SETTINGS.entrySet()) {
       settings.addProperty(setting.getKey(), setting.getValue());
+    }
+
+    properties.put("settings", settings.toString());
+  }
+
+  void loadGlobalSettings() {
+    JsonObject settings;
+    if (properties.containsKey("settings")) {
+      JsonParser parser = new JsonParser();
+      settings = parser.parse(properties.get("settings")).getAsJsonObject();
+    } else {
+      settings = new JsonObject();
+    }
+    for (Entry<String, String> setting : GLOBAL_SETTINGS.entrySet()) {
+      if (!settings.has(setting.getKey())) {
+        settings.addProperty(setting.getKey(), setting.getValue());
+      }
     }
 
     properties.put("settings", settings.toString());

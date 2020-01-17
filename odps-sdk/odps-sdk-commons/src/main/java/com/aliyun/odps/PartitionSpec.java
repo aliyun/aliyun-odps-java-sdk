@@ -20,6 +20,8 @@
 package com.aliyun.odps;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,6 +29,9 @@ import java.util.Set;
  * PartitionSpec类表示一个特定分区的定义
  */
 public class PartitionSpec {
+
+  private static final String COMMA = ",";
+  private static final String SLASH = "/";
 
   private Map<String, String> kv = new LinkedHashMap<String, String>();
 
@@ -40,13 +45,13 @@ public class PartitionSpec {
    * 通过字符串构造此类对象
    *
    * @param spec
-   *     分区定义字符串，比如: pt='1',ds='2'
+   * 分区定义字符串，分区列之间可以用逗号 (",") 或斜线 ("/") 分隔. 例如: "pt1=foo/pt2=1" 或 "pt1=foo,pt2=1"
    */
   public PartitionSpec(String spec) {
     if (spec == null) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException("Argument \'spec\' cannot be null");
     }
-    String[] groups = spec.split(",");
+    String[] groups = spec.split("[,/]");
     for (String group : groups) {
       String[] kv = group.split("=");
       if (kv.length != 2) {
@@ -105,23 +110,41 @@ public class PartitionSpec {
   }
 
   /**
-   * 返回PartitionSpec的字符串表示, 如: pt='2014',ds='03'
+   * Convert a {@link PartitionSpec} object to {@link String}. Partition column values are quoted
+   * with single quotation marks. Partition column name and value pairs are separated with comma.
    *
-   * @return 分区定义的字符串表示
+   * @return partition spec in string.
    */
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
+    return toString(true, false);
+  }
 
+  /**
+   * Convert a {@link PartitionSpec} object to {@link String}. The delimiter of partition column
+   * name and value pairs can be comma (",") or slash ("/").
+   *
+   * @param quote quote the partition column value
+   * @param useSlashDelimiter use comma as delimiter
+   * @return
+   */
+  public String toString(boolean quote, boolean useSlashDelimiter) {
+    String delimiter = useSlashDelimiter ? SLASH : COMMA;
+
+    List<String> entries = new LinkedList<>();
     String[] keys = keys().toArray(new String[0]);
-    for (int i = 0; i < keys.length; i++) {
-      sb.append(keys[i]).append("='").append(get(keys[i])).append("'");
 
-      if (i + 1 < keys.length) {
-        sb.append(',');
+    for (String key : keys) {
+      StringBuilder entryBuilder = new StringBuilder();
+      entryBuilder.append(key).append("=");
+      if (quote) {
+        entryBuilder.append("\'").append(kv.get(key)).append("\'");
+      } else {
+        entryBuilder.append(kv.get(key));
       }
+      entries.add(entryBuilder.toString());
     }
 
-    return sb.toString();
+    return String.join(delimiter, entries);
   }
 }

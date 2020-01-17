@@ -69,7 +69,7 @@ public class LocalDataAttributes extends DataAttributes {
   }
 
   @Override
-  public Properties getHiveTableProperties(boolean isExtractor) {
+  public Properties getHiveTableProperties() {
     throw new UnsupportedOperationException("getHiveTableProperties not supported for local mode");
   }
 

@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.Partition.PartitionSpecModel;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Attribute;
 import com.aliyun.odps.simpleframework.xml.Element;
@@ -42,6 +43,9 @@ import com.aliyun.odps.data.DefaultRecordReader;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.simpleframework.xml.convert.Converter;
+import com.aliyun.odps.simpleframework.xml.stream.InputNode;
+import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoParser;
@@ -51,10 +55,50 @@ import com.google.gson.reflect.TypeToken;
 
 /**
  * Table表示ODPS中的表
- *
- * @author shenggong.wang@alibaba-inc.com
  */
 public class Table extends LazyLoad {
+
+  enum TableType {
+    /**
+     * Regular table managed by ODPS
+     */
+    MANAGED_TABLE,
+    /**
+     * Virtual view
+     */
+    VIRTUAL_VIEW,
+    /**
+     * External table
+     */
+    EXTERNAL_TABLE
+  }
+
+  /**
+   * Convert {@link TableType} to/from {@link String}
+   */
+  public static class TableTypeConverter implements Converter<TableType> {
+
+    @Override
+    public TableType read(InputNode node) throws Exception {
+      String value = node.getValue();
+      if (value == null) {
+        return null;
+      } else {
+        try {
+          return TableType.valueOf(value);
+        } catch (IllegalArgumentException e) {
+          // If there is a new table type which cannot be recognized
+          return null;
+        }
+      }
+    }
+
+    @Override
+    public void write(OutputNode node, TableType value) throws Exception {
+      // The server side does not accept this field
+      node.remove();
+    }
+  }
 
   @Root(name = "Table", strict = false)
   static class TableModel {
@@ -108,6 +152,10 @@ public class Table extends LazyLoad {
     @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
 
+    @Element(name = "Type", required = false)
+    @Convert(TableTypeConverter.class)
+    TableType type;
+
     Date lastMetaModifiedTime;
     boolean isVirtualView;
     boolean isExternalTable;
@@ -159,7 +207,7 @@ public class Table extends LazyLoad {
     }
   }
 
-  static class SortColumn {
+  public static class SortColumn {
     private String name;
     private  String order;
 
@@ -176,6 +224,7 @@ public class Table extends LazyLoad {
       return order;
     }
 
+    @Override
     public String toString() {
       return String.format("%s %s", name, order);
     }
@@ -410,8 +459,18 @@ public class Table extends LazyLoad {
    * @return 如果是虚拟视图返回true, 否则返回false
    */
   public boolean isVirtualView() {
-    lazyLoad();
-    return model.isVirtualView;
+    // Since reload should always work, if this object is loaded, return the value in the model.
+    // If this object is not loaded, but the table type is available, return it. And if this object
+    // is not loaded and its table type is unavailable, trigger a reloading.
+    // TODO: isVirtualView can be determined by both table type and schema
+    if (isLoaded()) {
+      return model.isVirtualView;
+    } else if (model.type != null) {
+      return TableType.VIRTUAL_VIEW.equals(model.type);
+    } else {
+      lazyLoad();
+      return model.isVirtualView;
+    }
   }
 
   /**
@@ -420,8 +479,18 @@ public class Table extends LazyLoad {
    * @return 如果是外部表返回true, 否则返回false
    */
   public boolean isExternalTable() {
-    lazyLoad();
-    return model.isExternalTable;
+    // Since reload should always work, if this object is loaded, return the value in the model.
+    // If this object is not loaded, but the table type is available, return it. And if this object
+    // is not loaded and its table type is unavailable, trigger a reloading.
+    // TODO: isVirtualView can be determined by both table type and schema
+    if (isLoaded()) {
+      return model.isExternalTable;
+    } else if (model.type != null) {
+      return TableType.EXTERNAL_TABLE.equals(model.type);
+    } else {
+      lazyLoad();
+      return model.isExternalTable;
+    }
   }
 
   /**
@@ -1062,7 +1131,7 @@ public class Table extends LazyLoad {
    * @return {@link Partition}列表
    */
   public List<Partition> getPartitions() {
-    ArrayList<Partition> parts = new ArrayList<Partition>();
+    ArrayList<Partition> parts = new ArrayList<>();
     Iterator<Partition> it = getPartitionIterator();
     while (it.hasNext()) {
       parts.add(it.next());

@@ -76,7 +76,7 @@ public class InstanceTunnel {
       throws TunnelException {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, null);
   }
-  
+
   /**
    * 在 Instance 上创建下载会话
    *
@@ -95,6 +95,30 @@ public class InstanceTunnel {
   public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, boolean limitEnabled )
       throws TunnelException {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, null, limitEnabled);
+  }
+
+  /**
+   * 在 Instance 上创建下载会话
+   *
+   * 非法情况:
+   * 1. 非 SQlTask
+   * 2. 非 select sql
+   * 3. Task 非 Success 状态
+   *
+   * @param projectName
+   *     Project名
+   * @param instanceID
+   *     Instance ID
+   * @param instanceID
+   *     Instance ID
+   * @param taskName
+   *     SqlRtTask taskName
+   * @return {@link InstanceTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, String taskName)
+          throws TunnelException {
+    return new InstanceTunnel.DownloadSession(projectName, instanceID, null, true, taskName);
   }
 
   private String getResource(String projectName, String instanceID) {
@@ -127,7 +151,7 @@ public class InstanceTunnel {
    * EXPIRED 过期
    */
   public static enum DownloadStatus {
-    UNKNOWN, NORMAL, CLOSED, EXPIRED
+    UNKNOWN, NORMAL, CLOSED, EXPIRED, INITIATING
   }
 
   /**
@@ -153,8 +177,9 @@ public class InstanceTunnel {
     private DownloadStatus status = DownloadStatus.UNKNOWN;
     private Configuration conf;
     private boolean shouldTransform = false;
-
     private RestClient tunnelServiceClient;
+
+    private String taskName;
 
     /**
      * 根据已有downloadId构造一个{@link DownloadSession}对象。
@@ -169,15 +194,46 @@ public class InstanceTunnel {
     public DownloadSession(String projectName, String instanceID, String downloadId) throws TunnelException {
       this(projectName, instanceID, downloadId, false);
     }
-    
+
+    /**
+     * 根据已有downloadId构造一个{@link DownloadSession}对象。
+     *
+     * @param projectName
+     *     下载数据表所在project名称
+     * @param instanceID
+     *     下载数据 instanceID
+     * @param downloadId
+     *     Download的唯一标识符
+     * @param limitEnabled
+     *     limited to 1w results
+     */
     private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled)
         throws TunnelException {
+      this(projectName, instanceID, downloadId, limitEnabled, null);
+    }
+
+    /**
+     * 根据已有downloadId构造一个{@link DownloadSession}对象。
+     *
+     * @param projectName
+     *     下载数据表所在project名称
+     * @param instanceID
+     *     下载数据 instanceID
+     * @param downloadId
+     *     Download的唯一标识符
+     * @param limitEnabled
+     *     limited to 1w results
+     * @param taskName
+     *     SqlRtTask模式的task名称
+     */
+    private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled, String taskName)
+            throws TunnelException {
       this.conf = InstanceTunnel.this.config;
       this.projectName = projectName;
       this.instanceID = instanceID;
       this.id = downloadId;
       this.limitEnabled = limitEnabled;
-
+      this.taskName = taskName;
       tunnelServiceClient = conf.newRestClient(projectName);
 
       if (id == null) {
@@ -296,6 +352,11 @@ public class InstanceTunnel {
         params.put(TunnelConstants.INSTANCE_TUNNEL_LIMIT_ENABLED, null);
       }
 
+      if (taskName != null) {
+        params.put(TunnelConstants.CACHED, null);
+        params.put(TunnelConstants.TASK_NAME, taskName);
+      }
+
       Connection conn = null;
       try {
         conn = tunnelServiceClient.connect(getResource(), "POST", params, headers);
@@ -398,12 +459,18 @@ public class InstanceTunnel {
     }
 
     /**
+     * 获取SQL_RT_TASK_NAME
+     */
+    public String getTaskName() {
+      return this.taskName;
+    }
+
+    /**
      * 获取会话ID
      */
     public String getId() {
       return this.id;
     }
-
     /**
      * 获取会话状态
      */
