@@ -56,4 +56,7 @@ public interface TunnelConstants {
   public static String INSTANCE_TUNNEL_LIMIT_ENABLED = "instance_tunnel_limit_enabled";
   public static String ASYNC_MODE ="asyncmode";
   public static String TUNNEL_DATE_TRANSFORM_VERSION = "v1";
+  public static String CACHED = "cached";
+  public static String TASK_NAME = "taskname";
+  public static String OVERWRITE = "overwrite";
 }

@@ -19,15 +19,11 @@
 
 package com.aliyun.odps;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.ElementList;
-import com.aliyun.odps.simpleframework.xml.Root;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +31,11 @@ import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.GsonBuilder;
@@ -100,7 +101,7 @@ public class Tables implements Iterable<Table> {
    *
    * @param tableName
    *     表名
-   * @return 指定表的信息{@link Table}
+   * @return 指定表的信息 {@link Table}
    */
   public Table get(String tableName) {
     return get(getDefaultProjectName(), tableName);
@@ -113,7 +114,7 @@ public class Tables implements Iterable<Table> {
    *     所在{@link Project}名称
    * @param tableName
    *     表名
-   * @return 指定表的信息{@link Table}
+   * @return 指定表的信息 {@link Table}
    */
   public Table get(String projectName, String tableName) {
     TableModel model = new TableModel();
@@ -196,9 +197,25 @@ public class Tables implements Iterable<Table> {
    * @return {@link Table}迭代器
    */
   public Iterator<Table> iterator(final String projectName, final TableFilter filter) {
-    return new TableListIterator(projectName, filter);
+    return new TableListIterator(projectName, filter, false);
   }
 
+  /**
+   * 获得表信息迭代器
+   *
+   * @param projectName
+   *     所在{@link Project}名称
+   * @param filter
+   *     过滤条件
+   * @param extended
+   *     是否同时获取额外信息
+   * @return {@link Table}迭代器
+   */
+  public Iterator<Table> iterator(final String projectName,
+                                  final TableFilter filter,
+                                  boolean extended) {
+    return new TableListIterator(projectName, filter, extended);
+  }
 
   /**
    * 获取默认{@link Project}的所有表信息迭代器 iterable
@@ -206,12 +223,7 @@ public class Tables implements Iterable<Table> {
    * @return {@link Table}迭代器
    */
   public Iterable<Table> iterable() {
-    return new Iterable<Table>() {
-      @Override
-      public Iterator<Table> iterator() {
-        return new TableListIterator(getDefaultProjectName(), null);
-      }
-    };
+    return iterable(getDefaultProjectName());
   }
 
   /**
@@ -222,12 +234,7 @@ public class Tables implements Iterable<Table> {
    * @return {@link Table}迭代器
    */
   public Iterable<Table> iterable(final String projectName) {
-    return new Iterable<Table>() {
-      @Override
-      public Iterator<Table> iterator() {
-        return new TableListIterator(projectName, null);
-      }
-    };
+    return iterable(projectName, null);
   }
 
   /**
@@ -238,12 +245,7 @@ public class Tables implements Iterable<Table> {
    * @return {@link Table}迭代器
    */
   public Iterable<Table> iterable(final TableFilter filter) {
-    return new Iterable<Table>() {
-      @Override
-      public Iterator<Table> iterator() {
-        return new TableListIterator(getDefaultProjectName(), filter);
-      }
-    };
+    return iterable(getDefaultProjectName(), filter);
   }
 
   /**
@@ -256,12 +258,24 @@ public class Tables implements Iterable<Table> {
    * @return {@link Table}迭代器
    */
   public Iterable<Table> iterable(final String projectName, final TableFilter filter) {
-    return new Iterable<Table>() {
-      @Override
-      public Iterator<Table> iterator() {
-        return new TableListIterator(projectName, filter);
-      }
-    };
+    return iterable(projectName, filter, false);
+  }
+
+  /**
+   * 获得表信息迭代器 iterable
+   *
+   * @param projectName
+   *     所在{@link Project}名称
+   * @param filter
+   *     过滤条件
+   * @param extended
+   *     是否同时获取额外信息
+   * @return {@link Table}迭代器
+   */
+  public Iterable<Table> iterable(final String projectName,
+                                  final TableFilter filter,
+                                  boolean extended) {
+    return () -> new TableListIterator(projectName, filter, extended);
   }
 
   private class TableListIterator extends ListIterator<Table> {
@@ -270,10 +284,12 @@ public class Tables implements Iterable<Table> {
 
     private TableFilter filter;
     private String projectName;
+    private boolean extended;
 
-    TableListIterator(String projectName, TableFilter filter) {
+    TableListIterator(String projectName, TableFilter filter, boolean extended) {
       this.filter = filter;
       this.projectName = projectName;
+      this.extended = extended;
     }
 
     @Override
@@ -294,6 +310,10 @@ public class Tables implements Iterable<Table> {
         if (filter.getOwner() != null) {
           params.put("owner", filter.getOwner());
         }
+      }
+
+      if (extended) {
+        params.put("extended", null);
       }
 
       String resource = ResourceBuilder.buildTablesResource(projectName);

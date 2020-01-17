@@ -1,26 +1,18 @@
 package com.aliyun.odps;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.SessionQueryResult;
+import org.junit.*;
 
-public class SessionTest extends TestBase {
+import java.util.*;
+
+@Ignore
+public class SessionV2Test extends TestBase {
   private static Session session = null;
-  private static String sql = "select * from @a;";
+  private static String sql = "select COUNT(*) from src;";
   private static String sessionName = "test_sdk_session" + System.currentTimeMillis();
   private static String sessionId = null;
   private static List<String> sqlRes;
-  private static String variables;
 
   @AfterClass
   public static void after() throws OdpsException {
@@ -38,22 +30,10 @@ public class SessionTest extends TestBase {
     odps.tables().create("src", schema, true);
 
     session = createSession(sessionName);
-    SessionQueryResult result = session.run("@a := CACHE ON select c1, COUNT(*) from src group by c1;");
-    System.out.println("variable definition result: " + result.getResult());
-    Assert.assertTrue(result.getResult().isEmpty());
-    result = session.run("@b := CACHE ON select COUNT(*) from src group by c1;");
-    System.out.println("variable definition result: " + result.getResult());
-    Assert.assertTrue(result.getResult().isEmpty());
 
-    result = session.run(sql);
+    SessionQueryResult result = session.run(sql);
     sqlRes = printResult(result.getRecordIterator());
-    //
-    variables = session.run("show variables;").getResult();
-    System.out.println(variables);
-
-    Assert.assertTrue(variables.contains("@a"));
-    Assert.assertTrue(variables.contains("@b"));
-
+    Assert.assertEquals(sqlRes.size(), 1);
   }
 
   public static Session createSession(String name) throws OdpsException {
@@ -66,6 +46,10 @@ public class SessionTest extends TestBase {
     flags.put("odps.sql.submit.mode", "true");
     flags.put("odps.sql.session.worker.memory", "2048");
     flags.put("odps.optimizer.split", "false");
+    flags.put("odps.sql.session.version2", "true");
+    flags.put("odps.sql.session.worker.cpu", "33");
+    flags.put("odps.sql.session.worker.cache.size", "64");
+    flags.put("set odps.sql.session.max.slot.number", "5");
 
     session = Session.create(odps, name, odps.getDefaultProject(), flags, 0L);
     System.out.println("Create session success: " + session.getInstance().getId());
@@ -85,9 +69,25 @@ public class SessionTest extends TestBase {
 
     Iterator<Record> res = copySession.run(sql, hints).getRecordIterator();
 
+    List<String> result = printResult(res);
+    Assert.assertEquals(result.size(), 1);
+  }
 
-    // todo uncomment following assert as now the split refactor introduce bugs
-//    Assert.assertArrayEquals(printResult(res).toArray(), sqlRes.toArray());
+  @Test
+  public void testGetSqlStats() throws OdpsException {
+    Session copySession = new Session(odps, session.getInstance());
+
+    Map<String, String> hints = new HashMap<String, String>();
+    hints.put("odps.sql.session.wait.finished.status", "true");
+
+    Iterator<Record> res = copySession.run(sql, hints).getRecordIterator();
+
+    List<String> result = printResult(res);
+    Assert.assertEquals(result.size(), 1);
+
+    String stats = copySession.getQueryStats();
+    Assert.assertTrue(stats.startsWith("resource cost"));
+    System.out.println(stats);
   }
 
   @Test
@@ -98,12 +98,10 @@ public class SessionTest extends TestBase {
     System.out.println(odps.logview().generateLogView(i, 7*24));
     attachSession.waitForStart();
 
-    // todo uncomment following assert as now the split refactor introduce bugs
-//    Assert.assertArrayEquals(printResult(attachSession.run(sql).getRecordIterator()).toArray(), sqlRes
-//        .toArray());
+    Iterator<Record> res = attachSession.run(sql).getRecordIterator();
 
-    String vars = attachSession.run("show variables;").getResult();
-    Assert.assertEquals(variables, vars);
+    List<String> result = printResult(res);
+    Assert.assertEquals(result.size(), 1);
   }
 
   @Test
@@ -124,6 +122,22 @@ public class SessionTest extends TestBase {
       //System.out.println("222" + item.sessionId);
     }
   }
+
+  @Test
+  public void testSetGetInformation() throws OdpsException {
+    Session copySession = new Session(odps, session.getInstance());
+
+    String whitelist = copySession.getInformation("get_whitelist");
+
+    Assert.assertTrue(whitelist.contains(odps.getDefaultProject()));
+    System.out.println(whitelist);
+    copySession.setInformation("add_whitelist", "test_project");
+
+    whitelist = copySession.getInformation("get_whitelist");
+    Assert.assertTrue(whitelist.contains(odps.getDefaultProject()));
+    Assert.assertTrue(whitelist.contains("test_project"));
+  }
+
 
   private static List<String> printResult(Iterator<Record> res) {
     List<String> result = null;

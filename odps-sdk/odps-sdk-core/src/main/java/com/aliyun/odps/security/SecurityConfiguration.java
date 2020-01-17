@@ -108,6 +108,9 @@ public class SecurityConfiguration extends LazyLoad {
     @Element(name = "AuthorizationVersion", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String authorizationVersion;
+
+    @Element(name = "EnableDownloadPrivilege", required = false)
+    boolean downloadPrivilege;
   }
 
   private SecurityConfigurationModel model;
@@ -298,4 +301,19 @@ public class SecurityConfiguration extends LazyLoad {
     return model.authorizationVersion;
   }
 
+  public boolean checkDownloadPrivilege() {
+    return this.model.downloadPrivilege;
+  }
+
+  public void enableDownloadPrivilege() {
+    this.model.downloadPrivilege = true;
+  }
+
+  /**
+   * If project setting DOWNLOAD_PRIV_ENFORCED is enabled, download privilege cannot be set to
+   * false via odps sdk
+   */
+  public void disableDownloadPrivilege() {
+    this.model.downloadPrivilege = false;
+  }
 }

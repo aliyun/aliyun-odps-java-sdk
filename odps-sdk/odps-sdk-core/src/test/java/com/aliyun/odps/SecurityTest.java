@@ -19,6 +19,10 @@
 
 package com.aliyun.odps;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -48,77 +52,87 @@ public class SecurityTest extends TestBase {
       sc.enableCheckPermissionUsingAcl();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.checkPermissionUsingAcl(), true);
+      Assert.assertTrue(sc.checkPermissionUsingAcl());
       sc.disableCheckPermissionUsingAcl();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.checkPermissionUsingAcl(), false);
+      Assert.assertFalse(sc.checkPermissionUsingAcl());
 
       // test CheckPermissionUsingPolicy
       sc.enableCheckPermissionUsingPolicy();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.checkPermissionUsingPolicy(), true);
+      Assert.assertTrue(sc.checkPermissionUsingPolicy());
       sc.disableCheckPermissionUsingPolicy();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.checkPermissionUsingPolicy(), false);
+      Assert.assertFalse(sc.checkPermissionUsingPolicy());
 
       // test LabelSecurity
       sc.enableLabelSecurity();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.labelSecurity(), true);
+      Assert.assertTrue(sc.labelSecurity());
       sc.disableLabelSecurity();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.labelSecurity(), false);
+      Assert.assertFalse(sc.labelSecurity());
 
       // test ObjectCreatorHasAccessPermission
       sc.enableObjectCreatorHasAccessPermission();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.objectCreatorHasAccessPermission(), true);
+      Assert.assertTrue(sc.objectCreatorHasAccessPermission());
       sc.disableObjectCreatorHasAccessPermission();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.objectCreatorHasAccessPermission(), false);
+      Assert.assertFalse(sc.objectCreatorHasAccessPermission());
 
       // test ObjectCreatorHasGrantPermission
       sc.enableObjectCreatorHasGrantPermission();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.objectCreatorHasGrantPermission(), true);
+      Assert.assertTrue(sc.objectCreatorHasGrantPermission());
       sc.disableObjectCreatorHasGrantPermission();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.objectCreatorHasGrantPermission(), false);
+      Assert.assertFalse(sc.objectCreatorHasGrantPermission());
 
       // test projectProtection
       sc.enableProjectProtection();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.projectProtection(), true);
+      Assert.assertTrue(sc.projectProtection());
 //      Assert.assertEquals(sc.getProjectProtectionExceptionPolicy(), "");
       sc.disableProjectProtection();
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.projectProtection(), false);
+      Assert.assertFalse(sc.projectProtection());
       String
           policy =
           "{\"Statement\": [{\"Action\": [\"*\"],\"Effect\": \"Allow\",\"Principal\": [\"ALIYUN$odpstest1@aliyun.com\"],\"Resource\": [\"*\"]}],\"Version\": \"1\"}";
       sc.enableProjectProtection(policy);
       sm.setSecurityConfiguration(sc);
       sc.reload();
-      Assert.assertEquals(sc.projectProtection(), true);
-      Assert.assertTrue(sc.getProjectProtectionExceptionPolicy().contains(
+      Assert.assertTrue(sc.projectProtection());
+      assertTrue(sc.getProjectProtectionExceptionPolicy().contains(
           "ALIYUN$odpstest1@aliyun.com"));
+
+      // test download privilege
+      sc.enableDownloadPrivilege();
+      sm.setSecurityConfiguration(sc);
+      sc.reload();
+      assertTrue(sc.checkDownloadPrivilege());
+      sc.disableDownloadPrivilege();
+      sm.setSecurityConfiguration(sc);
+      sc.reload();
+      assertFalse(sc.checkDownloadPrivilege());
 
       // Auth version
       System.out.println(sc.getAuthorizationVersion());
     } catch (OdpsException e) {
       e.printStackTrace();
-      Assert.assertTrue(false);
+      fail();
     }
   }
 
@@ -135,9 +149,9 @@ public class SecurityTest extends TestBase {
     String result;
     try {
       result = sm.runQuery("list users;", false);
-      Assert.assertTrue(result.contains("odpstest1@aliyun.com"));
+      assertTrue(result.contains("odpstest1@aliyun.com"));
     } catch (OdpsException e) {
-      Assert.assertTrue(false);
+      assertTrue(false);
     }
 
     try {
@@ -162,23 +176,23 @@ public class SecurityTest extends TestBase {
       // test project policy
       sm.putProjectPolicy("");
       result = sm.getProjectPolicy();
-      Assert.assertTrue(!result.contains("odpstest1@aliyun.com"));
+      assertTrue(!result.contains("odpstest1@aliyun.com"));
       String
           policy =
           "{\"Statement\": [{\"Action\": [\"*\"],\"Effect\": \"Allow\",\"Principal\": [\"ALIYUN$odpstest1@aliyun.com\"],\"Resource\": [\"*\"]}],\"Version\": \"1\"}";
       sm.putProjectPolicy(policy);
       result = sm.getProjectPolicy();
-      Assert.assertTrue(result.contains("odpstest1@aliyun.com"));
+      assertTrue(result.contains("odpstest1@aliyun.com"));
 
       // test role poicy
       sm.putRolePolicy("testrole", "");
       result = sm.getRolePolicy("testrole");
-      Assert.assertTrue(!result.contains("odps:*"));
+      assertTrue(!result.contains("odps:*"));
       policy =
           "{\"Statement\": [{\"Action\": [\"odps:*\"],\"Effect\": \"Allow\",\"Resource\": [\"*\"]}],\"Version\": \"1\"}";
       sm.putRolePolicy("testrole", policy);
       result = sm.getRolePolicy("testrole");
-      Assert.assertTrue(result.contains("odps:*"));
+      assertTrue(result.contains("odps:*"));
 
       // test security policy
       sm.putSecurityPolicy("");
@@ -213,7 +227,7 @@ public class SecurityTest extends TestBase {
           policy =
           "{\"expires_in_hours\": 24, \"policy\" : {\"Statement\": [{\"Action\": [\"odps:*\"],\"Effect\": \"Allow\",\"Resource\": [\"*\"]}],\"Version\": \"1\"}}";
       String result = sm.generateAuthorizationToken(policy, "bearer");
-      Assert.assertTrue(result.length() > policy.length());
+      assertTrue(result.length() > policy.length());
     } catch (OdpsException e) {
       e.printStackTrace();
       Assert.fail();
