@@ -52,7 +52,7 @@ public class ArrayRecord implements Record {
   private boolean strictTypeValidation;
 
   public ArrayRecord(Column[] columns) {
-    this(columns, true);
+    this(columns, false);
   }
 
   public ArrayRecord(Column[] columns, boolean strictTypeValidation) {
