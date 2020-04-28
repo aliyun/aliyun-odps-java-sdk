@@ -22,6 +22,7 @@ package com.aliyun.odps.account;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 
 /**
@@ -50,6 +51,6 @@ public class BearerTokenRequestSigner implements RequestSigner {
       log.fine("Bearer token is : " + token);
     }
 
-    req.getHeaders().put("x-odps-bearer-token", token);
+    req.getHeaders().put(Headers.ODPS_BEARER_TOKEN, token);
   }
 }

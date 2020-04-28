@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Objects;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -32,10 +33,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.task.SQLTask;
 
 public class FunctionTest extends TestBase {
 
   public static final String FUNCTION_TEST = "function_test";
+  public static final String SQL_FUNCTION_TEST = "sql_function_test";
   public static final String CLASS_PATH = "function_test.class_path";
   public static final String RESOURCE_NAME = "function_resource.jar";
   private static final String UPDATE_RESOURCE_NAME = "update_function_resource.jar";
@@ -43,9 +46,17 @@ public class FunctionTest extends TestBase {
   private static final String UPDATE_CLASS_PATH = "update_function_test.update_class_path";
   private static String grantUser;
 
+  private static final String SQL_FUNCTION_DEFINITION_TEXT =
+      String.format("CREATE SQL FUNCTION %s(@a bigint, @b bigint) as @a + @b;", SQL_FUNCTION_TEST);
+
   @BeforeClass
+  public static void beforeClass() throws FileNotFoundException, OdpsException {
+    deleteFunction();
+    deleteResource();
+    createFunction();
+  }
+
   public static void createFunction() throws FileNotFoundException, OdpsException {
-    clean();
     prepareResource();
     Function fm = new Function();
     fm.setName(FUNCTION_TEST);
@@ -63,12 +74,16 @@ public class FunctionTest extends TestBase {
     } catch (OdpsException e) {
     }
 
+    // Create a SQL function
+    Instance createSqlFunc  = SQLTask.run(odps, SQL_FUNCTION_DEFINITION_TEXT);
+    createSqlFunc.waitForSuccess();
   }
 
   private static void prepareResource() throws FileNotFoundException, OdpsException {
 
-    String filename = ResourceTest.class.getClassLoader()
-        .getResource("resource.jar").getFile();
+    String filename = Objects.
+        requireNonNull(ResourceTest.class.getClassLoader().getResource("resource.jar"))
+        .getFile();
     JarResource rm = new JarResource();
     rm.setName(RESOURCE_NAME);
     odps.resources().create(rm, new FileInputStream(new File(filename)));
@@ -77,21 +92,68 @@ public class FunctionTest extends TestBase {
   }
 
   @AfterClass
-  public static void clean() {
+  public static void afterClass() {
     deleteFunction();
     deleteResource();
+  }
+
+  public static void deleteFunction() {
+    try {
+      odps.functions().delete(FUNCTION_TEST);
+    } catch (Exception e) {
+      // Ignore
+    }
+
+    try {
+      odps.functions().delete(FUNCTION_UPDATE_TEST);
+    } catch (Exception e) {
+      // Ignore
+    }
+
+    try {
+      odps.functions().delete(SQL_FUNCTION_TEST);
+    } catch (Exception e) {
+      // Ignore
+    }
+  }
+
+  private static void deleteResource() {
+    try {
+      odps.resources().delete(RESOURCE_NAME);
+
+    } catch (Exception e) {
+      // Ignore
+    }
+
+    try {
+      odps.resources().delete(UPDATE_RESOURCE_NAME);
+
+    } catch (Exception e) {
+      // Ignore
+    }
   }
 
   @Test
   public void getFunction() throws OdpsException {
     Function function = odps.functions().get(FUNCTION_TEST);
-    assertEquals(function.getClassPath(), CLASS_PATH);
-    assertEquals(function.getResources().size(), 1);
-    assertEquals(function.getResources().get(0).getType(), Resource.Type.JAR);
-    assertEquals(function.getResources().get(0).getName(), RESOURCE_NAME);
+    assertEquals(CLASS_PATH, function.getClassPath());
+    assertEquals(1, function.getResources().size());
+    assertEquals(Resource.Type.JAR, function.getResources().get(0).getType());
+    assertEquals(RESOURCE_NAME, function.getResources().get(0).getName());
+    assertEquals(1, function.getResourceNames().size());
+    assertEquals(RESOURCE_NAME, function.getResourceNames().get(0));
+    assertFalse(function.isSqlFunction());
+    assertNull(function.getSqlDefinitionText());
+  }
 
-    assertEquals(function.getResourceNames().size(), 1);
-    assertEquals(function.getResourceNames().get(0), RESOURCE_NAME);
+  @Test
+  public void getSqlFunction() throws OdpsException {
+    Function function = odps.functions().get(SQL_FUNCTION_TEST);
+    assertEquals("", function.getClassPath());
+    assertEquals(0, function.getResources().size());
+    assertEquals(0, function.getResourceNames().size());
+    assertTrue(function.isSqlFunction());
+    assertEquals(SQL_FUNCTION_DEFINITION_TEXT, function.getSqlDefinitionText() + ";");
   }
 
 
@@ -141,28 +203,5 @@ public class FunctionTest extends TestBase {
       Assert.assertNotNull(f.getOwner());
     }
     assertTrue("function nums > 0 ", count > 0);
-  }
-
-  public static void deleteFunction() {
-    try {
-      odps.functions().delete(FUNCTION_TEST);
-    } catch (Exception e) {
-    }
-
-    try {
-      odps.functions().delete(FUNCTION_UPDATE_TEST);
-    } catch (Exception e) {
-    }
-  }
-
-  private static void deleteResource() {
-    try {
-      odps.resources().delete(RESOURCE_NAME);
-    } catch (Exception e) {
-    }
-    try {
-      odps.resources().delete(UPDATE_RESOURCE_NAME);
-    } catch (Exception e) {
-    }
   }
 }

@@ -28,6 +28,7 @@ import com.aliyun.odps.simpleframework.xml.Text;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -45,6 +46,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import org.apache.commons.codec.binary.Base64;
 
@@ -117,6 +119,11 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
   }
 
+  public class SetInformationResult {
+    public String result;
+    public String status;
+  }
+
   private String project;
   private Map<String, Result> results;
   private boolean isSync = false;
@@ -128,6 +135,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   private RestClient client;
 
   private Odps odps;
+
+  private static Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 
   Instance(String project, TaskStatusModel model, Map<String, Result> results, Odps odps) {
     this.project = project;
@@ -173,9 +182,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @author shenggong.wang@alibaba-inc.com
    */
   @Root(name = "Instance", strict = false)
-  static class InstanceResultModel {
+  public static class InstanceResultModel {
 
-    static class TaskResult {
+    public static class TaskResult {
 
       @Attribute(name = "Type", required = false)
       String type;
@@ -190,6 +199,22 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       @Element(name = "Status", required = false)
       @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       String status;
+
+      public String getType() {
+        return type;
+      }
+
+      public String getName() {
+        return name;
+      }
+
+      public Result getResult() {
+        return result;
+      }
+
+      public String getStatus() {
+        return status;
+      }
     }
 
     @ElementList(name = "Tasks", entry = "Task", required = false)
@@ -267,8 +292,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     Response resp = client.request(getResource(), "GET", params, null, null);
     model.owner = resp.getHeaders().get(Headers.ODPS_OWNER);
-    String startTimeStr = resp.getHeaders().get("x-odps-start-time");
-    String endTimeStr = resp.getHeaders().get("x-odps-end-time");
+    String startTimeStr = resp.getHeaders().get(Headers.ODPS_START_TIME);
+    String endTimeStr = resp.getHeaders().get(Headers.ODPS_END_TIME);
     try {
       model.startTime = DateUtils.parseRfc822Date(startTimeStr);
     } catch (ParseException e) {
@@ -319,13 +344,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     if (isSync) {
       return results;
     }
-    results = new HashMap<String, Result>();
-    Map<String, String> params = new HashMap<String, String>();
-    params.put("result", null);
-
-    InstanceResultModel rm = client
-        .request(InstanceResultModel.class, getResource(), "GET", params);
-    for (TaskResult r : rm.taskResults) {
+    results = new HashMap<>();
+    for (TaskResult r : getRawTaskResults()) {
       results.put(r.name, r.result);
     }
     return results;
@@ -345,6 +365,21 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       result.put(entry.getKey(), entry.getValue().getString());
     }
     return result;
+  }
+
+  /**
+   * 获取Instance中Task的原始运行结果
+   *
+   * @return {@link TaskResult}列表
+   * @throws OdpsException
+   */
+  public List<TaskResult> getRawTaskResults() throws OdpsException {
+    Map<String, String> params = new HashMap<>();
+    params.put("result", null);
+    InstanceResultModel instanceResult = client
+        .request(InstanceResultModel.class, getResource(), "GET", params);
+
+    return instanceResult.taskResults;
   }
 
   public static class TaskCost {
@@ -514,6 +549,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @return 相关信息
    * @throws OdpsException
    */
+  @Deprecated
   public String setTaskInfo(String taskName, String infoKey, String infoValue) throws OdpsException {
     Map<String, String> params = new HashMap<String, String>();
     params.put("info", null);
@@ -533,6 +569,47 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
   }
 
+  /**
+   * 设置 Instance 中 Task 运行时的指定相关信息,返回结构化response
+   *
+   * @param taskName
+   *     指定的TaskName
+   * @param infoKey
+   *     指定相关信息的标志符
+   * @param infoValue
+   *     指定相关信息的内容
+   * @return SetInformationResult 相关信息及其状态
+   * @throws OdpsException
+   */
+  public SetInformationResult setInformation(String taskName, String infoKey, String infoValue) throws OdpsException {
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("info", null);
+    params.put("taskname", taskName);
+
+    InstanceTaskInfoModel sm = new InstanceTaskInfoModel();
+    sm.key = infoKey;
+    sm.value = infoValue;
+    Response result = null;
+    try {
+      String kv = SimpleXmlUtils.marshal(sm);
+      HashMap<String, String> headers = new HashMap<String, String>();
+      headers.put(Headers.CONTENT_TYPE, "application/xml");
+      result = client.stringRequest(getResource(), "PUT", params, headers, kv);
+      Type type = new TypeToken<SetInformationResult>(){}.getType();
+      SetInformationResult setInformationResult = gson.fromJson(new String(result.getBody(), "utf-8"), type);
+      if (setInformationResult == null) {
+        // invalid response
+        throw new OdpsException("Parse response json failed:"
+            + String.valueOf(result.getBody()));
+      }
+      return setInformationResult;
+    } catch (JsonParseException e) {
+      throw new OdpsException("Parse response json failed, body:"
+          + String.valueOf(result.getBody()) + " Error:" + e.getMessage(), e);
+    } catch(Exception e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+  }
   /**
    * 获得Instance中Task的运行汇总信息 当 Server 端返回信息，但是信息格式错误时，返回 null
    *

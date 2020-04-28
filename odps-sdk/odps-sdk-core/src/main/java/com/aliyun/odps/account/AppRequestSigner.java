@@ -1,9 +1,11 @@
 package com.aliyun.odps.account;
 
 import com.aliyun.odps.account.Account.AccountProvider;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.utils.StringUtils;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+
 import org.apache.commons.codec.binary.Base64;
 
 /**
@@ -27,7 +29,7 @@ public class AppRequestSigner implements RequestSigner {
                     providerStr,
                     ((AliyunAccount) account).getAccessId(),
                     getAliyunSignature(req));
-                req.getHeaders().put("application-authentication", signature);
+                req.getHeaders().put(Headers.APP_AUTHENTICATION, signature);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported account provider for application account.");
@@ -35,7 +37,7 @@ public class AppRequestSigner implements RequestSigner {
     }
 
     public String getAliyunSignature(Request request) {
-        String strToSign = request.getHeaders().get("Authorization");
+        String strToSign = request.getHeaders().get(Headers.AUTHORIZATION);
         return getAliyunSignature(strToSign);
     }
 
@@ -45,13 +47,9 @@ public class AppRequestSigner implements RequestSigner {
         }
 
         byte[] crypto;
-        try {
-            crypto = SecurityUtils.hmacsha1Signature(
-                strToSign.getBytes("UTF-8"),
-                ((AliyunAccount) account).getAccessKey().getBytes());
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
+        crypto = SecurityUtils.hmacsha1Signature(
+            strToSign.getBytes(StandardCharsets.UTF_8),
+            ((AliyunAccount) account).getAccessKey().getBytes());
 
         return Base64.encodeBase64String(crypto).trim();
     }

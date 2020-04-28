@@ -174,7 +174,7 @@ public class RetryStrategy {
   }
 
 
-  public void onFailure(Exception err) throws RetryExceedLimitException {
+  public void onFailure(Exception err) throws RetryExceedLimitException, InterruptedException {
     onFailure(err, null);
   }
 
@@ -187,7 +187,8 @@ public class RetryStrategy {
    * @param logger
    *     错误日志
    */
-  public void onFailure(Exception err, RetryLogger logger) throws RetryExceedLimitException {
+  public void onFailure(Exception err, RetryLogger logger)
+      throws RetryExceedLimitException, InterruptedException {
     if (!needRetry(err)) {
       throw new RetryExceedLimitException(0, err);
     }
@@ -196,20 +197,17 @@ public class RetryStrategy {
       throw new RetryExceedLimitException(attempts, err);
     }
 
-    try {
-      long millis = strategy.next();
+    long millis = strategy.next();
 
-      if (logger != null) {
-        logger.onRetryLog(err, attempts, millis / 1000);
-      } else if (LOG.isLoggable(Level.FINE)) {
-        LOG.fine(String.format("Start to retry, retryCount: %d, will retry in %d seconds.",
-                               attempts, millis / 1000 ));
-      }
-
-      Thread.sleep(millis);
-      totalBackoffTime += (millis / 1000);
-    } catch (InterruptedException ignore) {
+    if (logger != null) {
+      logger.onRetryLog(err, attempts, millis / 1000);
+    } else if (LOG.isLoggable(Level.FINE)) {
+      LOG.fine(String.format("Start to retry, retryCount: %d, will retry in %d seconds.",
+                             attempts, millis / 1000 ));
     }
+
+    Thread.sleep(millis);
+    totalBackoffTime += (millis / 1000);
   }
 
   /**

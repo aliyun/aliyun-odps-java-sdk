@@ -70,19 +70,6 @@ import com.aliyun.odps.rest.RestClient;
  */
 public class Resources implements Iterable<Resource> {
 
-  static class ResourceHeaders {
-
-    public static final String X_ODPS_COPY_TABLE_SOURCE = "x-odps-copy-table-source";
-    public static final String X_ODPS_COPY_FILE_SOURCE = "x-odps-copy-file-source";
-    public static final String X_ODPS_COMMENT = "x-odps-comment";
-    public static final String X_ODPS_RESOURCE_NAME = "x-odps-resource-name";
-    public static final String X_ODPS_RESOURCE_TYPE = "x-odps-resource-type";
-    public static final String X_ODPS_OWNER = Headers.ODPS_OWNER;
-    public static final String X_ODPS_IS_TEMP_RESOURCE = "x-odps-resource-istemp";
-    public static final String X_ODPS_RESOURCE_LAST_UPDATOR = "x-odps-updator";
-    public static final String X_ODPS_RESOURCE_SIZE = "x-odps-resource-size";
-  }
-
   /* for resource listing */
   @Root(name = "Resources", strict = false)
   private static class ListResourcesResponse {
@@ -224,12 +211,12 @@ public class Resources implements Iterable<Resource> {
     }
 
     HashMap<String, String> headers = new HashMap<String, String>();
-    headers.put("x-odps-resource-type", r.model.type.toLowerCase());
-    headers.put("x-odps-resource-name", r.getName());
-    headers.put("x-odps-copy-file-source", r.getVolumePath());
+    headers.put(Headers.ODPS_RESOURCE_TYPE, r.model.type.toLowerCase());
+    headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
+    headers.put(Headers.ODPS_COPY_FILE_SOURCE, r.getVolumePath());
 
     if (r.getComment() != null) {
-      headers.put("x-odps-comment", r.getComment());
+      headers.put(Headers.ODPS_COMMENT, r.getComment());
     }
 
     client.request(resource, method, null, headers, null);
@@ -342,13 +329,13 @@ public class Resources implements Iterable<Resource> {
 
     HashMap<String, String> headers = new HashMap<String, String>();
     headers.put(Headers.CONTENT_TYPE, "text/plain");
-    headers.put(ResourceHeaders.X_ODPS_RESOURCE_TYPE, r.getType().toString()
+    headers.put(Headers.ODPS_RESOURCE_TYPE, r.getType().toString()
         .toLowerCase());
-    headers.put(ResourceHeaders.X_ODPS_RESOURCE_NAME, r.getName());
-    headers.put(ResourceHeaders.X_ODPS_COPY_TABLE_SOURCE,
+    headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
+    headers.put(Headers.ODPS_COPY_TABLE_SOURCE,
                 r.getSourceTableName());
     if (r.getComment() != null) {
-      headers.put(ResourceHeaders.X_ODPS_COMMENT, r.getComment());
+      headers.put(Headers.ODPS_COMMENT, r.getComment());
     }
 
     client.request(resource, method, null, headers, null);
@@ -377,15 +364,15 @@ public class Resources implements Iterable<Resource> {
     headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
     headers.put(Headers.CONTENT_DISPOSITION,
                 "attachment;filename=" + r.getName());
-    headers.put(ResourceHeaders.X_ODPS_RESOURCE_TYPE, r.getType().toString()
+    headers.put(Headers.ODPS_RESOURCE_TYPE, r.getType().toString()
         .toLowerCase());
-    headers.put(ResourceHeaders.X_ODPS_RESOURCE_NAME, r.getName());
+    headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
     if (r.getComment() != null) {
-      headers.put(ResourceHeaders.X_ODPS_COMMENT, r.getComment());
+      headers.put(Headers.ODPS_COMMENT, r.getComment());
     }
 
-    if (r.getIsTempResource() == true) {
-      headers.put(ResourceHeaders.X_ODPS_IS_TEMP_RESOURCE, String.valueOf(r.getIsTempResource()));
+    if (r.getIsTempResource()) {
+      headers.put(Headers.ODPS_RESOURCE_IS_TEMP, String.valueOf(r.getIsTempResource()));
     }
 
     client.request(resource.toString(), method, null, headers,

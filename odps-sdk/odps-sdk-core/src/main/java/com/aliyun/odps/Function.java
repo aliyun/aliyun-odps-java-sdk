@@ -66,6 +66,13 @@ public class Function extends LazyLoad {
 
     @ElementList(name = "Resources", entry = "ResourceName", required = false)
     ArrayList<String> resources;
+
+    @Element(name = "IsSqlFunction", required = false)
+    Boolean isSqlFunction;
+
+    @Element(name = "SqlDefinitionText", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String sqlDefinitionText;
   }
 
   FunctionModel model;
@@ -173,7 +180,6 @@ public class Function extends LazyLoad {
     model.classType = classPath;
   }
 
-
   /**
    * 获得函数相关的资源列表。UDF所用到的资源列表，这个里面必须包括UDF代码所在的资源。如果用户UDF中需要读取其他资源文件，这个列表中还得包括UDF所读取的资源文件列表。
    *
@@ -208,7 +214,7 @@ public class Function extends LazyLoad {
    * @return 资源名称与其所属 project 对: Map<resource_name, project_name>
    */
   private Map<String, String> parseResourcesName(List<String> resources) {
-    Map<String, String> resourceMap = new HashMap<String, String>();
+    Map<String, String> resourceMap = new HashMap<>();
 
     for (String r : resources) {
       String[] splits = r.split("/resources/");
@@ -239,7 +245,7 @@ public class Function extends LazyLoad {
     if (model.resources == null && client != null) {
       lazyLoad();
     }
-    List<String> resourceNames = new ArrayList<String>();
+    List<String> resourceNames = new ArrayList<>();
 
     if (model.resources != null) {
       Map<String, String> resources = parseResourcesName(model.resources);
@@ -262,7 +268,7 @@ public class Function extends LazyLoad {
    *     资源列表
    */
   public void setResources(List<String> resources) {
-    model.resources = new ArrayList<String>();
+    model.resources = new ArrayList<>();
     model.resources.addAll(resources);
   }
 
@@ -273,6 +279,36 @@ public class Function extends LazyLoad {
    */
   public String getProject() {
     return project;
+  }
+
+  /**
+   * Check if this function is a SQL function.
+   *
+   * @return if this is a SQL function, return true, else false.
+   */
+  public boolean isSqlFunction() {
+    lazyLoad();
+
+    // Could be null after reload since the xml of non-SQL functions doesn't has tag 'IsSqlFunction'
+    if (model.isSqlFunction == null) {
+      model.isSqlFunction = false;
+    }
+    return model.isSqlFunction;
+  }
+
+  /**
+   * Get the SQL definition text of this function.
+   *
+   * @return if this is a SQL function, return the SQL definition text, else null.
+   */
+  public String getSqlDefinitionText() {
+    lazyLoad();
+
+    if (isSqlFunction()) {
+      return model.sqlDefinitionText;
+    } else {
+      return null;
+    }
   }
 
   @Override

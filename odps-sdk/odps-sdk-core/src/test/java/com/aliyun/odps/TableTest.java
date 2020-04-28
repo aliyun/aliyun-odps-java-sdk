@@ -24,8 +24,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.aliyun.odps.Table.TableModel;
-import com.aliyun.odps.Table.TableModel.Schema;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,6 +47,7 @@ import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.aliyun.odps.type.TypeInfoFactory;
 import com.sun.org.apache.xml.internal.utils.URI;
 
 public class TableTest extends TestBase {
@@ -149,6 +148,7 @@ public class TableTest extends TestBase {
     odps.tables().delete(HUB_TABLE_NAME, true);
     odps.tables().delete(HUB_TABLE_NAME_2, true);
     odps.tables().delete(TRUNCATE_TABLE_NAME, true);
+    odps.tables().delete(SOURCE_TABLE_NAME, true);
     odps.tables().delete(HUB_TABLE_NAME_3, true);
     odps.tables().delete(HUB_TABLE_NAME_4, true);
     odps.tables().delete(NON_PARTITION_TABLE, true);
@@ -182,8 +182,57 @@ public class TableTest extends TestBase {
   public void testExistsPartition() throws OdpsException {
     Table a = odps.tables().get(TABLE_NAME);
     assertFalse(a.hasPartition(new PartitionSpec("p1=2,p2=3")));
-    a.createPartition(new PartitionSpec("p1=2,p2=3"));
+    PartitionSpec spec = new PartitionSpec("p1=2,p2=3");
+    a.createPartition(spec);
     assertTrue(a.hasPartition(new PartitionSpec("p1=2,p2=3")));
+    a.deletePartition(spec);
+  }
+
+  @Test
+  public void testListPartitionSpecs() throws OdpsException {
+    Table partitionedTable = odps.tables().get(PARTITIONED_TABLE_NAME);
+    List<PartitionSpec> partitionSpecs = partitionedTable.getPartitionSpecs();
+    assertEquals(3, partitionSpecs.size());
+
+    // Should be ordered lexicographically
+    assertEquals("p1=\'1\',p2=\'bar\'", partitionSpecs.get(0).toString());
+    assertEquals("p1=\'1\',p2=\'baz\'", partitionSpecs.get(1).toString());
+    assertEquals("p1=\'1\',p2=\'foo\'", partitionSpecs.get(2).toString());
+  }
+
+  @Test
+  public void testGetPartitionsByRange() throws OdpsException {
+    Table partitionedTable = odps.tables().get(PARTITIONED_TABLE_NAME);
+    List<PartitionSpec> partitionSpecs = partitionedTable.getPartitionSpecs();
+
+    // Test both lower and upper bound are provided. Partitions within the range should be returned
+    List<Partition> partitions = partitionedTable.getPartitions(partitionSpecs.get(0),
+                                                                partitionSpecs.get(2));
+    assertEquals(2, partitions.size());
+    assertEquals("p1=\'1\',p2=\'bar\'", partitions.get(0).getPartitionSpec().toString());
+    assertEquals("p1=\'1\',p2=\'baz\'", partitions.get(1).getPartitionSpec().toString());
+
+    // Test lower bound is provided while upper bound is missing. Partitions greater than the lower
+    // bound should be returned
+    partitions = partitionedTable.getPartitions(partitionSpecs.get(1), null);
+    assertEquals(2, partitions.size());
+    assertEquals("p1=\'1\',p2=\'baz\'", partitions.get(0).getPartitionSpec().toString());
+    assertEquals("p1=\'1\',p2=\'foo\'", partitions.get(1).getPartitionSpec().toString());
+
+    // Test both lower and upper bound are missing. An IllegalArgumentException should be thrown
+    try {
+      partitionedTable.getPartitions(null, null);
+    } catch (IllegalArgumentException e) {
+      assertEquals("Argument lowerBound cannot be null", e.getMessage());
+    }
+
+    // Test lower bound is missing while upper bound is provided. An IllegalArgumentException
+    // should be thrown
+    try {
+      partitionedTable.getPartitions(null, partitionSpecs.get(2));
+    } catch (IllegalArgumentException e) {
+      assertEquals("Argument lowerBound cannot be null", e.getMessage());
+    }
   }
 
   @Test
@@ -381,6 +430,64 @@ public class TableTest extends TestBase {
     assertTrue(!a.isArchived());
     a.getPhysicalSize();
     a.getFileNum();
+  }
+
+  @Test
+  public void testGetPartitionTableRecordNumber() throws OdpsException {
+    Table a = odps.tables().get(TABLE_NAME);
+    PartitionSpec spec = new PartitionSpec();
+    spec.set("p1", "2");
+    spec.set("p2", "3");
+    a.createPartition(spec);
+
+    Instance instance = SQLTask
+        .run(
+            odps,
+            "insert into table "
+                + TABLE_NAME
+                + " partition(p1=2,p2=3) select 1, true, null, 'string's, cast(1 as decimal),"
+                + " array(1,2), str_to_map('1=b,2=d',',','=');");
+    instance.waitForSuccess();
+
+    a.reload();
+    long recordNum = a.getRecordNum();
+    // For partition table, record number is always -1
+    assertEquals(-1, recordNum);
+    a.deletePartition(spec);
+  }
+
+  @Test
+  public void testGetTableRecordNumber() throws OdpsException {
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("col1", TypeInfoFactory.BIGINT));
+    odps.tables().create(NON_PARTITION_TABLE, schema, true);
+
+    Instance instance = SQLTask
+        .run(odps, "insert into table " + NON_PARTITION_TABLE + " select 1;");
+    instance.waitForSuccess();
+    assertEquals(1, odps.tables().get(NON_PARTITION_TABLE).getRecordNum());
+  }
+
+  @Test
+  public void testGetPartitionRecordNumber() throws OdpsException {
+    Table a = odps.tables().get(TABLE_NAME);
+    PartitionSpec spec = new PartitionSpec();
+    spec.set("p1", "2");
+    spec.set("p2", "3");
+    a.createPartition(spec);
+
+    Instance instance = SQLTask
+        .run(
+            odps,
+            "insert into table "
+                + TABLE_NAME
+                + " partition(p1=2,p2=3) select 1, true, null, 'string's, cast(1 as decimal),"
+                + " array(1,2), str_to_map('1=b,2=d',',','=');");
+    instance.waitForSuccess();
+
+    long recordNum = a.getPartition(spec).getRecordNum();
+    assertEquals(1, recordNum);
+    a.deletePartition(spec);
   }
 
   @Test

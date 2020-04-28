@@ -82,6 +82,7 @@ public class Partition extends LazyLoad {
   private String table;
   private RestClient client;
   private long size;
+  private long recordNum = -1L;
 
   private boolean isExtendInfoLoaded;
   private boolean isArchived;
@@ -175,6 +176,17 @@ public class Partition extends LazyLoad {
       lazyLoad();
     }
     return model.lastDataModifiedTime;
+  }
+
+
+  /**
+   * 获取分区数据的Record数，若无准确数据，则返回-1
+   *
+   * @return Record数
+   */
+  public long getRecordNum() {
+    lazyLoad();
+    return recordNum;
   }
 
   /**
@@ -292,6 +304,10 @@ public class Partition extends LazyLoad {
 
       if (tree.has("partitionSize")) {
         size = tree.get("partitionSize").getAsLong();
+      }
+
+      if (tree.has("partitionRecordNum")) {
+        recordNum = tree.get("partitionRecordNum").getAsLong();
       }
 
       setLoaded(true);

@@ -98,6 +98,7 @@
                     <excludes>**/DefaultRecordReader.java</excludes>
                 </configuration>
             </plugin>
+
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>buildnumber-maven-plugin</artifactId>

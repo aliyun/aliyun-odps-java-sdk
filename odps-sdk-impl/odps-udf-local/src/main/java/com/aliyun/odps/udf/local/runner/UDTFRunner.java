@@ -19,8 +19,9 @@
 
 package com.aliyun.odps.udf.local.runner;
 
-import com.aliyun.odps.local.common.utils.SchemaUtils;
+import com.aliyun.odps.local.common.Pair;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.udf.local.util.ResolveUtils;
 import java.io.IOException;
 import java.util.List;
 
@@ -31,7 +32,6 @@ import com.aliyun.odps.local.common.security.SecurityClient;
 import com.aliyun.odps.udf.UDFException;
 import com.aliyun.odps.udf.UDTF;
 import com.aliyun.odps.udf.annotation.Resolve;
-import com.aliyun.odps.udf.local.InvalidFunctionException;
 import com.aliyun.odps.udf.local.LocalRunException;
 import com.aliyun.odps.udf.local.datasource.UDTFStdoutCollector;
 import com.aliyun.odps.udf.local.util.ArgumentConverterUtils;
@@ -77,62 +77,15 @@ public class UDTFRunner extends BaseRunner {
     }
   }
 
-  private void checkArguments(UDTF tf) throws LocalRunException {
+  private void checkArguments(UDTF tf) {
     Resolve r = tf.getClass().getAnnotation(Resolve.class);
-    if (r == null) {
-      throw new LocalRunException("You must specify @Resolve annotation.");
-    }
-    String info = r.value()[0];
-    String[] outs = parseResolveInfo(info);
-    List<TypeInfo> inputTypes = SchemaUtils.parseResolveTypeInfo(outs[0]);
+    Pair<List<TypeInfo>, List<TypeInfo>> inputOutputTypes = ResolveUtils.parseResolve(r);
+    List<TypeInfo> inputTypes = inputOutputTypes.getFirst();
     converters = new ArgumentConverter[inputTypes.size()];
     for (int i = 0; i < inputTypes.size(); i++) {
       String sigType = ArgumentConverterUtils.getSigType(inputTypes.get(i));
       converters[i] = ArgumentConverterUtils.validSigType.get(sigType);
     }
-  }
-
-  public static String[] parseResolveInfo(String info) throws InvalidFunctionException {
-    String errMsg = "@Resolve({\"" + info + "\"}) ";
-    if (info.isEmpty()) {
-      throw new InvalidFunctionException(errMsg + "must not be empty string");
-    }
-    int pos = info.indexOf("->");
-    String args = "";
-    if (pos > 0) {
-      args = info.substring(0, pos);
-    } else if (pos < 0) {
-      throw new InvalidFunctionException(errMsg);
-    }
-    int tPos = info.indexOf("->", pos + 2);
-    if (tPos >= 0) {
-      throw new InvalidFunctionException(errMsg + "contains not exactly one '->'");
-    }
-    List<TypeInfo> argTypeInfos = SchemaUtils.parseResolveTypeInfo(args);
-    if (!validTypeInfo(argTypeInfos)) {
-      throw new InvalidFunctionException(errMsg + "annotates wrong arguments '" + args + "'");
-    }
-    String rtypes = info.substring(pos + 2);
-    List<TypeInfo> rtTypeInfos = SchemaUtils.parseResolveTypeInfo(rtypes);
-    if (rtTypeInfos.isEmpty()) {
-      throw new InvalidFunctionException(errMsg + "annotates no output types '" + args + "'");
-    } else if (!validTypeInfo(rtTypeInfos)) {
-      throw new InvalidFunctionException(errMsg + "annotates wrong output types '" + rtypes + "'");
-    }
-    return new String[] {args, rtypes};
-  }
-
-  public static boolean validTypeInfo(List<TypeInfo> typeInfos) {
-    if (typeInfos.isEmpty()) {
-      return true;
-    }
-    for (TypeInfo type : typeInfos) {
-      String sigType = ArgumentConverterUtils.getSigType(type);
-      if (!ArgumentConverterUtils.validSigType.containsKey(sigType)) {
-        return false;
-      }
-    }
-    return true;
   }
 
   @Override

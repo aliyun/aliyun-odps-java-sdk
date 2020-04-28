@@ -41,7 +41,7 @@ public interface TunnelConstants {
   public static String TARGET = "target";
   public static String TYPE = "type";
   public static String RESUME_MODE = "resume";
-  public static String RECORD_COUNT = "recordcount";
+  public static String RECORD_COUNT = "record_count";
   public static String PACK_ID = "packid";
   public static String PACK_NUM = "packnum";
   public static String ITERATE_MODE = "iteratemode";
@@ -56,7 +56,10 @@ public interface TunnelConstants {
   public static String INSTANCE_TUNNEL_LIMIT_ENABLED = "instance_tunnel_limit_enabled";
   public static String ASYNC_MODE ="asyncmode";
   public static String TUNNEL_DATE_TRANSFORM_VERSION = "v1";
+  public static String OVERWRITE = "overwrite";
   public static String CACHED = "cached";
   public static String TASK_NAME = "taskname";
-  public static String OVERWRITE = "overwrite";
+  public static String QUERY_ID = "queryid";
+  public static String STREAMS = "streams";
+  public static String SLOT_ID = "slotid";
 }

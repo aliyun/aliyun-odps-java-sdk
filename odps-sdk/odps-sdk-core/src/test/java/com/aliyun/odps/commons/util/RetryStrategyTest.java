@@ -76,7 +76,7 @@ public class RetryStrategyTest {
    * @throws Exception
    */
   @Test
-  public void testRetryStrategyConstantExceedLimit() {
+  public void testRetryStrategyConstantExceedLimit() throws InterruptedException {
     RetryStrategy retry = new RetryStrategy(3, 1, RetryStrategy.BackoffStrategy.CONSTANT_BACKOFF);
     trouble = 0;
     try {

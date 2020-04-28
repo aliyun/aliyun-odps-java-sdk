@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
@@ -126,7 +127,6 @@ public class Projects {
     return project;
   }
 
-
   /**
    * 更新 Project
    *
@@ -177,7 +177,7 @@ public class Projects {
         marshal(projectName, owner, null, status, comment, properties, clusters);
 
     HashMap<String, String> headers = new HashMap<String, String>();
-    headers.put("Content-Type", "application/xml");
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
 
     client.stringRequest(resource, "PUT", null, headers, xml);
   }

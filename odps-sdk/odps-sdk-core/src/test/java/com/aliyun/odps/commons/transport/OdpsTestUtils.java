@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.commons.transport;
 
+import com.aliyun.odps.account.AppAccount;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -163,9 +164,15 @@ public class OdpsTestUtils {
     String accessKey = props.getProperty("default.access.key");
     String endpoint = props.getProperty("default.endpoint");
     String project = props.getProperty("default.project");
-
+    String appAccessId = props.getProperty("default.app.access.id");
+    String appAccessKey = props.getProperty("default.app.access.key");
     Account account = new AliyunAccount(accessId, accessKey);
-    odps = new Odps(account);
+    if (appAccessId != null && appAccessKey != null) {
+      AppAccount appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+      odps = new Odps(account, appAccount);
+    } else {
+      odps = new Odps(account);
+    }
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
 

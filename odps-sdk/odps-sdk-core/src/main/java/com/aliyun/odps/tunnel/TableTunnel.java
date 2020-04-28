@@ -27,10 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
@@ -49,14 +46,10 @@ import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.io.Checksum;
-import com.aliyun.odps.tunnel.io.CompressOption;
-import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
-import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
-import com.aliyun.odps.tunnel.io.TunnelRecordReader;
-import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import com.aliyun.odps.tunnel.io.*;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -423,6 +416,10 @@ public class TableTunnel {
   /**
    * 在分区表上创建下载会话
    *
+   * <p>
+   * 注: 分区必须为最末级分区,如表有两级分区pt,ds, 则必须全部指定值, 不支持只指定其中一个值
+   * </p>
+   *
    * @param projectName
    *     Project名
    * @param tableName
@@ -444,6 +441,10 @@ public class TableTunnel {
 
   /**
    * 在分区表上创建下载会话
+   *
+   * <p>
+   * 注: 分区必须为最末级分区,如表有两级分区pt,ds, 则必须全部指定值, 不支持只指定其中一个值
+   * </p>
    *
    * @param projectName
    *     Project名
@@ -621,6 +622,107 @@ public class TableTunnel {
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException("Invalid endpoint.");
     }
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName) throws TunnelException {
+    return new StreamUploadSessionImpl(projectName, tableName, null, this.config);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, String partitionSpec) throws TunnelException {
+    return createStreamUploadSession(projectName, tableName, new PartitionSpec(partitionSpec));
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, PartitionSpec partitionSpec) throws TunnelException {
+    return new StreamUploadSessionImpl(projectName,
+                                       tableName,
+                                       partitionSpec.toString().replaceAll("'", ""),
+                                       this.config);
+  }
+
+  public interface StreamRecordPack {
+
+    /**
+     * append一条记录
+     * @param record
+     */
+    public void append(Record record) throws IOException;
+
+    /**
+     * @return 返回当前pack存储的记录数
+     */
+    public long getRecordCount();
+
+    /**
+     * @return 返回当前pack存储数据的大小
+     */
+    public long getDataSize();
+
+    /**
+     * 数据发送到server端
+     * pack对象在flush成功以后可以复用
+     * @return traceId
+     * @throws IOException
+       */
+    public String flush() throws IOException;
+
+    /**
+     * pack对象在reset以后可以复用
+     */
+    public void reset() throws IOException;
+  }
+
+  public interface StreamUploadSession {
+
+    /**
+     * 设置p2p mode
+     * @param mode
+     */
+    public void setP2pMode(boolean mode);
+
+    /**
+     * 获取Session ID
+     * @return Session ID
+     */
+    public String getId();
+
+    /**
+     * 获取表结构
+     */
+    public TableSchema getSchema();
+
+    /**
+     * 打开一个无压缩 {@link StreamRecordWriter} 用来写入数据
+     */
+    public StreamRecordWriter openRecordWriter() throws IOException, TunnelException;
+
+    /**
+     * 打开 {@link StreamRecordWriter} 用来写入数据
+     * @param compressOption 数据传输压缩选项
+     */
+    public StreamRecordWriter openRecordWriter(CompressOption compressOption) throws IOException, TunnelException;
+
+    /**
+     * 创建一个无压缩{@Link StreamRecordPack}对象
+     * @return StreamRecordPack对象
+     */
+    public StreamRecordPack newRecordPack() throws IOException;
+
+    /**
+     * 创建一个{@Link StreamRecordPack}对象
+     * @param compressOption 数据传输压缩选项
+     * @return StreamRecordPack对象
+     */
+    public StreamRecordPack newRecordPack(CompressOption compressOption) throws IOException, TunnelException;
+
+    /**
+     * 创建一个{@Link Record}对象
+     * @return Record对象
+     */
+    public Record newRecord();
+
   }
 
   /**
@@ -1112,6 +1214,8 @@ public class TableTunnel {
           try {
             retryStrategy.onFailure(e);
           } catch (RetryExceedLimitException ignore) {
+            throw e;
+          } catch (InterruptedException ignore) {
             throw e;
           }
         } catch (OdpsException e) {

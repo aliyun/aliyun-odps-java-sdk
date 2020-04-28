@@ -92,8 +92,8 @@ public abstract class Response {
   /**
    * 获得响应的body部分
    *
-   * @return {@link Connection.getResponse()}得到的对象返回null, 需要通过{@link
-   * Connection.getInputStream()}读取body数据
+   * @return {@link Connection#getResponse()}得到的对象返回null, 需要通过{@link
+   * Connection#getInputStream()}读取body数据
    */
   public byte[] getBody() {
     return body;

@@ -145,6 +145,13 @@ public class RestClient {
   private RetryLogger logger = null;
 
   /**
+   * If true, send calling history of deprecated interface to ODPS.
+   *
+   * By default, deprecated logger is enabled
+   */
+  private boolean deprecatedLoggerEnabled = true;
+
+  /**
    * 创建RestClient对象
    *
    * @param transport
@@ -320,7 +327,9 @@ public class RestClient {
         }
         handleErrorResponse(resp);
 
-        uploadDeprecatedLog();
+        if (deprecatedLoggerEnabled) {
+          uploadDeprecatedLog();
+        }
 
         return resp;
 
@@ -328,6 +337,8 @@ public class RestClient {
         try {
           retryStrategy.onFailure(e, logger);
         } catch (RetryExceedLimitException ignore) {
+          throw e;
+        } catch (InterruptedException ignore) {
           throw e;
         }
 
@@ -465,6 +476,26 @@ public class RestClient {
   }
 
   /**
+   * 获得HTTP连接
+   *
+   * @param resource
+   * @param method
+   * @param params
+   * @param headers
+   * @param endpoint
+   * @return
+   * @throws OdpsException
+   * @throws IOException
+   */
+  public Connection connect(String resource, String method, Map<String, String> params,
+                            Map<String, String> headers, String endpoint)
+          throws OdpsException, IOException {
+
+    Request req = buildRequest(resource, method, params, headers, endpoint);
+    return transport.connect(req);
+  }
+
+  /**
    * 请求RESTful API，如果返回错误码非2xx也不会抛出异常
    *
    * @param resource
@@ -524,7 +555,12 @@ public class RestClient {
   }
 
   protected Request buildRequest(String resource, String method, Map<String, String> params,
-                               Map<String, String> headers) {
+                                 Map<String, String> headers) {
+    return buildRequest(resource, method, params, headers, this.endpoint);
+  }
+
+  protected Request buildRequest(String resource, String method, Map<String, String> params,
+                               Map<String, String> headers, String endpoint) {
     if (resource == null || !resource.startsWith("/")) {
       throw new IllegalArgumentException("Invalid resource: " + resource);
     }
@@ -583,7 +619,7 @@ public class RestClient {
       // set User-Agent
       if (req.getHeaders().get(Headers.USER_AGENT) == null && userAgent != null) {
         req.setHeader(Headers.USER_AGENT, userAgent);
-        req.setHeader("x-odps-user-agent", userAgent);
+        req.setHeader(Headers.ODPS_USER_AGENT, userAgent);
       }
 
       req.setHeader(Headers.DATE, DateUtils.formatRfc822Date(new Date()));
@@ -698,6 +734,14 @@ public class RestClient {
    */
   public void setIgnoreCerts(boolean ignoreCerts) {
     this.ignoreCerts = ignoreCerts;
+  }
+
+  public void enableDeprecatedLogger() {
+    this.deprecatedLoggerEnabled = true;
+  }
+
+  public void disableDeprecatedLogger() {
+    this.deprecatedLoggerEnabled = false;
   }
 
 }
