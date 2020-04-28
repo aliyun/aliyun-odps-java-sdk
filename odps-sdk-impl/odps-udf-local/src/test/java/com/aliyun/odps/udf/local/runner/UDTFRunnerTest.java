@@ -19,12 +19,18 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.local.common.AnyTypeInfo;
+import com.aliyun.odps.local.common.Pair;
 import com.aliyun.odps.local.common.utils.SchemaUtils;
+import com.aliyun.odps.type.SimplePrimitiveTypeInfo;
+import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.type.VarcharTypeInfo;
 import com.aliyun.odps.udf.local.InvalidFunctionException;
 import com.aliyun.odps.udf.local.examples.Udtf_any;
 import com.aliyun.odps.udf.local.examples.Udtf_complex;
+import com.aliyun.odps.udf.local.util.ResolveUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -330,30 +336,39 @@ public class UDTFRunnerTest {
   }
 
   @Test(expected = IllegalArgumentException.class)
-  public void parseInvalidResolveTypeInfo() throws InvalidFunctionException{
-    UDTFRunner.parseResolveInfo("long->long");
+  public void parseInvalidResolveTypeInfo() {
+    ResolveUtils.parseResolve("long->long");
   }
 
   @Test
-  public void parseResolveTypeInfo() throws InvalidFunctionException{
-    String[] outs = UDTFRunner.parseResolveInfo("struct<a:bigint>,string->string");
-    Assert.assertEquals(2, outs.length);
-    Assert.assertEquals("struct<a:bigint>,string", outs[0]);
-    Assert.assertEquals("string", outs[1]);
+  public void parseResolveTypeInfo() {
+    Pair<List<TypeInfo>, List<TypeInfo>> inputOutputTypes = ResolveUtils.parseResolve("struct<a:bigint>,string->string");
+    List<TypeInfo> inputTypes = inputOutputTypes.getFirst();
+    Assert.assertEquals(2, inputTypes.size());
+    Assert.assertTrue(inputTypes.get(0) instanceof StructTypeInfo);
+    Assert.assertSame(TypeInfoFactory.STRING, inputTypes.get(1));
+    List<TypeInfo> outputTypes = inputOutputTypes.getSecond();
+    Assert.assertEquals(1, outputTypes.size());
+    Assert.assertSame(TypeInfoFactory.STRING, outputTypes.get(0));
 
-    outs = UDTFRunner.parseResolveInfo("varchar(10) -> smallint");
-    Assert.assertEquals(2, outs.length);
-    Assert.assertEquals("varchar(10) ", outs[0]);
-    Assert.assertEquals(" smallint", outs[1]);
-    List<TypeInfo> inputTypes = SchemaUtils.parseResolveTypeInfo(outs[0]);
+    inputOutputTypes = ResolveUtils.parseResolve("varchar(10) -> smallint");
+    inputTypes = inputOutputTypes.getFirst();
     Assert.assertEquals(1, inputTypes.size());
     Assert.assertTrue(inputTypes.get(0) instanceof VarcharTypeInfo);
+    outputTypes = inputOutputTypes.getSecond();
+    Assert.assertEquals(1, outputTypes.size());
+    Assert.assertSame(TypeInfoFactory.SMALLINT, outputTypes.get(0));
 
-    outs = UDTFRunner.parseResolveInfo("ANY, * -> boolean, *");
-    Assert.assertEquals(2, outs.length);
-    Assert.assertEquals("ANY, * ", outs[0]);
-    Assert.assertEquals(" boolean, *", outs[1]);
 
+    inputOutputTypes = ResolveUtils.parseResolve("ANY, * -> boolean, *");
+    inputTypes = inputOutputTypes.getFirst();
+    Assert.assertEquals(2, inputTypes.size());
+    Assert.assertTrue(inputTypes.get(0) instanceof AnyTypeInfo);
+    Assert.assertTrue(inputTypes.get(1) instanceof AnyTypeInfo);
+    outputTypes = inputOutputTypes.getSecond();
+    Assert.assertEquals(2, outputTypes.size());
+    Assert.assertSame(TypeInfoFactory.BOOLEAN, outputTypes.get(0));
+    Assert.assertTrue(outputTypes.get(1) instanceof AnyTypeInfo);
   }
 
 }

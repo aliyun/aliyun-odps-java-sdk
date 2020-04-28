@@ -1,9 +1,9 @@
 package com.aliyun.odps;
 
-import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.SessionQueryResult;
-import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.task.SQLRTTask;
+import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -16,6 +16,51 @@ import java.util.concurrent.TimeUnit;
 import java.lang.reflect.Type;
 
 public class Session {
+
+  public class SubQueryInfo {
+    public static final String kNotFoundCode = "NotFound";
+    public static final String kFailedCode = "Failed";
+    public static final String kOKCode = "ok";
+
+    public int queryId = -1;
+    public String status = kOKCode;
+    public String result;
+
+    public SubQueryInfo(String status, String result) {
+      this.status = status;
+      this.result = result;
+    }
+  }
+
+  public class SubQueryResult {
+    TableSchema schema = null;
+    List<String> warnings = new ArrayList<>();
+    List<Record> records = null;
+
+    public void setSchema(TableSchema schema) {
+      this.schema = schema;
+    }
+
+    public void addWarning(String warning) {
+      this.warnings.add(warning);
+    }
+
+    public void setRecords(List<Record> records) {
+      this.records = records;
+    }
+
+    public TableSchema getSchema() {
+      return schema;
+    }
+
+    public List<Record> getRecords() {
+      return records;
+    }
+
+    public List<String> getWarnings() {
+      return warnings;
+    }
+  }
 
   public class SessionItem {
     public String owner;
@@ -53,10 +98,10 @@ public class Session {
   private String startSessionMessage;
 
   private static Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-  private static int OBJECT_STATUS_RUNNING = 2;
-  private static int OBJECT_STATUS_FAILED = 4;
-  private static int OBJECT_STATUS_TERMINATED = 5;
-  private static int OBJECT_STATUS_CANCELLED = 6;
+  public static int OBJECT_STATUS_RUNNING = 2;
+  public static int OBJECT_STATUS_FAILED = 4;
+  public static int OBJECT_STATUS_TERMINATED = 5;
+  public static int OBJECT_STATUS_CANCELLED = 6;
 
   public String getLogView() {
     return logView;
@@ -164,22 +209,45 @@ public class Session {
    */
   public static Session attach(Odps odps, String sessionName, Map<String, String> hints,
                                Long timeout, String taskName) throws OdpsException {
+    return attach(odps, sessionName, hints, timeout, null, taskName);
+  }
+
+  /**
+   * attach 指定名字的 session
+   *
+   * @param odps
+   *     odps 对象
+   * @param sessionName
+   *     指定的 session 名字
+   * @param hints
+   *     能够影响 SQL 执行的Set 参数数
+   * @param timeout
+   *     等待 session 启动的超时时间，单位: 秒
+   *     其中: null 表示从不等待； 0 表示阻塞等待
+   * @param runningCluster
+   *      运行集群
+   * @param taskName
+   *     SqlRtTask的taskName
+   * @return
+   * @throws OdpsException
+   */
+  public static Session attach(Odps odps, String sessionName, Map<String, String> hints,
+                               Long timeout, String runningCluster, String taskName) throws OdpsException {
     if (StringUtils.isNullOrEmpty(sessionName)) {
       throw new IllegalArgumentException("Session name can not be empty.");
     }
 
     if (hints == null) {
-      hints = new HashMap<String, String>();
+      hints = new HashMap<>();
     }
     hints.put("odps.sql.session.share.id", sessionName);
 
     try {
-      return createInternal(odps, null, null, null, null, null, hints, timeout, null, null, taskName);
+      return createInternal(odps, null, sessionName, null, null, null, hints, timeout, null, runningCluster, taskName);
     } finally {
       hints.remove("odps.sql.session.share.id");
     }
   }
-
   /**
    * 创建 session
    * 此调用会立即返回，不会等待 session 启动完成。 可以手动调用 {@link #waitForStart(long)} 来等待启动。
@@ -419,6 +487,7 @@ public class Session {
    * @return 查询结果
    * @throws OdpsException
    */
+  @Deprecated
   public SessionQueryResult run(String sql) throws OdpsException {
     return run(sql, null);
   }
@@ -434,6 +503,7 @@ public class Session {
    * @return 查询结果
    * @throws OdpsException
    */
+  @Deprecated
   public SessionQueryResult run(String sql, Map<String, String> hints) throws OdpsException {
 
     JsonObject request = new JsonObject();
@@ -451,9 +521,24 @@ public class Session {
 
     request.add("settings", settings);
 
-    instance.setTaskInfo(taskName, "query", gson.toJson(request));
-
-    return new SessionQueryResult(new ListIterator<SubQueryResponse>() {
+    Instance.SetInformationResult setInformationResult = instance.setInformation(taskName, "query", gson.toJson(request));
+    SubQueryInfo subQueryInfo = null;
+    if (!setInformationResult.status.equals(SubQueryInfo.kOKCode)) {
+      // instance not found or failed
+      subQueryInfo = new SubQueryInfo(setInformationResult.status, setInformationResult.result);
+    } else if (!StringUtils.isNullOrEmpty(setInformationResult.result)) {
+      Type type = new TypeToken<SubQueryInfo>() {
+      }.getType();
+      try {
+        subQueryInfo = gson.fromJson(setInformationResult.result, type);
+      } catch (Exception e) {
+        throw new OdpsException(setInformationResult.result);
+      }
+      subQueryInfo.status = setInformationResult.status;
+    } else {
+      // there will be no 'result' in response from old sqlrt task
+    }
+    return new SessionQueryResult(subQueryInfo, new ListIterator<SubQueryResponse>() {
       boolean queryTerminated = false;
 
       @Override
@@ -481,6 +566,111 @@ public class Session {
         }
       }
     });
+  }
+
+  /**
+   * 提交查询
+   *
+   * @param sql
+   *     sql 语句
+   * @param hints
+   *     能够影响 SQL 执行的Set 参数
+   * @return SubQueryInfo query标识
+   * @throws OdpsException
+   */
+  public SubQueryInfo runSubQuery(String sql, Map<String, String> hints) throws OdpsException {
+
+    JsonObject request = new JsonObject();
+    request.add("query", new JsonPrimitive(sql));
+
+    if (hints == null) {
+      hints = new HashMap<String, String>();
+    }
+
+    JsonObject settings = new JsonObject();
+
+    for (Map.Entry<String, String> property : hints.entrySet()) {
+      settings.addProperty(property.getKey(), property.getValue());
+    }
+
+    request.add("settings", settings);
+
+    Instance.SetInformationResult setInformationResult = instance.setInformation(taskName, "query", gson.toJson(request));
+    SubQueryInfo subQueryInfo = null;
+    if (!setInformationResult.status.equals(SubQueryInfo.kOKCode)) {
+      // instance not found or failed
+      subQueryInfo = new SubQueryInfo(setInformationResult.status, setInformationResult.result);
+    } else if (!StringUtils.isNullOrEmpty(setInformationResult.result)) {
+      Type type = new TypeToken<SubQueryInfo>() {}.getType();
+      try {
+        subQueryInfo = gson.fromJson(setInformationResult.result, type);
+      } catch (Exception e) {
+        throw new OdpsException(setInformationResult.result);
+      }
+      subQueryInfo.status = setInformationResult.status;
+    } else {
+      throw new OdpsException("Invalid setInformation response.");
+    }
+    return subQueryInfo;
+  }
+
+  /**
+   * 查询SubQuery结果
+   *
+   * @param queryId
+   *     sql 语句
+   * @return 查询结果
+   * @throws OdpsException
+   */
+  public SubQueryResult getSubQueryResult(int queryId) throws OdpsException {
+    String resultString = getSubQueryResultInternal(queryId);
+    SubQueryResult result = new SubQueryResult();
+    CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(resultString);
+    result.setSchema(parseResult.getSchema());
+    result.setRecords(parseResult.getRecords());
+    return result;
+  }
+
+  /**
+   * 查询当前CacheOn的变量列表
+   *
+   * @param
+   * @return 查询结果
+   * @throws OdpsException
+   */
+  public List<String> showVariables(Map<String, String> hints) throws OdpsException {
+    SubQueryInfo subQueryInfo = runSubQuery("show variables;", hints);
+    String resultString = getSubQueryResultInternal(subQueryInfo.queryId);
+    List<String> vars = new ArrayList<>();
+    if (!StringUtils.isNullOrEmpty(resultString)) {
+      vars = Arrays.asList(resultString.split("\n"));
+    }
+    return vars;
+  }
+
+  private String getSubQueryResultInternal(int queryId) throws OdpsException {
+    SubQueryResult result = new SubQueryResult();
+    String resultString = "";
+    boolean terminated = false;
+    while(!terminated) {
+      SubQueryResponse response = getResponse(instance.getTaskInfo(taskName, "result_" + queryId));
+      if (response == null || response.status == null) {
+        checkTaskStatus();
+      } else {
+        if (!StringUtils.isNullOrEmpty(response.result)) {
+          resultString += response.result;
+        }
+        if (!StringUtils.isNullOrEmpty(response.warnings)) {
+          result.addWarning(response.warnings);
+        }
+        if (response.status == OBJECT_STATUS_FAILED) {
+          throw new OdpsException(resultString);
+        } else if (response.status != OBJECT_STATUS_RUNNING) {
+          terminated = true;
+        }
+      }
+    }
+    return resultString;
   }
 
   /**
@@ -527,8 +717,7 @@ public class Session {
         try {
           progress = gson.fromJson(response.result, SessionProgress.class);
         } catch (Exception e) {
-          throw new OdpsException("Get Session launched progress failed: " + e.getMessage()
-                  + ", response message:" + response.result, e);
+          throw new OdpsException("Get Session launched progress failed: " + response.result, e);
         }
       }
 
@@ -611,16 +800,19 @@ public class Session {
       }
       sleep();
     }
+    throw new OdpsException("Start session timeout.");
   }
 
-  private SubQueryResponse getResponse(String result) {
+  private SubQueryResponse getResponse(String result) throws OdpsException {
     if (StringUtils.isNullOrEmpty(result)) {
       return null;
     }
-
-    return gson.fromJson(result, SubQueryResponse.class);
+    try {
+      return gson.fromJson(result, SubQueryResponse.class);
+    } catch (Exception e) {
+      throw new OdpsException("Invalid response:" + result);
+    }
   }
-
 
   private void checkTaskStatus() throws OdpsException {
     Instance.TaskStatus status = instance.getTaskStatus().get(taskName);
@@ -706,6 +898,14 @@ public class Session {
 
     System.err.println("Log view:");
     System.err.println(logView);
+  }
+
+  public void cancelQuery(int queryId) throws OdpsException {
+    Instance.SetInformationResult setInformationResult
+        = instance.setInformation(DEFAULT_TASK_NAME, "cancel", String.valueOf(queryId));
+    if (!setInformationResult.status.equals(SubQueryInfo.kOKCode)) {
+      throw new OdpsException(setInformationResult.result);
+    }
   }
 
   private void sleep() throws OdpsException {

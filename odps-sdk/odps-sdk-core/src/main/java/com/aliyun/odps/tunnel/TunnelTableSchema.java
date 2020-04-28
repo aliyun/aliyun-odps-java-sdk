@@ -26,7 +26,7 @@ import com.aliyun.odps.type.TypeInfoParser;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-class TunnelTableSchema extends TableSchema {
+public class TunnelTableSchema extends TableSchema {
 
   public TunnelTableSchema(JsonObject node) {
     JsonArray columns = node.has("columns") ? node.get("columns").getAsJsonArray() : new JsonArray();

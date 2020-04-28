@@ -20,7 +20,6 @@
 package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
-import java.util.Calendar;
 import java.util.List;
 
 import com.aliyun.odps.Column;
@@ -32,6 +31,7 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * TunnelReaderReader支持通过Tunnel服务读取ODPS表中的数据
@@ -206,6 +206,18 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     return bytesReaded + reader.getTotalBytes();
   }
 
+  private boolean needRetry() {
+    if (instanceSession == null) {
+      // table tunnel
+      return true;
+    } else if (StringUtils.isNullOrEmpty(instanceSession.getTaskName())) {
+      // normal instance tunnel
+      return true;
+    } else {
+      // session instance tunnel
+      return false;
+    }
+  }
 
   private Record readWithRetry(Record reusedRecord) throws TunnelException, IOException {
     try {
@@ -213,12 +225,10 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
       offset += 1;
       return record;
     } catch (IOException e) {
-      if (++retryCount > retryTimes || offset > count /* no more data */) {
+      if (++retryCount > retryTimes || offset > count /* no more data */ || !needRetry()) {
         throw e;
       }
-
       createNewReader();
-
       return readWithRetry(reusedRecord);
     }
   }
@@ -244,19 +254,19 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
 
         if (instanceSession != null) {
           reader = RawTunnelRecordReader
-                  .createInstanceTunnelReader(start + offset, count - offset, option, columnList,
-                                              tunnelServiceClient, instanceSession);
+              .createInstanceTunnelReader(start + offset, count - offset, option, columnList,
+                  tunnelServiceClient, instanceSession, instanceSession.getIsLongPolling());
           reader.setTransform(this.shouldTransform);
         }
 
         return;
       } catch (TunnelException e) {
-        if (++retryCount == retryTimes) {
+        if (++retryCount == retryTimes || !needRetry()) {
           throw e;
         }
         sleep(DEFAULT_CONNECT_TIMEOUT);
       } catch (IOException e) {
-        if (++retryCount == retryTimes) {
+        if (++retryCount == retryTimes || !needRetry()) {
           throw e;
         }
         sleep(DEFAULT_CONNECT_TIMEOUT);

@@ -119,14 +119,33 @@ public class SecurityTest extends TestBase {
           "ALIYUN$odpstest1@aliyun.com"));
 
       // test download privilege
-      sc.enableDownloadPrivilege();
-      sm.setSecurityConfiguration(sc);
-      sc.reload();
-      assertTrue(sc.checkDownloadPrivilege());
-      sc.disableDownloadPrivilege();
-      sm.setSecurityConfiguration(sc);
-      sc.reload();
-      assertFalse(sc.checkDownloadPrivilege());
+      boolean downloadPrivilege = sc.checkDownloadPrivilege();
+      try {
+        if (downloadPrivilege) {
+          sc.disableDownloadPrivilege();
+          sm.setSecurityConfiguration(sc);
+          sc.reload();
+          assertFalse(sc.checkDownloadPrivilege());
+        } else {
+          sc.enableDownloadPrivilege();
+          sm.setSecurityConfiguration(sc);
+          sc.reload();
+          assertTrue(sc.checkDownloadPrivilege());
+        }
+      } finally {
+        // restore
+        if (downloadPrivilege) {
+          sc.enableDownloadPrivilege();
+          sm.setSecurityConfiguration(sc);
+          sc.reload();
+          assertTrue(sc.checkDownloadPrivilege());
+        } else {
+          sc.disableDownloadPrivilege();
+          sm.setSecurityConfiguration(sc);
+          sc.reload();
+          assertFalse(sc.checkDownloadPrivilege());
+        }
+      }
 
       // Auth version
       System.out.println(sc.getAuthorizationVersion());

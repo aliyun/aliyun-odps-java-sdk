@@ -60,7 +60,7 @@ public class VolumeFSTunnel {
   /**
    * Create an InputStream at the indicated Path
    * 
-   * @param resource
+   * @param project
    * @param path
    * @param start The start offset of the target range of a file
    * @param end The end offset of a file
@@ -219,7 +219,7 @@ public class VolumeFSTunnel {
    * outputStream for you. So once you call this method , the outputStream will be closed.
    * <p>
    * 
-   * @param response
+   * @param outputStream
    * @return
    */
   public static String getUploadSessionId(VolumeOutputStream outputStream) throws TunnelException {

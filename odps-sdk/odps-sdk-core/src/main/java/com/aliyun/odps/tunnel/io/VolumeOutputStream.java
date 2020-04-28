@@ -29,6 +29,7 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
 import com.aliyun.odps.commons.transport.Connection;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.tunnel.TunnelException;
 
@@ -103,7 +104,7 @@ public class VolumeOutputStream extends OutputStream {
         } else {
           err = new TunnelException(conn.getInputStream());
         }
-        err.setRequestId(resp.getHeader("x-odps-request-id"));
+        err.setRequestId(resp.getHeader(Headers.ODPS_REQUEST_ID));
         throw new IOException(err);
       }
     } finally {

@@ -97,39 +97,6 @@ import com.aliyun.odps.tunnel.TunnelException;
  */
 public class TunnelBufferedWriter implements RecordWriter {
 
-  static class TunnelRetryStrategy extends RetryStrategy {
-
-    private final static int limit = 6;
-    private final static int interval = 4;
-
-    TunnelRetryStrategy() {
-      super(limit, interval, BackoffStrategy.EXPONENTIAL_BACKOFF);
-    }
-
-    TunnelRetryStrategy(int limit, BackOffStrategy strategy) {
-      super(limit, strategy);
-    }
-
-    @Override
-    protected boolean needRetry(Exception e) {
-      TunnelException err = null;
-      if (e.getCause() instanceof TunnelException) {
-        err = (TunnelException) e.getCause();
-      }
-
-      if (e instanceof TunnelException) {
-        err = (TunnelException) e;
-      }
-
-      if (err != null && err.getStatus() != null && err.getStatus() / 100 == 4) {
-        return false;
-      }
-
-      return true;
-    }
-  }
-
-
   private ProtobufRecordPack bufferedPack;
   private TableTunnel.UploadSession session;
   private RetryStrategy retry;
@@ -242,6 +209,8 @@ public class TunnelBufferedWriter implements RecordWriter {
           try {
             retry.onFailure(e);
           } catch (RetryExceedLimitException ignore) {
+            throw e;
+          } catch (InterruptedException ignore) {
             throw e;
           }
         }

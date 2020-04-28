@@ -92,7 +92,7 @@ public class InstanceTunnel {
    * @return {@link InstanceTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, boolean limitEnabled )
+  public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, boolean limitEnabled)
       throws TunnelException {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, null, limitEnabled);
   }
@@ -109,8 +109,6 @@ public class InstanceTunnel {
    *     Project名
    * @param instanceID
    *     Instance ID
-   * @param instanceID
-   *     Instance ID
    * @param taskName
    *     SqlRtTask taskName
    * @return {@link InstanceTunnel.DownloadSession}
@@ -119,6 +117,54 @@ public class InstanceTunnel {
   public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, String taskName)
           throws TunnelException {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, null, true, taskName);
+  }
+
+  /**
+   * 在 Instance 上创建下载会话
+   *
+   * 非法情况:
+   * 1. 非 SQlTask
+   * 2. 非 select sql
+   * 3. Task 非 Success 状态
+   *
+   * @param projectName
+   *     Project名
+   * @param instanceID
+   *     Instance ID
+   * @param taskName
+   *     SqlRtTask taskName
+   * @param queryId
+   *     SqlRtTask sub queryId
+   * @return {@link InstanceTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, String taskName, int queryId)
+      throws TunnelException {
+    return new InstanceTunnel.DownloadSession(projectName, instanceID, null, true, taskName, queryId);
+  }
+
+  /**
+   * 在 Instance 上创建下载long polling会话
+   *
+   * 非法情况:
+   * 1. 非 SQlTask
+   * 2. 非 select sql
+   * 3. Task 非 Success 状态
+   *
+   * @param projectName
+   *     Project名
+   * @param instanceID
+   *     Instance ID
+   * @param taskName
+   *     SqlRtTask taskName
+   * @param queryId
+   *     SqlRtTask sub queryId
+   * @return {@link InstanceTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public InstanceTunnel.DownloadSession createDirectDownloadSession(String projectName, String instanceID, String taskName, int queryId)
+      throws TunnelException {
+    return new InstanceTunnel.DownloadSession(projectName, instanceID, true, taskName, queryId);
   }
 
   private String getResource(String projectName, String instanceID) {
@@ -151,7 +197,7 @@ public class InstanceTunnel {
    * EXPIRED 过期
    */
   public static enum DownloadStatus {
-    UNKNOWN, NORMAL, CLOSED, EXPIRED, INITIATING
+    UNKNOWN, NORMAL, CLOSED, EXPIRED, INITIATING, FAILED
   }
 
   /**
@@ -180,7 +226,8 @@ public class InstanceTunnel {
     private RestClient tunnelServiceClient;
 
     private String taskName;
-
+    private int queryId = -1;
+    private boolean isLongPolling = false;
     /**
      * 根据已有downloadId构造一个{@link DownloadSession}对象。
      *
@@ -228,12 +275,34 @@ public class InstanceTunnel {
      */
     private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled, String taskName)
             throws TunnelException {
+      this(projectName, instanceID, downloadId, limitEnabled, taskName, -1);
+    }
+
+    /**
+     * 根据已有downloadId构造一个{@link DownloadSession}对象。
+     *
+     * @param projectName
+     *     下载数据表所在project名称
+     * @param instanceID
+     *     下载数据 instanceID
+     * @param downloadId
+     *     Download的唯一标识符
+     * @param limitEnabled
+     *     limited to 1w results
+     * @param taskName
+     *     SqlRtTask模式的task名称
+     * @param queryId
+     *     SqlRtTask的SubqueryId, -1表示当前currentquery
+     */
+    private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled, String taskName, int queryId)
+        throws TunnelException {
       this.conf = InstanceTunnel.this.config;
       this.projectName = projectName;
       this.instanceID = instanceID;
       this.id = downloadId;
       this.limitEnabled = limitEnabled;
       this.taskName = taskName;
+      this.queryId = queryId;
       tunnelServiceClient = conf.newRestClient(projectName);
 
       if (id == null) {
@@ -241,6 +310,32 @@ public class InstanceTunnel {
       } else {
         reload();
       }
+    }
+
+    /**
+     * 创建一个long polling模式的session。
+     *
+     * @param projectName
+     *     下载数据表所在project名称
+     * @param instanceID
+     *     下载数据 instanceID
+     * @param limitEnabled
+     *     limited to 1w results
+     * @param taskName
+     *     SqlRtTask模式的task名称
+     * @param queryId
+     *     SqlRtTask的SubqueryId, -1表示当前currentquery
+     */
+    private DownloadSession(String projectName, String instanceID, boolean limitEnabled, String taskName, int queryId)
+        throws TunnelException {
+      this.conf = InstanceTunnel.this.config;
+      this.projectName = projectName;
+      this.instanceID = instanceID;
+      this.limitEnabled = limitEnabled;
+      this.taskName = taskName;
+      this.queryId = queryId;
+      this.isLongPolling = true;
+      tunnelServiceClient = conf.newRestClient(projectName);
     }
 
     /**
@@ -355,6 +450,9 @@ public class InstanceTunnel {
       if (taskName != null) {
         params.put(TunnelConstants.CACHED, null);
         params.put(TunnelConstants.TASK_NAME, taskName);
+        if (queryId != -1) {
+          params.put(TunnelConstants.QUERY_ID, String.valueOf(queryId));
+        }
       }
 
       Connection conn = null;
@@ -425,7 +523,6 @@ public class InstanceTunnel {
           }
         }
       }
-
     }
 
     /**
@@ -435,6 +532,10 @@ public class InstanceTunnel {
      */
     public TableSchema getSchema() {
       return this.schema;
+    }
+
+    public void setSchema(TableSchema schema) {
+      this.schema = schema;
     }
 
     /**
@@ -463,6 +564,17 @@ public class InstanceTunnel {
      */
     public String getTaskName() {
       return this.taskName;
+    }
+
+    /**
+     * 获取SQL_RT_TASK的subqueryId
+     */
+    public int getQueryId() {
+      return this.queryId;
+    }
+
+    public boolean getIsLongPolling() {
+      return this.isLongPolling;
     }
 
     /**
@@ -514,6 +626,4 @@ public class InstanceTunnel {
       }
     }
   }
-
-
 }

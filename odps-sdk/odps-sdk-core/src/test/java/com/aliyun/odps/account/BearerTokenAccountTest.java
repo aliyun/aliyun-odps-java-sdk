@@ -72,8 +72,9 @@ public class BearerTokenAccountTest extends TestBase {
   @Test(expected = OdpsException.class)
   public void testErrorToken() throws OdpsException {
     Account account = new BearerTokenAccount("test_error");
-    Odps tokenOdps = new Odps(odps);
-    tokenOdps.setAccount(account);
+    Odps tokenOdps = new Odps(account);
+    tokenOdps.setDefaultProject(odps.getDefaultProject());
+    tokenOdps.setEndpoint(odps.getEndpoint());
 
     tokenOdps.tables().create(OdpsTestUtils.getRandomTableName(), schema);
   }

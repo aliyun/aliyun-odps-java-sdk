@@ -140,7 +140,7 @@ public class DefaultConnection implements Connection {
         sb.append(pad).append(MimeUtility.decodeText(v));
         pad = ",";
       }
-      headers.put(kv.getKey(), sb.toString());
+      headers.put(Headers.toCaseSensitiveHeaderName(kv.getKey()), sb.toString());
     }
     return resp;
   }

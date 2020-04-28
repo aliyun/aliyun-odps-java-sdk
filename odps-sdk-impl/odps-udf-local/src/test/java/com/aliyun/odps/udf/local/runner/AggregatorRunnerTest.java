@@ -19,10 +19,13 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.udf.local.examples.UdafComplex;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Map;
+import java.util.UUID;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -200,6 +203,35 @@ public class AggregatorRunnerTest {
     List<Object[]> out = runner.yield();
     Assert.assertEquals(1, out.size());
     Assert.assertEquals(36L+24L, out.get(0)[0]);
+  }
+
+  @Test
+  public void testComplex() throws LocalRunException, UDFException {
+    String str1 = UUID.randomUUID().toString();
+    String str2 = UUID.randomUUID().toString();
+    runner = new AggregatorRunner(null, new UdafComplex());
+    runner.feed(new Object[]{buildArrayList(str1, null, str2)}).feed(new Object[]{null})
+        .feed(new Object[]{buildArrayList( str2, null)});
+    List<Object[]> out = runner.yield();
+    Assert.assertEquals(1, out.size());
+    Assert.assertEquals(1, out.get(0).length);
+    Object result = out.get(0)[0];
+    Map map = (Map) result;
+    Assert.assertEquals(3, map.size());
+    Assert.assertEquals(1, map.get(str1));
+    Assert.assertEquals(2, map.get(str2));
+    Assert.assertEquals(2, map.get(null));
+  }
+
+  private List<String> buildArrayList(String... elements) {
+    if (elements == null) {
+      return null;
+    }
+    List<String> list = new ArrayList<>();
+    for (String ele : elements) {
+      list.add(ele);
+    }
+    return list;
   }
 
 }

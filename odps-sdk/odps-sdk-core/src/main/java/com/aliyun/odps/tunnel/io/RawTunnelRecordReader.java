@@ -18,6 +18,9 @@ import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelTableSchema;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Created by zhenhong.gzh on 16/1/5.
@@ -43,7 +46,8 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
                                                                  CompressOption compress,
                                                                  List<Column> columns,
                                                                  RestClient restClient,
-                                                                 InstanceTunnel.DownloadSession session)
+                                                                 InstanceTunnel.DownloadSession session,
+                                                                 boolean longPolling)
       throws TunnelException, IOException {
     HashMap<String, String> params = new HashMap<String, String>();
     HashMap<String, String> headers = new HashMap<String, String>();
@@ -80,17 +84,28 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       params.put(TunnelConstants.RES_COLUMNS, sb.toString());
     }
 
-    params.put(TunnelConstants.DOWNLOADID, session.getId());
     params.put("data", null);
 
-    params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
-    TunnelRecordReader reader = null;
+    if (longPolling) {
+      params.put(TunnelConstants.CACHED, null);
+      params.put(TunnelConstants.TASK_NAME, session.getTaskName());
+      if (session.getQueryId() != -1) {
+        params.put(TunnelConstants.QUERY_ID, String.valueOf(session.getQueryId()));
+      }
+      if (count > 0) {
+        // limit mode, otherwise unlimited
+        params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
+      }
+    } else {
+      params.put(TunnelConstants.DOWNLOADID, session.getId());
+      params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
+    }
     Connection conn = null;
     try {
       conn =
           restClient.connect(ResourceBuilder.buildInstanceResource(session.getProjectName(),
-                                                                   session.getInstanceID()), "GET",
-                             params, headers);
+              session.getInstanceID()), "GET",
+              params, headers);
       Response resp = conn.getResponse();
       if (!resp.isOK()) {
         TunnelException err = new TunnelException(conn.getInputStream());
@@ -103,15 +118,22 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       if (content_encoding != null) {
         if (content_encoding.equals("deflate")) {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_ZLIB,
-                                                    -1, 0);
+              -1, 0);
         } else if (content_encoding.equals("x-snappy-framed")) {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY,
-                                                    -1, 0);
+              -1, 0);
         } else {
           throw new TunnelException("invalid content encoding");
         }
       }
-
+      if (longPolling) {
+        // get schema from resp header
+        String schemaStr = resp.getHeader(Headers.TUNNEL_SCHEMA);
+        JsonObject tree = new JsonParser().parse(schemaStr).getAsJsonObject();
+        TableSchema schema = new TunnelTableSchema(tree);
+        // in direct mode, schema in session is null, we need to set it back
+        session.setSchema(schema);
+      }
       return new RawTunnelRecordReader(session.getSchema(), columns, conn, option);
 
     } catch (IOException e) {

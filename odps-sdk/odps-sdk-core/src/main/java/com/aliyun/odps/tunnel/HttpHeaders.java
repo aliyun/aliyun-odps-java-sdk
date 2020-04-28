@@ -17,7 +17,8 @@ package com.aliyun.odps.tunnel;
 
 import com.aliyun.odps.commons.transport.Headers;
 
-public class HttpHeaders implements Headers {
+// TODO: merge to Headers
+public class HttpHeaders extends Headers {
 
   public static final String HEADER_ODPS_REQUEST_ID = "x-odps-request-id";
   public static final String HEADER_ODPS_TUNNEL_VERSION = "x-odps-tunnel-version";
@@ -29,6 +30,7 @@ public class HttpHeaders implements Headers {
   public static final String HEADER_ODPS_VOLUME_FS_PATH = "x-odps-volume-fs-path";
   public static final String HEADER_ODPS_VOLUME_SESSIONID = "x-odps-volume-sessionid";
   public static final String HEADER_ODPS_DATE_TRANSFORM = "odps-tunnel-date-transform";
-
+  public static final String HEADER_ODPS_ROUTED_SERVER = "odps-tunnel-routed-server";
+  public static final String HEADER_ODPS_SLOT_NUM = "odps-tunnel-slot-num";
 
 }
