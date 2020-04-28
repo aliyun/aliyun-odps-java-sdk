@@ -21,11 +21,13 @@ package com.aliyun.odps.account;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.codec.binary.Base64;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 
 /**
@@ -52,7 +54,7 @@ public class AliyunRequestSigner implements RequestSigner {
 
   @Override
   public void sign(String resource, Request req) {
-    req.getHeaders().put("Authorization", getSignature(resource, req));
+    req.getHeaders().put(Headers.AUTHORIZATION, getSignature(resource, req));
   }
 
   public String getSignature(String resource, Request req) {
@@ -67,13 +69,9 @@ public class AliyunRequestSigner implements RequestSigner {
       log.fine("String to sign: " + strToSign);
     }
 
-    byte[] crypto = new byte[0];
-    try {
-      crypto = SecurityUtils.hmacsha1Signature(strToSign.getBytes("UTF-8"),
-                                               accessKey.getBytes());
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
+    byte[] crypto;
+    crypto = SecurityUtils.hmacsha1Signature(strToSign.getBytes(StandardCharsets.UTF_8),
+                                             accessKey.getBytes());
 
     String signature = Base64.encodeBase64String(crypto).trim();
 

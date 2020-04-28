@@ -323,7 +323,7 @@ public class SecurityManager {
     Map<String, String> params = new HashMap<String, String>();
     params.put("security_policy", null);
     Map<String, String> headers = new HashMap<String, String>();
-    headers.put("Content-type", "application/json");
+    headers.put(Headers.CONTENT_TYPE, "application/json");
     client.stringRequest(resource, "PUT", params, headers, securityPolicy);
   }
 
@@ -576,7 +576,7 @@ public class SecurityManager {
     }
     HashMap<String, String> headers = new HashMap<String, String>();
     if (supervisionToken != null) {
-      headers.put("odps-x-supervision-token", supervisionToken);
+      headers.put(Headers.ODPS_SUPERVISION_TOKEN, supervisionToken);
     }
     headers.put(Headers.CONTENT_TYPE, "application/xml");
 

@@ -1,3 +1,8 @@
+# 0.34.4
+- session v2
+- support SQL function
+- support stream tunnel
+
 # 0.33.7
 - support list table
 - table tunnel supports overwrite mode

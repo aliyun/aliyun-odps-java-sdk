@@ -8,11 +8,15 @@ import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Session;
 import com.aliyun.odps.task.SQLTask;
 
+@Deprecated
 public class SessionQueryResult {
   private Iterator<Session.SubQueryResponse> rawResultIterator;
+  private Session.SubQueryInfo subQueryInfo;
+  private Integer status = Session.OBJECT_STATUS_RUNNING;
 
-  public SessionQueryResult(Iterator<Session.SubQueryResponse> result) {
+  public SessionQueryResult(Session.SubQueryInfo subQueryInfo, Iterator<Session.SubQueryResponse> result) {
     this.rawResultIterator = result;
+    this.subQueryInfo = subQueryInfo;
   }
 
   /**
@@ -20,13 +24,20 @@ public class SessionQueryResult {
    *
    * @return 数据结果 record 迭代器
    */
+  @Deprecated
   public Iterator<Record> getRecordIterator() {
     return new ListIterator<Record>() {
       @Override
       protected List<Record> list() {
+        Session.SubQueryResponse response = null;
         try {
           if (rawResultIterator.hasNext()) {
-            return SQLTask.parseCsvRecord(rawResultIterator.next().result);
+            response = rawResultIterator.next();
+            if (response.status == Session.OBJECT_STATUS_FAILED) {
+              throw new OdpsException("Query failed:" + response.result);
+            } else {
+              return SQLTask.parseCsvRecord(response.result);
+            }
           }
 
           return null;
@@ -55,7 +66,9 @@ public class SessionQueryResult {
     StringBuilder stringBuilder = new StringBuilder();
 
     while(rawResultIterator.hasNext()) {
-      stringBuilder.append(rawResultIterator.next().result);
+      Session.SubQueryResponse response = rawResultIterator.next();
+      stringBuilder.append(response.result);
+      status = response.status;
     }
 
     return stringBuilder.toString();
@@ -64,4 +77,11 @@ public class SessionQueryResult {
   // Todo: implement this when session support instance tunnel
   // public ResultSet getResultSet(){}
 
+  public Session.SubQueryInfo getSubQueryInfo() {
+    return subQueryInfo;
+  }
+
+  public Integer getStatus() {
+    return status;
+  }
 }

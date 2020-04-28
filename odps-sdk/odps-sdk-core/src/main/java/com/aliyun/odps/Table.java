@@ -163,6 +163,7 @@ public class Table extends LazyLoad {
     long hubLifecycle = -1L;
     String viewText;
     long size;
+    long recordNum = -1L;
 
     boolean isArchived;
     long physicalSize;
@@ -528,6 +529,16 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * 获取表的Record数, 若无准确数据，则返回-1
+   *
+   * @return 表的record数
+   */
+  public long getRecordNum() {
+    lazyLoad();
+    return model.recordNum;
+  }
+
+  /**
    * 获取表的生命周期值，单位：天
    *
    * @return 生命周期值
@@ -834,6 +845,10 @@ public class Table extends LazyLoad {
         model.fileNum = tree.get("FileNum").getAsLong();
       }
 
+      if (tree.has("recordNum")) {
+        model.recordNum = tree.get("recordNum").getAsLong();
+      }
+
       if (tree.has("storageHandler")) {
         model.storageHandler = tree.get("storageHandler").getAsString();
       }
@@ -1053,6 +1068,42 @@ public class Table extends LazyLoad {
     private Integer maxItems;
   }
 
+  private static class ListPartitionSpecsResponse {
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    private String marker;
+
+    @Element(name = "MaxItems", required = false)
+    private Integer maxItems;
+
+    @ElementList(entry = "Partition", inline = true, required = false)
+    private List<PartitionSpecModel> partitionSpecs = new LinkedList<>();
+  }
+
+  /**
+   * Get list of partition specs. The returned partition specs are ordered lexicographically.
+   *
+   * @return list of {@link PartitionSpec}
+   */
+  public List<PartitionSpec> getPartitionSpecs() throws OdpsException {
+    Map<String, String> params = new HashMap<>();
+    params.put("partitions", null);
+    params.put("name", null);
+
+    String resource = ResourceBuilder.buildTableResource(model.projectName, getName());
+    List<PartitionSpec> partitionSpecs = new ArrayList<>();
+
+    ListPartitionSpecsResponse resp = client.request(ListPartitionSpecsResponse.class,
+                                                 resource,
+                                                 "GET",
+                                                 params);
+    for (PartitionSpecModel partitionSpecModel : resp.partitionSpecs) {
+      partitionSpecs.add(new PartitionSpec(partitionSpecModel.partitionSpec));
+    }
+
+    return partitionSpecs;
+  }
+
   /**
    * 在Table上创建Shards
    *
@@ -1137,6 +1188,54 @@ public class Table extends LazyLoad {
       parts.add(it.next());
     }
     return parts;
+  }
+
+  /**
+   * Get partitions by range. Partitions are ordered with their partition spec string
+   * lexicographically. If lowerBound == null and upperBound != null, partitions greater than the
+   * lowerBound would be returned.
+   *
+   * @param lowerBound
+   *     lower bound
+   *
+   * @param upperBound
+   *     upper bound
+   *
+   * @return list of {@link Partition}
+   *
+   * @throws IllegalArgumentException if the lowerBound argument is null
+   */
+  public List<Partition> getPartitions(final PartitionSpec lowerBound,
+                                       final PartitionSpec upperBound) throws OdpsException {
+    if (lowerBound == null) {
+      throw new IllegalArgumentException("Argument lowerBound cannot be null");
+    }
+
+    Map<String, String> params = new HashMap<>();
+    params.put("partitions", null);
+
+    // Single quotations marks are not allowed here and comma should be replaced with slash
+    String lowerBoundString = lowerBound.toString(false, true);
+
+    params.put("min_value", lowerBoundString);
+    if (upperBound != null) {
+      String upperBoundString = upperBound.toString(false, true);
+      params.put("max_value", upperBoundString);
+    }
+
+    String resource = ResourceBuilder.buildTableResource(model.projectName, getName());
+    List<Partition> partitions = new ArrayList<>();
+
+    ListPartitionsResponse resp = client.request(ListPartitionsResponse.class,
+                                                 resource,
+                                                 "GET",
+                                                 params);
+    for (PartitionModel partitionModel : resp.partitions) {
+      Partition t = new Partition(partitionModel, model.projectName, getName(), client);
+      partitions.add(t);
+    }
+
+    return partitions;
   }
 
   /**

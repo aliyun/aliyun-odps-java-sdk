@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.security;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Attribute;
 import com.aliyun.odps.simpleframework.xml.Element;
@@ -158,7 +159,7 @@ public class SecurityConfiguration extends LazyLoad {
       HashMap<String, String> headers = null;
       if (supervisionToken != null) {
         headers = new HashMap<String, String>();
-        headers.put("odps-x-supervision-token", supervisionToken);
+        headers.put(Headers.ODPS_SUPERVISION_TOKEN, supervisionToken);
       }
       client.stringRequest(resource.toString(), "PUT", params, headers,
                            xmlSecurityConfiguration);

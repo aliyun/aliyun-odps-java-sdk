@@ -27,7 +27,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.aliyun.odps.Resources.ResourceHeaders;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -339,12 +338,12 @@ public class Resource extends LazyLoad {
     params.put("meta", null);
     Response rp = client.request(resource, "GET", params, null, null);
     Map<String, String> headers = rp.getHeaders();
-    model.owner = headers.get(ResourceHeaders.X_ODPS_OWNER);
-    model.type = headers.get(ResourceHeaders.X_ODPS_RESOURCE_TYPE);
-    model.comment = headers.get(ResourceHeaders.X_ODPS_COMMENT);
-    model.lastUpdator = headers.get(ResourceHeaders.X_ODPS_RESOURCE_LAST_UPDATOR);
+    model.owner = headers.get(Headers.ODPS_OWNER);
+    model.type = headers.get(Headers.ODPS_RESOURCE_TYPE);
+    model.comment = headers.get(Headers.ODPS_COMMENT);
+    model.lastUpdator = headers.get(Headers.ODPS_RESOURCE_LAST_UPDATOR);
 
-    String sizeStr = headers.get(ResourceHeaders.X_ODPS_RESOURCE_SIZE);
+    String sizeStr = headers.get(Headers.ODPS_RESOURCE_SIZE);
     try {
       model.size = (sizeStr == null ? null : Long.parseLong(sizeStr));
     } catch (NumberFormatException e) {
@@ -353,16 +352,15 @@ public class Resource extends LazyLoad {
 
     try {
       model.createdTime = DateUtils.parseRfc822Date(headers
-                                                        .get("x-odps-creation-time"));
+                                                        .get(Headers.ODPS_CREATION_TIME));
       model.lastModifiedTime = DateUtils.parseRfc822Date(headers
-                                                             .get("Last-Modified"));
+                                                             .get(Headers.LAST_MODIFIED));
     } catch (Exception e) {
       throw new OdpsException("Invalid date format", e);
     }
 
-    model.sourceTableName = headers
-        .get(ResourceHeaders.X_ODPS_COPY_TABLE_SOURCE);
-    model.volumePath = headers.get(ResourceHeaders.X_ODPS_COPY_FILE_SOURCE);
+    model.sourceTableName = headers.get(Headers.ODPS_COPY_TABLE_SOURCE);
+    model.volumePath = headers.get(Headers.ODPS_COPY_FILE_SOURCE);
     model.contentMD5 = headers.get(Headers.CONTENT_MD5);
     setLoaded(true);
   }
@@ -380,7 +378,7 @@ public class Resource extends LazyLoad {
     HashMap<String, String> params = new HashMap<String, String>();
     params.put("updateowner", null);
     HashMap<String, String> headers = new HashMap<String, String>();
-    headers.put(ResourceHeaders.X_ODPS_OWNER, newOwner);
+    headers.put(Headers.ODPS_OWNER, newOwner);
 
     client.request(resource, method, params, headers, null);
 

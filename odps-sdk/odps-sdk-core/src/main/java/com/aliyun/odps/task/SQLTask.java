@@ -43,6 +43,7 @@ import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
+import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
 import com.csvreader.CsvReader;
 import com.google.gson.*;
@@ -94,37 +95,9 @@ public class SQLTask extends Task {
    * @throws OdpsException
    */
   public static List<Record> parseCsvRecord(String csvResult) throws OdpsException {
-    CsvReader reader = new CsvReader(new StringReader(csvResult));
-    reader.setSafetySwitch(false);
-    List<Record> records = new ArrayList<Record>();
-    int lineCount = 0;
-    String[] newline;
-    Column[] columns = new Column[]{};
-
-    try {
-      while (reader.readRecord()) {
-        newline = reader.getValues();
-        // the first line is column names
-        if (lineCount == 0) {
-          columns = new Column[newline.length];
-          for (int i = 0; i < newline.length; i++) {
-            columns[i] = new Column(newline[i], OdpsType.STRING);
-          }
-        } else {
-          Record record = new ArrayRecord(columns);
-          for (int i = 0; i < newline.length; i++) {
-            record.set(i, newline[i]);
-          }
-          records.add(record);
-        }
-        lineCount++;
-      }
-    } catch (IOException e) {
-      throw new OdpsException("Error when parse sql results.", e);
-    }
-    return records;
+    return CSVRecordParser.parse(csvResult).getRecords();
   }
-  
+
   /**
    * Return 1W records at most. <br />
    *
@@ -585,7 +558,7 @@ public class SQLTask extends Task {
    *     需要运行的SQL查询
    * @param hints
    *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
-   * @param alias
+   * @param aliases
    *     Alias信息。详情请参考用户手册中alias命令的相关介绍
    * @return 作业运行实例 {@link Instance}
    * @throws OdpsException

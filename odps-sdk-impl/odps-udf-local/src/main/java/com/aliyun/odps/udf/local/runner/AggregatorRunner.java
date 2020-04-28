@@ -19,6 +19,10 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.local.common.Pair;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.udf.annotation.Resolve;
+import com.aliyun.odps.udf.local.util.ResolveUtils;
 import java.util.List;
 
 import com.aliyun.odps.Odps;
@@ -28,16 +32,19 @@ import com.aliyun.odps.udf.Aggregator;
 import com.aliyun.odps.udf.UDFException;
 import com.aliyun.odps.udf.local.LocalRunException;
 import com.aliyun.odps.udf.local.util.ClassUtils;
-import com.aliyun.odps.udf.local.util.LocalWritableUtils;
+import com.aliyun.odps.local.common.utils.LocalWritableUtils;
 
 public class AggregatorRunner extends BaseRunner {
 
   private Aggregator aggregator;
   private Writable userDefineBuffer;
+  private List<TypeInfo> inputTypes;
+  private TypeInfo outputType;
 
   public AggregatorRunner(Odps odps, Aggregator aggregator) throws UDFException {
     super(odps);
     this.aggregator = aggregator;
+    checkArguments(aggregator);
     try {
       SecurityClient.open();
       aggregator.setup(context);
@@ -55,6 +62,7 @@ public class AggregatorRunner extends BaseRunner {
       SecurityClient.open();
       aggregator =
           (Aggregator) ClassUtils.newInstance(AggregatorRunner.class.getClassLoader(), className);
+      checkArguments(aggregator);
       aggregator.setup(context);
       userDefineBuffer = aggregator.newBuffer();
     } catch (LocalRunException e) {
@@ -67,9 +75,18 @@ public class AggregatorRunner extends BaseRunner {
 
   }
 
+  private void checkArguments(Aggregator aggregator) {
+    Resolve r = aggregator.getClass().getAnnotation(Resolve.class);
+    if (r != null) {
+      Pair<List<TypeInfo>, List<TypeInfo>> inputOutputTypes = ResolveUtils.parseResolve(r);
+      inputTypes = inputOutputTypes.getFirst();
+      outputType = inputOutputTypes.getSecond().get(0);
+    }
+  }
+
   @Override
   public BaseRunner internalFeed(Object[] input) throws LocalRunException {
-    Writable[] inputWritables = LocalWritableUtils.convert(input);
+    Writable[] inputWritables = LocalWritableUtils.convert(input, inputTypes);
     try {
       SecurityClient.open();
       Writable partialBuffer = aggregator.newBuffer();
@@ -88,7 +105,7 @@ public class AggregatorRunner extends BaseRunner {
     try {
       SecurityClient.open();
       Writable result = aggregator.terminate(userDefineBuffer);
-      buffer.add(new Object[] {LocalWritableUtils.convert(result)});
+      buffer.add(new Object[] {LocalWritableUtils.convert(result, outputType)});
       aggregator.close();
     } catch (UDFException e) {
       throw new LocalRunException(e);

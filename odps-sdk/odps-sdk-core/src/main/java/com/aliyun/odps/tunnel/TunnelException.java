@@ -44,42 +44,9 @@ public class TunnelException extends OdpsException {
   }
 
   public TunnelException(String requestId, InputStream in, Integer status) {
-    this(in);
-    this.requestId = requestId;
-    this.status = status;
-  }
-  /**
-   * 构造异常对象
-   *
-   * @param message
-   */
-  public TunnelException(String message) {
-    super(message);
-    this.errorCode = TunnelConstants.LOCAL_ERROR_CODE;
-    this.errorMsg = message;
-  }
-
-  /**
-   * 构造异常对象
-   *
-   * @param message
-   * @param cause
-   */
-  public TunnelException(String message, Throwable cause) {
-    super(message, cause);
-    this.errorCode = TunnelConstants.LOCAL_ERROR_CODE;
-    this.errorMsg = message;
-  }
-
-  /**
-   * 构造异常对象
-   *
-   * @param is
-   */
-  public TunnelException(InputStream is) {
     String message = "";
     try {
-      byte[] bytes = IOUtils.readFully(is);
+      byte[] bytes = IOUtils.readFully(in);
       message = new String(bytes);
       ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
       loadFromJson(bis);
@@ -90,6 +57,60 @@ public class TunnelException extends OdpsException {
       this.errorMsg = message;
       this.errorCode = TunnelConstants.LOCAL_ERROR_CODE;
     }
+    this.requestId = requestId;
+    this.status = status;
+  }
+
+  /**
+   * 构造异常对象
+   *
+   * @param message
+   */
+  public TunnelException(String message) {
+    this(null, message, null);
+  }
+
+  /**
+   * 构造异常对象
+   *
+   * @param message
+   * @param cause
+   */
+  public TunnelException(String message, Throwable cause) {
+    this(null, message, cause);
+  }
+
+  /**
+   * 构造异常对象
+   *
+   * @param requestId
+   * @param message
+     */
+  public TunnelException(String requestId, String message) {
+    this(requestId, message, null);
+  }
+
+  /**
+   * 构造异常对象
+   *
+   * @param requestId
+   * @param message
+   * @param cause
+     */
+  public TunnelException(String requestId, String message, Throwable cause) {
+    super(message, cause);
+    this.requestId = requestId;
+    this.errorCode = TunnelConstants.LOCAL_ERROR_CODE;
+    this.errorMsg = message;
+  }
+
+  /**
+   * 构造异常对象
+   *
+   * @param is
+   */
+  public TunnelException(InputStream is) {
+    this(null, is, null);
   }
 
   @Override

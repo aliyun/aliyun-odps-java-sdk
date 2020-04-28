@@ -28,10 +28,10 @@ import com.aliyun.odps.Survey;
  *
  * <p>
  * Transport提供两种方式发起HTTP请求: <br />
- * 1. 通过{@link request()}发起的请求直接带请求的body数据，<br />
+ * 1. 通过{@link Transport#request}发起的请求直接带请求的body数据，<br />
  * 响应的{@code Response}对象包含响应的body数据<br />
  * <br />
- * 2. 通过{@link connect()}发起的请求返回{@link Connection}对象, <br />
+ * 2. 通过{@link Transport#connect}发起的请求返回{@link Connection}对象, <br />
  * 请求和响应的body数据需要通过{@link Connection}上的输入和输出流处理<br />
  * </p>
  *
@@ -44,8 +44,8 @@ public interface Transport {
    * 发起HTTP请求
    *
    * <p>
-   * 使用{@code request()}发起HTTP请求, 请求的body需要通过{@link Request.setBody(byte[]
-   * body)}提供, 响应的body数据直接通过返回的{@link Response.getBody()}获取
+   * 使用{@code request()}发起HTTP请求, 请求的body需要通过{@link Request#setBody}提供, 响应的body数据直接通
+   * 过返回的{@link Response#getBody}获取
    * </p>
    *
    * @param req

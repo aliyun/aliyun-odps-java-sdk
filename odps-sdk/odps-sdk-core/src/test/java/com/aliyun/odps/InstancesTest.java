@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -174,6 +175,37 @@ public class InstancesTest extends TestBase {
         break;
       }
     }
+  }
+
+  @Test
+  public void testRawTaskResults() throws OdpsException {
+    Instance i = SQLTask.run(odps, "select count(*) from " + TABLE_NAME + ";");
+    i.waitForSuccess();
+    InstanceResultModel.TaskResult taskResult = i.getRawTaskResults().get(0);
+    Instance.TaskStatus.Status taskStatus =
+        Instance.TaskStatus.Status.valueOf(taskResult.status.toUpperCase());
+    assertEquals(Instance.TaskStatus.Status.SUCCESS, taskStatus);
+    assertNotNull(taskResult.name);
+    assertNotNull(taskResult.type);
+    assertNotNull(taskResult.result.text);
+  }
+
+  @Test
+  public void testFailedRawTaskResults() throws OdpsException {
+    Instance i = SQLTask.run(odps, "select count(*) from table_not_exists;");
+    try {
+      i.waitForSuccess();
+    } catch (OdpsException e) {
+      // ignore
+    }
+    InstanceResultModel.TaskResult taskResult = i.getRawTaskResults().get(0);
+    Instance.TaskStatus.Status taskStatus =
+        Instance.TaskStatus.Status.valueOf(taskResult.status.toUpperCase());
+
+    assertEquals(Instance.TaskStatus.Status.FAILED, taskStatus);
+    assertNotNull(taskResult.name);
+    assertNotNull(taskResult.type);
+    assertNotNull(taskResult.result.text);
   }
 
   @Test

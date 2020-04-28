@@ -7,6 +7,7 @@ import com.aliyun.odps.data.IntervalYearMonth;
 import com.aliyun.odps.data.SimpleStruct;
 import com.aliyun.odps.data.Struct;
 import com.aliyun.odps.data.Varchar;
+import com.aliyun.odps.io.Writable;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.CharTypeInfo;
@@ -194,6 +195,9 @@ public class TypeConvertUtils {
   public static Object transOdpsToJava(Object value, TypeInfo typeInfo) {
     if (value == null) {
       return null;
+    }
+    if (value instanceof Writable) {
+      return LocalWritableUtils.convert((Writable)value, typeInfo);
     }
     switch (typeInfo.getOdpsType()) {
       case BIGINT:

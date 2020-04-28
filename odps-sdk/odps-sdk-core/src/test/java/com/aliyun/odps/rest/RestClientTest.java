@@ -19,12 +19,8 @@
 
 package com.aliyun.odps.rest;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.aliyun.odps.account.AliyunAccount;
-import com.aliyun.odps.account.AppAccount;
-import com.aliyun.odps.commons.transport.Request;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -36,7 +32,11 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
+import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.AppAccount;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.commons.transport.Response;
 
 public class RestClientTest extends TestBase {
@@ -62,7 +62,7 @@ public class RestClientTest extends TestBase {
     String method = "GET";
     Map<String, String> params = null;
     Map<String, String> headers = new HashMap<String, String>();
-    headers.put("x-odps-comment", null);
+    headers.put(Headers.ODPS_COMMENT, null);
     Response response = odps.getRestClient().request(resource, method, params, headers, null, 0);
     System.out.println(new String(response.getBody()));
   }
@@ -105,9 +105,9 @@ public class RestClientTest extends TestBase {
 
     Map<String, String> params = new HashMap<String, String>();
     Map<String, String> headers = new HashMap<String, String>();
-    headers.put("x-odps-user-agent", "JavaSDK Revision:295ed47 Version:0.30.3 JavaVersion:1.8.0_172 CLT(0.30.0 : c36da9d); Mac OS X(30.5.26.135/jondeMacBook-Pro.local)");
-    headers.put("Date", "Fri, 30 Nov 2018 03:31:29 GMT");
+    headers.put(Headers.ODPS_USER_AGENT, "JavaSDK Revision:295ed47 Version:0.30.3 JavaVersion:1.8.0_172 CLT(0.30.0 : c36da9d); Mac OS X(30.5.26.135/jondeMacBook-Pro.local)");
+    headers.put(Headers.DATE, "Fri, 30 Nov 2018 03:31:29 GMT");
     Request request = restClient.buildRequest("/projects/project_name/instances/instance_name", "POST", params, headers);
-    assertTrue(request.getHeaders().containsKey("application-authentication"));
+    assertTrue(request.getHeaders().containsKey(Headers.APP_AUTHENTICATION));
   }
 }

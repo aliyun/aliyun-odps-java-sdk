@@ -174,9 +174,8 @@ public class ProtobufRecordPack extends RecordPack {
    * 因此这个值的变化并不是连续的
    *
    * @return
-   * @throws IOException
    */
-  public long getTotalBytes() throws IOException {
+  public long getTotalBytes() {
     return byteos.size();
   }
 

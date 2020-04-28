@@ -19,7 +19,6 @@
 
 package com.aliyun.odps;
 
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -35,9 +34,8 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.security.SecurityManager;
-import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.security.SecurityManager;
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
@@ -45,6 +43,7 @@ import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.simpleframework.xml.convert.Converter;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * ODPS项目空间
@@ -160,7 +159,6 @@ public class Project extends LazyLoad {
 
   @Root(name = "Property", strict = false)
   static class Property {
-
     Property() {
     }
 
@@ -230,9 +228,9 @@ public class Project extends LazyLoad {
       Map<String, String> headers = resp.getHeaders();
       model.owner = headers.get(Headers.ODPS_OWNER);
       model.creationTime = DateUtils.parseRfc822Date(headers
-                                                         .get("x-odps-creation-time"));
+                                                         .get(Headers.ODPS_CREATION_TIME));
       model.lastModified = DateUtils.parseRfc822Date(headers
-                                                         .get("Last-Modified"));
+                                                         .get(Headers.LAST_MODIFIED));
 
       properties = model.properties;
       clusters = model.clusters;

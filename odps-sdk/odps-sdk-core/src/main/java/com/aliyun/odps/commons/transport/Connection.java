@@ -32,11 +32,11 @@ import com.aliyun.odps.Survey;
  * 一个Connection对象与一次HTTP请求的生命周期相同, 当请求结束后Connection不再可用。<br />
  *
  * 一次HTTP请求有如下过程: <br />
- * 1. 通过{@link connect(Request req)}方法发起HTTP请求, HTTP头会发送<br />
- * 2. 通过{@link getOutputStream()}获得输出流，发送HTTP body数据 <br />
- * 3. {@link getResponse()}获得HTTP响应，包含状态吗, HTTP头 <br />
- * 4. {@link getInputStream()}读取HTTP响应的body部分数据 <br />
- * 5.{@link disconnect()}请求结束后释放资源
+ * 1. 通过{@link #connect(Request req)}方法发起HTTP请求, HTTP头会发送<br />
+ * 2. 通过{@link #getOutputStream()}获得输出流，发送HTTP body数据 <br />
+ * 3. {@link #getResponse()}获得HTTP响应，包含状态吗, HTTP头 <br />
+ * 4. {@link #getInputStream()}读取HTTP响应的body部分数据 <br />
+ * 5.{@link #disconnect()}请求结束后释放资源
  * </p>
  *
  * @author shenggong.wang@alibaba-inc.com
