@@ -37,6 +37,7 @@ public class ProjectTest extends TestBase {
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
       + "<Project>\n"
       + "   <Name>odps_mingyou_test</Name>\n"
+      + "   <Type>managed</Type>\n"
       + "   <Comment>project copy from [odps_test_tunnel_project]</Comment>\n"
       + "   <ProjectGroupName>group_200</ProjectGroupName>\n"
       + "   <Properties>\n"
@@ -96,6 +97,7 @@ public class ProjectTest extends TestBase {
     ProjectModel model = SimpleXmlUtils.unmarshal(xml.getBytes("utf-8"), ProjectModel.class);
 
     assertEquals("odps_mingyou_test", model.name);
+    assertEquals("managed", model.type);
     assertEquals("project copy from [odps_test_tunnel_project]", model.comment);
     assertEquals("AVAILABLE", model.state);
     assertEquals("group_200", model.projectGroupName);
@@ -112,6 +114,7 @@ public class ProjectTest extends TestBase {
   public void testMarshal() throws Exception {
     ProjectModel model = new ProjectModel();
     model.name = "odps_mingyou_test";
+    model.type = Project.ProjectType.managed.toString().toLowerCase();
     model.comment = "project copy from [odps_test_tunnel_project]";
     model.state = "AVAILABLE";
     model.projectGroupName = "group_200";

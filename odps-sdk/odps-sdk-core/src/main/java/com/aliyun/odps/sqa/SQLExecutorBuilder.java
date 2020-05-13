@@ -6,6 +6,7 @@ import com.aliyun.odps.OdpsException;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by dongxiao on 2020/3/17.
@@ -15,7 +16,7 @@ public class SQLExecutorBuilder {
   private boolean enableReattach = true;
   private boolean useInstanceTunnel = true;
   private Odps odps = null;
-  private Map<String, String> properties = new HashMap();
+  private Map<String, String> properties = new ConcurrentHashMap<>();
   private String taskName = SQLExecutorConstants.DEFAULT_TASK_NAME;
   private String serviceName = SQLExecutorConstants.DEFAULT_SERVICE;
   private String tunnelEndpoint = null;
@@ -41,7 +42,8 @@ public class SQLExecutorBuilder {
   }
 
   public SQLExecutorBuilder properties(Map<String, String> properties) {
-    this.properties = properties;
+    this.properties.clear();
+    this.properties.putAll(properties);
     return this;
   }
 

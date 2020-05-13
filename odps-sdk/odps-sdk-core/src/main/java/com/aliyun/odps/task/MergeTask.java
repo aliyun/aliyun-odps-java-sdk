@@ -17,17 +17,14 @@
  * under the License.
  */
 
-/**
- *
- */
 package com.aliyun.odps.task;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.Root;
+import java.util.LinkedList;
+import java.util.List;
 
 import com.aliyun.odps.Task;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
 
 /**
  * 表示执行一个Merge查询的任务。
@@ -37,9 +34,8 @@ import com.aliyun.odps.simpleframework.xml.convert.Convert;
 @Root(name = "Merge", strict = false)
 public class MergeTask extends Task {
 
-  @Element(name = "TableName", required = false)
-  @Convert(SimpleXmlUtils.EmptyStringConverter.class)
-  private String table;
+  @ElementList(entry = "TableName", inline = true, required = false)
+  private List<String> tables;
 
   // Package-visible. Only for JAXB to construct the instance.
   MergeTask() {
@@ -66,25 +62,61 @@ public class MergeTask extends Task {
   public MergeTask(String name, String table) {
     super();
     setName(name);
-    this.table = table;
+    tables = new LinkedList<>();
+    tables.add(table);
   }
 
   /**
-   * 返回查询语句。
+   * Get table (or partition) to merge.
    *
-   * @return 查询语句。
+   * @return Table (or partition) to merge.
    */
+  @Deprecated
   public String getTable() {
-    return table;
+    if (tables == null || tables.isEmpty()) {
+      return null;
+    }
+
+    return tables.get(0);
   }
 
   /**
-   * 设置查询语句。
+   * Set table (or partition) to merge.
    *
-   * @param table
-   *     查询语句。
+   * @param table Table (or partition) to merge. For non-partitioned table, the param should be
+   *               the table name. For partitioned tables, the param should be in the following
+   *               format: [tbl_name] partition([pt_col]=[pt_val], ...). [tbl_name], [pt_col] and
+   *               [pt_val] should be replaced with real table name, partition column name and
+   *               partition column value respectfully.
    */
+  @Deprecated
   public void setTable(String table) {
-    this.table = table;
+    if (tables == null) {
+      tables = new LinkedList<>();
+    }
+
+    tables.add(0, table);
+  }
+
+  /**
+   * Get tables (or partitions) to merge.
+   *
+   * @return List of tables (or partitions).
+   */
+  public List<String> getTables() {
+    return tables;
+  }
+
+  /**
+   * Set tables (or partitions) to merge.
+   *
+   * @param tables List of tables (or partitions). For non-partitioned table, list entry should be
+   *               the table name. For partitioned tables, list entry should be in the following
+   *               format: [tbl_name] partition([pt_col]=[pt_val], ...). [tbl_name], [pt_col] and
+   *               [pt_val] should be replaced with real table name, partition column name and
+   *               partition column value respectfully.
+   */
+  public void setTables(List<String> tables) {
+    this.tables = tables;
   }
 }

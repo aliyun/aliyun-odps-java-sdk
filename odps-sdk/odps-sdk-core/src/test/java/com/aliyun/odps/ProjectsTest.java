@@ -38,6 +38,7 @@ public class ProjectsTest extends TestBase {
       + "<Projects>\n"
       + "   <Project>\n"
       + "      <Name>a_0220210335__387</Name>\n"
+      + "      <Type>managed</Type>\n"
       + "      <Comment>test replication prj</Comment>\n"
       + "      <Owner>ALIYUN$odpstest5@aliyun-inc.com</Owner>\n"
       + "      <State>AVAILABLE</State>\n"
@@ -46,6 +47,7 @@ public class ProjectsTest extends TestBase {
       + "   </Project>\n"
       + "   <Project>\n"
       + "      <Name>a_0220210337_test3_239</Name>\n"
+      + "      <Type>external</Type>\n"
       + "      <Comment>test replication prj</Comment>\n"
       + "      <Owner>ALIYUN$odpstest5@aliyun-inc.com</Owner>\n"
       + "      <State>AVAILABLE</State>\n"
@@ -96,12 +98,14 @@ public class ProjectsTest extends TestBase {
 
     ProjectModel firstProject = projects.get(0);
     assertEquals("a_0220210335__387", firstProject.name);
+    assertEquals("managed", firstProject.type);
     assertEquals("test replication prj", firstProject.comment);
     assertEquals("ALIYUN$odpstest5@aliyun-inc.com", firstProject.owner);
     assertEquals("AVAILABLE", firstProject.state);
 
     ProjectModel secondProject = projects.get(1);
     assertEquals("a_0220210337_test3_239", secondProject.name);
+    assertEquals("external", secondProject.type);
     assertEquals("test replication prj", secondProject.comment);
     assertEquals("ALIYUN$odpstest5@aliyun-inc.com", secondProject.owner);
     assertEquals("AVAILABLE", secondProject.state);

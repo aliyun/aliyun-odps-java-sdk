@@ -65,16 +65,26 @@ public class SQLExecutorPool {
    */
   public void close() {
     synchronized (this) {
+      Iterator<Map.Entry<String, SQLExecutor>> it = busyExecutor.entrySet().iterator();
+      while(it.hasNext()) {
+        Map.Entry<String, SQLExecutor> entry = it.next();
+        try {
+          entry.getValue().getInstance().stop();
+        } catch (OdpsException e) {
+          // ignore
+        }
+      }
       while (!activeExecutor.isEmpty()) {
         SQLExecutor sqlExecutor = activeExecutor.poll();
-        sqlExecutor.close();
+        try {
+          sqlExecutor.getInstance().stop();
+        } catch (OdpsException e) {
+          // ignore
+        }
       }
-      Iterator<Map.Entry<String, SQLExecutor>> it = busyExecutor.entrySet().iterator();
-      while(it.hasNext()){
-        Map.Entry<String, SQLExecutor> entry = it.next();
-        entry.getValue().close();
-        it.remove();
-      }
+      currentCount = 0;
+      activeExecutor.clear();
+      busyExecutor.clear();
     }
   }
 

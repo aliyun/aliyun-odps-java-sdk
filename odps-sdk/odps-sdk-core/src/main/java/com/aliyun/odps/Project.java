@@ -29,6 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -77,6 +81,20 @@ public class Project extends LazyLoad {
   }
 
   /**
+   * 项目类型
+   */
+  public static enum ProjectType {
+    /**
+     * 普通 Odps 项目
+     */
+    managed,
+    /**
+     * 映射到 Odps 的外部项目，例如 hive
+     */
+    external
+  }
+
+  /**
    * Project model
    */
   @Root(name = "Project", strict = false)
@@ -85,6 +103,10 @@ public class Project extends LazyLoad {
     @Element(name = "Name", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;
+
+    @Element(name = "Type", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String type;
 
     @Element(name = "Comment", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
@@ -122,6 +144,31 @@ public class Project extends LazyLoad {
     Clusters clusters;
   }
 
+  public static class ExternalProjectProperties {
+    private JsonObject rootObj;
+    private JsonObject networkObj;
+
+    public ExternalProjectProperties(String source) {
+      rootObj = new JsonObject();
+      networkObj = new JsonObject();
+      rootObj.addProperty("source", source);
+      rootObj.add("network", networkObj);
+    }
+
+    public void addNetworkProperty(String name, String value) {
+      networkObj.addProperty(name, value);
+    }
+
+    public void addProperty(String name, String value) {
+      rootObj.addProperty(name, value);
+    }
+
+    public String toJson() {
+      Gson gson = new Gson();
+      return  gson.toJson(rootObj);
+    }
+  }
+
   public static class Cluster {
 
     Cluster() {
@@ -151,6 +198,7 @@ public class Project extends LazyLoad {
       return quotaID;
     }
   }
+
 
   static class Clusters {
     @ElementList(entry = "Cluster", inline = true, required = false)
@@ -247,6 +295,28 @@ public class Project extends LazyLoad {
    */
   public String getName() {
     return model.name;
+  }
+
+  /**
+   * 获取Project类型
+   *
+   * @return Project类型
+   */
+  public ProjectType getType() throws OdpsException {
+    if (model.type == null) {
+      lazyLoad();
+    }
+
+    if (model.type != null) {
+      try {
+        return ProjectType.valueOf(model.type.toLowerCase());
+      } catch (Exception e) {
+        throw new OdpsException("Unknown project type: " + model.type);
+      }
+    } else {
+      // no 'type' returned by Odps Api - we are targeting an old version Odps.
+      return ProjectType.managed;
+    }
   }
 
   /**

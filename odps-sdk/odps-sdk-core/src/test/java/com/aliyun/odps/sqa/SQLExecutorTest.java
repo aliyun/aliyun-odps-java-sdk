@@ -159,6 +159,17 @@ public class SQLExecutorTest extends TestBase {
     Assert.assertEquals(sqlExecutorPool.getActiveCount(), 3);
     Assert.assertEquals(sqlExecutorPool.getBusyCount(), 0);
     Assert.assertEquals(sqlExecutorPool.getExecutorCount(), 3);
+
+    SQLExecutor popExecutor4 = sqlExecutorPool.getExecutor();
+    Assert.assertEquals(sqlExecutorPool.getActiveCount(), 2);
+    Assert.assertEquals(sqlExecutorPool.getBusyCount(), 1);
+    Assert.assertEquals(sqlExecutorPool.getExecutorCount(), 3);
+
+    SQLExecutor popExecutor5 = sqlExecutorPool.getExecutor();
+    Assert.assertEquals(sqlExecutorPool.getActiveCount(), 1);
+    Assert.assertEquals(sqlExecutorPool.getBusyCount(), 2);
+    Assert.assertEquals(sqlExecutorPool.getExecutorCount(), 3);
+
     sqlExecutorPool.close();
   }
 

@@ -41,7 +41,7 @@ class SQLExecutorImpl implements SQLExecutor {
   private FallbackPolicy fallbackPolicy = null;
   private boolean enableReattach = true;
   private boolean useInstanceTunnel = true;
-  private Map<String, String> properties = null;
+  private Map<String, String> properties = new HashMap<>();
   private String serviceName;
   private String taskName;
   private String runningCluster;
@@ -102,7 +102,7 @@ class SQLExecutorImpl implements SQLExecutor {
                   SQLExecutorPool pool,
                   Instance recoverInstance,
                   String runningCluster) throws OdpsException {
-    this.properties = properties;
+    this.properties.putAll(properties);
     this.serviceName = serviceName;
     this.taskName = taskName;
     this.odps = odps;
