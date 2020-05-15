@@ -8,7 +8,7 @@ class SQLExecutorConstants {
   public static final String DEFAULT_SERVICE = "public.default";
   public static final String DEFAULT_OFFLINE_TASKNAME = "sqlrt_fallback_task";
   public static final int MaxRetryTimes = 1;
-  public static final String sessionExceptionFlag = "ODPS-181";
+  public static final String sessionExceptionFlag = "ODPS-180";
   public static final String sessionReattachFlag = "ODPS-181";
   public static final String sessionAccessDenyFlag = "ODPS-182";
   public static final String sessionResourceNotEnoughFlag = "ODPS-183";
