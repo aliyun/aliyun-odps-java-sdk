@@ -333,7 +333,6 @@ class SQLExecutorImpl implements SQLExecutor {
     } catch (Exception e) {
       throw e;
     } finally {
-      resetQuery();
     }
   }
 
@@ -359,7 +358,6 @@ class SQLExecutorImpl implements SQLExecutor {
     } catch (Exception e) {
       throw e;
     } finally {
-      resetQuery();
     }
   }
 
@@ -375,21 +373,12 @@ class SQLExecutorImpl implements SQLExecutor {
    */
   @Override
   public void run(String sql, Map<String, String> hint) throws OdpsException {
-    if (queryInfo != null) {
-      throw new OdpsException("Current query is running, please wait.");
-    } else {
-      queryInfo = new QueryInfo(sql, hint, executeMode);
-    }
+    queryInfo = new QueryInfo(sql, hint, executeMode);
     try {
       runQueryInternal(executeMode, null);
     } catch (Exception e) {
-      resetQuery();
       throw e;
     }
-  }
-
-  private void resetQuery() {
-    queryInfo = null;
   }
 
   private void reattach(String errorMessage) throws OdpsException {

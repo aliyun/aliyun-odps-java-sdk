@@ -837,6 +837,42 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
+  @Test
+  public void testExecutorGetResultTwice() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    sqlExecutor.run(sql, hint);
+    try {
+      Thread.sleep(5000);
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      List<Record> records = sqlExecutor.getResult();
+      printRecords(records);
+      Assert.assertEquals(records.size(), recordCount);
+
+      List<Record> records2 = sqlExecutor.getResult();
+      printRecords(records2);
+      Assert.assertEquals(records2.size(), recordCount);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } catch (InterruptedException e) {
+      throw new OdpsException(e.getMessage());
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
   private static void printRecords(List<Record> records) {
     for (Record record : records) {
       for (int k = 0; k < record.getColumnCount(); k++) {
