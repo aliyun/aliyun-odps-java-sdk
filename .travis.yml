@@ -1,4 +1,8 @@
+dist: precise
 language: java
+
+jdk: openjdk6
+
 install: mvn install -DskipTests=true -Dgpg.skip=true -Djavadoc.skip=true
 script: mvn package -DskipTests=true -Dgpg.skip=true -Djavadoc.skip=true
 deploy:
