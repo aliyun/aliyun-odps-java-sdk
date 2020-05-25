@@ -45,12 +45,6 @@ import com.aliyun.odps.io.WritableUtils;
  */
 public class WritableRecord implements Record {
 
-  private static final int STRING_MAX_LENTH = 8 * 1024 * 1024;
-  // 9999-12-31 23:59:59
-  private static final long DATETIME_MAX_TICKS = 253402271999000L;
-  // 0001-01-01 00:00:00
-  private static final long DATETIME_MIN_TICKS = -62135798400000L;
-
   private Column[] columns;
   private final Writable[] values;
   // for columns access statistics
@@ -277,10 +271,6 @@ public class WritableRecord implements Record {
 
   @Override
   public void setDatetime(int idx, Date value) {
-    if (value != null
-        && (value.getTime() > DATETIME_MAX_TICKS || value.getTime() < DATETIME_MIN_TICKS)) {
-      throw new IllegalArgumentException("InvalidData: Datetime out of range.");
-    }
     values[idx] = value == null ? null : new DatetimeWritable(DateUtils.date2ms(value));
   }
 
@@ -337,10 +327,6 @@ public class WritableRecord implements Record {
 
   @Override
   public void setString(int idx, byte[] value) {
-    if (value != null && value.length > STRING_MAX_LENTH) {
-      throw new IllegalArgumentException("InvalidData: The string's length is more than "
-                                         + STRING_MAX_LENTH / 1024 / 1024 + "M.");
-    }
     values[idx] = value == null ? null : new Text(value);
   }
 

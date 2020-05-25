@@ -32,7 +32,10 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
+import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.commons.transport.Response;
 
 public class RestClientTest extends TestBase {
@@ -58,7 +61,7 @@ public class RestClientTest extends TestBase {
     String method = "GET";
     Map<String, String> params = null;
     Map<String, String> headers = new HashMap<String, String>();
-    headers.put("x-odps-comment", null);
+    headers.put(Headers.ODPS_COMMENT, null);
     Response response = odps.getRestClient().request(resource, method, params, headers, null, 0);
     System.out.println(new String(response.getBody()));
   }

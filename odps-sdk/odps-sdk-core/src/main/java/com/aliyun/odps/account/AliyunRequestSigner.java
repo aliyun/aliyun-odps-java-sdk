@@ -26,6 +26,7 @@ import java.util.logging.Logger;
 
 import org.apache.commons.codec.binary.Base64;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 
 /**
@@ -52,7 +53,7 @@ public class AliyunRequestSigner implements RequestSigner {
 
   @Override
   public void sign(String resource, Request req) {
-    req.getHeaders().put("Authorization", getSignature(resource, req));
+    req.getHeaders().put(Headers.AUTHORIZATION, getSignature(resource, req));
   }
 
   public String getSignature(String resource, Request req) {

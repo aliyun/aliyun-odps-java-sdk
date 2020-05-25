@@ -1,6 +1,5 @@
 package com.aliyun.odps.data;
 
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -22,12 +21,6 @@ import com.aliyun.odps.type.VarcharTypeInfo;
  * Created by zhenhong.gzh on 16/12/13.
  */
 public class OdpsTypeTransformer {
-  private static final int STRING_MAX_LENGTH = 8 * 1024 * 1024;
-
-  // 9999-12-31 23:59:59
-  private static final long DATETIME_MAX_TICKS = 253402271999000L;
-  // 0001-01-01 00:00:00
-  private static final long DATETIME_MIN_TICKS = -62135798400000L;
 
   private static Map<OdpsType, Class> ODPS_TYPE_MAPPER = new HashMap<OdpsType, Class>() ;
 
@@ -66,18 +59,6 @@ public class OdpsTypeTransformer {
     throw new IllegalArgumentException("Cannot get Java type for Odps type: " + type);
   }
 
-  private static void validateString(String value) {
-    try {
-      if ((value.length() * 6 > STRING_MAX_LENGTH) && (value.getBytes("utf-8").length
-                                                       > STRING_MAX_LENGTH)) {
-        throw new IllegalArgumentException("InvalidData: The string's length is more than "
-                                           + STRING_MAX_LENGTH / 1024 / 1024 + "M.");
-      }
-    } catch (UnsupportedEncodingException e) {
-      throw new IllegalArgumentException(e.getMessage(), e);
-    }
-  }
-
   private static void validateChar(Char value, CharTypeInfo typeInfo) {
     if (value.length() > typeInfo.getLength()) {
       throw new IllegalArgumentException(String.format(
@@ -97,12 +78,6 @@ public class OdpsTypeTransformer {
   private static void validateBigint(Long value) {
     if (value == Long.MIN_VALUE) {
       throw new IllegalArgumentException("InvalidData: Bigint out of range.");
-    }
-  }
-
-  private static void validateDateTime(java.util.Date value) {
-    if ((value.getTime() > DATETIME_MAX_TICKS || value.getTime() < DATETIME_MIN_TICKS)) {
-      throw new IllegalArgumentException("InvalidData: Datetime out of range.");
     }
   }
 
@@ -172,14 +147,9 @@ public class OdpsTypeTransformer {
         if (value instanceof byte []) {
           value = ArrayRecord.bytesToString((byte []) value);
         }
-
-        validateString((String) value);
         break;
       case BIGINT:
         validateBigint((Long) value);
-        break;
-      case DATETIME:
-        validateDateTime((java.util.Date) value);
         break;
       case DECIMAL:
         validateDecimal((BigDecimal) value, (DecimalTypeInfo) typeInfo);

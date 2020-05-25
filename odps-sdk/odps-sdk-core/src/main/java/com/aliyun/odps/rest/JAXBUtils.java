@@ -19,15 +19,9 @@
 
 package com.aliyun.odps.rest;
 
-import java.io.ByteArrayInputStream;
-import java.io.StringWriter;
-import java.lang.reflect.Field;
-import java.lang.reflect.Proxy;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
+import com.aliyun.odps.Task;
+import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.commons.util.DateUtils;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -39,10 +33,15 @@ import javax.xml.namespace.NamespaceContext;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-
-import com.aliyun.odps.Task;
-import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.DateUtils;
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Utilities for JAXB marshal and unmarshal
@@ -139,7 +138,7 @@ public class JAXBUtils {
     @Override
     public void writeCharacters(char[] text, int start, int len)
         throws XMLStreamException {
-      w.writeCharacters(new String(text, start, len));
+      writeCharacters(new String(text, start, len));
     }
 
     @Override

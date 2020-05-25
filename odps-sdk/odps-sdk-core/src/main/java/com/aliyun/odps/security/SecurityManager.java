@@ -375,7 +375,7 @@ public class SecurityManager {
     }
     HashMap<String, String> headers = new HashMap<String, String>();
     if (supervisionToken != null) {
-      headers.put("odps-x-supervision-token", supervisionToken);
+      headers.put(Headers.ODPS_SUPERVISION_TOKEN, supervisionToken);
     }
     headers.put(Headers.CONTENT_TYPE, "application/xml");
     AuthorizationQueryResponse response = client.stringRequest(

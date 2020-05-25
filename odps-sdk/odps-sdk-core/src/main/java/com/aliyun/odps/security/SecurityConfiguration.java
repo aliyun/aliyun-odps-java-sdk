@@ -30,6 +30,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import com.aliyun.odps.LazyLoad;
 import com.aliyun.odps.NoSuchObjectException;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.utils.StringUtils;
@@ -139,7 +140,7 @@ public class SecurityConfiguration extends LazyLoad {
       HashMap<String, String> headers = null;
       if (supervisionToken != null) {
         headers = new HashMap<String, String>();
-        headers.put("odps-x-supervision-token", supervisionToken);
+        headers.put(Headers.ODPS_SUPERVISION_TOKEN, supervisionToken);
       }
       client.stringRequest(resource.toString(), "PUT", params, headers,
                            xmlSecurityConfiguration);

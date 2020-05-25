@@ -22,6 +22,7 @@ package com.aliyun.odps.account;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.commons.transport.Request.Method;
 
@@ -33,12 +34,12 @@ public class SecurityUtilsTest {
     String prefix = "x-odps-";
     Request request = new Request();
     request.setMethod(Method.POST);
-    request.setHeader("x-odps-user-agent", "JavaSDK/0.12.0;Linux");
-    request.setHeader("Date", "Tue, 13 May 2014 09:22:20 GMT");
-    request.setHeader("Content-Length", "369");
-    request.setHeader("Content-MD5", "746a0402967096663daa8bd1a2ff5c7c");
-    request.setHeader("User-Agent", "JavaSDK/0.12.0;Linux");
-    request.setHeader("Content-Type", "application/xml");
+    request.setHeader(Headers.ODPS_USER_AGENT, "JavaSDK/0.12.0;Linux");
+    request.setHeader(Headers.DATE, "Tue, 13 May 2014 09:22:20 GMT");
+    request.setHeader(Headers.CONTENT_LENGTH, "369");
+    request.setHeader(Headers.CONTENT_MD5, "746a0402967096663daa8bd1a2ff5c7c");
+    request.setHeader(Headers.USER_AGENT, "JavaSDK/0.12.0;Linux");
+    request.setHeader(Headers.CONTENT_TYPE, "application/xml");
     request.setBodyLength(0L);
 
     String expectedResult = "POST\n746a0402967096663daa8bd1a2ff5c7c\napplication/xml\n"

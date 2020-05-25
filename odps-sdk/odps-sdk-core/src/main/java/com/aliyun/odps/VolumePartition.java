@@ -98,7 +98,7 @@ public class VolumePartition extends LazyLoad {
     try {
       model = JAXBUtils.unmarshal(resp, VolumePartitionModel.class);
       model.lastModifiedTime = DateUtils.parseRfc822Date(resp.getHeader("Last_Modified"));
-      model.createdTime = DateUtils.parseRfc822Date(resp.getHeader("x-odps-creation-time"));
+      model.createdTime = DateUtils.parseRfc822Date(resp.getHeader(Headers.ODPS_CREATION_TIME));
       model.owner = resp.getHeader(Headers.ODPS_OWNER);
     } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + VolumePartitionModel.class, e);

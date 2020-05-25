@@ -59,6 +59,8 @@ public class OfflineModel extends LazyLoad {
     @XmlJavaTypeAdapter(JAXBUtils.DateBinding.class)
     Date lastModifiedTime;
 
+    @XmlElement(name = "Type")
+    String type;
   }
 
   private OfflineModelDesc modelDesc;
@@ -143,5 +145,17 @@ public class OfflineModel extends LazyLoad {
       lazyLoad();
     }
     return modelDesc.lastModifiedTime;
+  }
+
+  /**
+   * 获取离线模型 类型:经典机器学习模型/深度学习模型
+   *
+   * @return
+   */
+  public String getType() {
+    if(modelDesc.type == null && client != null) {
+      lazyLoad();
+    }
+    return modelDesc.type;
   }
 }

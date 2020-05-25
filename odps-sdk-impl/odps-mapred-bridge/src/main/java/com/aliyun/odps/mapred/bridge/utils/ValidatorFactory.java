@@ -270,9 +270,9 @@ public class ValidatorFactory {
       // Validate input volumes
       VolumeInfo[] volumes = InputUtils.getVolumes(job);
       if (volumes != null && volumes.length > 0) {
-        if (volumes.length > 256) {
+        if (volumes.length > 1024) {
           throwException(ErrorCode.TOO_MANY_INPUT_VOLUME,
-                         "Expecting no more than 256 partitions. ");
+                         "Expecting no more than 1024 partitions. ");
         }
         validateVolumes(volumes);
       }
@@ -280,9 +280,9 @@ public class ValidatorFactory {
       // Validate output volumes
       volumes = OutputUtils.getVolumes(job);
       if (volumes != null && volumes.length > 0) {
-        if (volumes.length > 256) {
+        if (volumes.length > 1024) {
           throwException(ErrorCode.TOO_MANY_OUTPUT_VOLUME,
-                         "Expecting no more than 256 partitions. ");
+                         "Expecting no more than 1024 partitions. ");
         }
         validateVolumes(volumes);
       }

@@ -17,7 +17,8 @@ package com.aliyun.odps.tunnel;
 
 import com.aliyun.odps.commons.transport.Headers;
 
-public class HttpHeaders implements Headers {
+// TODO: merge to Headers
+public class HttpHeaders extends Headers {
 
   public static final String HEADER_ODPS_REQUEST_ID = "x-odps-request-id";
   public static final String HEADER_ODPS_TUNNEL_VERSION = "x-odps-tunnel-version";

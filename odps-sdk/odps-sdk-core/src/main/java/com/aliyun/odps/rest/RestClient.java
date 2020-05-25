@@ -563,7 +563,7 @@ public class RestClient {
       // set User-Agent
       if (req.getHeaders().get(Headers.USER_AGENT) == null && userAgent != null) {
         req.setHeader(Headers.USER_AGENT, userAgent);
-        req.setHeader("x-odps-user-agent", userAgent);
+        req.setHeader(Headers.ODPS_USER_AGENT, userAgent);
       }
 
       req.getHeaders().put("Date", DateUtils.formatRfc822Date(new Date()));

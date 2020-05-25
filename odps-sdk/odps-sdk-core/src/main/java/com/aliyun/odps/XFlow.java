@@ -29,7 +29,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.aliyun.odps.Resources.ResourceHeaders;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.rest.JAXBUtils;
@@ -157,11 +157,11 @@ public class XFlow extends LazyLoad {
     }
 
     Map<String, String> headers = response.getHeaders();
-    model.owner = headers.get(ResourceHeaders.X_ODPS_OWNER);
+    model.owner = headers.get(Headers.ODPS_OWNER);
 
     try {
-      model.createdTime = DateUtils.parseRfc822Date(headers.get("x-odps-creation-time"));
-      model.lastModifiedTime = DateUtils.parseRfc822Date(headers.get("Last-Modified"));
+      model.createdTime = DateUtils.parseRfc822Date(headers.get(Headers.ODPS_CREATION_TIME));
+      model.lastModifiedTime = DateUtils.parseRfc822Date(headers.get(Headers.LAST_MODIFIED));
     } catch (Exception e) {
       throw new OdpsException("Invalid date format", e);
     }

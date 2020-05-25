@@ -21,7 +21,7 @@ package com.aliyun.odps.datahub;
 
 import com.aliyun.odps.commons.transport.Headers;
 
-public class DatahubHttpHeaders implements Headers{
+public class DatahubHttpHeaders extends Headers{
 
   public static final String HEADER_ODPS_REQUEST_ID = "x-odps-request-id";
   public static final String HEADER_ODPS_TUNNEL_VERSION = "x-odps-tunnel-version";

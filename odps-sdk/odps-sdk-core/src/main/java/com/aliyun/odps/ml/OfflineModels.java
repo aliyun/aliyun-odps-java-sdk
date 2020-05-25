@@ -26,14 +26,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.bind.JAXBException;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.aliyun.odps.ListIterator;
-import com.aliyun.odps.NoSuchObjectException;
-import com.aliyun.odps.Odps;
-import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.*;
+import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.ml.OfflineModel.OfflineModelDesc;
+import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 
@@ -208,6 +209,53 @@ public class OfflineModels implements Iterable<OfflineModel> {
         return models;
       }
     };
+  }
+
+  /**
+   * 创建离线模型, 返回负责创建离线模型的XmodelTask的instance
+   * @return Instance
+   * @param modelInfo
+   */
+  public Instance create(OfflineModelInfo modelInfo) throws OdpsException {
+    return create(getDefaultProjectName(), modelInfo);
+  }
+
+  /**
+   * 创建离线模型, 返回负责创建离线模型的XmodelTask的instance
+   * @return Odps Instance
+   * @param project
+   * @param modelInfo
+   */
+  public Instance create(String project, OfflineModelInfo modelInfo) throws OdpsException {
+    String xml = null;
+    try {
+      xml = JAXBUtils.marshal(modelInfo, OfflineModelInfo.class);
+    } catch (JAXBException e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
+
+    String resource = ModelResourceBuilder.buildOfflineModelResource(project);
+    Response resp = client.stringRequest(resource, "POST", null, headers, xml);
+
+    String location = resp.getHeaders().get(Headers.LOCATION);
+    if (location == null || location.trim().length() == 0) {
+      throw new OdpsException("Invalid response, Location header required.");
+    }
+    // location:service_name/projectname/instance/instanceid
+    location = location.trim();
+    String instId = location.substring(location.lastIndexOf('/') + 1);
+    if (instId.trim().length() == 0) {
+      throw new OdpsException("Create offlinemodel failed: Instance id not found, " + location);
+    }
+
+    if (odps.instances().exists(project, instId)) {
+      return odps.instances().get(project, instId);
+    } else {
+      throw new OdpsException("Create offlinemodel failed: Instance not found, " + instId);
+    }
   }
 
   /**

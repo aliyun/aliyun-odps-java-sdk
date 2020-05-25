@@ -222,9 +222,9 @@ public class Project extends LazyLoad {
       Map<String, String> headers = resp.getHeaders();
       model.owner = headers.get(Headers.ODPS_OWNER);
       model.creationTime = DateUtils.parseRfc822Date(headers
-                                                         .get("x-odps-creation-time"));
+                                                         .get(Headers.ODPS_CREATION_TIME));
       model.lastModified = DateUtils.parseRfc822Date(headers
-                                                         .get("Last-Modified"));
+                                                         .get(Headers.LAST_MODIFIED));
 
       properties = model.properties;
       clusters = model.clusters;

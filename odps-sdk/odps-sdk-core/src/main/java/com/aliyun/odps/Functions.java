@@ -30,6 +30,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.aliyun.odps.Function.FunctionModel;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.JAXBUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
@@ -136,7 +137,7 @@ public class Functions implements Iterable<Function> {
   public void update(String projectName, Function func) throws OdpsException {
     String resource = ResourceBuilder.buildFunctionResource(projectName, func.getName());
     HashMap<String, String> header = new HashMap<String, String>();
-    header.put("Content-Type", "application/xml");
+    header.put(Headers.CONTENT_TYPE, "application/xml");
 
     String ret;
     try {
@@ -172,7 +173,7 @@ public class Functions implements Iterable<Function> {
   public void create(String projectName, Function func) throws OdpsException {
     String resource = ResourceBuilder.buildFunctionsResource(projectName);
     HashMap<String, String> header = new HashMap<String, String>();
-    header.put("Content-Type", "application/xml");
+    header.put(Headers.CONTENT_TYPE, "application/xml");
 
     String ret;
     try {

@@ -246,8 +246,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     Response resp = client.request(getResource(), "GET", params, null, null);
     model.owner = resp.getHeaders().get(Headers.ODPS_OWNER);
-    String startTimeStr = resp.getHeaders().get("x-odps-start-time");
-    String endTimeStr = resp.getHeaders().get("x-odps-end-time");
+    String startTimeStr = resp.getHeaders().get(Headers.ODPS_START_TIME);
+    String endTimeStr = resp.getHeaders().get(Headers.ODPS_END_TIME);
     try {
       model.startTime = DateUtils.parseRfc822Date(startTimeStr);
 
