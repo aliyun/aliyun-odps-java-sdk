@@ -70,7 +70,7 @@ public class Session {
   }
 
   private static final String DEFAULT_TASK_NAME = "console_sqlrt_task";
-  private static final long POLL_INTERVAL = TimeUnit.SECONDS.toMillis(3);
+  private static final long POLL_INTERVAL = TimeUnit.SECONDS.toMillis(1);
 
   private String taskName = DEFAULT_TASK_NAME;
 
