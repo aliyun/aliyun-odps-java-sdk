@@ -1,7 +1,7 @@
-dist: precise
 language: java
-
-jdk: openjdk6
+dist: trusty
+jdk:
+  - oraclejdk8
 
 install: mvn install -DskipTests=true -Dgpg.skip=true -Djavadoc.skip=true
 script: mvn package -DskipTests=true -Dgpg.skip=true -Djavadoc.skip=true
