@@ -6,12 +6,12 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.27.7-public</version>
+        <version>0.27.7-public-java8</version>
     </parent>
 
     <artifactId>odps-sdk-udf</artifactId>
     <packaging>jar</packaging>
-    <version>0.27.7-public</version>
+    <version>0.27.7-public-java8</version>
     <name>ODPS SDK UDF</name>
     <url>http://maven.apache.org</url>
     <dependencies>
