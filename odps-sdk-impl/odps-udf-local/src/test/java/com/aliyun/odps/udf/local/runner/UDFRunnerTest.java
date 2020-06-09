@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.aliyun.odps.utils.StringUtils;
@@ -532,6 +533,24 @@ public class UDFRunnerTest {
     runner.addInputSource(inputSource);
     out = runner.yield();
     Assert.assertEquals("Struct:[1, 2]", StringUtils.join(out.get(0), ","));
+  }
+
+  @Test
+  public void byteToString() throws Exception {
+    int length = 256;
+    byte[] bytes = new byte[length];
+    for (int i = 0; i < length; ++i) {
+      bytes[i] = (byte)(i);
+    }
+    String s = LocalRunUtils.toReadableString(bytes);
+    byte[] bytes2 = LocalRunUtils.fromReadableString(s);
+    Assert.assertTrue(Arrays.equals(bytes, bytes2));
+
+    bytes = "abc中国".getBytes("utf-8");
+    s = LocalRunUtils.toReadableString(bytes);
+    bytes2 = LocalRunUtils.fromReadableString(s);
+    Assert.assertTrue(Arrays.equals(bytes, bytes2));
+
   }
 
 }

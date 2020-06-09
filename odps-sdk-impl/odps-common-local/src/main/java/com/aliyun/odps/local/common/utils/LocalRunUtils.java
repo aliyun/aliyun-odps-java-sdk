@@ -26,7 +26,6 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
@@ -39,8 +38,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
-import java.util.SimpleTimeZone;
 
 import javax.mail.internet.MimeUtility;
 
@@ -49,7 +46,6 @@ import org.apache.commons.io.filefilter.HiddenFileFilter;
 import org.apache.commons.io.filefilter.IOFileFilter;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.Table;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.ExceptionCode;
@@ -352,7 +348,7 @@ public class LocalRunUtils {
 
   public static String toReadableString(byte[] b) throws Exception {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    OutputStream printableos = MimeUtility.encode(baos, "quoted-printable");
+    OutputStream printableos = MimeUtility.encode(baos, "base64");
     printableos.write(b);
     printableos.close();
     return new String(baos.toByteArray(), Charset.forName("UTF-8"));
@@ -361,7 +357,7 @@ public class LocalRunUtils {
   public static byte[] fromReadableString(String str) throws Exception {
     byte[] b = str.getBytes();
     ByteArrayInputStream bais = new ByteArrayInputStream(b);
-    InputStream printableis = MimeUtility.decode(bais, "quoted-printable");
+    InputStream printableis = MimeUtility.decode(bais, "base64");
     byte[] tmp = new byte[b.length];
     int n = printableis.read(tmp);
     byte[] res = new byte[n];

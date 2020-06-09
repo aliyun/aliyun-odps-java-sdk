@@ -28,7 +28,6 @@ public class TypeConvertUtils {
 
   public static final Charset UTF8 = Charset.forName("UTF-8");
   public static DateFormat DATE_FORMAT = LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2);
-  public static boolean ENCODE_STRING = false;
 
   public static String toString(Object value, TypeInfo typeInfo) {
     Object javaVal = transOdpsToJava(value, typeInfo);
@@ -87,12 +86,7 @@ public class TypeConvertUtils {
         }
       case STRING:
         try {
-          if (ENCODE_STRING) {
-            byte[] bytes = LocalRunUtils.fromReadableString(token);
-            return toBinary ? bytes : new String(bytes, UTF8);
-          } else {
-            return toBinary ? token.getBytes(UTF8) : token;
-          }
+          return toBinary ? token.getBytes(UTF8) : token;
         } catch (Exception e) {
           throw new RuntimeException(" from string failed!", e);
         }
@@ -217,7 +211,7 @@ public class TypeConvertUtils {
       case STRING:
         try {
           if (value instanceof byte[]) {
-            return ENCODE_STRING ? LocalRunUtils.toReadableString((byte[])value) : new String((byte[])value, UTF8);
+            return new String((byte[])value, UTF8);
           } else {
             return value;
           }
