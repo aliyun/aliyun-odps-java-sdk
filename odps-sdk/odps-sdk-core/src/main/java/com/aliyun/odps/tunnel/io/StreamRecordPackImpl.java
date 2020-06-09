@@ -34,11 +34,8 @@ public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
   public String flush() throws IOException {
     pack.checkTransConsistency(false);
     pack.complete();
-    return session.writeBlock(pack);
-  }
-
-  @Override
-  public void reset() throws IOException {
+    String id = session.writeBlock(pack);
     pack.reset();
+    return id;
   }
 }

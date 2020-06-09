@@ -414,34 +414,6 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
     }
 
     @Override
-    public StreamRecordWriter openRecordWriter() throws IOException, TunnelException {
-        return openRecordWriter(new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
-    }
-
-    @Override
-    public StreamRecordWriter openRecordWriter(CompressOption option)
-            throws TunnelException,
-            IOException {
-        Slot slot = slots.iterator().next();
-        Connection conn = null;
-        try {
-            conn = getConnection(option, slot, -1, -1);
-            StreamRecordWriter writer = new StreamRecordWriter(this, schema, slot, conn, option);
-            writer.setTransform(false);
-            return writer;
-        } catch (IOException e) {
-            if (conn != null) {
-                conn.disconnect();
-            }
-            throw new TunnelException(e.getMessage(), e.getCause());
-        } catch (TunnelException e) {
-            throw e;
-        } catch (OdpsException e) {
-            throw new TunnelException(e.getMessage(), e);
-        }
-    }
-
-    @Override
     public TableTunnel.StreamRecordPack newRecordPack() throws IOException {
         return new StreamRecordPackImpl(this, new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
     }

@@ -667,11 +667,6 @@ public class TableTunnel {
      * @throws IOException
        */
     public String flush() throws IOException;
-
-    /**
-     * pack对象在reset以后可以复用
-     */
-    public void reset() throws IOException;
   }
 
   public interface StreamUploadSession {
@@ -692,17 +687,6 @@ public class TableTunnel {
      * 获取表结构
      */
     public TableSchema getSchema();
-
-    /**
-     * 打开一个无压缩 {@link StreamRecordWriter} 用来写入数据
-     */
-    public StreamRecordWriter openRecordWriter() throws IOException, TunnelException;
-
-    /**
-     * 打开 {@link StreamRecordWriter} 用来写入数据
-     * @param compressOption 数据传输压缩选项
-     */
-    public StreamRecordWriter openRecordWriter(CompressOption compressOption) throws IOException, TunnelException;
 
     /**
      * 创建一个无压缩{@Link StreamRecordPack}对象
