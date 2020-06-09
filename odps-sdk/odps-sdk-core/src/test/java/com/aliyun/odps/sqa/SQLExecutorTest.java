@@ -92,7 +92,7 @@ public class SQLExecutorTest extends TestBase {
     session.waitForStart(0);
   }
 
-  @Test
+  //@Test
   public void testExecutorPoolNormal() throws OdpsException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorPoolBuilder sqlExecutorPoolBuilder = SQLExecutorPoolBuilder.builder();
@@ -173,7 +173,7 @@ public class SQLExecutorTest extends TestBase {
     sqlExecutorPool.close();
   }
 
-  @Test
+  //@Test
   public void testExecutor() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -205,7 +205,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorResultSet() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -238,7 +238,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorWithLimit() throws OdpsException,IOException {
     int limit = 5;
     Map<String, String> properties = new HashMap<>();
@@ -290,7 +290,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorDefaultOffline() throws OdpsException,IOException {
     int limit = 3;
     Map<String, String> properties = new HashMap<>();
@@ -366,7 +366,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorFallback() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -398,7 +398,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorResultSetFallback() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -434,7 +434,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorResultSetDisableFallback() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -466,7 +466,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorRecover() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -499,7 +499,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorRecoverInvalid() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -538,7 +538,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorReattach() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -592,7 +592,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorDisableReattach() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -641,7 +641,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorNotSelect() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -690,7 +690,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorResultSetNotSelect() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -738,7 +738,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorDisableTunnel() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -837,7 +837,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  @Test
+  //@Test
   public void testExecutorGetResultTwice() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();

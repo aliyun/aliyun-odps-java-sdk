@@ -61,7 +61,7 @@ public class SessionV2Test extends TestBase {
     return session;
   }
 
-  @Test
+  //@Test
   public void testUseSession() throws OdpsException {
     Session copySession = new Session(odps, session.getInstance());
 
@@ -87,7 +87,7 @@ public class SessionV2Test extends TestBase {
     System.out.println(stats);
   }
 
-  @Test
+  //@Test
   public void testAttachSession() throws OdpsException {
     Session attachSession = Session.attach(odps, sessionName);
     System.out.println("Attatch session success: " + session.getInstance().getId());
@@ -99,7 +99,7 @@ public class SessionV2Test extends TestBase {
     checkResult(attachSession.getSubQueryResult(info.queryId).getRecords());
   }
 
-  @Test
+  //@Test
   public void testListSession() throws OdpsException {
     Sessions sessions = new Sessions(odps);
     boolean found = false;
@@ -121,7 +121,7 @@ public class SessionV2Test extends TestBase {
     Assert.assertTrue(found);
   }
 
-  @Test
+  //@Test
   public void testSetGetInformation() throws OdpsException {
     Session copySession = new Session(odps, session.getInstance());
 
@@ -136,7 +136,7 @@ public class SessionV2Test extends TestBase {
     Assert.assertTrue(whitelist.contains("test_project"));
   }
 
-  @Test
+  //@Test
   public void testVariables() throws OdpsException {
     Session attachSession = Session.attach(odps, sessionName);
     System.out.println("Attatch session success: " + session.getInstance().getId());
