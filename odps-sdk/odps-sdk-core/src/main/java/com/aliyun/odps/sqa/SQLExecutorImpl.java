@@ -642,8 +642,9 @@ class SQLExecutorImpl implements SQLExecutor {
       }
     } else if (subQueryInfo.status.equals(Session.SubQueryInfo.kNotFoundCode)) {
       // odps worker cannot found instance, may stopped, reattach and retry
-      reattach("Submit query failed, may caused by Task not found:" + subQueryInfo.result);
-      runQueryInternal(ExecuteMode.INTERACTIVE, subQueryInfo.result);
+      String taskTerminateMsg = session.getInstance().getTaskResults().get(taskName);
+      reattach("Submit query failed:" + taskTerminateMsg);
+      runQueryInternal(ExecuteMode.INTERACTIVE, taskTerminateMsg);
     } else {
       // submit failed
       throw new OdpsException("Submit query failed:" + subQueryInfo.result);
