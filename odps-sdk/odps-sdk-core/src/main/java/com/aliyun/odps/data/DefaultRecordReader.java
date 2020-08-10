@@ -114,18 +114,15 @@ public class DefaultRecordReader implements RecordReader {
 
   }
 
-  private DateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-  ;
+  private DateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  private DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
   private void setStringByType(ArrayRecord ret, int idx, String st) throws ParseException {
     if (st == null) {
       ret.set(idx, null);
       return;
     }
-    switch (ret.getColumns()[idx].getType()) {
-      case STRING:
-        ret.setString(idx, st);
-        break;
+    switch (ret.getColumns()[idx].getTypeInfo().getOdpsType()) {
       case BIGINT:
         ret.setBigint(idx, Long.valueOf(st));
         break;
@@ -144,10 +141,82 @@ public class DefaultRecordReader implements RecordReader {
         ret.setBoolean(idx, Boolean.valueOf(st));
         break;
       case DATETIME:
-        ret.setDatetime(idx, dateformat.parse(st));
+        ret.setDatetime(idx, dateTimeFormat.parse(st));
+        break;
+      case STRING:
+        ret.setString(idx, st);
         break;
       case DECIMAL:
         ret.setDecimal(idx, new BigDecimal(st));
+        break;
+      case MAP:
+        // TODO: support MAP
+        ret.set(idx, null);
+        break;
+      case ARRAY:
+        // TODO: support ARRAY
+        ret.set(idx, null);
+        break;
+      case VOID:
+        ret.set(idx, null);
+        break;
+      case TINYINT:
+        ret.set(idx, Byte.valueOf(st));
+        break;
+      case SMALLINT:
+        ret.set(idx, Short.valueOf(st));
+        break;
+      case INT:
+        ret.set(idx, Integer.valueOf(st));
+        break;
+      case FLOAT:
+        ret.set(idx, Float.valueOf(st));
+        break;
+      case CHAR:
+        ret.set(idx, new Char(st));
+        break;
+      case VARCHAR:
+        ret.set(idx, new Varchar(st));
+        break;
+      case DATE:
+        ret.setDate(idx, new java.sql.Date(dateFormat.parse(st).getTime()));
+        break;
+      case TIMESTAMP:
+        String[] splits = st.split("\\.");
+        if (splits.length > 2) {
+          throw new ParseException("Invalid timestamp value", st.lastIndexOf("."));
+        }
+        java.sql.Timestamp timestamp =
+            new java.sql.Timestamp(dateTimeFormat.parse(splits[0]).getTime());
+        if (splits.length == 2 && !splits[1].isEmpty()) {
+          String nanoValueStr = splits[1];
+          // 9 is the max number of digits allowed for a nano value
+          if (nanoValueStr.length() > 9) {
+            nanoValueStr = nanoValueStr.substring(0, 9);
+          } else if (nanoValueStr.length() < 9) {
+            StringBuilder nanoValueStrBuilder = new StringBuilder();
+            nanoValueStrBuilder.append(nanoValueStr);
+            while (nanoValueStrBuilder.length() < 9) {
+              nanoValueStrBuilder.append("0");
+            }
+            nanoValueStr = nanoValueStrBuilder.toString();
+          }
+          timestamp.setNanos(Integer.parseInt(nanoValueStr));
+        }
+        ret.setTimestamp(idx, timestamp);
+        break;
+      case BINARY:
+        ret.set(idx, new Binary(st.getBytes()));
+        break;
+      case INTERVAL_DAY_TIME:
+        ret.set(idx, null);
+        break;
+      case INTERVAL_YEAR_MONTH:
+        ret.set(idx, null);
+        break;
+      case STRUCT:
+        // TODO: support STRUCT
+        ret.set(idx, null);
         break;
       default:
         throw new RuntimeException("Unsupported type " + ret.getColumns()[idx].getType());

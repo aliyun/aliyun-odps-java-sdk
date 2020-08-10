@@ -19,6 +19,7 @@ import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
+import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -129,6 +130,9 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       if (longPolling) {
         // get schema from resp header
         String schemaStr = resp.getHeader(Headers.TUNNEL_SCHEMA);
+        if (StringUtils.isNullOrEmpty(schemaStr)) {
+          throw new TunnelException("Invalid response schema in header:" + schemaStr);
+        }
         JsonObject tree = new JsonParser().parse(schemaStr).getAsJsonObject();
         TableSchema schema = new TunnelTableSchema(tree);
         // in direct mode, schema in session is null, we need to set it back

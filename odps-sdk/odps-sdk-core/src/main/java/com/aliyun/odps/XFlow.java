@@ -19,10 +19,6 @@
 
 package com.aliyun.odps;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.Root;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.UnsupportedEncodingException;
 import java.util.Date;
 import java.util.Map;
@@ -31,6 +27,10 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 public class XFlow extends LazyLoad {
 

@@ -287,6 +287,7 @@ public class XFlows implements Iterable<XFlow> {
     /**
      * Property
      */
+    @Root(strict = false)
     public static class Property {
 
       @Element(name = "Name")
@@ -335,6 +336,7 @@ public class XFlows implements Iterable<XFlow> {
     /**
      * Parameter
      */
+    @Root(strict = false)
     public static class Parameter {
 
       @Element(name = "Key")
@@ -537,6 +539,7 @@ public class XFlows implements Iterable<XFlow> {
 
   private static final String CHARSET = "utf-8";
 
+  @Root(strict = false)
   public static class XResult {
 
     public String getInstanceId() {

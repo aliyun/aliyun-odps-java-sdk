@@ -9,10 +9,26 @@ public class Udtf_any extends UDTF {
 
   @Override
   public void process(Object[] args) throws UDFException {
-    String a = (args[0] == null) ? null : (String) args[0];
-    String b = (args[1] == null) ? null : (String) args[1];
-    boolean bool = a != null && a.equals(b);
-    forward(bool, a, b);
+    Object[] result = new Object[args.length + 1];
+    boolean allSame = true;
+    String o = null;
+    for (int i = 0; i < args.length; i++) {
+      String current = (String) args[i];
+      result[i + 1] = current;
+      if (i == 0) {
+        o = current;
+      } else {
+        if (!isSame(current, o)) {
+          allSame = false;
+        }
+      }
+    }
+    result[0] = allSame;
+    forward(result);
+  }
+
+  private boolean isSame(String l, String r) {
+    return l == null ? r == null : l.equals(r);
   }
 
 }

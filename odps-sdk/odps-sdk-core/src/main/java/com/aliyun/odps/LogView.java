@@ -104,6 +104,29 @@ public class LogView {
   }
 
   /**
+   * 生成 session subquery logview 链接
+   *
+   * @param instance
+   *          instance 对象
+   * @param queryId
+   *           session subquery id
+   * @param hours
+   *           token 有效时间
+   * @return  logview
+   * @throws OdpsException
+   */
+  public String generateSubQueryLogView(Instance instance, int queryId, long hours) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(logViewHost)) {
+      logViewHost = getLogviewHost();
+    }
+
+    String token = generateInstanceToken(instance, hours);
+    String logview = logViewHost + "/logview/?h=" + odps.getEndpoint() + "&p="
+        + instance.getProject() + "&i=" + instance.getId() + "&subQuery=" + queryId +"&token=" + token;
+    return logview;
+  }
+
+  /**
    * 生成带有 instance 访问权限的 token
    *
    * @param instance

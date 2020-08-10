@@ -20,6 +20,7 @@
 package com.aliyun.odps;
 
 import com.aliyun.odps.Partition.PartitionSpecModel;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Attribute;
 import com.aliyun.odps.simpleframework.xml.Element;
@@ -168,6 +169,8 @@ public class Table extends LazyLoad {
     boolean isArchived;
     long physicalSize;
     long fileNum;
+
+    boolean isTransactional;
     // reserved json string in extended info
     String reserved;
     Shard shard;
@@ -183,6 +186,7 @@ public class Table extends LazyLoad {
     // for table extended labels
     List<String> tableExtendedLabels;
   }
+
 
   public static class ClusterInfo {
     long bucketNum = -1;
@@ -587,6 +591,17 @@ public class Table extends LazyLoad {
     return model.isArchived;
   }
 
+
+  /**
+   * 查看表是否事务化
+   *
+   * @return 返回true表示进行过 transactional 操作，false表示未进行过
+   */
+  public boolean isTransactional() {
+    lazyLoadExtendInfo();
+    return model.isTransactional;
+  }
+
   /**
    * 查看表所占磁盘的物理大小
    *
@@ -928,6 +943,15 @@ public class Table extends LazyLoad {
 
     // load cluster info
     model.clusterInfo = parseClusterInfo(reservedJson);
+    model.isTransactional = parseTransactionalInfo(reservedJson);
+  }
+
+  private static boolean parseTransactionalInfo(JsonObject jsonObject) {
+    if (!jsonObject.has("Transactional")) {
+      return false;
+    }
+
+    return Boolean.parseBoolean(jsonObject.get("Transactional").getAsString());
   }
 
   public static ClusterInfo parseClusterInfo(JsonObject jsonObject) {

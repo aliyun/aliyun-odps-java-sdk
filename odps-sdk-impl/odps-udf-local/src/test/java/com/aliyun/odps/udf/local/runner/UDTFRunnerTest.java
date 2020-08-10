@@ -21,13 +21,10 @@ package com.aliyun.odps.udf.local.runner;
 
 import com.aliyun.odps.local.common.AnyTypeInfo;
 import com.aliyun.odps.local.common.Pair;
-import com.aliyun.odps.local.common.utils.SchemaUtils;
-import com.aliyun.odps.type.SimplePrimitiveTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.type.VarcharTypeInfo;
-import com.aliyun.odps.udf.local.InvalidFunctionException;
 import com.aliyun.odps.udf.local.examples.Udtf_any;
 import com.aliyun.odps.udf.local.examples.Udtf_complex;
 import com.aliyun.odps.udf.local.util.ResolveUtils;
@@ -333,6 +330,13 @@ public class UDTFRunnerTest {
     Assert.assertEquals(2, out.size());
     Assert.assertEquals("true,one,one", StringUtils.join(out.get(0), ","));
     Assert.assertEquals("false,two,three", StringUtils.join(out.get(1), ","));
+
+    runner = new UDTFRunner(null, new Udtf_any());
+    runner.feed(new Object[]{"1", "1", "1"}).feed(new Object[]{"2", "3", "2"});
+    out = runner.yield();
+    Assert.assertEquals(2, out.size());
+    Assert.assertEquals("true,1,1,1", StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("false,2,3,2", StringUtils.join(out.get(1), ","));
   }
 
   @Test(expected = IllegalArgumentException.class)

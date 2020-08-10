@@ -77,6 +77,4 @@ public class AliyunRequestSigner implements RequestSigner {
 
     return "ODPS " + accessId + ":" + signature;
   }
-
-
 }

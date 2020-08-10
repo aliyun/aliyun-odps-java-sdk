@@ -92,7 +92,10 @@ public class TablesTest extends TestBase {
     schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
     schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
     odps.tables()
-        .create(odps.getDefaultProject(), "testCreateTable" + tableName, schema, "_table comment",
+        .create(odps.getDefaultProject(),
+                "testCreateTable" + tableName,
+                schema,
+                "_table comment",
                 false);
     Table table = odps.tables().get("testCreateTable" + tableName);
     assertEquals(table.getComment(), "_table comment");
@@ -147,10 +150,19 @@ public class TablesTest extends TestBase {
     String storageHandler = "com.aliyun.odps.CsvStorageHandler";
 
     odps.tables()
-        .createExternal(odps.getDefaultProject(), tableName, schema,
+        .createExternal(
+            odps.getDefaultProject(),
+            tableName,
+            schema,
             "MOCKoss://full/uri/path/to/oss/directory/",
-            storageHandler, null, null,
-            "External table with partitions and builtin CsvStorageHandler", false, 10L, hints, null);
+            storageHandler,
+            null,
+            null,
+            "External table with partitions and builtin CsvStorageHandler",
+            false,
+            10L,
+            hints,
+            null);
     Table createdTable = odps.tables().get(tableName);
     assertEquals(createdTable.isExternalTable(), true);
     assertEquals(createdTable.getStorageHandler(), storageHandler);
@@ -169,10 +181,19 @@ public class TablesTest extends TestBase {
     properties.put("odps.text.option.delimiter", "|");
     properties.put("my.own.option", "value");
     odps.tables()
-        .createExternal(odps.getDefaultProject(), tableName, schema,
+        .createExternal(
+            odps.getDefaultProject(),
+            tableName,
+            schema,
             "MOCKoss://full/uri/path/to/oss/directory/",
-            storageHandler, jars, properties,
-            "External table using user defined TextStorageHandler", true, null, hints, null);
+            storageHandler,
+            jars,
+            properties,
+            "External table using user defined TextStorageHandler",
+            true,
+            null,
+            hints,
+            null);
     createdTable = odps.tables().get(tableName);
     assertEquals(createdTable.isExternalTable(), true);
     assertEquals(createdTable.getStorageHandler(), storageHandler);

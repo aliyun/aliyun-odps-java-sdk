@@ -24,7 +24,8 @@ public class CheckPermissionConstants {
     Update,
     Drop,
     Execute,
-    Delete
+    Delete,
+    Download
   }
 
   public enum CheckPermissionResult {

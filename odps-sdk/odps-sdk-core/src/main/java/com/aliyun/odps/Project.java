@@ -29,10 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -48,6 +44,8 @@ import com.aliyun.odps.simpleframework.xml.convert.Converter;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 /**
  * ODPS项目空间
@@ -140,6 +138,10 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String state;
 
+    @Element(name = "DefaultCluster", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultCluster;
+
     @Element(name = "Clusters", required = false)
     Clusters clusters;
   }
@@ -169,8 +171,38 @@ public class Project extends LazyLoad {
     }
   }
 
+  @Root(name = "Cluster", strict = false)
   public static class Cluster {
 
+    @Root(name = "OptionalQuota", strict = false)
+    public static class OptionalQuota {
+      // Required by SimpleXML
+      OptionalQuota() {
+      }
+
+      public OptionalQuota(String quotaID, Map<String, String> properties) {
+        this.quotaID = quotaID;
+        this.properties = new LinkedHashMap<>(properties);
+      }
+
+      @Element(name = "QuotaID", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+      String quotaID;
+
+      @Element(name = "Properties", required = false)
+      @Convert(PropertyConverter.class)
+      LinkedHashMap<String, String> properties;
+
+      public String getQuotaID() {
+        return quotaID;
+      }
+
+      public Map<String, String> getProperties() {
+        return properties;
+      }
+    }
+
+    // Required by SimpleXML
     Cluster() {
     }
 
@@ -190,6 +222,9 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String quotaID;
 
+    @ElementList(name = "Quotas", entry = "Quota", required = false)
+    List<OptionalQuota> optionalQuotas;
+
     public String getName() {
       return name;
     }
@@ -197,9 +232,17 @@ public class Project extends LazyLoad {
     public String getQuotaID() {
       return quotaID;
     }
+
+    public List<OptionalQuota> getOptionalQuotas() {
+      return optionalQuotas;
+    }
+
+    public void setOptionalQuotas(List<OptionalQuota> optionalQuotas) {
+      this.optionalQuotas = optionalQuotas;
+    }
   }
 
-
+  @Root(name = "Clusters", strict = false)
   static class Clusters {
     @ElementList(entry = "Cluster", inline = true, required = false)
     List<Cluster> entries = new ArrayList<Cluster>();
@@ -232,11 +275,14 @@ public class Project extends LazyLoad {
 
   static class PropertyConverter implements Converter<LinkedHashMap<String, String>> {
     @Override
-    public void write(OutputNode outputNode, LinkedHashMap<String, String> properties) throws Exception {
-      for (Entry<String, String> entry : properties.entrySet()) {
-        String name = entry.getKey();
-        String value = entry.getValue();
-        SimpleXmlUtils.marshal(new Property(name, value), outputNode);
+    public void write(OutputNode outputNode, LinkedHashMap<String, String> properties)
+        throws Exception {
+      if (properties != null) {
+        for (Entry<String, String> entry : properties.entrySet()) {
+          String name = entry.getKey();
+          String value = entry.getValue();
+          SimpleXmlUtils.marshal(new Property(name, value), outputNode);
+        }
       }
 
       outputNode.commit();
@@ -261,6 +307,10 @@ public class Project extends LazyLoad {
   private SecurityManager securityManager = null;
   private Clusters clusters;
 
+  // For compatibility. The static class 'Cluster' had strict schema validation. Unmarshalling will
+  // failed because of the new xml tag 'Quotas'.
+  private boolean usedByGroupApi = false;
+
   Project(ProjectModel model, RestClient client) {
     this.model = model;
     this.client = client;
@@ -270,7 +320,14 @@ public class Project extends LazyLoad {
   @Override
   public void reload() throws OdpsException {
     String resource = ResourceBuilder.buildProjectResource(model.name);
-    Response resp = client.request(resource, "GET", null, null, null);
+
+    Map<String, String> params = null;
+    if (usedByGroupApi) {
+      params = new HashMap<>();
+      params.put("isGroupApi", "true");
+    }
+
+    Response resp = client.request(resource, "GET", params, null, null);
     try {
       model = SimpleXmlUtils.unmarshal(resp, ProjectModel.class);
       Map<String, String> headers = resp.getHeaders();
@@ -435,18 +492,6 @@ public class Project extends LazyLoad {
     return allProperties;
   }
 
-
-
-  /**
-   * 获取Project所属集群信息
-   *
-   * @return Project所属集群信息
-   */
-  List<Cluster> getClusters() {
-    lazyLoad();
-    return clusters == null ? null : clusters.entries;
-  }
-
   /**
    * 查询Project指定配置信息
    *
@@ -457,6 +502,28 @@ public class Project extends LazyLoad {
   public String getProperty(String key) {
     lazyLoad();
     return properties == null ? null : properties.get(key);
+  }
+
+  /**
+   * Get default cluster. This is an internal method for group-api.
+   *
+   * @return Default cluster when called by group owner, otherwise ,null.
+   */
+  String getDefaultCluster() {
+    usedByGroupApi = true;
+    lazyLoad();
+    return model.defaultCluster;
+  }
+
+  /**
+   * Get information of clusters owned by this project. This is an internal method for group-api.
+   *
+   * @return List of {@link Cluster}
+   */
+  List<Cluster> getClusters() {
+    usedByGroupApi = true;
+    lazyLoad();
+    return clusters == null ? null : clusters.entries;
   }
 
   /**

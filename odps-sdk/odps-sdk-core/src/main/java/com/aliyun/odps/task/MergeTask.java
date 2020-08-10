@@ -37,7 +37,7 @@ public class MergeTask extends Task {
   @ElementList(entry = "TableName", inline = true, required = false)
   private List<String> tables;
 
-  // Package-visible. Only for JAXB to construct the instance.
+  // Required by SimpleXML
   MergeTask() {
   }
 

@@ -102,6 +102,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   private RetryStrategy retry;
   private long bufferSize;
   private long bytesWritten;
+  private boolean isClosed;
 
   private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
   private static final long BUFFER_SIZE_MIN = 1024 * 1024;
@@ -125,6 +126,7 @@ public class TunnelBufferedWriter implements RecordWriter {
     this.bufferSize = BUFFER_SIZE_DEFAULT;
     this.retry = new TunnelRetryStrategy();
     this.bytesWritten = 0;
+    this.isClosed = false;
   }
 
   /**
@@ -166,10 +168,18 @@ public class TunnelBufferedWriter implements RecordWriter {
    *     Signals that an I/O exception has occurred.
    */
   public void write(Record r) throws IOException {
+    checkStatus();
+
     if (bufferedPack.getTotalBytes() > bufferSize) {
       flush();
     }
     bufferedPack.append(r);
+  }
+
+  private void checkStatus() throws IOException {
+    if (isClosed) {
+      throw new IOException("Writer is closed.");
+    }
   }
 
   /**
@@ -180,6 +190,7 @@ public class TunnelBufferedWriter implements RecordWriter {
    */
   public void close() throws IOException {
     flush();
+    isClosed = true;
   }
 
   /**
@@ -193,6 +204,8 @@ public class TunnelBufferedWriter implements RecordWriter {
   }
 
   public void flush() throws IOException {
+    checkStatus();
+
     // 每一个block的上传单独计算重试次数
     retry.reset();
     // 得到实际序列化的的字节数，如果等于 0，说明没有写，跳过即可

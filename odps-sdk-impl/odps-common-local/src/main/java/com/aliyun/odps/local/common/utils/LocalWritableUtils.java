@@ -70,7 +70,7 @@ public class LocalWritableUtils {
     }
     Writable[] result = new Writable[args.length];
     for (int i = 0; i < args.length; i++) {
-      TypeInfo typeInfo = types != null ? types.get(i) : null;
+      TypeInfo typeInfo = types != null && types.size() > i ? types.get(i) : null;
       result[i] = convert(args[i], typeInfo);
     }
     return result;

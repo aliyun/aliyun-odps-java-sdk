@@ -19,17 +19,6 @@
 
 package com.aliyun.odps;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.ElementList;
-import com.aliyun.odps.simpleframework.xml.Order;
-import com.aliyun.odps.simpleframework.xml.Root;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
-import com.aliyun.odps.simpleframework.xml.convert.Converter;
-import com.aliyun.odps.simpleframework.xml.stream.InputNode;
-import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -41,6 +30,17 @@ import java.util.Set;
 
 import com.aliyun.odps.commons.util.OSUtils;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Order;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.simpleframework.xml.convert.Converter;
+import com.aliyun.odps.simpleframework.xml.stream.InputNode;
+import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 
 /**
@@ -55,7 +55,7 @@ public abstract class Task {
    */
   private static Map<String, String> GLOBAL_SETTINGS = new HashMap<>();
   /**
-   * System settings, must not be modified by uses
+   * System settings, must not be modified by users
    */
   private static final Map<String, String> SYSTEM_SETTINGS = new HashMap<>();
   static {

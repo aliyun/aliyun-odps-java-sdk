@@ -21,6 +21,7 @@ package com.aliyun.odps.udf.local.runner;
 
 import com.aliyun.odps.local.common.Pair;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.udf.local.util.ArgumentConverterUtils.AnyConverter;
 import com.aliyun.odps.udf.local.util.ResolveUtils;
 import java.io.IOException;
 import java.util.List;
@@ -42,6 +43,7 @@ public class UDTFRunner extends BaseRunner {
 
   private UDTF tf;
   private ArgumentConverter[] converters;
+  private boolean hasAnyArgument;
 
   public UDTFRunner(Odps odps, UDTF udtf) throws LocalRunException, UDFException {
     super(odps);
@@ -85,12 +87,15 @@ public class UDTFRunner extends BaseRunner {
     for (int i = 0; i < inputTypes.size(); i++) {
       String sigType = ArgumentConverterUtils.getSigType(inputTypes.get(i));
       converters[i] = ArgumentConverterUtils.validSigType.get(sigType);
+      if (converters[i] instanceof AnyConverter) {
+        hasAnyArgument = true;
+      }
     }
   }
 
   @Override
   public BaseRunner internalFeed(Object[] input) throws LocalRunException {
-    if (input.length != converters.length) {
+    if (hasAnyArgument ? input.length < converters.length : input.length != converters.length) {
       throw new LocalRunException("Input column count expected:" + converters.length
           + ", while is:" + input.length);
     }

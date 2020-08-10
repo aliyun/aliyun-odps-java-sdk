@@ -48,10 +48,13 @@ public class TunnelTableSchema extends TableSchema {
     String name = column.has("name") ? column.get("name").getAsString() : null;
     String type = column.has("type") ? column.get("type").getAsString() : null;
     String comment = column.has("comment") ? column.get("comment").getAsString() : null;
+    String nullable = column.has("nullable") ? column.get("nullable").getAsString() : null;
     Column col = null;
     TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(type);
     col = new Column(name, typeInfo, comment);
-
+    if (nullable != null) {
+      col.setNullable(nullable.equalsIgnoreCase("true"));
+    }
     return col;
   }
 }

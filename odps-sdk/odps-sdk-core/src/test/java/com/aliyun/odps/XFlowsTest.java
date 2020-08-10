@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
 import java.util.Map;
 
 import org.junit.Assert;
@@ -34,6 +33,7 @@ import com.aliyun.odps.XFlow.XFlowModel;
 import com.aliyun.odps.XFlows.XFlowInstance;
 import com.aliyun.odps.XFlows.XResult;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.task.SQLTask;
 
 public class XFlowsTest {

@@ -184,6 +184,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   @Root(name = "Instance", strict = false)
   public static class InstanceResultModel {
 
+    @Root(strict = false)
     public static class TaskResult {
 
       @Attribute(name = "Type", required = false)
@@ -651,7 +652,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   /* Response of get instance task status8 */
   @Root(name = "Instance", strict = false)
   static class TaskStatusModel {
-
+    @Root(strict = false)
     static class InstanceTaskModel {
 
       @Element(name = "Name", required = false)
@@ -896,6 +897,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   /**
    * StageProgress表示{@link Task}执行过程中各阶段的进度统计
    */
+  @Root(strict = false)
   public static class StageProgress {
 
 

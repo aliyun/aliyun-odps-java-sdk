@@ -45,7 +45,7 @@ public class Partition extends LazyLoad {
   static class PartitionModel {
 
     @ElementList(entry = "Column", inline = true, required = false)
-    private List<ColumnModel> columns = new ArrayList<ColumnModel>();
+    List<ColumnModel> columns = new ArrayList<ColumnModel>();
 
     @Element(name = "CreationTime", required = false)
     @Convert(SimpleXmlUtils.EpochConverter.class)
@@ -64,14 +64,14 @@ public class Partition extends LazyLoad {
   static class ColumnModel {
 
     @Attribute(name = "Name", required = false)
-    private String columnName;
+    protected String columnName;
 
     @Attribute(name = "Value", required = false)
-    private String columnValue;
+    protected String columnValue;
   }
 
   @Root(name = "Partition", strict = false)
-  static class PartitionSpecModel{
+  static class PartitionSpecModel {
     @Element(name = "Name", required = false)
     String partitionSpec;
   }
@@ -81,8 +81,8 @@ public class Partition extends LazyLoad {
   private String project;
   private String table;
   private RestClient client;
-  private long size;
-  private long recordNum = -1L;
+  protected long size;
+  protected long recordNum = -1L;
 
   private boolean isExtendInfoLoaded;
   private boolean isArchived;

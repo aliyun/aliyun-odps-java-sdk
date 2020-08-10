@@ -180,6 +180,28 @@ public class OdpsTestUtils {
   }
 
   /**
+   * 根据test.properties的设置创建一个新的Odps对象
+   * 运营商账号
+   *
+   * @return
+   */
+  public static Odps newOperatorAccountOdps() {
+    Odps odps = null;
+
+    String accessId = props.getProperty("user.operator.access.id");
+    String accessKey = props.getProperty("user.operator.access.key");
+    String endpoint = props.getProperty("default.endpoint");
+    String project = props.getProperty("default.project");
+
+    Account account = new AliyunAccount(accessId, accessKey);
+    odps = new Odps(account);
+    odps.setDefaultProject(project);
+    odps.setEndpoint(endpoint);
+
+    return odps;
+  }
+
+  /**
    * 根据 odps 对象创建 TableTunnel 对象，并根据 test.conf 设置 tunnel endpoint
    * @return
    */

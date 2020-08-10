@@ -40,7 +40,7 @@ public abstract class OdpsHook {
    * @param instance
    * @param odps
    */
-  public void onInstanceCreated(Instance instance, Odps odps) throws OdpsException {};
+  public void onInstanceCreated(Instance instance, Odps odps) throws OdpsException {}
 
   /**
    * instance 结束后，框架会将 Instance 和 odps 对象传入 hook

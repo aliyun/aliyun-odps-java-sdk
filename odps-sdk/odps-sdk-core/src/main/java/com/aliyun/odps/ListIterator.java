@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 支持通过{@link list()}自定义的Iterator
+ * 支持通过{@link #list()}自定义的Iterator
  */
 public abstract class ListIterator<E> implements Iterator<E> {
 

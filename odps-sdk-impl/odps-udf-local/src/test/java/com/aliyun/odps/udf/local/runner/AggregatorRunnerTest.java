@@ -20,6 +20,7 @@
 package com.aliyun.odps.udf.local.runner;
 
 import com.aliyun.odps.udf.local.examples.UdafComplex;
+import com.aliyun.odps.udf.local.examples.UdafVarLengthArg;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -222,6 +223,28 @@ public class AggregatorRunnerTest {
     Assert.assertEquals(2, map.get(str2));
     Assert.assertEquals(2, map.get(null));
   }
+
+  @Test
+  public void testVarLengthArg() throws LocalRunException, UDFException {
+    runner = new AggregatorRunner(null, new UdafVarLengthArg());
+    runner.feed(new Object[]{"a"}).feed(new Object[]{null})
+        .feed(new Object[]{"b"});
+    List<Object[]> out = runner.yield();
+    Assert.assertEquals(1, out.size());
+    Assert.assertEquals(1, out.get(0).length);
+    Object result = out.get(0)[0];
+    Assert.assertEquals("ab", result);
+
+    runner = new AggregatorRunner(null, new UdafVarLengthArg());
+    runner.feed(new Object[]{"a", 1}).feed(new Object[]{null, null})
+        .feed(new Object[]{"b", 2});
+    out = runner.yield();
+    Assert.assertEquals(1, out.size());
+    Assert.assertEquals(1, out.get(0).length);
+    result = out.get(0)[0];
+    Assert.assertEquals("a1b2", result);
+  }
+
 
   private List<String> buildArrayList(String... elements) {
     if (elements == null) {

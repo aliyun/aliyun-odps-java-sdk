@@ -19,28 +19,32 @@
 
 package com.aliyun.odps.security;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.ElementList;
-import com.aliyun.odps.simpleframework.xml.Root;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.security.CheckPermissionConstants.ActionType;
 import com.aliyun.odps.security.CheckPermissionConstants.CheckPermissionResult;
 import com.aliyun.odps.security.CheckPermissionConstants.ObjectType;
 import com.aliyun.odps.security.Role.RoleModel;
 import com.aliyun.odps.security.User.UserModel;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 /**
  * ODPS安全管理类
@@ -236,10 +240,17 @@ public class SecurityManager {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String result;
 
+    @Element(name = "Message", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    private String message;
+
     public String getResult() {
       return result;
     }
 
+    public String getMessage() {
+      return message;
+    }
   }
 
   public SecurityManager(String project, RestClient client) {
@@ -435,6 +446,129 @@ public class SecurityManager {
     return users;
   }
 
+  public static class CheckPermissionResultInfo {
+    public CheckPermissionResult result;
+    public String message;
+
+    public CheckPermissionResultInfo(CheckPermissionResult result, String message) {
+      this.result = Objects.requireNonNull(result);
+      this.message = message;
+    }
+
+    public CheckPermissionResult getResult() {
+      return result;
+    }
+
+    public String getMessage() {
+      return message;
+    }
+  }
+
+  public static class PermissionDesc {
+    private String projectName;
+    private ObjectType objectType;
+    private String objectName;
+    private ActionType actionType;
+    private Map<String, String> params;
+
+    public PermissionDesc(String projectName,
+                          ObjectType objectType,
+                          String objectName,
+                          ActionType actionType) {
+      this.projectName = Objects.requireNonNull(projectName);
+      this.objectType = Objects.requireNonNull(objectType);
+      this.objectName = Objects.requireNonNull(objectName);
+      this.actionType = Objects.requireNonNull(actionType);
+      params = new HashMap<>();
+    }
+
+    public String getProjectName() {
+      return projectName;
+    }
+
+    public ObjectType getObjectType() {
+      return objectType;
+    }
+
+    public String getObjectName() {
+      return objectName;
+    }
+
+    public ActionType getActionType() {
+      return actionType;
+    }
+
+    public Map<String, String> getParams() {
+      return new HashMap<>(params);
+    }
+
+    public void setPrincipal(String principal) {
+      params.put("Principal", principal);
+    }
+
+    public void setColumns(List<String> columns) {
+      params.put("odps:SelectColumns", GsonObjectBuilder.get().toJson(columns));
+    }
+
+    public void addParam(String key, String value) {
+      params.put(key, value);
+    }
+
+    private String buildResourceString(ObjectType objectType, String objectName) {
+      switch (objectType) {
+        case Project:
+          return ResourceBuilder.buildProjectResource(projectName);
+        case Table:
+          return ResourceBuilder.buildTableResource(projectName, objectName);
+        case Function:
+          return ResourceBuilder.buildFunctionResource(projectName, objectName);
+        case Instance:
+          return ResourceBuilder.buildInstanceResource(projectName, objectName);
+        case Resource:
+          return ResourceBuilder.buildResourceResource(projectName, objectName);
+        default:
+          throw new IllegalArgumentException("Unsupported object type");
+      }
+    }
+
+    public String toJson() {
+      JsonArray jsonArray = new JsonArray();
+      JsonObject jsonObject = new JsonObject();
+      jsonObject.addProperty("Action", actionType.name());
+      jsonObject.addProperty("Resource", buildResourceString(objectType, objectName));
+
+      for (Map.Entry<String, String> param : params.entrySet()) {
+        jsonObject.addProperty(param.getKey(), param.getValue());
+      }
+
+      jsonArray.add(jsonObject);
+      return GsonObjectBuilder.get().toJson(jsonArray);
+    }
+  }
+
+  /**
+   * Check permission
+   *
+   * @param desc Permission description. See {@link PermissionDesc}
+   * @return {@link CheckPermissionResultInfo}
+   * @throws OdpsException
+   */
+  public CheckPermissionResultInfo checkPermission(PermissionDesc desc)
+      throws OdpsException {
+    String resource = "/projects/" + ResourceBuilder.encodeObjectName(desc.projectName)
+                      + "/auth/";
+    Map<String, String> headers = new HashMap<>();
+    headers.put(Headers.CONTENT_TYPE, "application/json");
+    CheckPermissionResponse response = client.stringRequest(CheckPermissionResponse.class,
+                                                            resource,
+                                                            "POST",
+                                                            null,
+                                                            headers,
+                                                            desc.toJson());
+    CheckPermissionResult result = CheckPermissionResult.valueOf(response.result);
+    return new CheckPermissionResultInfo(result, response.message);
+  }
+
   /**
    * 查看是否有操作权限
    *
@@ -451,14 +585,12 @@ public class SecurityManager {
    * @return CheckPermissionResult
    * @throws OdpsException
    */
+  @Deprecated
   public CheckPermissionResult checkPermission(
       ObjectType type, String objectName,
       ActionType action, String projectName,
       List<String> columns
   ) throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(projectName))
-        .append("/auth/");
 
     Map<String, String> params = new HashMap<String, String>();
     params.put("type", type.toString());
@@ -468,14 +600,16 @@ public class SecurityManager {
       params.put("columns", StringUtils.join(columns.toArray(), ","));
     }
 
+    String resource = "/projects/" + ResourceBuilder.encodeObjectName(projectName)
+                      + "/auth/";
     CheckPermissionResponse response = client.request(CheckPermissionResponse.class,
-                                                      resource.toString(), "GET", params, null,
-                                                      null
-    );
-    System.out.println(response.getResult());
+                                                      resource,
+                                                      "GET",
+                                                      params,
+                                                      null,
+                                                      null);
     return response.getResult().toUpperCase().equals("ALLOW") ?
            CheckPermissionResult.Allow : CheckPermissionResult.Deny;
-
   }
 
   /**
@@ -492,6 +626,7 @@ public class SecurityManager {
    * @return CheckPermissionResult
    * @throws OdpsException
    */
+  @Deprecated
   public CheckPermissionResult checkPermission(
       ObjectType type, String objectName,
       ActionType action, List<String> columns
@@ -512,6 +647,7 @@ public class SecurityManager {
    * @return CheckPermissionResult
    * @throws OdpsException
    */
+  @Deprecated
   public CheckPermissionResult checkPermission(
       ObjectType type, String objectName,
       ActionType action
@@ -533,6 +669,7 @@ public class SecurityManager {
    * @return CheckPermissionResult
    * @throws OdpsException
    */
+  @Deprecated
   public CheckPermissionResult checkPermission(
       ObjectType type, String objectName,
       ActionType action, String projectName

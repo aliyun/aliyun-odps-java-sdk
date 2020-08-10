@@ -302,13 +302,18 @@ public class InstancesTest extends TestBase {
     SQLTask task = new SQLTask();
     task.setQuery("select (t2.c1 + 2) from " + TABLE_NAME + " t1 join " + TABLE_NAME_1 + " t2 on t1.c1 == t2.c1;");
     task.setName("testsqlcase");
-    i = odps.instances().create(task);
+
+    // Since the instance may have passed the queueing stage when calling iteratorQueueing#, here
+    // we submit 10 instances to make sure the last instances submitted is queueing, not 100% though
+    for (int counter = 0; counter < 10; counter++) {
+      i = odps.instances().create(task);
+    }
+
     System.out.println("Now create Instance: " + i.getId());
 
     Iterator<Instance.InstanceQueueingInfo> iterator = odps.instances().iteratorQueueing();
 
     Assert.assertTrue(iterator.hasNext());
-
 
     while (iterator.hasNext()) {
       Instance.InstanceQueueingInfo info = iterator.next();

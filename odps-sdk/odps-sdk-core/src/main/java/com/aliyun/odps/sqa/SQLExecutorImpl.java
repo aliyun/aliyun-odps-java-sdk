@@ -196,7 +196,13 @@ class SQLExecutorImpl implements SQLExecutor {
     if (queryInfo != null) {
       // if query running, return query logview
       try {
-        return new LogView(odps).generateLogView(queryInfo.getInstance(), 7 * 24 /* by default one week. can be set by config */);
+        if (queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE)) {
+          return new LogView(odps).generateSubQueryLogView(
+              queryInfo.getInstance(), queryInfo.getId(), 7 * 24);
+        } else {
+          return new LogView(odps).generateLogView(
+              queryInfo.getInstance(), 7 * 24);
+        }
       } catch (OdpsException e) {
         return null;
       }
@@ -637,8 +643,10 @@ class SQLExecutorImpl implements SQLExecutor {
       } else {
         // submit success
         queryInfo.setId(subQueryInfo.queryId);
-        queryInfo.setInstance(session.getInstance(), ExecuteMode.INTERACTIVE,
-            new LogView(odps).generateLogView(session.getInstance(), 7 * 24), rerunMsg);
+        queryInfo.setInstance(session.getInstance(),
+            ExecuteMode.INTERACTIVE,
+            new LogView(odps).generateSubQueryLogView(session.getInstance(), subQueryInfo.queryId, 7 * 24),
+            rerunMsg);
       }
     } else if (subQueryInfo.status.equals(Session.SubQueryInfo.kNotFoundCode)) {
       // odps worker cannot found instance, may stopped, reattach and retry

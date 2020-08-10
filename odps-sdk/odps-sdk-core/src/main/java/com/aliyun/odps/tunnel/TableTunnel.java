@@ -631,15 +631,23 @@ public class TableTunnel {
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
           String projectName, String tableName, String partitionSpec) throws TunnelException {
-    return createStreamUploadSession(projectName, tableName, new PartitionSpec(partitionSpec));
+    return createStreamUploadSession(projectName,
+                                     tableName,
+                                     partitionSpec == null ? null : new PartitionSpec(partitionSpec));
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
           String projectName, String tableName, PartitionSpec partitionSpec) throws TunnelException {
     return new StreamUploadSessionImpl(projectName,
                                        tableName,
-                                       partitionSpec.toString().replaceAll("'", ""),
+                                       partitionSpec == null ? null : partitionSpec.toString().replaceAll("'", ""),
                                        this.config);
+  }
+
+  public interface FlushResult {
+    public String getTraceId();
+    public long getFlushSize();
+    public long getRecordCount();
   }
 
   public interface StreamRecordPack {
@@ -666,7 +674,7 @@ public class TableTunnel {
      * @return traceId
      * @throws IOException
        */
-    public String flush() throws IOException;
+    public FlushResult flush() throws IOException;
   }
 
   public interface StreamUploadSession {

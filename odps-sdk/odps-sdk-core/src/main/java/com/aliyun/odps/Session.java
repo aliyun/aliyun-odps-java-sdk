@@ -75,19 +75,17 @@ public class Session {
   private String taskName = DEFAULT_TASK_NAME;
 
   public Session(Odps odps, Instance instance) throws OdpsException {
-    this(odps, instance, null);
+    this(odps, instance, null, DEFAULT_TASK_NAME);
   }
 
-  Session(Odps odps, Instance instance, String sessionName) throws OdpsException {
-    this(odps, instance, sessionName, DEFAULT_TASK_NAME);
-  }
-
-  Session(Odps odps, Instance instance, String sessionName, String taskName) throws OdpsException {
+  public Session(Odps odps, Instance instance, String sessionName, String taskName) throws OdpsException {
     this.sessionName = sessionName;
     this.instance = instance;
-    this.logView = new LogView(odps).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
     this.startSessionMessage = "";
     this.taskName = taskName;
+    if (odps != null) {
+      this.logView = new LogView(odps).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
+    }
   }
 
   private String sessionName;
@@ -438,6 +436,8 @@ public class Session {
     return create(odps, sessionName, projectName, hints, timeout, null);
   }
 
+
+
   /**
    * 创建 session
    *
@@ -717,7 +717,7 @@ public class Session {
         try {
           progress = gson.fromJson(response.result, SessionProgress.class);
         } catch (Exception e) {
-          throw new OdpsException("Get Session launched progress failed: " + response.result, e);
+          // ignore
         }
       }
 
@@ -737,6 +737,17 @@ public class Session {
     return getInformation("sqlstats");
   }
 
+  /**
+   * get sqlstats of subqyery
+   * @param queryId
+   *     queryId
+   * @return stats
+   * @throws OdpsException 启动异常
+   */
+
+  public String getQueryStats(int queryId) throws OdpsException {
+    return getInformation("sqlstats_" + String.valueOf(queryId));
+  }
   /**
    * getInformation
    *

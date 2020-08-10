@@ -159,11 +159,11 @@ public class Projects {
     properties.put("external_project_properties", extProperties.toJson());
     properties.put("external_project_ref_project", refProjectName);
 
-    String xml =
-            marshal(projectName, Project.ProjectType.external, null, null, null, comment, properties, null);
+    String xml = marshal(projectName, Project.ProjectType.external, null,
+                         null, null, comment, properties, null);
 
     HashMap<String, String> headers = new HashMap<String, String>();
-    headers.put("Content-Type", "application/xml");
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
 
     client.stringRequest(resource, "POST", null, headers, xml);
   }
@@ -178,7 +178,7 @@ public class Projects {
     String resource = ResourceBuilder.buildProjectResource(projectName);
 
     HashMap<String, String> headers = new HashMap<>();
-    headers.put("Content-Type", "application/xml");
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
     client.stringRequest(resource, "DELETE", null, headers, "");
   }
 

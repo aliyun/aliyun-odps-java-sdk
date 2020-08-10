@@ -48,7 +48,7 @@ public class XLibTask extends Task {
   @Convert(SimpleXmlUtils.EmptyStringConverter.class)
   private String outputTablenames;
 
-  // Package-visible. Only for JAXB to construct the instance.
+  // Required by SimpleXML
   XLibTask() {
   }
 

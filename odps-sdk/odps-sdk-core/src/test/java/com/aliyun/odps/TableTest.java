@@ -240,26 +240,6 @@ public class TableTest extends TestBase {
     assertFalse(odps.tables().get(TABLE_NAME).isExternalTable());
   }
 
-  @Test(expected = IOException.class)
-  public void testReadTableWithNotSupportSchema() throws OdpsException, IOException {
-    Instance instance = SQLTask
-        .run(
-            odps,
-            "insert overwrite table "
-            + TABLE_NAME
-            + " partition(p1=1,p2=3) select 1, true, null, 'string's, cast(1 as decimal),  array(1,2) ,  str_to_map('1=b,2=d',',','=') from "
-            + SOURCE_TABLE_NAME + ";");
-    instance.waitForSuccess();
-    Table a = odps.tables().get(TABLE_NAME);
-    RecordReader rr = a.read(1000000);
-    Record g;
-    while ((g = rr.read()) != null) {
-      for (int i = 0; i < g.getColumnCount(); ++i) {
-        System.out.println(g.getColumns()[i].getName() + ":" + g.get(i));
-      }
-    }
-  }
-
   @Test
   public void testReadTable() throws OdpsException, IOException {
 
