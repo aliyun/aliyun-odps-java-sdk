@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AccountFormat;
+import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
@@ -69,6 +70,7 @@ public class Odps {
 
   private Account account;
   private AppAccount appAccount;
+  private AppStsAccount appStsAccount;
   private String endpoint;
   private String defaultProject;
 
@@ -98,6 +100,11 @@ public class Odps {
   public void setAppAccount(AppAccount appAccount) {
     this.client.setAppAccount(appAccount);
     this.appAccount = appAccount;
+  }
+
+  public void setAppStsAccount(AppStsAccount appStsAccount) {
+    this.client.setAppStsAccount(appStsAccount);
+    this.appStsAccount = appStsAccount;
   }
 
   /**
@@ -210,6 +217,14 @@ public class Odps {
    */
   public AppAccount getAppAccount() {
     return appAccount;
+  }
+
+  /**
+   * 获取{@link AppStsAccount}
+   * @return {@link AppStsAccount}
+   */
+  public AppStsAccount getAppStsAccount() {
+    return appStsAccount;
   }
 
   /**

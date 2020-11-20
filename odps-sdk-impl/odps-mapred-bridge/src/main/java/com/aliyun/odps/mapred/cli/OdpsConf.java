@@ -45,6 +45,7 @@ public class OdpsConf extends Configuration {
   private final static String PROJNAME = "odps.project.name";
   private final static String ENDPOINT = "odps.end.point";
   private final static String ACCESSID = "odps.access.id";
+  private final static String STS_TOKEN = "odps.sts.token";
   private final static String ACCESSKEY = "odps.access.key";
   private final static String ACCOUNT_PROVIDER = "odps.account.provider";
 
@@ -133,6 +134,21 @@ public class OdpsConf extends Configuration {
   }
 
   /**
+   * 获取STS token
+   * @return STS token
+   */
+  public String getStsToken() {
+    return get(STS_TOKEN);
+  }
+
+  /**
+   * 设置STS token
+   */
+  public void setStsToken(String stsToken) {
+    set(STS_TOKEN, stsToken);
+  }
+
+  /**
    * 获取代理主机地址.
    *
    * @return
@@ -144,7 +160,7 @@ public class OdpsConf extends Configuration {
   /**
    * 设置代理主机地址.
    *
-   * @param proxyHost
+   * @param host
    */
   public void setProxyHost(String host) {
     set(PROXYHOST, host);
@@ -180,7 +196,7 @@ public class OdpsConf extends Configuration {
   /**
    * 设置代理端口.
    *
-   * @param proxyPort
+   * @param port
    */
   public void setProxyPort(String port) {
     set(PROXYPORT, port);
@@ -190,12 +206,11 @@ public class OdpsConf extends Configuration {
    * 获取帐号类型<br/>
    * 取值范围：{@link com.aliyun.odps.account.Account.AccountProvider#ALIYUN} ,
    * {@link com.aliyun.odps.account.Account.AccountProvider#TAOBAO},
-   * {@link com.aliyun.odps.account.Account.AccountProvider#DOMAIN} <br/>
+   * {@link com.aliyun.odps.account.Account.AccountProvider#BEARER_TOKEN}
+   * {@link com.aliyun.odps.account.Account.AccountProvider#STS}<br/>
    * 默认值： {@link com.aliyun.odps.account.Account.AccountProvider#ALIYUN}
    *
-   * @return 帐号类型：{@link com.aliyun.odps.account.Account.AccountProvider#ALIYUN}
-   * |{@link com.aliyun.odps.account.Account.AccountProvider#TAOBAO}|
-   * {@link com.aliyun.odps.account.Account.AccountProvider#DOMAIN}
+   * @return 帐号类型
    * @throws OdpsException
    */
   public AccountProvider getAccountProvider() throws OdpsException {
@@ -206,7 +221,7 @@ public class OdpsConf extends Configuration {
       try {
         result = AccountProvider.valueOf(provider);
       } catch (Exception exception) {
-        throw new OdpsException("Unsupport account provider:" + provider);
+        throw new OdpsException("Unsupported account provider:" + provider);
       }
     }
     return result;

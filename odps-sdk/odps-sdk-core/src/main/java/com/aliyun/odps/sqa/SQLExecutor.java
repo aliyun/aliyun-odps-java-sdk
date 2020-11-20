@@ -113,23 +113,49 @@ public interface SQLExecutor {
   /**
    * 通过InstanceTunnel获取有限集结果
    *
-   * @param limit
+   * @param countLimit
    *     返回结果数量
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
-  public List<Record> getResult(Long limit)
+  public List<Record> getResult(Long countLimit)
+      throws OdpsException, IOException;
+
+  /**
+   * 通过InstanceTunnel获取有限集结果
+   *
+   * @param countLimit
+   *     返回结果数量
+   * @param sizeLimit
+   *     返回结果大小
+   * @return query执行的所有结果
+   * @throws OdpsException, IOException
+   */
+  public List<Record> getResult(Long countLimit, Long sizeLimit)
       throws OdpsException, IOException;
 
   /**
    * 通过InstanceTunnel获取有限集结果的迭代器
 
-   * @param limit
+   * @param countLimit
    *     返回结果数量
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
-  public ResultSet getResultSet(Long limit)
+  public ResultSet getResultSet(Long countLimit)
+      throws OdpsException, IOException;
+
+  /**
+   * 通过InstanceTunnel获取有限集结果的迭代器
+
+   * @param countLimit
+   *     返回结果数量
+   * @param sizeLimit
+   *     返回结果大小
+   * @return query执行的所有结果
+   * @throws OdpsException, IOException
+   */
+  public ResultSet getResultSet(Long countLimit, Long sizeLimit)
       throws OdpsException, IOException;
 
   /**

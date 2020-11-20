@@ -44,7 +44,7 @@ public class SQLExecutorTest extends TestBase {
   private static String fallbackSql = "select * from " + tableName + " union all select * from " + tableName + ";";
   private static String sqlNotSelect = "insert overwrite table " + tableName + " select * from "+ tableName +";";
 
-  private static int recordCount = 10;
+  private static int recordCount = 2998;
 
   @AfterClass
   public static void after() throws OdpsException {
@@ -92,7 +92,7 @@ public class SQLExecutorTest extends TestBase {
     session.waitForStart(0);
   }
 
-  //@Test
+  @Test
   public void testExecutorPoolNormal() throws OdpsException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorPoolBuilder sqlExecutorPoolBuilder = SQLExecutorPoolBuilder.builder();
@@ -173,7 +173,7 @@ public class SQLExecutorTest extends TestBase {
     sqlExecutorPool.close();
   }
 
-  //@Test
+  @Test
   public void testExecutor() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -205,7 +205,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorResultSet() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -238,7 +238,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorWithLimit() throws OdpsException,IOException {
     int limit = 5;
     Map<String, String> properties = new HashMap<>();
@@ -290,7 +290,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorDefaultOffline() throws OdpsException,IOException {
     int limit = 3;
     Map<String, String> properties = new HashMap<>();
@@ -366,7 +366,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorFallback() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -380,7 +380,7 @@ public class SQLExecutorTest extends TestBase {
 
     Map<String, String> hint = new HashMap<>();
     // will 100% fallback if use this flag
-    hint.put("odps.optimizer.adhocsink.addlimit", "false");
+    hint.put("odps.isolation.session.enable", "all");
     sqlExecutor.run(fallbackSql, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
@@ -398,7 +398,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorResultSetFallback() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -412,7 +412,7 @@ public class SQLExecutorTest extends TestBase {
 
     Map<String, String> hint = new HashMap<>();
     // will 100% fallback if use this flag
-    hint.put("odps.optimizer.adhocsink.addlimit", "false");
+    hint.put("odps.isolation.session.enable", "all");
     sqlExecutor.run(fallbackSql, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
@@ -434,7 +434,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorResultSetDisableFallback() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -448,7 +448,7 @@ public class SQLExecutorTest extends TestBase {
 
     Map<String, String> hint = new HashMap<>();
     // will 100% fallback if use this flag
-    hint.put("odps.optimizer.adhocsink.addlimit", "false");
+    hint.put("odps.isolation.session.enable", "all");
     sqlExecutor.run(fallbackSql, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
@@ -466,7 +466,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorRecover() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -499,7 +499,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorRecoverInvalid() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -538,7 +538,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorReattach() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -592,7 +592,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorDisableReattach() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     Session attach = Session.attach(odps, sessionName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT);
@@ -641,7 +641,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorNotSelect() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -690,7 +690,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorResultSetNotSelect() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -738,7 +738,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorDisableTunnel() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -798,7 +798,7 @@ public class SQLExecutorTest extends TestBase {
     }
 
     // will 100% fallback if use this flag
-    hint.put("odps.optimizer.adhocsink.addlimit", "false");
+    hint.put("odps.isolation.session.enable", "all");
     sqlExecutor.run(fallbackSql, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
@@ -814,7 +814,7 @@ public class SQLExecutorTest extends TestBase {
     }
 
     // will 100% fallback if use this flag
-    hint.put("odps.optimizer.adhocsink.addlimit", "false");
+    hint.put("odps.isolation.session.enable", "all");
     sqlExecutor.run(fallbackSql, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
@@ -837,7 +837,7 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
-  //@Test
+  @Test
   public void testExecutorGetResultTwice() throws OdpsException,IOException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
@@ -869,6 +869,55 @@ public class SQLExecutorTest extends TestBase {
     } catch (InterruptedException e) {
       throw new OdpsException(e.getMessage());
     } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorGetResultLimitSize() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    sqlExecutor.run(sql, hint);
+    try {
+      Thread.sleep(5000);
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      List<Record> records = sqlExecutor.getResult(10L, 1L);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } catch (InterruptedException e) {
+      throw new OdpsException(e.getMessage());
+    } catch (OdpsException e){
+      Assert.assertTrue(e.getMessage().contains("InvalidArgument"));
+    }
+
+    try {
+      Thread.sleep(5000);
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet result = sqlExecutor.getResultSet(10L, 1L);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } catch (InterruptedException e) {
+      throw new OdpsException(e.getMessage());
+    } catch (OdpsException e){
+      Assert.assertTrue(e.getMessage().contains("InvalidArgument"));
+    }
+    finally {
       sqlExecutor.close();
     }
   }

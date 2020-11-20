@@ -23,11 +23,9 @@ import java.io.IOException;
 
 import com.aliyun.odps.commons.util.RetryExceedLimitException;
 import com.aliyun.odps.commons.util.RetryStrategy;
-import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.tunnel.TableTunnel;
-import com.aliyun.odps.tunnel.TunnelException;
 
 /**
  * <p>TunnelBufferedWriter 是一个<b>使用缓冲区</b>的、<b>容错</b>的 Tunnel 上传接口。</p>
@@ -103,13 +101,15 @@ public class TunnelBufferedWriter implements RecordWriter {
   private long bufferSize;
   private long bytesWritten;
   private boolean isClosed;
+  private long timeout;
+
 
   private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
   private static final long BUFFER_SIZE_MIN = 1024 * 1024;
   private static final long BUFFER_SIZE_MAX = 1000 * 1024 * 1024;
 
   /**
-   * 构造此类对象，使用默认缓冲区大小为 10 MiB，和默认的回退策略：4s、8s、16s、32s、64s、128s
+   * 构造此类对象，使用默认缓冲区大小为 64 MiB，和默认的回退策略：4s、8s、16s、32s、64s、128s
    *
    * @param session
    *    {@link  TableTunnel.UploadSession}
@@ -127,6 +127,25 @@ public class TunnelBufferedWriter implements RecordWriter {
     this.retry = new TunnelRetryStrategy();
     this.bytesWritten = 0;
     this.isClosed = false;
+  }
+
+  /**
+   * 构造此类对象，使用默认缓冲区大小为 64 MiB，和默认的回退策略：4s、8s、16s、32s、64s、128s
+   *
+   * @param session
+   *    {@link  TableTunnel.UploadSession}
+   * @param option
+   *    {@link CompressOption}
+   * @param timeout
+   *    超时时间 单位 ms <=0 代表无超时
+   *
+   * @throws IOException
+   *    Signals that an I/O exception has occurred.
+   */
+  public TunnelBufferedWriter(TableTunnel.UploadSession session, CompressOption option, long timeout)
+          throws IOException {
+    this(session, option);
+    this.timeout = timeout;
   }
 
   /**
@@ -214,7 +233,7 @@ public class TunnelBufferedWriter implements RecordWriter {
       Long blockId = session.getAvailBlockId();
       while (true) {
         try {
-          session.writeBlock(blockId, bufferedPack);
+          session.writeBlock(blockId, bufferedPack, timeout);
           bufferedPack.reset();
           bytesWritten += delta;
           return;
@@ -229,5 +248,13 @@ public class TunnelBufferedWriter implements RecordWriter {
         }
       }
     }
+  }
+
+  public long getTimeout() {
+    return timeout;
+  }
+
+  public void setTimeout(long timeout) {
+    this.timeout = timeout;
   }
 }

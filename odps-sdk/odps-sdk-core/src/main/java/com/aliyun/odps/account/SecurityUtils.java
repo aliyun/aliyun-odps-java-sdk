@@ -189,7 +189,7 @@ public class SecurityUtils {
 
   }
 
-  public static String getApplicationSignature(
+  public static String getFormattedSignature(
       String accountProvider, String accessId, String signedString) {
     String signature = String.format(
         "account_provider:%s,signature_method:%s,access_id:%s,signature:%s",

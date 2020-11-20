@@ -22,6 +22,7 @@ public class SQLExecutorBuilder {
   private String tunnelEndpoint = null;
   private SQLExecutorPool pool = null;
   private FallbackPolicy fallbackPolicy = new FallbackPolicy();
+  private int tunnelGetResultMaxRetryTime = 3;
 
   private String runningCluster = null;
   private Instance recoverInstance = null;
@@ -33,7 +34,7 @@ public class SQLExecutorBuilder {
   public SQLExecutor build() throws OdpsException {
     return new SQLExecutorImpl(odps, serviceName, taskName, tunnelEndpoint,
         properties, executeMode, fallbackPolicy, enableReattach, useInstanceTunnel, pool, recoverInstance,
-        runningCluster);
+        runningCluster,tunnelGetResultMaxRetryTime);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -84,6 +85,11 @@ public class SQLExecutorBuilder {
 
   public SQLExecutorBuilder useInstanceTunnel(boolean useInstanceTunnel) {
     this.useInstanceTunnel = useInstanceTunnel;
+    return this;
+  }
+
+  public SQLExecutorBuilder tunnelGetResultMaxRetryTime(int tunnelGetResultMaxRetryTime) {
+    this.tunnelGetResultMaxRetryTime = tunnelGetResultMaxRetryTime;
     return this;
   }
 

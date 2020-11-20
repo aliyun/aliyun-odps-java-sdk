@@ -12,6 +12,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.*;
+import com.aliyun.odps.utils.ConnectionWatcher;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -20,6 +21,7 @@ import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -37,17 +39,17 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
     private Slots slots;
     private boolean p2pMode = false;
 
-    StreamUploadSessionImpl(String projectName, String tableName, String partitionSpec, Configuration config) throws TunnelException {
+    StreamUploadSessionImpl(String projectName, String tableName, String partitionSpec, Configuration config, long slotNum, boolean createPartition) throws TunnelException {
         this.conf = config;
         this.projectName = projectName;
         this.tableName = tableName;
         this.partitionSpec = partitionSpec;
 
         tunnelServiceClient = conf.newRestClient(projectName);
-        initiate();
+        initiate(slotNum, createPartition);
     }
 
-    private void initiate() throws TunnelException {
+    private void initiate(long slotNum, boolean createPartition) throws TunnelException {
 
         HashMap<String, String> params = new HashMap<String, String>();
 
@@ -55,7 +57,15 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
             params.put(TunnelConstants.RES_PARTITION, partitionSpec);
         }
 
+        if (createPartition) {
+            params.put(TunnelConstants.CREATE_PARTITION, "");
+        }
+
         HashMap<String, String> headers = TableTunnel.getCommonHeader();
+
+        if (slotNum > 0) {
+            headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slotNum));
+        }
 
         String requestId = null;
         Connection conn = null;
@@ -150,12 +160,12 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
             }
 
             if (tree.has("slots") && tree.has("status")) {
-                // slots
-                slots = new Slots(tree.getAsJsonArray("slots"), reload);
                 String status = tree.get("status").getAsString();
                 if (status.equals("init")) {
                     throw new TunnelException(requestId, "Session is initiating. Session name: " + id);
                 }
+                // slots
+                slots = new Slots(tree.getAsJsonArray("slots"), reload);
             } else {
                 throw new TunnelException(requestId, "Incomplete session info: '" + json + "'");
             }
@@ -317,6 +327,8 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
 
         headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
 
+        headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slots.getSlotNum()));
+
         switch (compress.algorithm) {
             case ODPS_RAW: {
                 break;
@@ -361,11 +373,24 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
      */
     public String writeBlock(ProtobufRecordPack pack)
             throws IOException {
+        return writeBlock(pack, 0);
+    }
+
+    /**
+     * 打开http链接，写入pack数据，然后关闭链
+     *
+     * @param pack
+     *     pack数据
+     * @param timeout
+     *     超时时间(单位毫秒)，0代表无超时。
+     */
+    public String writeBlock(ProtobufRecordPack pack, long timeout)
+            throws IOException {
         Connection conn = null;
         try {
             Slot slot = slots.iterator().next();
             conn = getConnection(pack.getCompressOption(), slot, pack.getTotalBytes(), pack.getSize());
-            return sendBlock(pack, conn, slot);
+            return sendBlock(pack, conn, slot, timeout);
         } catch (OdpsException e) {
             throw new IOException(e.getMessage(), e);
         } finally {
@@ -375,15 +400,31 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
         }
     }
 
-    private String sendBlock(ProtobufRecordPack pack, Connection conn, Slot slot) throws IOException, TunnelException {
+    private String sendBlock(ProtobufRecordPack pack, Connection conn, Slot slot, long timeout)
+            throws IOException, TunnelException {
         if (null == conn) {
             throw new IOException("Invalid connection");
         }
         ByteArrayOutputStream baos = pack.getProtobufStream();
-        baos.writeTo(conn.getOutputStream());
-        conn.getOutputStream().close();
-        baos.close();
-        Response response = conn.getResponse();
+        if (timeout > 0) {
+            ConnectionWatcher.getInstance().mark(conn, timeout);
+        }
+        Response response = null;
+        try {
+            baos.writeTo(conn.getOutputStream());
+            conn.getOutputStream().close();
+            baos.close();
+            response = conn.getResponse();
+        } catch (Throwable tr) {
+            if (timeout > 0 && ConnectionWatcher.getInstance().checkTimedOut(conn)) {
+                throw new SocketTimeoutException("Flush time exceeded timeout user set: " + timeout + "ms");
+            }
+            throw tr;
+        } finally {
+            if (timeout > 0) {
+                ConnectionWatcher.getInstance().release(conn);
+            }
+        }
         if (!response.isOK()) {
             TunnelException exception =
                     new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(),

@@ -55,6 +55,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
   private long start = 0;
   private long count = 0;
   private long offset = 0;
+  private long sizeLimit = 0;
   private long bytesReaded = 0;
 
   private boolean isClosed = false;
@@ -143,7 +144,6 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     this.reader.setTransform(shouldTransform);
   }
 
-
   /**
    * 构造此类对象
    *
@@ -175,6 +175,42 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
 
     createNewReader();
   }
+
+  /**
+   * 构造此类对象
+   *
+   * @param columns
+   *     需要读取的列 {@link Column}
+   * @param option
+   *     {@link CompressOption}
+   * @param start
+   *     本次要读取记录的起始位置
+   * @param count
+   *     本次要读取记录的数量
+   * @param sizeLimit
+   *     本次要读取记录的大小(Bytes)
+   * @param session
+   *     本次读取所在 session
+   * @throws IOException
+   */
+  public TunnelRecordReader(long start, long count, long sizeLimit, List<Column> columns,
+                            CompressOption option, RestClient tunnelRestClient,
+                            InstanceTunnel.DownloadSession session)
+      throws TunnelException, IOException {
+    this.start = start;
+    this.count = count;
+    this.sizeLimit = sizeLimit;
+    this.offset = 0;
+    this.option = option;
+    this.columnList = columns;
+    this.tableSession = null;
+    this.instanceSession = session;
+    this.reader = null;
+    this.tunnelServiceClient = tunnelRestClient;
+
+    createNewReader();
+  }
+
 
   @Override
   public void close() throws IOException {
@@ -254,7 +290,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
 
         if (instanceSession != null) {
           reader = RawTunnelRecordReader
-              .createInstanceTunnelReader(start + offset, count - offset, option, columnList,
+              .createInstanceTunnelReader(start + offset, count - offset, sizeLimit, option, columnList,
                   tunnelServiceClient, instanceSession, instanceSession.getIsLongPolling());
           reader.setTransform(this.shouldTransform);
         }

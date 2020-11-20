@@ -16,6 +16,9 @@ public class SessionV2Test extends TestBase {
   private static String tableName = "test_session_table" + System.currentTimeMillis();
   private static String sessionId = null;
   private static String sql = "select COUNT(*) from " + tableName + ";";
+  private static String sqlColNotExistException = "select colNotExist from " + tableName + ";";
+  private static String sqlTableNotFoundException = "select * from tableNameNotExist;";
+
   private static String cacheOnA = "@a := CACHE ON SELECT `COUNT`(*) FROM " + tableName + ";";
   private static String cacheOnB = "@b := CACHE ON SELECT * FROM " + tableName + ";";
   private static Map<String, String> emptyHint = new HashMap();
@@ -61,7 +64,7 @@ public class SessionV2Test extends TestBase {
     return session;
   }
 
-  //@Test
+  @Test
   public void testUseSession() throws OdpsException {
     Session copySession = new Session(odps, session.getInstance());
 
@@ -87,7 +90,39 @@ public class SessionV2Test extends TestBase {
     System.out.println(stats);
   }
 
-  //@Test
+  @Test
+  public void testGetSessionExceptionCodeStats() throws OdpsException {
+    Session copySession = new Session(odps, session.getInstance());
+
+    Map<String, String> hints = new HashMap<String, String>();
+    hints.put("odps.sql.session.wait.finished.status", "true");
+
+    String exceptionValue = new String();
+    Session.SubQueryInfo info = copySession.runSubQuery(sqlColNotExistException, hints);
+    try {
+      copySession.getSubQueryResult(info.queryId).getRecords();
+    }
+    catch (OdpsException e)
+    {
+      exceptionValue = e.toString();
+      Assert.assertTrue(exceptionValue.startsWith("com.aliyun.odps.OdpsException: ODPS-0130071"));
+    }
+    System.out.println(exceptionValue);
+
+    info = copySession.runSubQuery(sqlTableNotFoundException, hints);
+    try {
+      copySession.getSubQueryResult(info.queryId).getRecords();
+    }
+    catch (OdpsException e)
+    {
+      exceptionValue = e.toString();
+      Assert.assertTrue(exceptionValue.startsWith("com.aliyun.odps.OdpsException: ODPS-0130131"));
+    }
+
+    System.out.println(exceptionValue);
+  }
+
+  @Test
   public void testAttachSession() throws OdpsException {
     Session attachSession = Session.attach(odps, sessionName);
     System.out.println("Attatch session success: " + session.getInstance().getId());
@@ -99,7 +134,7 @@ public class SessionV2Test extends TestBase {
     checkResult(attachSession.getSubQueryResult(info.queryId).getRecords());
   }
 
-  //@Test
+  @Test
   public void testListSession() throws OdpsException {
     Sessions sessions = new Sessions(odps);
     boolean found = false;
@@ -121,7 +156,7 @@ public class SessionV2Test extends TestBase {
     Assert.assertTrue(found);
   }
 
-  //@Test
+  @Test
   public void testSetGetInformation() throws OdpsException {
     Session copySession = new Session(odps, session.getInstance());
 
@@ -136,7 +171,7 @@ public class SessionV2Test extends TestBase {
     Assert.assertTrue(whitelist.contains("test_project"));
   }
 
-  //@Test
+  @Test
   public void testVariables() throws OdpsException {
     Session attachSession = Session.attach(odps, sessionName);
     System.out.println("Attatch session success: " + session.getInstance().getId());

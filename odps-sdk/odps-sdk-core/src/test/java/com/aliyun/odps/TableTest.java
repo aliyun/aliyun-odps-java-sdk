@@ -21,14 +21,19 @@ package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -47,7 +52,6 @@ import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.aliyun.odps.type.TypeInfoFactory;
 import com.sun.org.apache.xml.internal.utils.URI;
 
 public class TableTest extends TestBase {
@@ -57,6 +61,7 @@ public class TableTest extends TestBase {
   private static String TABLE_NAME = TableTest.class.getSimpleName() + "_table_name_for_test";
   private static String TABLE_NAME_2 = TableTest.class.getSimpleName() + "_table_name_for_test2";
   private static String TABLE_NAME_3 = TableTest.class.getSimpleName() + "_table_name_for_test3";
+
   private static String
       HUB_TABLE_NAME =
       TableTest.class.getSimpleName() + "_hubtable_name_for_test";

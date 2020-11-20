@@ -222,11 +222,17 @@ public class Projects {
     client.stringRequest(resource, "PUT", null, headers, xml);
   }
 
+  public Iterator<Project> iteratorByFilter(ProjectFilter filter) {
+      return new ProjectListIterator(filter);
+  }
+
   /**
    * 获取 Project 列表
    */
   public Iterator<Project> iterator(String owner) {
-    return new ProjectListIterator(owner, null, null);
+    ProjectFilter filter = new ProjectFilter();
+    filter.setOwner(owner);
+    return new ProjectListIterator(filter);
   }
 
   /**
@@ -236,7 +242,9 @@ public class Projects {
     return new Iterable<Project>() {
       @Override
       public Iterator<Project> iterator() {
-        return new ProjectListIterator(owner, null, null);
+        ProjectFilter filter = new ProjectFilter();
+        filter.setOwner(owner);
+        return new ProjectListIterator(filter);
       }
     };
   }
@@ -244,14 +252,10 @@ public class Projects {
   private class ProjectListIterator extends ListIterator<Project> {
     Map<String, String> params = new HashMap<String, String>();
 
-    private String projectOwner;
-    private String user;
-    private String groupName;
+    private ProjectFilter filter;
 
-    ProjectListIterator(String projectOwner, String user, String groupName) {
-      this.projectOwner = projectOwner;
-      this.user = user;
-      this.groupName = groupName;
+    ProjectListIterator(ProjectFilter filter) {
+      this.filter = filter;
     }
 
     @Override
@@ -265,18 +269,21 @@ public class Projects {
           return null;
         }
 
-        if (projectOwner != null) {
-          params.put("owner", projectOwner);
-        }
+        if (filter != null) {
 
-        if (user != null) {
-          params.put("user", user);
-        }
+          if (filter.getOwner() != null) {
+            params.put("owner", filter.getOwner());
+          }
 
-        if (groupName != null) {
-          params.put("group", groupName);
-        }
+          if (filter.getUser() != null) {
+            params.put("user", filter.getUser());
+          }
 
+          if (filter.getGroup() != null) {
+            params.put("group", filter.getGroup());
+          }
+
+        }
         AccountFormat.setParam(odps.getAccountFormat(), params);
 
         ListProjectResponse resp = client.request(ListProjectResponse.class,

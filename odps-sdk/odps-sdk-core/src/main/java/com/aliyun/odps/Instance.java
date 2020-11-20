@@ -489,20 +489,20 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     try {
       if (summary.get("Cost") != null) {
-        Map<String, Integer> taskCostMap = (Map) summary.get("Cost");
+        Map<String, Long> taskCostMap = (Map) summary.get("Cost");
 
         TaskCost cost = new TaskCost();
 
         if (taskCostMap.get("CPU") != null) {
-          cost.setCPUCost(taskCostMap.get("CPU"));
+          cost.setCPUCost(taskCostMap.get("CPU").intValue());
         }
 
         if (taskCostMap.get("Memory") != null) {
-          cost.setMemoryCost(taskCostMap.get("Memory"));
+          cost.setMemoryCost(taskCostMap.get("Memory").intValue());
         }
 
         if (taskCostMap.get("Input") != null) {
-          cost.setInputSize(taskCostMap.get("Input"));
+          cost.setInputSize(taskCostMap.get("Input").intValue());
         }
 
         return cost;

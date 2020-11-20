@@ -168,4 +168,11 @@ public class SecurityManagerTest extends TestBase {
     sm.setSecurityConfiguration(sc);
   }
 
+  @Test
+  public void testGetGrammarVersion() {
+    SecurityConfiguration sc = sm.getSecurityConfiguration();
+    String grammarVersion = sc.getGrammarVersion();
+    assertTrue(grammarVersion.equals("2.0") || grammarVersion.equals("1.0"));
+  }
+
 }

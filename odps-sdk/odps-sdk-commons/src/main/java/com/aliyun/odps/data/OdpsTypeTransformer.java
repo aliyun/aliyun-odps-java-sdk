@@ -22,17 +22,16 @@ import com.aliyun.odps.type.VarcharTypeInfo;
  * Created by zhenhong.gzh on 16/12/13.
  */
 public class OdpsTypeTransformer {
-  private static final int STRING_MAX_LENGTH = 8 * 1024 * 1024;
+  private static final int UTF8_ENCODED_CHAR_MAX_SIZE = 6;
 
   // 9999-12-31 23:59:59
   private static final long DATETIME_MAX_TICKS = 253402271999000L;
   // 0001-01-01 00:00:00
   private static final long DATETIME_MIN_TICKS = -62135798400000L;
 
-  private static Map<OdpsType, Class> ODPS_TYPE_MAPPER = new HashMap<OdpsType, Class>() ;
+  private static Map<OdpsType, Class> ODPS_TYPE_MAPPER = new HashMap<OdpsType, Class>();
 
   OdpsTypeTransformer() {
-
   }
 
   static {
@@ -66,12 +65,12 @@ public class OdpsTypeTransformer {
     throw new IllegalArgumentException("Cannot get Java type for Odps type: " + type);
   }
 
-  private static void validateString(String value) {
+  private static void validateString(String value, long limit) {
     try {
-      if ((value.length() * 6 > STRING_MAX_LENGTH) && (value.getBytes("utf-8").length
-          > STRING_MAX_LENGTH)) {
-        throw new IllegalArgumentException("InvalidData: The string's length is more than "
-            + STRING_MAX_LENGTH / 1024 / 1024 + "M.");
+      if (value.length() * UTF8_ENCODED_CHAR_MAX_SIZE > limit
+          && value.getBytes("utf-8").length > limit) {
+        throw new IllegalArgumentException(
+            "InvalidData: The string's length is more than " + limit + " bytes.");
       }
     } catch (UnsupportedEncodingException e) {
       throw new IllegalArgumentException(e.getMessage(), e);
@@ -117,19 +116,27 @@ public class OdpsTypeTransformer {
 
   }
 
-  private static List transformArray(List value, ArrayTypeInfo typeInfo) {
+  private static List transformArray(
+      List value,
+      ArrayTypeInfo typeInfo,
+      boolean strict,
+      long fieldMaxSize) {
     List<Object> newList = new ArrayList<Object>(value.size());
 
     TypeInfo elementTypeInfo = typeInfo.getElementTypeInfo();
 
     for (Object obj : value) {
-      newList.add(transform(obj, elementTypeInfo));
+      newList.add(transform(obj, elementTypeInfo, strict, fieldMaxSize));
     }
 
     return newList;
   }
 
-  private static Map transformMap(Map value, MapTypeInfo typeInfo) {
+  private static Map transformMap(
+      Map value,
+      MapTypeInfo typeInfo,
+      boolean strict,
+      long fieldMaxSize) {
     TypeInfo keyTypeInfo = typeInfo.getKeyTypeInfo();
     TypeInfo valTypeInfo = typeInfo.getValueTypeInfo();
 
@@ -139,8 +146,8 @@ public class OdpsTypeTransformer {
     while (iter.hasNext()) {
       Map.Entry entry = (Map.Entry) iter.next();
 
-      Object entryKey = transform(entry.getKey(), keyTypeInfo);
-      Object entryValue = transform(entry.getValue(), valTypeInfo);
+      Object entryKey = transform(entry.getKey(), keyTypeInfo, strict, fieldMaxSize);
+      Object entryValue = transform(entry.getValue(), valTypeInfo, strict, fieldMaxSize);
 
       newMap.put(entryKey, entryValue);
     }
@@ -148,22 +155,22 @@ public class OdpsTypeTransformer {
     return newMap;
   }
 
-  private static Struct transformStruct(Struct value, StructTypeInfo typeInfo) {
+  private static Struct transformStruct(
+      Struct value,
+      StructTypeInfo typeInfo,
+      boolean strict,
+      long fieldMaxSize) {
     List<Object> elements = new ArrayList<Object>();
 
     for (int i = 0; i < typeInfo.getFieldCount(); ++i) {
       TypeInfo fieldTypeInfo = value.getFieldTypeInfo(i);
-      elements.add(transform(value.getFieldValue(i), fieldTypeInfo));
+      elements.add(transform(value.getFieldValue(i), fieldTypeInfo, strict, fieldMaxSize));
     }
 
     return new SimpleStruct(typeInfo, elements);
   }
 
-  static Object transform(Object value, TypeInfo typeInfo) {
-    return transform(value, typeInfo, true);
-  }
-
-  static Object transform(Object value, TypeInfo typeInfo, boolean strict) {
+  static Object transform(Object value, TypeInfo typeInfo, boolean strict, long fieldMaxSize) {
     if (value == null) {
       return null;
     }
@@ -176,7 +183,7 @@ public class OdpsTypeTransformer {
           value = ArrayRecord.bytesToString((byte []) value);
         }
         if (strict) {
-          validateString((String) value);
+          validateString((String) value, fieldMaxSize);
         }
         break;
       case BIGINT:
@@ -197,11 +204,11 @@ public class OdpsTypeTransformer {
         validateVarChar((Varchar) value, (VarcharTypeInfo) typeInfo);
         break;
       case ARRAY:
-        return transformArray((List) value, (ArrayTypeInfo) typeInfo);
+        return transformArray((List) value, (ArrayTypeInfo) typeInfo, strict, fieldMaxSize);
       case MAP:
-        return transformMap((Map) value, (MapTypeInfo) typeInfo);
+        return transformMap((Map) value, (MapTypeInfo) typeInfo, strict, fieldMaxSize);
       case STRUCT:
-        return transformStruct((Struct) value, (StructTypeInfo) typeInfo);
+        return transformStruct((Struct) value, (StructTypeInfo) typeInfo, strict, fieldMaxSize);
       default:
     }
 

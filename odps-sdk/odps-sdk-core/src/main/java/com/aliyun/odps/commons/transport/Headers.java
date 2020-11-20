@@ -80,6 +80,7 @@ public class Headers {
    * Used by Account
    */
   public static final String AUTHORIZATION = "Authorization";
+  public static final String AUTHORIZATION_STS_TOKEN = "authorization-sts-token";
   public static final String GROUP_AUTHORIZATION = "Group-Authorization";
   public static final String APP_AUTHENTICATION = "application-authentication";
   public static final String STS_AUTHENTICATION = "sts-authentication";
