@@ -37,6 +37,7 @@ public interface TunnelConstants {
   public static String DOWNLOADID = "downloadid";
   public static String BLOCKID = "blockid";
   public static String ROW_RANGE = "rowrange";
+  public static String SIZE_LIMIT = "sizelimit";
   public static String RANGE = "range";
   public static String TARGET = "target";
   public static String TYPE = "type";
@@ -62,4 +63,5 @@ public interface TunnelConstants {
   public static String QUERY_ID = "queryid";
   public static String STREAMS = "streams";
   public static String SLOT_ID = "slotid";
+  public static String CREATE_PARTITION = "create_partition";
 }

@@ -25,9 +25,13 @@ import static com.aliyun.odps.tunnel.TunnelConstants.TUNNEL_DATE_TRANSFORM_VERSI
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Random;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
@@ -46,10 +50,15 @@ import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.io.*;
+import com.aliyun.odps.utils.ConnectionWatcher;
+import com.aliyun.odps.tunnel.io.Checksum;
+import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
+import com.aliyun.odps.tunnel.io.TunnelRecordReader;
+import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -626,7 +635,12 @@ public class TableTunnel {
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
           String projectName, String tableName) throws TunnelException {
-    return new StreamUploadSessionImpl(projectName, tableName, null, this.config);
+    return createStreamUploadSession(projectName, tableName, null, 0, false);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, long slotNum) throws TunnelException {
+    return createStreamUploadSession(projectName, tableName, null, slotNum, false);
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
@@ -638,10 +652,39 @@ public class TableTunnel {
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
           String projectName, String tableName, PartitionSpec partitionSpec) throws TunnelException {
+    return createStreamUploadSession(projectName,
+                                       tableName,
+                                       partitionSpec,
+                                       0,
+                                       false);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, PartitionSpec partitionSpec, long slotNum) throws TunnelException {
+    return createStreamUploadSession(projectName,
+            tableName,
+            partitionSpec,
+            slotNum,
+            false);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, PartitionSpec partitionSpec, boolean createParitition) throws TunnelException {
+    return createStreamUploadSession(projectName,
+            tableName,
+            partitionSpec,
+            0,
+            createParitition);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, PartitionSpec partitionSpec, long slotNum, boolean createParitition) throws TunnelException {
     return new StreamUploadSessionImpl(projectName,
                                        tableName,
                                        partitionSpec == null ? null : partitionSpec.toString().replaceAll("'", ""),
-                                       this.config);
+                                       this.config,
+                                       slotNum,
+                                       createParitition);
   }
 
   public interface FlushResult {
@@ -674,7 +717,41 @@ public class TableTunnel {
      * @return traceId
      * @throws IOException
        */
-    public FlushResult flush() throws IOException;
+    public String flush() throws IOException;
+
+    /**
+     * 数据发送到server端
+     * pack对象在flush成功以后可以复用
+     * @param flushOption 设置 write 参数 {@link FlushOption}
+     * @return flush result
+     * @throws IOException
+     */
+    public FlushResult flush(FlushOption flushOption) throws IOException;
+  }
+
+  /**
+   * FlushOption 用于设置数据写入网络流时的一些配置。
+   */
+  public static class FlushOption {
+
+    private long timeout = 0;
+
+    /**
+     * 设置写入操作的超时时间。
+     * @param tm 单位毫秒 <= 0 代表无超时
+     */
+    public FlushOption timeout(long tm) {
+      this.timeout = tm;
+      return this;
+    }
+
+    public long getTimeout() {
+      return timeout;
+    }
+
+    public void setTimeout(long timeout) {
+      this.timeout = timeout;
+    }
   }
 
   public interface StreamUploadSession {
@@ -771,6 +848,7 @@ public class TableTunnel {
     private String projectName;
     private String tableName;
     private String partitionSpec;
+    private Long fieldMaxSize;
     private List<Long> blocks = new ArrayList<Long>();
     private UploadStatus status = UploadStatus.UNKNOWN;
 
@@ -916,12 +994,27 @@ public class TableTunnel {
      */
     public void writeBlock(long blockId, RecordPack pack)
         throws IOException {
+        writeBlock(blockId, pack, 0);
+    }
+
+    /**
+     * 打开http链接，写入pack数据，然后关闭链接，多次向同一个block写入时会覆盖之前数据
+     *
+     * @param blockId
+     *     块标识
+     * @param pack
+     *     pack数据
+     * @param timeout
+     *     超时时间 单位 ms 仅对 ProtobufRecordPack 有效 <=0 无超时
+     */
+    public void writeBlock(long blockId, RecordPack pack, long timeout)
+            throws IOException {
       Connection conn = null;
       try {
         if (pack instanceof ProtobufRecordPack) {
           ProtobufRecordPack protoPack = (ProtobufRecordPack) pack;
           conn = getConnection(blockId, protoPack.getCompressOption());
-          sendBlock(protoPack, conn);
+          sendBlock(protoPack, conn, timeout);
         } else {
           RecordWriter writer = openRecordWriter(blockId);
           RecordReader reader = pack.getRecordReader();
@@ -941,16 +1034,35 @@ public class TableTunnel {
     }
 
     private void sendBlock(ProtobufRecordPack pack, Connection conn) throws IOException {
+        sendBlock(pack, conn, 0);
+    }
+
+    private void sendBlock(ProtobufRecordPack pack, Connection conn, long timeout) throws IOException {
       if (null == conn) {
         throw new IOException("Invalid connection");
       }
       pack.checkTransConsistency(shouldTransform);
       pack.complete();
       ByteArrayOutputStream baos = pack.getProtobufStream();
-      baos.writeTo(conn.getOutputStream());
-      conn.getOutputStream().close();
-      baos.close();
-      Response response = conn.getResponse();
+      if (timeout > 0) {
+        ConnectionWatcher.getInstance().mark(conn, timeout);
+      }
+      Response response = null;
+      try {
+        baos.writeTo(conn.getOutputStream());
+        conn.getOutputStream().close();
+        baos.close();
+        response = conn.getResponse();
+      } catch (Throwable tr) {
+        if (timeout > 0 && ConnectionWatcher.getInstance().checkTimedOut(conn)) {
+          throw new SocketTimeoutException("Flush time exceeded timeout user set: " + timeout + "ms");
+        }
+        throw tr;
+      } finally {
+        if (timeout > 0) {
+          ConnectionWatcher.getInstance().release(conn);
+        }
+      }
       if (!response.isOK()) {
         TunnelException exception =
             new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(),
@@ -1047,8 +1159,20 @@ public class TableTunnel {
      *     数据传输压缩选项
      */
     public RecordWriter openBufferedWriter(CompressOption compressOption) throws TunnelException {
+      return openBufferedWriter(compressOption, 0);
+    }
+
+    /**
+     * 打开 {@link TunnelBufferedWriter} 用来写入数据
+     *
+     * @param compressOption
+     *     数据传输压缩选项
+     * @param timeout
+     *     超时时间 单位 ms <=0 代表无超时
+     */
+    public RecordWriter openBufferedWriter(CompressOption compressOption, long timeout) throws TunnelException {
       try {
-        return new TunnelBufferedWriter(this, compressOption);
+        return new TunnelBufferedWriter(this, compressOption, timeout);
       } catch (IOException e) {
         throw new TunnelException(e.getMessage(), e.getCause());
       }
@@ -1252,7 +1376,10 @@ public class TableTunnel {
      * @return
      */
     public Record newRecord() {
-      return new ArrayRecord(getSchema().getColumns().toArray(new Column[0]));
+      return new ArrayRecord(
+          getSchema().getColumns().toArray(new Column[0]),
+          true,
+          fieldMaxSize);
     }
 
     public RecordPack newRecordPack() throws IOException {
@@ -1328,6 +1455,11 @@ public class TableTunnel {
         if (tree.has("Schema")) {
           JsonObject tunnelTableSchema = tree.get("Schema").getAsJsonObject();
           schema = new TunnelTableSchema(tunnelTableSchema);
+        }
+
+        // field max size
+        if (tree.has("MaxFieldSize")) {
+          fieldMaxSize = tree.get("MaxFieldSize").getAsLong();
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);

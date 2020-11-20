@@ -40,6 +40,7 @@ import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.account.Account;
+import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
@@ -121,6 +122,7 @@ public class RestClient {
 
   private Account account;
   private AppAccount appAccount;
+  private AppStsAccount appStsAccount;
   private String endpoint;
   private boolean ignoreCerts = DEFAULT_IGNORE_CERTS;
 
@@ -529,6 +531,10 @@ public class RestClient {
     this.appAccount = appAccount;
   }
 
+  public void setAppStsAccount(AppStsAccount appStsAccount) {
+    this.appStsAccount = appStsAccount;
+  }
+
   public AppAccount getAppAccount() {
     return appAccount;
   }
@@ -628,6 +634,9 @@ public class RestClient {
       account.getRequestSigner().sign(resource, req);
       if (appAccount != null) {
         appAccount.getRequestSigner().sign(resource, req);
+      }
+      if (appStsAccount != null) {
+        appStsAccount.getRequestSigner().sign(resource, req);
       }
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException(e.getMessage(), e);

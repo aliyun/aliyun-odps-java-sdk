@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
 
+import com.aliyun.odps.account.StsAccount;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -197,6 +198,10 @@ public class OptionParser {
         return new AliyunAccount(odpsConf.getAccessId(), odpsConf.getAccessKey());
 
 
+      case STS:
+        return new StsAccount(odpsConf.getAccessId(),
+                              odpsConf.getAccessKey(),
+                              odpsConf.getStsToken());
       default:
         throw new OdpsException("unsupport account provider:" + accountProvider);
     }

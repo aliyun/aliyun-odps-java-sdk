@@ -112,6 +112,10 @@ public class SecurityConfiguration extends LazyLoad {
 
     @Element(name = "EnableDownloadPrivilege", required = false)
     boolean downloadPrivilege;
+
+    @Element(name = "GrammarVersion", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String grammarVersion;
   }
 
   private SecurityConfigurationModel model;
@@ -316,5 +320,9 @@ public class SecurityConfiguration extends LazyLoad {
    */
   public void disableDownloadPrivilege() {
     this.model.downloadPrivilege = false;
+  }
+
+  public String getGrammarVersion() {
+    return this.model.grammarVersion;
   }
 }

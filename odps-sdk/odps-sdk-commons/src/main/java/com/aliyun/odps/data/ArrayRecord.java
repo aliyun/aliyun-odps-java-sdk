@@ -39,6 +39,7 @@ import com.aliyun.odps.TableSchema;
  * @see Record
  */
 public class ArrayRecord implements Record {
+  private static final Long DEFAULT_FIELD_MAX_SIZE = 8 * 1024 * 1024L;
   private static final String DEFAULT_CHARSET = "utf-8";
 
   private Column[] columns;
@@ -50,26 +51,35 @@ public class ArrayRecord implements Record {
    * restricted.
    */
   private boolean strictTypeValidation;
+  /**
+   * Field max size allowed.
+   */
+  private Long fieldMaxSize = DEFAULT_FIELD_MAX_SIZE;
 
   public ArrayRecord(Column[] columns) {
     this(columns, true);
   }
 
   public ArrayRecord(Column[] columns, boolean strictTypeValidation) {
+    this(columns, strictTypeValidation, DEFAULT_FIELD_MAX_SIZE);
+  }
 
+  public ArrayRecord(Column[] columns, boolean strictTypeValidation, Long fieldMaxSize) {
     if (columns == null) {
       throw new IllegalArgumentException();
     }
 
     this.columns = columns;
     this.strictTypeValidation = strictTypeValidation;
+    if (fieldMaxSize != null) {
+      this.fieldMaxSize = fieldMaxSize;
+    }
 
     values = new Object[columns.length];
 
     for (int i = 0; i < columns.length; i++) {
       nameMap.put(columns[i].getName(), i);
     }
-
   }
 
   public ArrayRecord(Column[] columns, Object[] values) {
@@ -113,8 +123,11 @@ public class ArrayRecord implements Record {
       return;
     }
 
-    values[idx] =
-        OdpsTypeTransformer.transform(value, columns[idx].getTypeInfo(), strictTypeValidation);
+    values[idx] = OdpsTypeTransformer.transform(
+        value,
+        columns[idx].getTypeInfo(),
+        strictTypeValidation,
+        fieldMaxSize);
   }
 
   @Override

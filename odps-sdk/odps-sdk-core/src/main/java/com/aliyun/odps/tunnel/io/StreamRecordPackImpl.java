@@ -58,11 +58,16 @@ public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
   }
 
   @Override
-  public TableTunnel.FlushResult flush() throws IOException {
+  public String flush() throws IOException {
+      return flush(new TableTunnel.FlushOption()).getTraceId();
+  }
+
+  @Override
+  public TableTunnel.FlushResult flush(TableTunnel.FlushOption opt) throws IOException {
     long recordCount = pack.getSize();
     pack.checkTransConsistency(false);
     pack.complete();
-    String id = session.writeBlock(pack);
+    String id = session.writeBlock(pack, opt.getTimeout());
     long size = pack.getTotalBytes();
     pack.reset();
     return new FlushResultImpl(id, size, recordCount);

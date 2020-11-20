@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
+import com.aliyun.odps.account.StsAccount;
 import com.aliyun.odps.mapred.utils.SqlUtils;
 import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.google.gson.Gson;
@@ -125,6 +126,7 @@ public class SessionState {
   private final static String OLD_ENDPOINT_KEY = "odps.end.point";
   private final static String OLD_ACCESSID_KEY = "odps.access.id";
   private final static String OLD_ACCESSKEY_KEY = "odps.access.key";
+  private final static String OLD_STS_TOKEN_KEY = "odps.sts.token";
   private final static String OLD_RUNMODE_KEY = "odps.runner.mode";
   private final static String OLD_RESOURCE_KEY = "odps.cache.resources";
   private final static String OLD_CP_RESOURCE_KEY = "odps.classpath.resources";
@@ -262,10 +264,11 @@ public class SessionState {
       String project = prop.getProperty(OLD_PROJNAME_KEY);
       String accessId = prop.getProperty(OLD_ACCESSID_KEY);
       String accessKey = prop.getProperty(OLD_ACCESSKEY_KEY);
+      String stsToken = prop.getProperty(OLD_STS_TOKEN_KEY);
       String runmode = prop.getProperty(OLD_RUNMODE_KEY, "remote");
       this.tunnelEndpoint = prop.getProperty(LOCAL_TUNNEL_ENDPOINT);
 
-      if (runmode.equalsIgnoreCase("local")) {
+      if ("local".equalsIgnoreCase(runmode)) {
         handleLocalMR(prop);
       } else {
         System.err.println("Running job in console.");
@@ -278,24 +281,26 @@ public class SessionState {
         try {
           accountProvider = AccountProvider.valueOf(apStr);
         } catch (Exception exception) {
-          throw new RuntimeException("Unsupport account provider:" + apStr);
+          throw new RuntimeException("Unsupported account provider:" + apStr);
         }
       }
 
-      Account account = null;
+      Account account;
       switch (accountProvider) {
         case ALIYUN:
           account = new AliyunAccount(accessId, accessKey);
           break;
-
+        case STS:
+          account = new StsAccount(accessId, accessKey, stsToken);
+          break;
         default:
-          throw new RuntimeException("unsupport account provider:" + accountProvider);
+          throw new RuntimeException("Unsupported account provider:" + accountProvider);
       }
       Odps odps = new Odps(account);
       odps.setDefaultProject(project);
       odps.setEndpoint(endpoint);
       setOdps(odps);
-      setLocalRun(runmode.equalsIgnoreCase("local"));
+      setLocalRun("local".equalsIgnoreCase(runmode));
 
       String resources = prop.getProperty(OLD_RESOURCE_KEY, "");
       String cpresources = prop.getProperty(OLD_CP_RESOURCE_KEY, "");

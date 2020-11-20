@@ -712,7 +712,7 @@ public class Session {
         }
       } else if (response.status == OBJECT_STATUS_FAILED) {
         throw new OdpsException(
-            String.format("Start session[%s] failed: %s ", sessionName, response.result));
+            String.format("Start session[%s] failed: %s ", instance.getId(), response.result));
       } else if(!StringUtils.isNullOrEmpty(response.result)) {
         try {
           progress = gson.fromJson(response.result, SessionProgress.class);

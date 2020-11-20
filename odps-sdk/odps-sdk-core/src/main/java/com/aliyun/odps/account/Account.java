@@ -42,6 +42,8 @@ public interface Account {
     TAOBAO,
     // 阿里云账号
     ALIYUN,
+    // STS
+    STS,
     // logview token
     BEARER_TOKEN,
   }

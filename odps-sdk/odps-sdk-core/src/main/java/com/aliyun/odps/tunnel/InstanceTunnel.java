@@ -98,52 +98,6 @@ public class InstanceTunnel {
   }
 
   /**
-   * 在 Instance 上创建下载会话
-   *
-   * 非法情况:
-   * 1. 非 SQlTask
-   * 2. 非 select sql
-   * 3. Task 非 Success 状态
-   *
-   * @param projectName
-   *     Project名
-   * @param instanceID
-   *     Instance ID
-   * @param taskName
-   *     SqlRtTask taskName
-   * @return {@link InstanceTunnel.DownloadSession}
-   * @throws TunnelException
-   */
-  public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, String taskName)
-          throws TunnelException {
-    return new InstanceTunnel.DownloadSession(projectName, instanceID, null, true, taskName);
-  }
-
-  /**
-   * 在 Instance 上创建下载会话
-   *
-   * 非法情况:
-   * 1. 非 SQlTask
-   * 2. 非 select sql
-   * 3. Task 非 Success 状态
-   *
-   * @param projectName
-   *     Project名
-   * @param instanceID
-   *     Instance ID
-   * @param taskName
-   *     SqlRtTask taskName
-   * @param queryId
-   *     SqlRtTask sub queryId
-   * @return {@link InstanceTunnel.DownloadSession}
-   * @throws TunnelException
-   */
-  public InstanceTunnel.DownloadSession createDownloadSession(String projectName, String instanceID, String taskName, int queryId)
-      throws TunnelException {
-    return new InstanceTunnel.DownloadSession(projectName, instanceID, null, true, taskName, queryId);
-  }
-
-  /**
    * 在 Instance 上创建下载long polling会话
    *
    * 非法情况:
@@ -256,53 +210,11 @@ public class InstanceTunnel {
      */
     private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled)
         throws TunnelException {
-      this(projectName, instanceID, downloadId, limitEnabled, null);
-    }
-
-    /**
-     * 根据已有downloadId构造一个{@link DownloadSession}对象。
-     *
-     * @param projectName
-     *     下载数据表所在project名称
-     * @param instanceID
-     *     下载数据 instanceID
-     * @param downloadId
-     *     Download的唯一标识符
-     * @param limitEnabled
-     *     limited to 1w results
-     * @param taskName
-     *     SqlRtTask模式的task名称
-     */
-    private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled, String taskName)
-            throws TunnelException {
-      this(projectName, instanceID, downloadId, limitEnabled, taskName, -1);
-    }
-
-    /**
-     * 根据已有downloadId构造一个{@link DownloadSession}对象。
-     *
-     * @param projectName
-     *     下载数据表所在project名称
-     * @param instanceID
-     *     下载数据 instanceID
-     * @param downloadId
-     *     Download的唯一标识符
-     * @param limitEnabled
-     *     limited to 1w results
-     * @param taskName
-     *     SqlRtTask模式的task名称
-     * @param queryId
-     *     SqlRtTask的SubqueryId, -1表示当前currentquery
-     */
-    private DownloadSession(String projectName, String instanceID, String downloadId, boolean limitEnabled, String taskName, int queryId)
-        throws TunnelException {
       this.conf = InstanceTunnel.this.config;
       this.projectName = projectName;
       this.instanceID = instanceID;
       this.id = downloadId;
       this.limitEnabled = limitEnabled;
-      this.taskName = taskName;
-      this.queryId = queryId;
       tunnelServiceClient = conf.newRestClient(projectName);
 
       if (id == null) {
@@ -360,6 +272,25 @@ public class InstanceTunnel {
      *     本次要读取记录的起始位置
      * @param count
      *     本次要读取记录的数量
+     * @param sizeLimit
+     *     本次要读取记录的大小(Bytes)
+     * 如果超过count大小会截断
+     * 如果超过sizeLimit会直接抛出异常
+     * @throws TunnelException
+     * @throws IOException
+     */
+    public TunnelRecordReader openRecordReader(long start, long count, long sizeLimit) throws TunnelException,
+                                                                              IOException {
+      return openRecordReader(start, count, sizeLimit, false);
+    }
+
+    /**
+     * 打开{@link RecordReader}用来读取记录
+     *
+     * @param start
+     *     本次要读取记录的起始位置
+     * @param count
+     *     本次要读取记录的数量
      * @param compress
      *     数据传输是否进行压缩；即使设置了压缩选项，如果server 不支持压缩，传输数据也不会被压缩
      * @throws TunnelException
@@ -368,6 +299,27 @@ public class InstanceTunnel {
     public TunnelRecordReader openRecordReader(long start, long count, boolean compress)
         throws TunnelException, IOException {
       return openRecordReader(start, count, compress, null);
+    }
+
+    /**
+     * 打开{@link RecordReader}用来读取记录
+     *
+     * @param start
+     *     本次要读取记录的起始位置
+     * @param count
+     *     本次要读取记录的数量
+     * @param sizeLimit
+     *     本次要读取记录的大小(Bytes)
+     * 如果超过count大小会截断
+     * 如果超过sizeLimit会直接抛出异常
+     * @param compress
+     *     数据传输是否进行压缩；即使设置了压缩选项，如果server 不支持压缩，传输数据也不会被压缩
+     * @throws TunnelException
+     * @throws IOException
+     */
+    public TunnelRecordReader openRecordReader(long start, long count, long sizeLimit, boolean compress)
+        throws TunnelException, IOException {
+      return openRecordReader(start, count, sizeLimit, compress, null);
     }
 
     /**
@@ -408,6 +360,33 @@ public class InstanceTunnel {
       return openRecordReader(start, count, option, columns);
     }
 
+
+    /**
+     * 打开{@link RecordReader}用来读取记录
+     *
+     * @param start
+     *     本次要读取记录的起始位置
+     * @param count
+     *     本次要读取记录的数量
+     * @param sizeLimit
+     *     本地要读取记录的大小(Bytes)
+     * 如果超过count大小会截断
+     * 如果超过sizeLimit会直接抛出异常
+     * @param compress
+     *     数据传输是否进行压缩；即使设置了压缩选项，如果server 不支持压缩，传输数据也不会被压缩
+     * @param columns
+     *     本次需要下载的列
+     * @throws TunnelException
+     * @throws IOException
+     */
+    public TunnelRecordReader openRecordReader(long start, long count, long sizeLimit, boolean compress,
+                                               List<Column> columns) throws TunnelException, IOException {
+      CompressOption option = compress ? conf.getCompressOption() :
+                              new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
+      return openRecordReader(start, count, sizeLimit, option, columns);
+    }
+
+
     /**
      * 打开{@link RecordReader}用来读取记录
      *
@@ -428,6 +407,35 @@ public class InstanceTunnel {
 
       TunnelRecordReader reader =
           new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
+      reader.setTransform(shouldTransform);
+
+      return reader;
+    }
+
+    /**
+     * 打开{@link RecordReader}用来读取记录
+     *
+     * @param start
+     *     本次要读取记录的起始位置
+     * @param count
+     *     本次要读取记录的数量
+     * @param sizeLimit
+     *     本次要读取记录的大小(Bytes)
+     * 如果超过count大小会截断
+     * 如果超过sizeLimit会直接抛出异常
+     * @param compress
+     *     数据传输是否进行压缩；即使设置了压缩选项，如果server 不支持压缩，传输数据也不会被压缩
+     * @param columns
+     *     本次需要下载的列
+     * @throws TunnelException
+     * @throws IOException
+     */
+    public TunnelRecordReader openRecordReader(long start, long count, long sizeLimit, CompressOption compress,
+                                               List<Column> columns)
+        throws TunnelException, IOException {
+
+      TunnelRecordReader reader =
+          new TunnelRecordReader(start, count, sizeLimit, columns, compress, tunnelServiceClient, this);
       reader.setTransform(shouldTransform);
 
       return reader;

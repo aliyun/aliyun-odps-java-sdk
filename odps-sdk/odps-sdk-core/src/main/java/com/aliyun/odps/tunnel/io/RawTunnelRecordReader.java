@@ -50,6 +50,16 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
                                                                  InstanceTunnel.DownloadSession session,
                                                                  boolean longPolling)
       throws TunnelException, IOException {
+    return createInstanceTunnelReader(start, count, 0L, compress, columns, restClient, session, longPolling);
+  }
+
+  public static RawTunnelRecordReader createInstanceTunnelReader(long start, long count, long sizeLimit,
+                                                                 CompressOption compress,
+                                                                 List<Column> columns,
+                                                                 RestClient restClient,
+                                                                 InstanceTunnel.DownloadSession session,
+                                                                 boolean longPolling)
+      throws TunnelException, IOException {
     HashMap<String, String> params = new HashMap<String, String>();
     HashMap<String, String> headers = new HashMap<String, String>();
 
@@ -96,6 +106,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       if (count > 0) {
         // limit mode, otherwise unlimited
         params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
+      }
+      if(sizeLimit > 0){
+        //limit result size if necessary
+        params.put(TunnelConstants.SIZE_LIMIT, Long.toString(sizeLimit));
       }
     } else {
       params.put(TunnelConstants.DOWNLOADID, session.getId());
