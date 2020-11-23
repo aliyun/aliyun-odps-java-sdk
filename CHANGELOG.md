@@ -1,3 +1,15 @@
+# 0.36.4-public
+## Enhencements:
+  - [Core] Support iterate over projects with filter. See Projects#iteratorByFilter(ProjectFilter filter)
+  - [Tunnel] Remove the 8 MB limit on field size. The field size limit can now be configured by "odps.sql.cfile2.field.maxsize".
+  - [Tunnel] Support write timeout
+  - [Tunnel] Support auto partition creation in StreamTunnel  
+  - [SQLExecutor] Add tunnel endpoint cache
+  - [SQLExecutor] Support result download in batch
+## Fixes:
+  1. [Core] Fix incorrect return value from Instance#getTaskCost(String taskName)  
+  2. [SQLExecutor] Fix hang when downloading result
+
 # 0.34.4
 - session v2
 - support SQL function
