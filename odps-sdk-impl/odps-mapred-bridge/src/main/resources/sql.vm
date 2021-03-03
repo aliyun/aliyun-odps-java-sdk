@@ -49,15 +49,19 @@ $!{ctx.functionCreateText}
 	#end##
     FROM
 	(
-        #foreach ( $input_table in ${ctx.InputTableInfos} )
+        #foreach ($input_table_entry in ${ctx.mergeTableInfos().entrySet()})
         #if(!${ctx.mapOnly()})
-        SELECT mr2sql_mapper_${ctx.Id}(#collist($input_table)) as (${ctx.IntermediateColsJoinedMapOut})
+        SELECT mr2sql_mapper_${ctx.Id}(#collist(${input_table_entry.Key})) as (${ctx.IntermediateColsJoinedMapOut})
         #else
-        SELECT mr2sql_mapper_${ctx.Id}(#collist($input_table)) as (${ctx.PackagedColsJoined})
+        SELECT mr2sql_mapper_${ctx.Id}(#collist(${input_table_entry.Key})) as (${ctx.PackagedColsJoined})
         #end##
-            FROM #tblname($input_table)
-            #if (${input_table.PartSpec} && ${input_table.PartSpec.size()} > 0)
-            WHERE #partfilter($input_table)
+            FROM #tblname(${input_table_entry.Key})
+            #if (${input_table_entry.Value} && ${input_table_entry.Value.size()} > 0)
+            WHERE
+            #foreach($part in ${input_table_entry.Value})
+                ($part) #if(${foreach.hasNext}) OR
+                #end
+            #end
             #end##
         #if(${foreach.hasNext})UNION ALL
         #end##

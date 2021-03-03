@@ -296,6 +296,24 @@ class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
+
+  /**
+   * 获取当前查询的Summary信息
+
+   * @return SQL summary
+   * @throws OdpsException
+   */
+  public String getSummary() throws OdpsException  {
+    if (queryInfo == null) {
+      return null;
+    }
+    if (queryInfo.getExecuteMode().equals(ExecuteMode.OFFLINE)) {
+      return queryInfo.getInstance().getTaskSummary(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME).getSummaryText();
+    } else {
+      return session.getQueryStats(queryInfo.getId());
+    }
+  }
+
   /**
    * 获取当前查询的执行日志
 

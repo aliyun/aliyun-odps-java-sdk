@@ -3,6 +3,7 @@ package com.aliyun.odps.tunnel.io;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.StreamUploadSessionImpl;
 import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.tunnel.TunnelException;
 
 import java.io.IOException;
 
@@ -36,6 +37,7 @@ class FlushResultImpl implements TableTunnel.FlushResult {
 public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
   private ProtobufRecordPack pack;
   private StreamUploadSessionImpl session;
+  private boolean flushing = false;
 
   public StreamRecordPackImpl(StreamUploadSessionImpl session, CompressOption option) throws IOException {
     this.session = session;
@@ -44,6 +46,9 @@ public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
 
   @Override
   public void append(Record record) throws IOException {
+    if (flushing) {
+      throw new IOException(new TunnelException("There's an unsuccessful flush called, you should call flush to retry or call reset to drop the data"));
+    }
     pack.append(record);
   }
 
@@ -64,12 +69,19 @@ public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
 
   @Override
   public TableTunnel.FlushResult flush(TableTunnel.FlushOption opt) throws IOException {
+    flushing = true;
     long recordCount = pack.getSize();
     pack.checkTransConsistency(false);
     pack.complete();
     String id = session.writeBlock(pack, opt.getTimeout());
     long size = pack.getTotalBytes();
-    pack.reset();
+    reset();
     return new FlushResultImpl(id, size, recordCount);
+  }
+
+  @Override
+  public void reset() throws IOException {
+    pack.reset();
+    flushing = false;
   }
 }

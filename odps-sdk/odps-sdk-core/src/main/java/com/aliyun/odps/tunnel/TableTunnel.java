@@ -707,6 +707,8 @@ public class TableTunnel {
     public long getRecordCount();
 
     /**
+     * 注意：由于在写到内存缓冲区前，数据会经过多层缓冲区
+     * 因此这个值的变化并不是连续的，有可能出现append数据后，getDataSize不变的场景
      * @return 返回当前pack存储数据的大小
      */
     public long getDataSize();
@@ -716,7 +718,7 @@ public class TableTunnel {
      * pack对象在flush成功以后可以复用
      * @return traceId
      * @throws IOException
-       */
+     */
     public String flush() throws IOException;
 
     /**
@@ -727,6 +729,12 @@ public class TableTunnel {
      * @throws IOException
      */
     public FlushResult flush(FlushOption flushOption) throws IOException;
+
+    /**
+     * 重置缓冲区内存，保证pack对象可以复用
+     * pack对象在flush成功以后，会默认调用一次reset
+     */
+    public void reset() throws IOException;
   }
 
   /**

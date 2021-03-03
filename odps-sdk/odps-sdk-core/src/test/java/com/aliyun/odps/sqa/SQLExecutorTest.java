@@ -25,6 +25,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.utils.StringUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -918,6 +919,77 @@ public class SQLExecutorTest extends TestBase {
       Assert.assertTrue(e.getMessage().contains("InvalidArgument"));
     }
     finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorSummary() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    sqlExecutor.run("select \"1\" = 1;", hint);
+    try {
+      Thread.sleep(5000);
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      List<Record> records = sqlExecutor.getResult();
+      printRecords(records);
+      Assert.assertEquals(records.size(), 1);
+      String summary = sqlExecutor.getSummary();
+      System.out.println(summary);
+      Assert.assertFalse(StringUtils.isNullOrEmpty(summary));
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } catch (InterruptedException e) {
+      throw new OdpsException(e.getMessage());
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorFallbackSummary() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .fallbackPolicy(FallbackPolicy.alwaysFallbackPolicy())
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.session.max.instance.number", "1");
+    sqlExecutor.run(fallbackSql, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      List<Record> records = sqlExecutor.getResult();
+      Assert.assertEquals(records.size(), recordCount * 2);
+
+      String summary = sqlExecutor.getSummary();
+      System.out.println(summary);
+      Assert.assertFalse(StringUtils.isNullOrEmpty(summary));
+
+      System.out.println(sqlExecutor.getExecutionLog());
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } finally {
       sqlExecutor.close();
     }
   }

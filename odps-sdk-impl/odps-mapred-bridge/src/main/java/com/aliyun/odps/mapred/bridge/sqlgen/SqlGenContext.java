@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 
 public class SqlGenContext {
 
@@ -72,6 +73,43 @@ public class SqlGenContext {
       }
     }
     return tableInfos;
+  }
+
+  public LinkedHashMap<TableInfo, List<String>> mergeTableInfos() {
+    TableInfo[] tableInfos = getInputTableInfos();
+    LinkedHashMap<TableInfo, List<String>> ret = new LinkedHashMap<>();
+    if (tableInfos == null || tableInfos.length == 0) {
+      return ret;
+    }
+    for (TableInfo tableInfo : tableInfos) {
+      LinkedHashMap<String, String> partSpec = tableInfo.getPartSpec();
+      tableInfo.setPartSpec(new LinkedHashMap<>());
+      tableInfo.setLable(TableInfo.DEFAULT_LABEL);
+
+      String partStr = convertPartSpec(partSpec);
+
+      List<String> partitions = ret.get(tableInfo);
+      if (partitions == null) {
+        partitions = new ArrayList<>();
+        ret.put(tableInfo, partitions);
+      }
+
+      if (partStr != null) {
+        partitions.add(partStr);
+      }
+    }
+    return ret;
+  }
+
+  private String convertPartSpec(LinkedHashMap<String, String> partSpec) {
+    if (partSpec == null || partSpec.size() == 0) {
+      return null;
+    }
+    List<String> ret = new ArrayList<>();
+    for (Map.Entry<String, String> entry : partSpec.entrySet()) {
+      ret.add(String.format("%s = \"%s\"", entry.getKey(), entry.getValue()));
+    }
+    return String.join(" AND ", ret);
   }
 
   public TableInfo[] getOutputTableInfos() {

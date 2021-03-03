@@ -165,6 +165,8 @@ public class Project extends LazyLoad {
       rootObj.addProperty(name, value);
     }
 
+    public void addProperty(String name, JsonObject object) { rootObj.add(name, object);}
+
     public String toJson() {
       Gson gson = new Gson();
       return  gson.toJson(rootObj);

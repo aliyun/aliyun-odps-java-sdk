@@ -327,6 +327,16 @@ public class TableInfo {
     return false;
   }
 
+  @Override
+  public int hashCode() {
+    int result = projectName != null ? projectName.hashCode() : 0;
+    result = 31 * result + (tblName != null ? tblName.hashCode() : 0);
+    result = 31 * result + (cols != null ? Arrays.hashCode(cols) : 0);
+    result = 31 * result + (label != null ? label.hashCode() : 0);
+    result = 31 * result + (partSpec != null ? partSpec.hashCode() : 0);
+    return result;
+  }
+
   private transient static final String SEPERATOR = "/";
   private transient static final String DELIMITER = "=";
 

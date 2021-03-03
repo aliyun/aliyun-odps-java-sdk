@@ -93,6 +93,14 @@ public interface SQLExecutor {
   public List<String> getExecutionLog();
 
   /**
+   * 获取当前查询的Summary信息
+
+   * @return SQL summary
+   * @throws OdpsException
+   */
+  public String getSummary() throws OdpsException ;
+
+  /**
    * 通过InstanceTunnel获取所有结果
 
    * @return query执行的所有结果
