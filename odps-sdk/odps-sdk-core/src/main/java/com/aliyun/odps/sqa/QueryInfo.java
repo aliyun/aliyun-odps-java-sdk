@@ -57,6 +57,10 @@ class QueryInfo {
     return hint;
   }
 
+  public void setHint(Map<String, String> hint) {
+    this.hint = hint;
+  }
+
   public Instance getInstance() {
     synchronized (this) {
       return instance;
@@ -66,6 +70,12 @@ class QueryInfo {
   public ExecuteMode getExecuteMode() {
     synchronized (this) {
       return executeMode;
+    }
+  }
+
+  public void setExecuteMode(ExecuteMode mode) {
+    synchronized (this) {
+      executeMode = mode;
     }
   }
 
@@ -83,7 +93,7 @@ class QueryInfo {
         }
       }
       executionLog.add("Running in " + executeMode.toString().toLowerCase()
-          + " mode, RetryCount: " + retry + ", QueryId:" + id + ", LogView:");
+          + " mode, RetryCount: " + retry + ", QueryId:" + id + "\nLog view:");
       executionLog.add(logview);
     }
   }

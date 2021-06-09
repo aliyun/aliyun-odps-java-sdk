@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -193,7 +194,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       case DATETIME: {
         Date value = (Date) v;
 
-        Long longValue = null;
+        long longValue;
         if (!shouldTransform) {
           longValue = ((Date) v).getTime();
         } else {
@@ -204,14 +205,14 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case DATE: {
-        Long longValue = DateUtils.getDayOffset((java.sql.Date) v);
+        long longValue = ((LocalDate) v).toEpochDay();
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
       }
       case TIMESTAMP: {
-        Integer nano = ((Timestamp) v).getNanos();
-        Long value = (((Timestamp) v).getTime() - (nano / 1000000)) / 1000;
+        int nano = ((Timestamp) v).getNanos();
+        long value = (((Timestamp) v).getTime() - (nano / 1000000)) / 1000;
         crc.update(value);
         crc.update(nano);
         out.writeSInt64NoTag(value);
@@ -219,8 +220,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case INTERVAL_DAY_TIME: {
-        Long value = ((IntervalDayTime) v).getTotalSeconds();
-        Integer nano = ((IntervalDayTime) v).getNanos();
+        long value = ((IntervalDayTime) v).getTotalSeconds();
+        int nano = ((IntervalDayTime) v).getNanos();
         crc.update(value);
         crc.update(nano);
         out.writeSInt64NoTag(value);

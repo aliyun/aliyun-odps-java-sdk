@@ -3,6 +3,7 @@ package com.aliyun.odps.data;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,15 +25,16 @@ import com.aliyun.odps.type.VarcharTypeInfo;
 public class OdpsTypeTransformer {
   private static final int UTF8_ENCODED_CHAR_MAX_SIZE = 6;
 
-  // 9999-12-31 23:59:59
-  private static final long DATETIME_MAX_TICKS = 253402271999000L;
-  // 0001-01-01 00:00:00
-  private static final long DATETIME_MIN_TICKS = -62135798400000L;
+  /**
+   * The datetime range limited by storage, from -001-12-31 00:00:00 +0000 to
+   * 10000-01-02 00:00:00 +0000.
+   */
+  private static final long DATETIME_MAX_TICKS = 253402387200000L;
+  private static final long DATETIME_MIN_TICKS = -62167305600000L;
 
-  private static Map<OdpsType, Class> ODPS_TYPE_MAPPER = new HashMap<OdpsType, Class>();
+  private static Map<OdpsType, Class> ODPS_TYPE_MAPPER = new HashMap<>();
 
-  OdpsTypeTransformer() {
-  }
+  OdpsTypeTransformer() {}
 
   static {
     ODPS_TYPE_MAPPER.put(OdpsType.BIGINT, Long.class);
@@ -47,7 +49,7 @@ public class OdpsTypeTransformer {
     ODPS_TYPE_MAPPER.put(OdpsType.INT, Integer.class);
     ODPS_TYPE_MAPPER.put(OdpsType.TINYINT, Byte.class);
     ODPS_TYPE_MAPPER.put(OdpsType.SMALLINT, Short.class);
-    ODPS_TYPE_MAPPER.put(OdpsType.DATE, java.sql.Date.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.DATE, LocalDate.class);
     ODPS_TYPE_MAPPER.put(OdpsType.TIMESTAMP, java.sql.Timestamp.class);
     ODPS_TYPE_MAPPER.put(OdpsType.FLOAT, Float.class);
     ODPS_TYPE_MAPPER.put(OdpsType.CHAR, Char.class);
@@ -121,7 +123,7 @@ public class OdpsTypeTransformer {
       ArrayTypeInfo typeInfo,
       boolean strict,
       long fieldMaxSize) {
-    List<Object> newList = new ArrayList<Object>(value.size());
+    List<Object> newList = new ArrayList<>(value.size());
 
     TypeInfo elementTypeInfo = typeInfo.getElementTypeInfo();
 
@@ -209,6 +211,11 @@ public class OdpsTypeTransformer {
         return transformMap((Map) value, (MapTypeInfo) typeInfo, strict, fieldMaxSize);
       case STRUCT:
         return transformStruct((Struct) value, (StructTypeInfo) typeInfo, strict, fieldMaxSize);
+      case DATE:
+        if (value instanceof java.util.Date) {
+          value = ArrayRecord.dateToLocalDate((java.util.Date) value, ArrayRecord.DEFAULT_CALENDAR);
+        }
+        break;
       default:
     }
 

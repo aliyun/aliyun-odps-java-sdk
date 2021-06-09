@@ -75,4 +75,9 @@ public class FallbackPolicy {
   public boolean isFallback4UnknownError() {
     return fallback4UnknownError;
   }
+
+  public boolean isAlwaysFallBack() {
+    return fallback4ResourceNotEnough && fallback4UnsupportedFeature && fallback4RunningTimeout
+        && fallback4Upgrading && fallback4UnknownError;
+  }
 }

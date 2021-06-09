@@ -51,6 +51,7 @@ public class Headers {
   public static final String ODPS_USER_AGENT = "x-odps-user-agent";
   public static final String ODPS_SUPERVISION_TOKEN = "odps-x-supervision-token";
   public static final String TUNNEL_SCHEMA = "odps-tunnel-schema";
+  public static final String TUNNEL_RECORD_COUNT = "odps-tunnel-record-count";
 
   /**
    * Used by Resource
@@ -113,6 +114,7 @@ public class Headers {
     put(ODPS_USER_AGENT.toLowerCase(), ODPS_USER_AGENT);
     put(ODPS_SUPERVISION_TOKEN.toLowerCase(), ODPS_SUPERVISION_TOKEN);
     put(TUNNEL_SCHEMA.toLowerCase(), TUNNEL_SCHEMA);
+    put(TUNNEL_RECORD_COUNT.toLowerCase(), TUNNEL_RECORD_COUNT);
     put(ODPS_COPY_TABLE_SOURCE.toLowerCase(), ODPS_COPY_TABLE_SOURCE);
     put(ODPS_COPY_FILE_SOURCE.toLowerCase(), ODPS_COPY_FILE_SOURCE);
     put(ODPS_COMMENT.toLowerCase(), ODPS_COMMENT);

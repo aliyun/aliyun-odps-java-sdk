@@ -615,7 +615,31 @@ public class Session {
   }
 
   /**
-   * 查询SubQuery结果
+   * 等待SubQuery执行结束获取查询结果
+   *
+   * @param queryId
+   *
+   * @return 查询结果
+   * @throws OdpsException
+   */
+  public SubQueryResponse waitForSubqueryTerminated(int queryId) throws OdpsException {
+    boolean terminated = false;
+    SubQueryResponse response = new SubQueryResponse();
+    while (!terminated) {
+      response = getResponse(instance.getTaskInfo(taskName, "get_finished_status_" + queryId));
+      if (response == null || response.status == null) {
+        checkTaskStatus();
+      } else if (response.status == OBJECT_STATUS_FAILED && response.result.contains("SubQuery not found")) {
+        throw new OdpsException(response.result);
+      } else if (response.status != OBJECT_STATUS_RUNNING) {
+        terminated = true;
+      }
+    }
+    return response;
+  }
+
+  /**
+   * getInformation查询SubQuery结果
    *
    * @param queryId
    *     sql 语句
@@ -629,6 +653,36 @@ public class Session {
     result.setSchema(parseResult.getSchema());
     result.setRecords(parseResult.getRecords());
     return result;
+  }
+
+  /**
+   * 从odps_worker查询SubQuery结果
+   *
+   * @param queryId
+   *     sql 语句
+   * @return 查询结果
+   * @throws OdpsException
+   */
+  public SubQueryResult getSubQueryResultFromWorker(int queryId) throws OdpsException {
+    SubQueryResponse response = waitForSubqueryTerminated(queryId);
+    String subqueryId = "session_query_" + queryId;
+    String resultString = instance.getRawSubqueryResults(subqueryId, taskName);
+
+    if (response.status == OBJECT_STATUS_FAILED) {
+      throw new OdpsException(resultString);
+    } else {
+      if (!StringUtils.isNullOrEmpty(response.result)) {
+        resultString += response.result;
+      }
+      SubQueryResult result = new SubQueryResult();
+      if (!StringUtils.isNullOrEmpty(response.warnings)) {
+        result.addWarning(response.warnings);
+      }
+      CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(resultString);
+      result.setSchema(parseResult.getSchema());
+      result.setRecords(parseResult.getRecords());
+      return result;
+    }
   }
 
   /**

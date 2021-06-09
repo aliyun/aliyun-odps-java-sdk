@@ -193,52 +193,6 @@ public class TableTest extends TestBase {
     a.deletePartition(spec);
   }
 
-  @Test
-  public void testListPartitionSpecs() throws OdpsException {
-    Table partitionedTable = odps.tables().get(PARTITIONED_TABLE_NAME);
-    List<PartitionSpec> partitionSpecs = partitionedTable.getPartitionSpecs();
-    assertEquals(3, partitionSpecs.size());
-
-    // Should be ordered lexicographically
-    assertEquals("p1=\'1\',p2=\'bar\'", partitionSpecs.get(0).toString());
-    assertEquals("p1=\'1\',p2=\'baz\'", partitionSpecs.get(1).toString());
-    assertEquals("p1=\'1\',p2=\'foo\'", partitionSpecs.get(2).toString());
-  }
-
-  @Test
-  public void testGetPartitionsByRange() throws OdpsException {
-    Table partitionedTable = odps.tables().get(PARTITIONED_TABLE_NAME);
-    List<PartitionSpec> partitionSpecs = partitionedTable.getPartitionSpecs();
-
-    // Test both lower and upper bound are provided. Partitions within the range should be returned
-    List<Partition> partitions = partitionedTable.getPartitions(partitionSpecs.get(0),
-                                                                partitionSpecs.get(2));
-    assertEquals(2, partitions.size());
-    assertEquals("p1=\'1\',p2=\'bar\'", partitions.get(0).getPartitionSpec().toString());
-    assertEquals("p1=\'1\',p2=\'baz\'", partitions.get(1).getPartitionSpec().toString());
-
-    // Test lower bound is provided while upper bound is missing. Partitions greater than the lower
-    // bound should be returned
-    partitions = partitionedTable.getPartitions(partitionSpecs.get(1), null);
-    assertEquals(2, partitions.size());
-    assertEquals("p1=\'1\',p2=\'baz\'", partitions.get(0).getPartitionSpec().toString());
-    assertEquals("p1=\'1\',p2=\'foo\'", partitions.get(1).getPartitionSpec().toString());
-
-    // Test both lower and upper bound are missing. An IllegalArgumentException should be thrown
-    try {
-      partitionedTable.getPartitions(null, null);
-    } catch (IllegalArgumentException e) {
-      assertEquals("Argument lowerBound cannot be null", e.getMessage());
-    }
-
-    // Test lower bound is missing while upper bound is provided. An IllegalArgumentException
-    // should be thrown
-    try {
-      partitionedTable.getPartitions(null, partitionSpecs.get(2));
-    } catch (IllegalArgumentException e) {
-      assertEquals("Argument lowerBound cannot be null", e.getMessage());
-    }
-  }
 
   @Test
   public void testIsExternalTable() throws OdpsException {

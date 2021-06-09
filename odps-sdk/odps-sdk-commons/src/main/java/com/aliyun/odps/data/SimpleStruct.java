@@ -77,4 +77,18 @@ public class SimpleStruct implements Struct {
     return values;
   }
 
+  @Override
+  public String toString() {
+    String valueStr = "{";
+    int colCount = getFieldCount();
+    for (int i = 0; i < colCount; ++i) {
+      valueStr += getFieldName(i) + ":" + getFieldValue(i);
+      if (i != colCount - 1) {
+        valueStr += ", ";
+      }
+    }
+    valueStr += "}";
+    return valueStr;
+  }
+
 }

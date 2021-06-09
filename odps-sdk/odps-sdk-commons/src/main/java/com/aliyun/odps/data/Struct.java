@@ -17,4 +17,6 @@ public interface Struct {
   TypeInfo getFieldTypeInfo(String fieldName);
   Object getFieldValue(String fieldName);
   List<Object> getFieldValues();
+  @Override
+  String toString();
 }

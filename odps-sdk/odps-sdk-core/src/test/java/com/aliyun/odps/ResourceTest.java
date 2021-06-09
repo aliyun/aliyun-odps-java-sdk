@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -374,21 +375,17 @@ public class ResourceTest extends TestBase {
   @Test
   public void downloadResource() throws OdpsException, IOException {
     String filename = ResourceTest.class.getClassLoader().getResource("resource.jar").getFile();
-    JarResource rm = new JarResource();
+    JarResource resource = new JarResource();
 
-    rm.setName("zhemin_res.jar");
-    odps.resources().create(rm, new FileInputStream(new File(filename)));
-    InputStream in = odps.resources().getResourceAsStream("zhemin_res.jar");
-    InputStream origis = new FileInputStream(new File(filename));
-    byte[] orig = new byte[8196];
-    byte[] down = new byte[8196];
-    while (in.available() > 0) {
-      in.read(down);
-      origis.read(orig);
-      Assert.assertArrayEquals(orig, down);
-    }
-    assertTrue(origis.available() == 0);
-    origis.close();
+    resource.setName("zhemin_res.jar");
+    odps.resources().create(resource, new FileInputStream(new File(filename)));
+
+    InputStream origin = new FileInputStream(new File(filename));
+    InputStream downloaded = odps.resources().getResourceAsStream(resource.getName());
+    String originMd5 = DigestUtils.md5Hex(origin);
+    String downloadedMd5 = DigestUtils.md5Hex(downloaded);
+
+    Assert.assertEquals(originMd5, downloadedMd5);
     odps.resources().delete("zhemin_res.jar");
   }
 

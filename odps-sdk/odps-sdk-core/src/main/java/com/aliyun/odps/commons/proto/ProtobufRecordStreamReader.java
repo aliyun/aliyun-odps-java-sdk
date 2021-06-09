@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -131,7 +132,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
    */
   public Record read(Record reuseRecord) throws IOException {
     if (reuseRecord == null) {
-      reuseRecord = new ArrayRecord(columns);
+      reuseRecord = new ArrayRecord(columns, false);
     } else {
       for (int i = 0; i < reuseRecord.getColumnCount(); ++i) {
         reuseRecord.set(i, null);
@@ -252,7 +253,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
         long v = in.readSInt64();
         crc.update(v);
         // translate to sql.date
-        return DateUtils.fromDayOffset(v);
+        return LocalDate.ofEpochDay(v);
       }
       case INTERVAL_DAY_TIME: {
         long time = in.readSInt64();

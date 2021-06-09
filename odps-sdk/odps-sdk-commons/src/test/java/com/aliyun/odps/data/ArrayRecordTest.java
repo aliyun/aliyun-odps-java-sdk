@@ -21,13 +21,22 @@ package com.aliyun.odps.data;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.chrono.IsoEra;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
+import java.util.TimeZone;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,6 +54,33 @@ import com.aliyun.odps.type.TypeInfoFactory;
 public class ArrayRecordTest {
 
   private static final String STRING_CHARSET = "UTF-8";
+
+  private static final Calendar GMT_CALENDER = new Calendar.Builder()
+      .setCalendarType("iso8601")
+      .setLenient(true)
+      .setTimeZone(TimeZone.getTimeZone("GMT"))
+      .build();
+
+  private static final List<LocalDate> LOCAL_DATES;
+  private static final List<java.sql.Date> DATES;
+  static {
+    List<LocalDate> localDates = new ArrayList<>(366 * 10000);
+    LocalDate localDate = LocalDate.of(0, Month.JANUARY, 1);
+    while (localDate.getYear() < 10000) {
+      localDates.add(localDate);
+      localDate = localDate.plus(1, ChronoUnit.DAYS);
+    }
+    LOCAL_DATES = Collections.unmodifiableList(localDates);
+
+    List<java.sql.Date> dates = new ArrayList<>(366 * 10000);
+    Calendar cal = (Calendar) GMT_CALENDER.clone();
+    cal.set(0, Calendar.JANUARY, 1);
+    while (cal.get(Calendar.YEAR) < 10000) {
+      dates.add(new java.sql.Date(cal.getTime().getTime()));
+      cal.add(Calendar.DATE, 1);
+    }
+    DATES = Collections.unmodifiableList(dates);
+  }
 
   @Test
   public void testTypeInfo() {
@@ -64,7 +100,7 @@ public class ArrayRecordTest {
     schema.addColumn(new Column("col10", TypeInfoFactory.DATETIME));
     schema.addColumn(new Column("col11", TypeInfoFactory.TIMESTAMP));
     schema.addColumn(new Column("col12", TypeInfoFactory.VOID));
-    schema.addColumn(new Column("col13", OdpsType.BINARY));
+    schema.addColumn(new Column("col13", TypeInfoFactory.BINARY));
     schema.addColumn(new Column("col14", TypeInfoFactory.getVarcharTypeInfo(2)));
     schema.addColumn(new Column("col15", TypeInfoFactory.getCharTypeInfo(10)));
     schema.addColumn(new Column("col16", TypeInfoFactory.getDecimalTypeInfo(10, 2)));
@@ -95,20 +131,19 @@ public class ArrayRecordTest {
     record.set(9, new java.sql.Date(time.getTime()));
     record.setDatetime(10, time);
     record.setTimestamp(11, new java.sql.Timestamp(time.getTime()));
-    Void v = null;
-    record.set("col12", v);
+    record.set("col12", null);
     record.set("col13", new Binary(new byte[]{'1', '2'}));
     record.setVarchar(14, new Varchar("he"));
     record.setChar(15, new Char("hello!"));
     record.setDecimal(16, new BigDecimal("12.23"));
-    List<Integer> array = new ArrayList<Integer>();
+    List<Integer> array = new ArrayList<>();
     array.add(0, 12);
     record.set(17, array);
-    Map<Integer, String> map = new HashMap<Integer, String>();
+    Map<Integer, String> map = new HashMap<>();
     map.put(10, "map");
     map.put(12, "map2");
     record.setMap("col18", map);
-    Map<String, Integer> parents = new HashMap<String, Integer>();
+    Map<String, Integer> parents = new HashMap<>();
     parents.put("mother", 45);
     parents.put("father", 50);
     Object [] values = {"Lily", 20, 99.8f, parents};
@@ -127,16 +162,16 @@ public class ArrayRecordTest {
     Assert.assertEquals((Double) d, record.getDouble(6));
     Assert.assertEquals((Float) 3.14f, record.getFloat("col7"));
     Assert.assertEquals(true, record.getBoolean(8));
-    Assert.assertEquals(time, record.getDate(9));
+    Assert.assertTrue(isSameDate(new java.sql.Date(time.getTime()), GMT_CALENDER, record.getDate(9), GMT_CALENDER));
     Assert.assertEquals(time, record.getDatetime(10));
     Assert.assertEquals(time, record.getTimestamp(11));
-    Assert.assertEquals(null, record.get("col12"));
+    Assert.assertNull(record.get("col12"));
     Assert.assertEquals(new Binary(new byte[]{'1', '2'}), record.getBinary(13));
     Assert.assertEquals(new Varchar("he"), record.getVarchar(14));
     Assert.assertEquals("hello!", record.getChar("col15").getValue());
     Assert.assertEquals("12.23", record.getDecimal(16).toString());
     Assert.assertArrayEquals(array.toArray(), record.getArray(Integer.class, 17).toArray());
-    Assert.assertTrue(map.equals(record.getMap(Integer.class, String.class, 18)));
+    Assert.assertEquals(map, record.getMap(Integer.class, String.class, 18));
 
     Struct value = record.getStruct(19);
     Assert.assertEquals("Lily", value.getFieldValue("name"));
@@ -149,6 +184,9 @@ public class ArrayRecordTest {
     Assert.assertEquals(2, p.size());
     Assert.assertArrayEquals(new String[]{"mother", "father"}, p.keySet().toArray());
     Assert.assertArrayEquals(new Integer [] {45, 50}, p.values().toArray());
+
+    Assert.assertEquals(value.toString(), "{name:Lily, age:20, weight:99.8, parents:{mother=45, father=50}}");
+
   }
 
 
@@ -282,33 +320,20 @@ public class ArrayRecordTest {
     // string, string, array<bigint>, array<string>, map<bigint, string>, map<string,bigint>
     TableSchema schema = new TableSchema();
 
-    schema.addColumn(new Column("col1", OdpsType.STRING));
-    schema.addColumn(new Column("col2", OdpsType.STRING));
+    schema.addColumn(new Column("col1", TypeInfoFactory.STRING));
+    schema.addColumn(new Column("col2", TypeInfoFactory.STRING));
 
-    List<OdpsType> arrayTypeList = new ArrayList<OdpsType>();
-    arrayTypeList.add(OdpsType.BIGINT);
-    Column arrayCol = new Column("col3", OdpsType.ARRAY);
-    arrayCol.setGenericTypeList(arrayTypeList);
+    Column arrayCol =
+        new Column("col3", TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.BIGINT));
     schema.addColumn(arrayCol);
 
-    arrayTypeList = new ArrayList<OdpsType>();
-    arrayTypeList.add(OdpsType.STRING);
-    arrayCol = new Column("col4", OdpsType.ARRAY);
-    arrayCol.setGenericTypeList(arrayTypeList);
+    arrayCol = new Column("col4", TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.STRING));
     schema.addColumn(arrayCol);
 
-    List<OdpsType> mapTypeList = new ArrayList<OdpsType>();
-    mapTypeList.add(OdpsType.BIGINT);
-    mapTypeList.add(OdpsType.STRING);
-    Column mapCol = new Column("col5", OdpsType.MAP);
-    mapCol.setGenericTypeList(mapTypeList);
+    Column mapCol = new Column("col5", TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.BIGINT, TypeInfoFactory.STRING));
     schema.addColumn(mapCol);
 
-    mapTypeList = new ArrayList<OdpsType>();
-    mapTypeList.add(OdpsType.STRING);
-    mapTypeList.add(OdpsType.BIGINT);
-    mapCol = new Column("col6", OdpsType.MAP);
-    mapCol.setGenericTypeList(mapTypeList);
+    mapCol = new Column("col6", TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.STRING, TypeInfoFactory.BIGINT));
     schema.addColumn(mapCol);
 
     ArrayRecord record = new ArrayRecord(schema);
@@ -322,8 +347,8 @@ public class ArrayRecordTest {
   public void testClear() {
     TableSchema schema = new TableSchema();
 
-    schema.addColumn(new Column("col1", OdpsType.BIGINT));
-    schema.addColumn(new Column("col2", OdpsType.STRING));
+    schema.addColumn(new Column("col1", TypeInfoFactory.BIGINT));
+    schema.addColumn(new Column("col2", TypeInfoFactory.STRING));
 
     ArrayRecord r = new ArrayRecord(schema);
     r.setBigint(0, 1L);
@@ -339,10 +364,10 @@ public class ArrayRecordTest {
   public void testInterval() {
     TableSchema schema = new TableSchema();
 
-    schema.addColumn(new Column("c1", OdpsType.INTERVAL_DAY_TIME));
-    schema.addColumn(new Column("c2", OdpsType.INTERVAL_DAY_TIME));
-    schema.addColumn(new Column("c3", OdpsType.INTERVAL_YEAR_MONTH));
-    schema.addColumn(new Column("c4", OdpsType.INTERVAL_YEAR_MONTH));
+    schema.addColumn(new Column("c1", TypeInfoFactory.INTERVAL_DAY_TIME));
+    schema.addColumn(new Column("c2", TypeInfoFactory.INTERVAL_DAY_TIME));
+    schema.addColumn(new Column("c3", TypeInfoFactory.INTERVAL_YEAR_MONTH));
+    schema.addColumn(new Column("c4", TypeInfoFactory.INTERVAL_YEAR_MONTH));
 
     ArrayRecord record = new ArrayRecord(schema);
 
@@ -372,22 +397,22 @@ public class ArrayRecordTest {
 
     TableSchema schema = new TableSchema();
 
-    schema.addColumn(new Column("col0", OdpsType.INT));
-    schema.addColumn(new Column("col1", OdpsType.BIGINT));
-    schema.addColumn(new Column("col2", OdpsType.STRING));
-    schema.addColumn(new Column("col3", OdpsType.DECIMAL));
-    schema.addColumn(new Column("col4", OdpsType.TINYINT));
-    schema.addColumn(new Column("col5", OdpsType.SMALLINT));
-    schema.addColumn(new Column("col6", OdpsType.DOUBLE));
-    schema.addColumn(new Column("col7", OdpsType.FLOAT));
-    schema.addColumn(new Column("col8", OdpsType.BOOLEAN));
-    schema.addColumn(new Column("col9", OdpsType.DATE));
-    schema.addColumn(new Column("col10", OdpsType.DATETIME));
-    schema.addColumn(new Column("col11", OdpsType.TIMESTAMP));
+    schema.addColumn(new Column("col0", TypeInfoFactory.INT));
+    schema.addColumn(new Column("col1", TypeInfoFactory.BIGINT));
+    schema.addColumn(new Column("col2", TypeInfoFactory.STRING));
+    schema.addColumn(new Column("col3", TypeInfoFactory.DECIMAL));
+    schema.addColumn(new Column("col4", TypeInfoFactory.TINYINT));
+    schema.addColumn(new Column("col5", TypeInfoFactory.SMALLINT));
+    schema.addColumn(new Column("col6", TypeInfoFactory.DOUBLE));
+    schema.addColumn(new Column("col7", TypeInfoFactory.FLOAT));
+    schema.addColumn(new Column("col8", TypeInfoFactory.BOOLEAN));
+    schema.addColumn(new Column("col9", TypeInfoFactory.DATE));
+    schema.addColumn(new Column("col10", TypeInfoFactory.DATETIME));
+    schema.addColumn(new Column("col11", TypeInfoFactory.TIMESTAMP));
 //    schema.addColumn(new Column("col12", OdpsType.VOID));
     schema.addColumn(new Column("col13", TypeInfoFactory.getVarcharTypeInfo(2)));
     schema.addColumn(new Column("col14", TypeInfoFactory.getCharTypeInfo(2)));
-    schema.addColumn(new Column("col15", OdpsType.BINARY));
+    schema.addColumn(new Column("col15", TypeInfoFactory.BINARY));
     schema.addColumn(new Column("col16", TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.INT)));
     schema.addColumn(new Column("col17", TypeInfoFactory
         .getMapTypeInfo(TypeInfoFactory.INT, TypeInfoFactory.STRING)));
@@ -416,8 +441,8 @@ public class ArrayRecordTest {
   public void testByteAndString() {
     TableSchema schema = new TableSchema();
 
-    schema.addColumn(new Column("col1", OdpsType.STRING));
-    schema.addColumn(new Column("col2", OdpsType.STRING));
+    schema.addColumn(new Column("col1", TypeInfoFactory.STRING));
+    schema.addColumn(new Column("col2", TypeInfoFactory.STRING));
 
 
     ArrayRecord r = new ArrayRecord(schema);
@@ -434,5 +459,253 @@ public class ArrayRecordTest {
     Assert.assertEquals(new String(new byte[]{'1', '2', '3'}), r.getString(0));
     Assert.assertEquals(new String(new byte[]{'1', '2', '3'}), r.getString(1));
 
+  }
+
+  // TODO: ArrayRecord#getDateAsLocalDate & ArrayRecord#getDateAsLocalDate are not public yet
+//  @Test
+//  public void testDateAsLocalDate() {
+//    TableSchema schema = new TableSchema();
+//    schema.addColumn(new Column("col1", TypeInfoFactory.DATE));
+//    ArrayRecord r = new ArrayRecord(schema);
+//
+//    for (LocalDate localDate : LOCAL_DATES) {
+//      r.setDateAsLocalDate(0, localDate);
+//      Assert.assertEquals(localDate, r.getDateAsLocalDate(0));
+//    }
+//  }
+
+  @Test
+  public void testDate() {
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("col1", TypeInfoFactory.DATE));
+    ArrayRecord r = new ArrayRecord(schema);
+
+    for (java.sql.Date date : DATES) {
+      r.setDate(0, date);
+      Assert.assertEquals(date, r.getDate(0));
+    }
+  }
+
+  @Test
+  public void testDateInOtherTimeZone() {
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("col1", TypeInfoFactory.DATE));
+    ArrayRecord r = new ArrayRecord(schema);
+
+    Calendar cal = new Calendar.Builder()
+        .setCalendarType("iso8601")
+        .setLenient(true)
+        .setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"))
+        .setDate(0, Calendar.JANUARY, 1)
+        .setTimeOfDay(0, 0, 0)
+        .build();
+
+    while (cal.get(Calendar.YEAR) < 10000) {
+      java.sql.Date date = new java.sql.Date(cal.getTime().getTime());
+      r.setDate(0, date, cal);
+      // Cannot ensure exactly the same timestamp in Asia/Shanghai because of the daylight saving
+      // starts from 1940-06-04
+      Assert.assertTrue(
+          date.getTime() + " : " + r.getDate(0, cal).getTime()
+          , isSameDate(date, cal, r.getDate(0, cal), cal));
+      cal.add(Calendar.DATE, 1);
+    }
+  }
+
+  private boolean isSameDate(
+      java.sql.Date date1,
+      Calendar calendar1,
+      java.sql.Date date2,
+      Calendar calendar2) {
+    if (date1 == null && date2 == null) {
+      return true;
+    }
+    if (date1 == null || date2 == null) {
+      return false;
+    }
+    calendar1 = (Calendar) calendar1.clone();
+    calendar1.clear();
+    calendar1.setTime(date1);
+    calendar2 = (Calendar) calendar2.clone();
+    calendar2.clear();
+    calendar2.setTime(date2);
+    if (calendar1.get(Calendar.ERA) != calendar2.get(Calendar.ERA)) {
+      return false;
+    }
+    if (calendar1.get(Calendar.YEAR) != calendar2.get(Calendar.YEAR)) {
+      return false;
+    }
+    if (calendar1.get(Calendar.MONTH) != calendar2.get(Calendar.MONTH)) {
+      return false;
+    }
+    if (calendar1.get(Calendar.DAY_OF_MONTH) != calendar2.get(Calendar.DAY_OF_MONTH)) {
+      return false;
+    }
+    return true;
+  }
+
+  @Test
+  public void testDateToLocalDate() {
+    Calendar calendar = (Calendar) GMT_CALENDER.clone();
+    for (java.sql.Date date : DATES) {
+      LocalDate localDate = ArrayRecord.dateToLocalDate(date, GMT_CALENDER);
+      calendar.clear();
+      calendar.setTime(date);
+
+      Assert.assertEquals(calendar.get(Calendar.ERA), localDate.getEra().getValue());
+      boolean isBc = calendar.get(Calendar.ERA) == GregorianCalendar.BC;
+      Assert.assertEquals(isBc ? 0 : calendar.get(Calendar.YEAR), localDate.getYear());
+      Assert.assertEquals(calendar.get(Calendar.MONTH) + 1, localDate.getMonthValue());
+      Assert.assertEquals(calendar.get(Calendar.DAY_OF_MONTH), localDate.getDayOfMonth());
+    }
+  }
+
+  @Test
+  public void testLocalDateToDate() {
+    Calendar calendar = (Calendar) GMT_CALENDER.clone();
+    for (LocalDate localDate : LOCAL_DATES) {
+      java.sql.Date date =
+          new java.sql.Date(ArrayRecord.localDateToDate(localDate, calendar).getTime());
+      calendar.clear();
+      calendar.setTime(date);
+
+      Assert.assertEquals(localDate.getEra().getValue(), calendar.get(Calendar.ERA));
+      boolean isBc = localDate.getEra() == IsoEra.BCE;
+      Assert.assertEquals(isBc ? 1 : localDate.getYear(), calendar.get(Calendar.YEAR));
+      Assert.assertEquals(localDate.getMonthValue(), calendar.get(Calendar.MONTH) + 1);
+      Assert.assertEquals(localDate.getDayOfMonth(), calendar.get(Calendar.DAY_OF_MONTH));
+    }
+  }
+
+  @Test
+  public void testDateArrayCompatibility() {
+    // ARRAY<DATE>
+    TypeInfo typeInfo = TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.DATE);
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("col1", typeInfo));
+    ArrayRecord r = new ArrayRecord(schema);
+
+    List<java.sql.Date> dates = new ArrayList<>(DATES);
+    dates.add(null);
+
+    r.setArray(0, dates);
+    compareDateLists(dates, r.getArray(0));
+  }
+
+  private void compareDateLists(List<java.sql.Date> list1, List<java.sql.Date> list2) {
+    Assert.assertEquals(list1.size(), list2.size());
+    for (int i = 0; i < list1.size(); i++) {
+      Assert.assertEquals(list1.get(i), list2.get(i));
+    }
+  }
+
+  @Test
+  public void testDateMapCompatibility() {
+    // MAP<DATE, BIGINT>
+    TypeInfo dateToBigintTypeInfo =
+        TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.DATE, TypeInfoFactory.BIGINT);
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("col1", dateToBigintTypeInfo));
+    ArrayRecord r = new ArrayRecord(schema);
+
+    Map<java.sql.Date, Long> dateToBigint = getDateToRandomBigintMap();
+    r.setMap(0, dateToBigint);
+    compareDateToBigintMaps(dateToBigint, r.getMap(0));
+
+    // MAP<BIGINT, DATE>
+    TypeInfo bigintToDateTypeInfo =
+        TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.BIGINT, TypeInfoFactory.DATE);
+    schema = new TableSchema();
+    schema.addColumn(new Column("col1", bigintToDateTypeInfo));
+    r = new ArrayRecord(schema);
+
+    Map<Long, java.sql.Date> bigintToDate = getRandomBigintToDateMap();
+    r.setMap(0, bigintToDate);
+    compareBigintToDateMaps(bigintToDate, r.getMap(0));
+  }
+
+  private Map<Long, java.sql.Date> getRandomBigintToDateMap() {
+    Random random = new Random();
+    Map<Long, java.sql.Date> bigintToDate = new HashMap<>(366 * 10000);
+    bigintToDate.put(null, DATES.get(0));
+    for (java.sql.Date date : DATES) {
+      bigintToDate.put(random.nextLong(), date);
+    }
+
+    return bigintToDate;
+  }
+
+  private void compareBigintToDateMaps(
+      Map<Long, java.sql.Date> map1, Map<Long, java.sql.Date> map2) {
+    Assert.assertEquals(map1.size(), map2.size());
+    for (Long bigint : map1.keySet()) {
+      Assert.assertTrue(map2.containsKey(bigint));
+      Assert.assertEquals(map1.get(bigint), map2.get(bigint));
+    }
+  }
+
+  private Map<java.sql.Date, Long> getDateToRandomBigintMap() {
+    Random random = new Random();
+    Map<java.sql.Date, Long> dateToBigint = new HashMap<>(366 * 10000);
+    dateToBigint.put(null, random.nextLong());
+    for (java.sql.Date date : DATES) {
+      dateToBigint.put(date, random.nextLong());
+    }
+
+    return dateToBigint;
+  }
+
+  private void compareDateToBigintMaps(
+      Map<java.sql.Date, Long> map1, Map<java.sql.Date, Long> map2) {
+    Assert.assertEquals(map1.size(), map2.size());
+    for (java.sql.Date date : map1.keySet()) {
+      Assert.assertTrue(map2.containsKey(date));
+      Assert.assertEquals(map1.get(date), map2.get(date));
+    }
+  }
+
+  @Test
+  public void testDateStructCompatibility() {
+    // ARRAY<DATE>
+    TypeInfo arrayTypeInfo = TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.DATE);
+
+    // MAP<DATE, BIGINT>
+    TypeInfo dateToBigintTypeInfo =
+        TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.DATE, TypeInfoFactory.BIGINT);
+
+    // MAP<BIGINT, DATE>
+    TypeInfo bigintToDateTypeInfo =
+        TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.BIGINT, TypeInfoFactory.DATE);
+
+    // STRUCT<ARRAY<DATE>, MAP<DATE, DATE>, DATE>
+    TypeInfo structTypeInfo = TypeInfoFactory.getStructTypeInfo(
+        Arrays.asList("array", "map1", "map2", "date", "null"),
+        Arrays.asList(arrayTypeInfo, dateToBigintTypeInfo, bigintToDateTypeInfo, TypeInfoFactory.DATE, null));
+
+    TableSchema schema = new TableSchema();
+    schema.addColumn(new Column("col1", structTypeInfo));
+    ArrayRecord r = new ArrayRecord(schema);
+
+    List<java.sql.Date> dates = new ArrayList<>(DATES);
+    dates.add(null);
+    Map<java.sql.Date, Long> dateToBigint = getDateToRandomBigintMap();
+    Map<Long, java.sql.Date> bigintToDate = getRandomBigintToDateMap();
+    Struct expected = new SimpleStruct(
+        (StructTypeInfo) structTypeInfo,
+        Arrays.asList(dates, dateToBigint, bigintToDate, DATES.get(0), null));
+
+    r.setStruct(0, expected);
+    Struct actual = r.getStruct(0);
+    compareDateLists(
+        (List<java.sql.Date>) expected.getFieldValue(0),
+        (List<java.sql.Date>) actual.getFieldValue(0));
+    compareDateToBigintMaps(
+        (Map<java.sql.Date, Long>) expected.getFieldValue(1),
+        (Map<java.sql.Date, Long>) actual.getFieldValue(1));
+    compareBigintToDateMaps(
+        (Map<Long, java.sql.Date>) expected.getFieldValue(2),
+        (Map<Long, java.sql.Date>) actual.getFieldValue(2));
+    Assert.assertEquals(expected.getFieldValue(3), actual.getFieldValue(3));
+    Assert.assertNull(actual.getFieldValue(4));
   }
 }

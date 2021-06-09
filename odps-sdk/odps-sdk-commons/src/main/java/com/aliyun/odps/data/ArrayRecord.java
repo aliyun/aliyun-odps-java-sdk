@@ -22,16 +22,25 @@ package com.aliyun.odps.data;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.chrono.IsoChronology;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.TimeZone;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.MapTypeInfo;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 
 /**
  * 基于数组的{@link Record}实现
@@ -42,9 +51,15 @@ public class ArrayRecord implements Record {
   private static final Long DEFAULT_FIELD_MAX_SIZE = 8 * 1024 * 1024L;
   private static final String DEFAULT_CHARSET = "utf-8";
 
+  static final Calendar DEFAULT_CALENDAR = new Calendar.Builder()
+      .setCalendarType("iso8601")
+      .setLenient(true)
+      .setTimeZone(TimeZone.getTimeZone("GMT"))
+      .build();
+
   private Column[] columns;
   private final Object[] values;
-  private HashMap<String, Integer> nameMap = new HashMap<String, Integer>();
+  private HashMap<String, Integer> nameMap = new HashMap<>();
 
   /**
    * When strictTypeValidation is enabled, max length of string and range of datetime are
@@ -119,7 +134,6 @@ public class ArrayRecord implements Record {
     // allow byte [] to set on STRING column, ugly
     if (columns[idx].getTypeInfo().getOdpsType() == OdpsType.STRING && (value instanceof byte[])) {
       values[idx] = value;
-
       return;
     }
 
@@ -405,7 +419,6 @@ public class ArrayRecord implements Record {
    *     列索引值
    * @return Array 类型的列值
    */
-
   public <T> List<T> getArray(Class<T> className, int idx) {
     List list = getArray(idx);
 
@@ -429,7 +442,43 @@ public class ArrayRecord implements Record {
   }
 
   public List getArray(int idx) {
-    return getInternal(idx);
+    return toCompatibleArray((ArrayTypeInfo) columns[idx].getTypeInfo(), getInternal(idx));
+  }
+
+  private List toCompatibleArray(ArrayTypeInfo typeInfo, List list) {
+    if (list == null) {
+      return null;
+    }
+
+    // ArrayRecord used java.sql.Date as inner object type of DATE. But java.sql.Date is error-prone
+    // so it was replaced by LocalDate. However, the inner object type is actually exposed to users
+    // by this method. So, we do a conversion to keep the compatibility.
+    TypeInfo elementTypeInfo = typeInfo.getElementTypeInfo();
+    List<Object> ret = new ArrayList<>(list.size());
+    for (Object o : list) {
+      if (o == null) {
+        ret.add(null);
+        continue;
+      }
+      switch (elementTypeInfo.getOdpsType()) {
+        case DATE:
+          ret.add(new java.sql.Date(localDateToDate((LocalDate) o, DEFAULT_CALENDAR).getTime()));
+          break;
+        case ARRAY:
+          ret.add(toCompatibleArray((ArrayTypeInfo) elementTypeInfo, (List) o));
+          break;
+        case MAP:
+          ret.add(toCompatibleMap((MapTypeInfo) elementTypeInfo, (Map) o));
+          break;
+        case STRUCT:
+          ret.add(toCompatibleStruct((StructTypeInfo) elementTypeInfo, (Struct) o));
+          break;
+        default:
+          ret.add(o);
+      }
+    }
+
+    return ret;
   }
 
   public <k, v> Map<k, v> getMap(Class<k> keyClass, Class<v> valueClass, String columnName) {
@@ -485,7 +534,47 @@ public class ArrayRecord implements Record {
   }
 
   public Map getMap(int idx) {
-    return getInternal(idx);
+    return toCompatibleMap((MapTypeInfo) columns[idx].getTypeInfo(), getInternal(idx));
+  }
+
+  private Map toCompatibleMap(MapTypeInfo typeInfo, Map map) {
+    if (map == null) {
+      return null;
+    }
+
+    // ArrayRecord used java.sql.Date as inner object type of DATE. But java.sql.Date is error-prone
+    // so it was replaced by LocalDate. However, the inner object type is actually exposed to users
+    // by this method. So, we do a conversion to keep the compatibility.
+    Map<Object, Object> ret = new HashMap<>(map.size());
+    for (Object key : map.keySet()) {
+      Object value = map.get(key);
+      if (value != null) {
+        TypeInfo valueTypeInfo = typeInfo.getValueTypeInfo();
+        switch (typeInfo.getValueTypeInfo().getOdpsType()) {
+          case DATE:
+            value =
+                new java.sql.Date(localDateToDate((LocalDate) value, DEFAULT_CALENDAR).getTime());
+            break;
+          case ARRAY:
+            value = toCompatibleArray((ArrayTypeInfo) valueTypeInfo, (List) value);
+            break;
+          case MAP:
+            value = toCompatibleMap((MapTypeInfo) valueTypeInfo, (Map) value);
+            break;
+          case STRUCT:
+            value = toCompatibleStruct((StructTypeInfo) valueTypeInfo, (Struct) value);
+          default:
+        }
+      }
+
+      if (key != null && OdpsType.DATE.equals(typeInfo.getKeyTypeInfo().getOdpsType())) {
+        key = new java.sql.Date(localDateToDate((LocalDate) key, DEFAULT_CALENDAR).getTime());
+      }
+
+      ret.put(key, value);
+    }
+
+    return ret;
   }
 
   public void setChar(int idx, Char value) {
@@ -520,20 +609,299 @@ public class ArrayRecord implements Record {
     return getVarchar(getColumnIndex(columnName));
   }
 
+  /**
+   * This method is error-prone and deprecated. See {@link #setDate(int, java.sql.Date, Calendar)}
+   * for an alternative.
+   *
+   * Set the value of the designated column to the given {@link java.sql.Date} object.
+   *
+   * <b>IMPORTANT: </b>The {@link java.sql.Date} object must be constructed using the Greenwich
+   * Mean Time. And here is the recommended way to construct a valid java.sql.Date object:
+   *
+   * <pre>
+   * {@code
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * calendar.set(year, month, dayOfMonth);
+   * java.sql.Date date = new java.sql.Date(calendar.getTimeInMillis());
+   * }
+   * </pre>
+   *
+   * @param idx Column index.
+   * @param value Date.
+   */
+  @Deprecated
   public void setDate(int idx, java.sql.Date value) {
-    set(idx, value);
+    setDate(idx, value, null);
   }
 
+  /**
+   * This method is error-prone and deprecated. See {@link #getDate(int, Calendar)}
+   * for an alternative.
+   *
+   * Get the value of the designated column as a {@link java.sql.Date} object.
+   *
+   * <b>IMPORTANT: </b>The {@link java.sql.Date} object is constructed using
+   * the Greenwich Mean Time. And here is the recommended way to get the year, month and date from
+   * the returned value:
+   *
+   * <pre>
+   * {@code
+   * java.sql.Date date = record.getDate(columnIdx);
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * calendar.setTime(date);
+   * int year = calendar.get(Calendar.YEAR);
+   * int month = calendar.get(Calendar.MONTH);
+   * int dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH);
+   * }
+   * </pre>
+   *
+   * @param idx Column index.
+   * @return Date.
+   */
+  @Deprecated
   public java.sql.Date getDate(int idx) {
-    return getInternal(idx);
+    return getDate(idx, null);
   }
 
+  /**
+   * This method is error-prone and deprecated. See {@link #setDate(String, java.sql.Date, Calendar)}
+   * for an alternative.
+   *
+   * <b>IMPORTANT: </b> The {@link java.sql.Date} object must be constructed using the Greenwich
+   * Mean Time. And here is the recommended way to construct a valid java.sql.Date object:
+   *
+   * <pre>
+   * {@code
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * calendar.set(year, month, dayOfMonth);
+   * java.sql.Date date = new java.sql.Date(calendar.getTimeInMillis());
+   * }
+   * </pre>
+   *
+   * @param columnName Column name.
+   * @param value A {@link java.sql.Date} object. Could be null.
+   */
+  @Deprecated
   public void setDate(String columnName, java.sql.Date value) {
     setDate(getColumnIndex(columnName), value);
   }
 
+  /**
+   * This method is error-prone and deprecated. See {@link #getDate(String, Calendar)}
+   * for an alternative.
+   *
+   * Get the value of the designated column as a {@link java.sql.Date} object.
+   *
+   * <b>IMPORTANT: </b>The {@link java.sql.Date} object is constructed using
+   * the Greenwich Mean Time. And here is the recommended way to get the year, month and date from
+   * the returned value:
+   *
+   * <pre>
+   * {@code
+   * java.sql.Date date = record.getDate(columnIdx);
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * calendar.setTime(date);
+   * int year = calendar.get(Calendar.YEAR);
+   * int month = calendar.get(Calendar.MONTH);
+   * int dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH);
+   * }
+   * </pre>
+   *
+   * @param columnName Column name.
+   * @return A {@link java.sql.Date} object. If the value is SQL <code>NULL</code>, the value
+   *         returned is <code>null</code>.
+   */
+  @Deprecated
   public java.sql.Date getDate(String columnName) {
     return getDate(getColumnIndex(columnName));
+  }
+
+  /**
+   * Set the value of the designated column to the given {@link java.sql.Date} object, using the
+   * given {@link Calendar} object. With the {@link Calendar} object, the date can be calculated
+   * taking into account a custom timezone. If no {@link Calendar} is specified, Greenwich Mean
+   * Time is used as the default timezone.
+   *
+   * Here is an example of constructing a calendar:
+   * <pre>
+   * {@code
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * }
+   * </pre>
+   *
+   *
+   * @param columnName Column name.
+   * @param value Date.
+   * @param calendar The calendar to use in constructing the final {@link java.sql.Date} object.
+   */
+  public void setDate(String columnName, java.sql.Date value, Calendar calendar) {
+    setDate(getColumnIndex(columnName), value, calendar);
+  }
+
+  /**
+   * Get the value of the designated column as a {@link java.sql.Date} object. This method uses the
+   * given calendar to construct an appropriate {@link java.sql.Date} object taking into account a
+   * custom timezone. If no {@link Calendar} is specified, Greenwich Mean Time is used as the
+   * default timezone.
+   *
+   * <b>IMPORTANT: </b>The timestamp in the returned {@link java.sql.Date} may be different from
+   * the original one, but the year, the month and the day of month are guaranteed to be the same.
+   *
+   * Here is an example of constructing a calendar:
+   * <pre>
+   * {@code
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * }
+   * </pre>
+   *
+   * @param columnName Column name.
+   * @param calendar The calendar to use in constructing the return value.
+   * @return
+   */
+  public java.sql.Date getDate(String columnName, Calendar calendar) {
+    return getDate(getColumnIndex(columnName), calendar);
+  }
+
+  /**
+   * Set the value of the designated column to the given {@link java.sql.Date} object, using the
+   * given {@link Calendar} object. With the {@link Calendar} object, the date can be calculated
+   * taking into account a custom timezone. If no {@link Calendar} is specified, Greenwich Mean
+   * Time is used as the default timezone.
+   *
+   * Here is an example of constructing a calendar:
+   * <pre>
+   * {@code
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * }
+   * </pre>
+   *
+   * @param idx Column index.
+   * @param value Date.
+   * @param calendar The calendar to use in constructing the final {@link java.sql.Date} object.
+   */
+  public void setDate(int idx, java.sql.Date value,  Calendar calendar) {
+    if (value != null) {
+      set(idx, dateToLocalDate(value, Optional.ofNullable(calendar).orElse(DEFAULT_CALENDAR)));
+    } else {
+      set(idx, null);
+    }
+  }
+
+  /**
+   * Get the value of the designated column as a {@link java.sql.Date} object. This method uses the
+   * given calendar to construct an appropriate {@link java.sql.Date} object taking into account a
+   * custom timezone. If no {@link Calendar} is specified, Greenwich Mean Time is used as the
+   * default timezone.
+   *
+   * <b>IMPORTANT: </b>The timestamp in the returned {@link java.sql.Date} may be different from
+   * the original one, but the year, the month and the day of month are guaranteed to be the same.
+   *
+   * Here is an example of constructing a calendar:
+   * <pre>
+   * {@code
+   * Calendar calendar = new Calendar.Builder()
+   *       .setCalendarType("iso8601")
+   *       .setLenient(true)
+   *       .setTimeZone(TimeZone.getTimeZone("GMT"))
+   *       .build();
+   * }
+   * </pre>
+   *
+   * @param idx Column index.
+   * @param calendar The calendar to use in constructing the return value.
+   * @return
+   */
+  public java.sql.Date getDate(int idx, Calendar calendar) {
+    java.util.Date date = localDateToDate(
+        getInternal(idx), Optional.ofNullable(calendar).orElse(DEFAULT_CALENDAR));
+
+    if (date == null) {
+      return null;
+    }
+
+    return new java.sql.Date(date.getTime());
+  }
+
+  /**
+   * Set the value of the designated column as a {@link LocalDate} object. The object will be
+   * converted to a SQL <code>DATE</code> value when it is sent to MaxCompute.
+   *
+   * See the static factory methods of {@link LocalDate} to learn how to construct a
+   * {@link LocalDate} object.
+   *
+   * @param columnIdx Column index.
+   * @param localDate A {@link LocalDate} object. Could be null.
+   */
+  // TODO: make this method public
+  private void setDateAsLocalDate(int columnIdx, LocalDate localDate) {
+    set(columnIdx, localDate);
+  }
+
+  /**
+   * Set the value of the designated column as a {@link LocalDate} object. The object will be
+   * converted to a SQL <code>DATE</code> value when it is sent to MaxCompute.
+   *
+   * See the static factory methods of {@link LocalDate} to learn how to construct a
+   * {@link LocalDate} object.
+   *
+   * @param columnName Column name.
+   * @param localDate A {@link LocalDate} object. Could be null.
+   */
+  // TODO: make this method public
+  private void setDateAsLocalDate(String columnName, LocalDate localDate) {
+    setDateAsLocalDate(getColumnIndex(columnName), localDate);
+  }
+
+  /**
+   * Get the value of the designated column as a {@link LocalDate} object.
+   *
+   * @param columnIdx Column index.
+   * @return A {@link LocalDate} object. If the value is SQL <code>NULL</code>, the value returned
+   *         is <code>null</code>.
+   */
+  // TODO: make this method public
+  private LocalDate getDateAsLocalDate(int columnIdx) {
+    return getInternal(columnIdx);
+  }
+
+  /**
+   * Get the value of the designated column as a {@link LocalDate} object.
+   *
+   * @param columnName Column name.
+   * @return A {@link LocalDate} object. If the value is SQL <code>NULL</code>, the value returned
+   *         is <code>null</code>.
+   */
+  // TODO: make this method public
+  private LocalDate getDateAsLocalDate(String columnName) {
+    return getDateAsLocalDate(getColumnIndex(columnName));
   }
 
   public void setTimestamp(int idx, Timestamp value) {
@@ -625,8 +993,48 @@ public class ArrayRecord implements Record {
   }
 
   public Struct getStruct(int idx) {
-    return getInternal(idx);
+    return toCompatibleStruct((StructTypeInfo) columns[idx].getTypeInfo(), getInternal(idx));
   }
+
+  private Struct toCompatibleStruct(StructTypeInfo typeInfo, Struct struct) {
+    if (struct == null) {
+      return null;
+    }
+
+    // ArrayRecord used java.sql.Date as inner object type of DATE. But java.sql.Date is error-prone
+    // so it was replaced by LocalDate. However, the inner object type is actually exposed to users
+    // by this method. So, we do a conversion to keep the compatibility.
+    List<Object> values = new ArrayList<>(struct.getFieldCount());
+    List<TypeInfo> fieldTypeInfos = typeInfo.getFieldTypeInfos();
+    for (int i = 0; i < typeInfo.getFieldCount(); ++i) {
+      TypeInfo fieldTypeInfo = fieldTypeInfos.get(i);
+      Object o = struct.getFieldValue(i);
+
+      if (o == null) {
+        values.add(null);
+        continue;
+      }
+
+      switch (fieldTypeInfo.getOdpsType()) {
+        case DATE:
+          o = new java.sql.Date(localDateToDate((LocalDate) o, DEFAULT_CALENDAR).getTime());
+          break;
+        case ARRAY:
+          o = toCompatibleArray((ArrayTypeInfo) fieldTypeInfo, (List) o);
+          break;
+        case MAP:
+          o = toCompatibleMap((MapTypeInfo) fieldTypeInfo, (Map) o);
+          break;
+        case STRUCT:
+          o = toCompatibleStruct((StructTypeInfo) fieldTypeInfo, (Struct) o);
+          break;
+        default:
+      }
+      values.add(o);
+    }
+    return new SimpleStruct(typeInfo, values);
+  }
+
 
   public Struct getStruct(String columnName) {
     return getStruct(getColumnIndex(columnName));
@@ -725,6 +1133,59 @@ public class ArrayRecord implements Record {
     } catch (UnsupportedEncodingException e) {
       throw new IllegalArgumentException(e.getMessage(), e);
     }
+  }
+
+  /**
+   * Convert a {@link LocalDate} object to a {@link java.util.Date} object using GMT time.
+   *
+   * Since some users use the {@link java.util.Date} to represent the {@link OdpsType#DATE},
+   * we use {@link java.util.Date} here to keep compatibility.
+   *
+   * @param localDate A {@link LocalDate} object. Could be null.
+   * @param calendar A {@link Calendar} object. Cannot be null.
+   * @return A {@link java.util.Date} object, or null if the input is null.
+   */
+  static java.util.Date localDateToDate(LocalDate localDate, Calendar calendar) {
+    if (localDate != null) {
+      calendar = (Calendar) calendar.clone();
+      calendar.clear();
+      calendar.set(
+          localDate.getYear(),
+          // Starts from 0
+          localDate.getMonth().getValue() - 1,
+          localDate.getDayOfMonth());
+      return calendar.getTime();
+    }
+
+    return null;
+  }
+
+  /**
+   * Convert a {@link java.util.Date} object to a {@link LocalDate} object. The
+   * {@link java.util.Date} object must be constructed using the Greenwich Mean Time.
+   *
+   * Since some users use the {@link java.util.Date} to represent the {@link OdpsType#DATE},
+   * we use {@link java.util.Date} here to keep compatibility.
+   *
+   * @param date A {@link java.util.Date} object. Could be null.
+   * @param calendar A {@link Calendar} object. Cannot be null.
+   * @return A {@link LocalDate} object, or null if the input is null.
+   */
+  static LocalDate dateToLocalDate(java.util.Date date, Calendar calendar) {
+    if (date != null) {
+      calendar = (Calendar) calendar.clone();
+      calendar.clear();
+      calendar.setLenient(true);
+      calendar.setTime(date);
+      return IsoChronology.INSTANCE.date(
+          IsoChronology.INSTANCE.eraOf(calendar.get(Calendar.ERA)),
+          calendar.get(Calendar.YEAR),
+          // Starts from 1
+          calendar.get(Calendar.MONTH) + 1,
+          calendar.get(Calendar.DAY_OF_MONTH));
+    }
+
+    return null;
   }
 }
 

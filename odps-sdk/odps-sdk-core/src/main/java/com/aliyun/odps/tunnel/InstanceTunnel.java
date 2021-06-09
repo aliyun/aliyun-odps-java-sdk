@@ -113,9 +113,40 @@ public class InstanceTunnel {
    *     SqlRtTask taskName
    * @param queryId
    *     SqlRtTask sub queryId
+   * @param limitEnabled
+   *     是否启用project设置READ_TABLE_MAX_ROW, 启用后从该session最多返回10000条数据, 不启用则没有限制, 但会进行select权限校验
    * @return {@link InstanceTunnel.DownloadSession}
    * @throws TunnelException
    */
+  public InstanceTunnel.DownloadSession createDirectDownloadSession(String projectName, String instanceID, String taskName, int queryId, boolean limitEnabled)
+      throws TunnelException {
+    if (limitEnabled) {
+      return new InstanceTunnel.DownloadSession(projectName, instanceID, true, taskName, queryId);
+    }
+    return new InstanceTunnel.DownloadSession(projectName, instanceID, false, taskName, queryId);
+  }
+
+  /**
+   * 在 Instance 上创建下载long polling会话
+   * 使用该接口将默认启用project的READ_TABLE_MAX_ROW限制 最多返回10000条数据
+   *
+   * 非法情况:
+   * 1. 非 SQlTask
+   * 2. 非 select sql
+   * 3. Task 非 Success 状态
+   *
+   * @param projectName
+   *     Project名
+   * @param instanceID
+   *     Instance ID
+   * @param taskName
+   *     SqlRtTask taskName
+   * @param queryId
+   *     SqlRtTask sub queryId
+   * @return {@link InstanceTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  @Deprecated
   public InstanceTunnel.DownloadSession createDirectDownloadSession(String projectName, String instanceID, String taskName, int queryId)
       throws TunnelException {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, true, taskName, queryId);
@@ -553,6 +584,10 @@ public class InstanceTunnel {
       return this.count;
     }
 
+    public void setRecordCount(long count) {
+      this.count = count;
+    }
+
     /**
      * 获取 project name
      */
@@ -597,6 +632,10 @@ public class InstanceTunnel {
     public DownloadStatus getStatus() throws TunnelException, IOException {
       reload();
       return status;
+    }
+
+    public boolean getEnableLimit() {
+      return limitEnabled;
     }
 
     private String getResource() {

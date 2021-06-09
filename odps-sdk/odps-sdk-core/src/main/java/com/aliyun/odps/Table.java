@@ -578,7 +578,8 @@ public class Table extends LazyLoad {
     if (model.schema == null || model.schema.content == null) {
       lazyLoad();
     }
-    return model.schema.content;
+
+    return model.schema == null ? null : model.schema.content;
   }
 
   /**

@@ -95,6 +95,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       params.put(TunnelConstants.RES_COLUMNS, sb.toString());
     }
 
+    if (session.getEnableLimit()) {
+      params.put(TunnelConstants.INSTANCE_TUNNEL_LIMIT_ENABLED, null);
+    }
+
     params.put("data", null);
 
     if (longPolling) {
@@ -103,9 +107,20 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       if (session.getQueryId() != -1) {
         params.put(TunnelConstants.QUERY_ID, String.valueOf(session.getQueryId()));
       }
-      if (count > 0) {
-        // limit mode, otherwise unlimited
-        params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
+      if (start < 0) {
+        TunnelException err = new TunnelException("The specified row range is not valid. start index is negative.");
+        throw err;
+      }
+      // either count or start is set, ROW_RANGE should be set in HTTP parameters
+      if (count > 0 || start > 0) {
+        // only start is set
+        if (start > 0 && count < 0) {
+          params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + Long.MAX_VALUE + ")");
+        }
+        else {
+          // limit mode, otherwise unlimited
+          params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
+        }
       }
       if(sizeLimit > 0){
         //limit result size if necessary
@@ -144,6 +159,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       if (longPolling) {
         // get schema from resp header
         String schemaStr = resp.getHeader(Headers.TUNNEL_SCHEMA);
+        long recordCount = 0;
+        if (resp.getHeaders().containsKey(Headers.TUNNEL_RECORD_COUNT)) {
+          recordCount = Long.parseLong(resp.getHeader(Headers.TUNNEL_RECORD_COUNT));
+        }
         if (StringUtils.isNullOrEmpty(schemaStr)) {
           throw new TunnelException("Invalid response schema in header:" + schemaStr);
         }
@@ -151,6 +170,7 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
         TableSchema schema = new TunnelTableSchema(tree);
         // in direct mode, schema in session is null, we need to set it back
         session.setSchema(schema);
+        session.setRecordCount(recordCount);
       }
       return new RawTunnelRecordReader(session.getSchema(), columns, conn, option);
 

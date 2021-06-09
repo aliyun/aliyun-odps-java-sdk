@@ -19,12 +19,6 @@
 
 package com.aliyun.odps;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.ElementList;
-import com.aliyun.odps.simpleframework.xml.Root;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -39,10 +33,14 @@ import java.util.UUID;
 
 import com.aliyun.odps.Resource.ResourceModel;
 import com.aliyun.odps.commons.transport.Headers;
-import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
 /**
  * Resources 表示ODPS内所有{@link Resource}的集合，可以通过此对象可以创建、删除和浏览
@@ -290,14 +288,7 @@ public class Resources implements Iterable<Resource> {
    * @throws OdpsException
    */
   public InputStream getResourceAsStream(String projectName, String name) throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(projectName).append("/resources")
-        .append("/" + name);
-
-    HashMap<String, String> headers = new HashMap<String, String>();
-    headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
-    Response response = client.request(resource.toString(), "GET", null, headers, null);
-    return new ByteArrayInputStream(response.getBody());
+    return new ResourceInputStream(client, projectName, name);
   }
 
   /**

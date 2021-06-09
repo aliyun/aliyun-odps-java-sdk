@@ -41,6 +41,7 @@ import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.commons.util.ArrowUtils;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.commons.util.RetryExceedLimitException;
 import com.aliyun.odps.commons.util.RetryStrategy;
@@ -49,7 +50,11 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
+import com.aliyun.odps.data.ArrowRecordWriter;
+import com.aliyun.odps.data.ArrowRecordReader;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.io.ArrowTunnelRecordReader;
+import com.aliyun.odps.tunnel.io.ArrowTunnelRecordWriter;
 import com.aliyun.odps.utils.ConnectionWatcher;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
@@ -61,6 +66,8 @@ import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 /**
  * Tunnel 是 ODPS 的数据通道，用户可以通过 Tunnel 向 ODPS 中上传或者下载数据。<br />
@@ -635,12 +642,22 @@ public class TableTunnel {
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
           String projectName, String tableName) throws TunnelException {
-    return createStreamUploadSession(projectName, tableName, null, 0, false);
+    return createStreamUploadSession(projectName, tableName, 0, null);
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
           String projectName, String tableName, long slotNum) throws TunnelException {
-    return createStreamUploadSession(projectName, tableName, null, slotNum, false);
+    return createStreamUploadSession(projectName, tableName, slotNum, null);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, List<Column> columns) throws TunnelException {
+    return createStreamUploadSession(projectName, tableName, 0, columns);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, long slotNum, List<Column> columns) throws TunnelException {
+    return createStreamUploadSession(projectName, tableName, null, slotNum, false, columns);
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
@@ -651,12 +668,13 @@ public class TableTunnel {
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, PartitionSpec partitionSpec) throws TunnelException {
+          String projectName, String tableName,  PartitionSpec partitionSpec) throws TunnelException {
     return createStreamUploadSession(projectName,
-                                       tableName,
-                                       partitionSpec,
-                                       0,
-                                       false);
+                                     tableName,
+                                     partitionSpec,
+                                     0,
+                                     false,
+                                     null);
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
@@ -665,7 +683,8 @@ public class TableTunnel {
             tableName,
             partitionSpec,
             slotNum,
-            false);
+            false,
+            null);
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
@@ -674,17 +693,29 @@ public class TableTunnel {
             tableName,
             partitionSpec,
             0,
-            createParitition);
+            createParitition,
+            null);
   }
 
   public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, PartitionSpec partitionSpec, long slotNum, boolean createParitition) throws TunnelException {
+          String projectName, String tableName,  PartitionSpec partitionSpec, List<Column> columns) throws TunnelException {
+    return createStreamUploadSession(projectName,
+            tableName,
+            partitionSpec,
+            0,
+            false,
+            columns);
+  }
+
+  public TableTunnel.StreamUploadSession createStreamUploadSession(
+          String projectName, String tableName, PartitionSpec partitionSpec, long slotNum, boolean createParitition, List<Column> columns) throws TunnelException {
     return new StreamUploadSessionImpl(projectName,
                                        tableName,
                                        partitionSpec == null ? null : partitionSpec.toString().replaceAll("'", ""),
                                        this.config,
                                        slotNum,
-                                       createParitition);
+                                       createParitition,
+                                       columns);
   }
 
   public interface FlushResult {
@@ -1176,7 +1207,7 @@ public class TableTunnel {
      * @param compressOption
      *     数据传输压缩选项
      * @param timeout
-     *     超时时间 单位 ms <=0 代表无超时
+     *     超时时间 单位 ms <=0 代表无超时. 推荐值: (BufferSizeInMB / UploadBandwidthInMB) * 1000 * 120%
      */
     public RecordWriter openBufferedWriter(CompressOption compressOption, long timeout) throws TunnelException {
       try {
@@ -1186,7 +1217,48 @@ public class TableTunnel {
       }
     }
 
+    private Schema arrowSchema;
+
+    public Schema getArrowSchema() {
+      if (this.arrowSchema == null){
+        this.arrowSchema = ArrowUtils.tableSchemaToArrowSchema(this.schema);
+      }
+      return this.arrowSchema;
+    }
+
+    public ArrowRecordWriter openArrowRecordWriter(long blockId)
+            throws TunnelException,
+            IOException{
+        return openArrowRecordWriter(blockId, new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
+    }
+
+    public ArrowRecordWriter openArrowRecordWriter(long blockId, CompressOption option)
+        throws TunnelException,
+        IOException{
+      ArrowTunnelRecordWriter arrowTunnelRecordWriter = null;
+      Connection conn = null;
+      try {
+        conn = getConnection(blockId,true, option);
+        arrowTunnelRecordWriter = new ArrowTunnelRecordWriter(this, conn, option);
+      } catch (IOException e) {
+        if (conn != null) {
+          conn.disconnect();
+        }
+        throw new TunnelException(e.getMessage(), e.getCause());
+      } catch (TunnelException e) {
+        throw e;
+      } catch (OdpsException e) {
+        throw new TunnelException(e.getMessage(), e);
+      }
+      return arrowTunnelRecordWriter;
+    }
+
     private Connection getConnection(long blockId, CompressOption compress)
+            throws OdpsException, IOException {
+      return getConnection(blockId, false, compress);
+    }
+
+    private Connection getConnection(long blockId, boolean isArrow, CompressOption compress)
         throws OdpsException, IOException {
       HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = new HashMap<String, String>();
@@ -1217,6 +1289,9 @@ public class TableTunnel {
       params.put(TunnelConstants.UPLOADID, id);
       params.put(TunnelConstants.BLOCKID, Long.toString(blockId));
 
+      if (isArrow) {
+        params.put(TunnelConstants.PARAM_ARROW,"");
+      }
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
@@ -1639,6 +1714,44 @@ public class TableTunnel {
       reader.setTransform(shouldTransform);
 
       return reader;
+    }
+
+    private Schema arrowSchema;
+    public Schema getArrowSchema() {
+      if (this.arrowSchema == null){
+        this.arrowSchema = ArrowUtils.tableSchemaToArrowSchema(this.schema);
+      }
+      return this.arrowSchema;
+    }
+
+    public ArrowRecordReader openArrowRecordReader(long start, long count)
+            throws TunnelException, IOException {
+      return openArrowRecordReader(start, count, null, null);
+    }
+
+    public ArrowRecordReader openArrowRecordReader(long start, long count, CompressOption compress)
+        throws TunnelException, IOException {
+      return openArrowRecordReader(start, count, null, null, compress);
+    }
+
+    public ArrowRecordReader openArrowRecordReader(long start, long count, BufferAllocator allocator)
+            throws TunnelException, IOException {
+      return openArrowRecordReader(start, count, null, allocator);
+    }
+
+    public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns)
+            throws TunnelException, IOException {
+      return openArrowRecordReader(start, count, columns, null);
+    }
+
+    public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator)
+        throws TunnelException, IOException {
+      return openArrowRecordReader(start, count, columns, allocator, new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
+    }
+
+    public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator, CompressOption compress)
+            throws TunnelException, IOException {
+      return new ArrowTunnelRecordReader(start, count, columns, this.tunnelServiceClient, this, allocator, compress);
     }
 
 

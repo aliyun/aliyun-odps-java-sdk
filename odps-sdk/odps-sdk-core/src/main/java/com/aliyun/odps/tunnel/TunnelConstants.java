@@ -64,4 +64,6 @@ public interface TunnelConstants {
   public static String STREAMS = "streams";
   public static String SLOT_ID = "slotid";
   public static String CREATE_PARTITION = "create_partition";
+  public static String ZORDER_COLUMNS = "zorder_columns";
+  public static String PARAM_ARROW = "arrow";
 }

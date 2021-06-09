@@ -38,12 +38,14 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
     private RestClient tunnelServiceClient;
     private Slots slots;
     private boolean p2pMode = false;
+    private List<Column> columns;
 
-    StreamUploadSessionImpl(String projectName, String tableName, String partitionSpec, Configuration config, long slotNum, boolean createPartition) throws TunnelException {
+    StreamUploadSessionImpl(String projectName, String tableName, String partitionSpec, Configuration config, long slotNum, boolean createPartition, List<Column> columns) throws TunnelException {
         this.conf = config;
         this.projectName = projectName;
         this.tableName = tableName;
         this.partitionSpec = partitionSpec;
+        this.columns = columns;
 
         tunnelServiceClient = conf.newRestClient(projectName);
         initiate(slotNum, createPartition);
@@ -59,6 +61,10 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
 
         if (createPartition) {
             params.put(TunnelConstants.CREATE_PARTITION, "");
+        }
+
+        if (columns != null && columns.size() != 0) {
+            params.put(TunnelConstants.ZORDER_COLUMNS, getColumnString());
         }
 
         HashMap<String, String> headers = TableTunnel.getCommonHeader();
@@ -315,6 +321,10 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
             params.put(TunnelConstants.RECORD_COUNT, String.valueOf(reocrdCount));
         }
 
+        if (columns != null && columns.size() != 0) {
+            params.put(TunnelConstants.ZORDER_COLUMNS, getColumnString());
+        }
+
         HashMap<String, String> headers = new HashMap<String, String>();
 
         if (size < 0) {
@@ -437,6 +447,17 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
                     Integer.valueOf(response.getHeader(HttpHeaders.HEADER_ODPS_SLOT_NUM)));
 
         return response.getHeader(HEADER_ODPS_REQUEST_ID);
+    }
+
+    private String getColumnString() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < columns.size(); ++i) {
+            sb.append(columns.get(i).getName());
+            if (i != columns.size() - 1) {
+                sb.append(",");
+            }
+        }
+        return sb.toString();
     }
 
     @Override

@@ -383,6 +383,34 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     return instanceResult.taskResults;
   }
 
+  /**
+   * 获取SQLRT Instance中Subquery的原始运行结果
+   *
+   * @return {@link TaskResult}列表
+   * @throws OdpsException
+   */
+  public String getRawSubqueryResults(String subqueryId, String taskName) throws OdpsException {
+    Map<String, String> params = new HashMap<>();
+    params.put("result", null);
+    params.put("subquery_id", subqueryId);
+    InstanceResultModel instanceResult = client
+        .request(InstanceResultModel.class, getResource(), "GET", params);
+
+    results = new HashMap<>();
+    for (TaskResult r : instanceResult.taskResults) {
+      results.put(r.name, r.result);
+    }
+    taskName = taskName + "_" + subqueryId;
+    String ret;
+    try {
+      ret = results.get(taskName).getString();
+    } catch (NullPointerException e)
+    {
+      throw new OdpsException("Task result not found, please run query again.");
+    }
+    return ret;
+  }
+
   public static class TaskCost {
 
     public Integer getCPUCost() {

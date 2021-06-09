@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.util.*;
 
 public interface SQLExecutor {
-
   /**
    * 默认行为关闭该executor,若为连接池模式,则归还Executor到连接池中
    * @return
@@ -43,6 +42,22 @@ public interface SQLExecutor {
    * @throws
    */
   public String getId();
+
+  /**
+   * 获取当前query taskName
+
+   * @return
+   * @throws
+   */
+  public String getTaskName();
+
+  /**
+   * 获取当前query ID
+
+   * @return -1表示Executor尚未初始化
+   * @throws
+   */
+  public int getSubqueryId();
 
   /**
    * 获取当前query Logview
@@ -124,6 +139,8 @@ public interface SQLExecutor {
    * @param countLimit
    *     返回结果数量
    * @return query执行的所有结果
+   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
+   *  大数据量下载建议直接使用{@link #getResultSet(Long)};
    * @throws OdpsException, IOException
    */
   public List<Record> getResult(Long countLimit)
@@ -137,9 +154,48 @@ public interface SQLExecutor {
    * @param sizeLimit
    *     返回结果大小
    * @return query执行的所有结果
+   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
+   *  大数据量下载建议直接使用{@link #getResultSet(Long, Long)};
    * @throws OdpsException, IOException
    */
   public List<Record> getResult(Long countLimit, Long sizeLimit)
+      throws OdpsException, IOException;
+
+  /**
+   * 通过InstanceTunnel获取有限集结果
+
+   * @param offset
+   *     返回结果的开始行数, 从第几行开始取结果
+   * @param countLimit
+   *     返回结果数量
+   * @param sizeLimit
+   *     返回结果大小
+   * @return query执行的所有结果
+   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
+   *  大数据量下载建议直接使用{@link #getResultSet(Long, Long, Long)};
+   * @throws OdpsException, IOException
+   */
+  public List<Record> getResult(Long offset, Long countLimit, Long sizeLimit)
+      throws OdpsException, IOException;
+
+  /**
+   * 通过InstanceTunnel获取有限集结果
+
+   * @param offset
+   *     返回结果的开始行数, 从第几行开始取结果
+   * @param countLimit
+   *     返回结果数量
+   * @param sizeLimit
+   *     返回结果大小
+   * @return query执行的所有结果
+   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
+   *  大数据量下载建议直接使用{@link #getResultSet(Long, Long, Long, boolean)};
+   * @param limitEnabled
+   *     是否启用project设置的READ_TABLE_MAX_ROW, 启用后countLimit设置不再生效(被READ_TABLE_MAX_ROW覆盖)
+   *     不启用则取countLimit数量的结果, 但会进行权限校验, 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception, 否则无权下载
+   * @throws OdpsException, IOException
+   */
+  public List<Record> getResult(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
       throws OdpsException, IOException;
 
   /**
@@ -164,6 +220,40 @@ public interface SQLExecutor {
    * @throws OdpsException, IOException
    */
   public ResultSet getResultSet(Long countLimit, Long sizeLimit)
+      throws OdpsException, IOException;
+
+  /**
+   * 通过InstanceTunnel获取有限集结果的迭代器
+
+   * @param offset
+   *     返回结果的开始行数, 从第几行开始取结果
+   * @param countLimit
+   *     返回结果数量
+   * @param sizeLimit
+   *     返回结果大小
+   * @return query执行的所有结果
+   * @throws OdpsException, IOException
+   */
+  public ResultSet getResultSet(Long offset, Long countLimit, Long sizeLimit)
+      throws OdpsException, IOException;
+
+  /**
+   * 通过InstanceTunnel获取有限集结果的迭代器
+
+   * @param offset
+   *     返回结果的开始行数, 从第几行开始取结果
+   * @param countLimit
+   *     返回结果数量
+   * @param sizeLimit
+   *     返回结果大小
+   * @param limitEnabled
+   *     是否启用project设置的READ_TABLE_MAX_ROW, 启用后countLimit设置不再生效(被READ_TABLE_MAX_ROW覆盖)
+   *     不启用则取countLimit数量的结果, 但会进行权限校验, 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception, 否则无权下载
+   *
+   * @return query执行的所有结果
+   * @throws OdpsException, IOException
+   */
+  public ResultSet getResultSet(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
       throws OdpsException, IOException;
 
   /**

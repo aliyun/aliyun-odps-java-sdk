@@ -15,9 +15,12 @@ class SQLExecutorConstants {
   public static final String sessionUnavailableFlag = "ODPS-184";
   public static final String sessionUnsupportedFeatureFlag = "ODPS-185";
   public static final String sessionQueryTimeoutFlag = "ODPS-186";
+  public static final String sessionNoPublicServiceFlag = "ODPS-1820002";
   public static final String sessionTunnelTimeoutFlag = "OdpsTaskTimeout";
   public static final Long DEFAULT_ATTACH_TIMEOUT = 60L;
   public static final String sessionNotSelectException = "InstanceTypeNotSupported";
   public static final String sessionNotSelectMessage = "Non select query not supported";
   public static final String sessionTunnelTimeoutMessage = "Wait for cache data timeout";
+  public static final String SQA_TASK_FLAG = "odps.task.sql.sqa.enable";
+  public static final String SESSION_FALLBACK_TRACER = "odps.sql.session.fallback.instance";
 }

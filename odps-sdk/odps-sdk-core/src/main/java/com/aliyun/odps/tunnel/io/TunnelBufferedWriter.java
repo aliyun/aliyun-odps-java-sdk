@@ -99,6 +99,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   private TableTunnel.UploadSession session;
   private RetryStrategy retry;
   private long bufferSize;
+  private float flushThreshold;
   private long bytesWritten;
   private boolean isClosed;
   private long timeout;
@@ -107,6 +108,9 @@ public class TunnelBufferedWriter implements RecordWriter {
   private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
   private static final long BUFFER_SIZE_MIN = 1024 * 1024;
   private static final long BUFFER_SIZE_MAX = 1000 * 1024 * 1024;
+  private static final float FLUSH_THRESHOLD_DEFAULT = 0.9F;
+  private static final float FLUSH_THRESHOLD_MIN = 0.01F;
+  private static final float FLUSH_THRESHOLD_MAX = 0.99F;
 
   /**
    * 构造此类对象，使用默认缓冲区大小为 64 MiB，和默认的回退策略：4s、8s、16s、32s、64s、128s
@@ -124,6 +128,7 @@ public class TunnelBufferedWriter implements RecordWriter {
     this.bufferedPack = (ProtobufRecordPack)session.newRecordPack(option);
     this.session = session;
     this.bufferSize = BUFFER_SIZE_DEFAULT;
+    this.flushThreshold = FLUSH_THRESHOLD_DEFAULT;
     this.retry = new TunnelRetryStrategy();
     this.bytesWritten = 0;
     this.isClosed = false;
@@ -167,6 +172,24 @@ public class TunnelBufferedWriter implements RecordWriter {
   }
 
   /**
+   * 设置flush阈值，当缓冲区已用百分比超过这个比值，下一次{@link #write(Record)}将触发flush，避免数据量超过缓冲区
+   * 大小导致额外内存占用和内存拷贝。举例来说，如果flushThreshold设置为0.85，那么缓冲区用到85%后便会尝试flush。
+   *
+   * @param flushThreshold
+   */
+  public void setFlushThreshold(float flushThreshold) {
+    if (flushThreshold < FLUSH_THRESHOLD_MIN) {
+      throw new IllegalArgumentException("flush threshold must >= " + FLUSH_THRESHOLD_MIN
+                                             + ", now" + flushThreshold);
+    }
+    if (flushThreshold > FLUSH_THRESHOLD_MAX) {
+      throw new IllegalArgumentException("flush threshold must <=" + FLUSH_THRESHOLD_MAX
+                                             + ", now: " + flushThreshold);
+    }
+    this.flushThreshold = flushThreshold;
+  }
+
+  /**
    * 设置重试策略
    *
    * @param strategy
@@ -177,7 +200,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   }
 
   /**
-   * 将 record 写入缓冲区，当其大小超过 bufferSize 时，上传缓冲区中的记录过程中如果发生错误将
+   * 将 record 写入缓冲区，当其大小超过 bufferSize 时，上传缓冲区中的记录。过程中如果发生错误将
    * 进行自动重试，这个过程中 write 调用将一直阻塞，直到所有记录上传成功为止。
    *
    * @param r
@@ -186,10 +209,11 @@ public class TunnelBufferedWriter implements RecordWriter {
    * @throws IOException
    *     Signals that an I/O exception has occurred.
    */
+  @Override
   public void write(Record r) throws IOException {
     checkStatus();
 
-    if (bufferedPack.getTotalBytes() > bufferSize) {
+    if (bufferedPack.getTotalBytes() > bufferSize * flushThreshold) {
       flush();
     }
     bufferedPack.append(r);
@@ -207,6 +231,7 @@ public class TunnelBufferedWriter implements RecordWriter {
    * @throws IOException
    *     Signals that an I/O exception has occurred.
    */
+  @Override
   public void close() throws IOException {
     flush();
     isClosed = true;

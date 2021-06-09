@@ -346,12 +346,9 @@ public class DateUtils {
   }
 
   /**
-   * 计算与 1970-01-01 00:00:00 UTC  的偏移天数
-   *
-   * @param date
-   *        时间对象
-   * @return 偏移量
+   * This method is error-prone and deprecated.
    */
+  @Deprecated
   public static long getDayOffset(java.sql.Date date) {
     Calendar gmtCal = (Calendar) GMT_CAL.clone();
     gmtCal.clear();
@@ -364,12 +361,9 @@ public class DateUtils {
   }
 
   /**
-   * 根据偏移天数，生成 java.sql.Date 时间对象
-   *
-   * @param offset
-   *        与 1970-01-01 00:00:00 UTC  的偏移天数
-   * @return Date 对象
+   * This method is error-prone and deprecated.
    */
+  @Deprecated
   public static java.sql.Date fromDayOffset(long offset) {
     Calendar gmtCal = (Calendar) GMT_CAL.clone();
     gmtCal.clear();
