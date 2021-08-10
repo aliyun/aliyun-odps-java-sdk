@@ -488,15 +488,15 @@ public class UDFRunnerTest {
     inputSource = new TableInputSource(project, table, null, columns);
     runner.addInputSource(inputSource);
     out = runner.yield();
-    Assert.assertEquals("Long:" + LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2)
-        .parse("2017-11-11 01:01:01 000").getTime(), StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("Date:" + LocalRunUtils.getDateFormat(Constants.DATE_FORMAT_2)
+        .parse("2017-11-11 01:01:01 000"), StringUtils.join(out.get(0), ","));
 
     runner = new UDFRunner(odps, new UdfComplex());
     columns = new String[]{"a_timestamp"};
     inputSource = new TableInputSource(project, table, null, columns);
     runner.addInputSource(inputSource);
     out = runner.yield();
-    Assert.assertEquals("Long:" + Timestamp.valueOf("2018-01-04 15:57:55.229").getTime(), StringUtils.join(out.get(0), ","));
+    Assert.assertEquals("Timestamp:" + Timestamp.valueOf("2018-01-04 15:57:55.229"), StringUtils.join(out.get(0), ","));
 
     runner = new UDFRunner(odps, new UdfComplex());
     columns = new String[]{"a_binary"};

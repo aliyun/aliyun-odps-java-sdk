@@ -66,6 +66,8 @@ public class ResourceTest extends TestBase {
       odps.projects().get().getSecurityManager().runQuery("grant admin to " + grantUser, false);
     } catch (OdpsException e) {
     }
+    // you can set ChunkSize here to control bytes of each part temp file bytes for debug
+    // odps.resources().setChunkSize(64);
   }
 
   @Test
@@ -87,11 +89,24 @@ public class ResourceTest extends TestBase {
 
   }
 
+  private void readResourceFile() throws IOException, OdpsException {
+    InputStream inputStream = odps.resources().getResourceAsStream("zhemin_res.file");
+    ((ResourceInputStream) inputStream).setChunkSize(64L);
+    byte[] buffer = new byte[64];
+    long totalBytes = 0;
+    int size;
+    while ((size = inputStream.read(buffer)) != -1) {
+      totalBytes += size;
+      System.out.printf("Read %d bytes this time. Total read %d bytes.%n", size, totalBytes);
+    }
+    inputStream.close();
+  }
 
   @Test
   public void testResourceFile() throws IOException, OdpsException {
     addResourceFile();
     updateResourceFile();
+    readResourceFile();
     listResources();
     deleteResourceFile();
     tempResource();

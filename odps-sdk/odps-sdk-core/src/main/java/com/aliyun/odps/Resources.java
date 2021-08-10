@@ -19,20 +19,27 @@
 
 package com.aliyun.odps;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+
+import org.apache.commons.codec.digest.DigestUtils;
 
 import com.aliyun.odps.Resource.ResourceModel;
 import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.commons.transport.Params;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
@@ -86,10 +93,19 @@ public class Resources implements Iterable<Resource> {
 
   private final RestClient client;
   private Odps odps;
+  private int chunkSize;
 
   Resources(Odps odps) {
     this.odps = odps;
     this.client = odps.getRestClient();
+    this.chunkSize = 64 << 20;
+  }
+
+  private <T> T checkIsNull(T t, String parameterName) {
+    if (t == null) {
+      throw new NullPointerException(String.format("%s cannot be null.", parameterName));
+    }
+    return t;
   }
 
   /**
@@ -121,7 +137,7 @@ public class Resources implements Iterable<Resource> {
     try {
       createFile(projectName, r, in, false);
     } catch (IOException e) {
-      new OdpsException(e.getMessage(), e);
+      throw new OdpsException(e.getMessage(), e);
     }
   }
 
@@ -197,6 +213,7 @@ public class Resources implements Iterable<Resource> {
 
 
   private void addVolumeResource(String projectName, VolumeResource r, boolean isUpdate) throws OdpsException {
+    checkIsNull(r, "VolumeResource");
     RestClient client = odps.getRestClient();
     String method;
     String resource;
@@ -208,7 +225,7 @@ public class Resources implements Iterable<Resource> {
       resource = ResourceBuilder.buildResourcesResource(projectName);
     }
 
-    HashMap<String, String> headers = new HashMap<String, String>();
+    HashMap<String, String> headers = new HashMap<>();
     headers.put(Headers.ODPS_RESOURCE_TYPE, r.model.type.toLowerCase());
     headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
     headers.put(Headers.ODPS_COPY_FILE_SOURCE, r.getVolumePath());
@@ -218,7 +235,6 @@ public class Resources implements Iterable<Resource> {
     }
 
     client.request(resource, method, null, headers, null);
-
   }
 
   /**
@@ -274,7 +290,7 @@ public class Resources implements Iterable<Resource> {
     try {
       createFile(projectName, r, in, true);
     } catch (IOException e) {
-      new OdpsException(e.getMessage(), e);
+      throw new OdpsException(e.getMessage(), e);
     }
   }
 
@@ -304,11 +320,13 @@ public class Resources implements Iterable<Resource> {
 
   private void createTable(String project, TableResource r, Boolean overwrite)
       throws OdpsException {
+    checkIsNull(r, "TableResource");
+    checkIsNull(overwrite, "Parameter \"overwrite\"");
     if (r.getName() == null || r.getName().length() == 0) {
       throw new OdpsException("Table Resource Name should not empty.");
     }
 
-    String resource = null;
+    String resource;
     String method;
     if (overwrite) {
       method = "PUT";
@@ -334,41 +352,45 @@ public class Resources implements Iterable<Resource> {
 
   private void createFile(String project, Resource res, InputStream in,
                           Boolean overwrite) throws OdpsException, IOException {
-
-    FileResource r = (FileResource) res;
-
+    InputStream inputStream = checkIsNull(in, "InputStream");
+    Boolean isUpdate = checkIsNull(overwrite, "Parameter \"overwrite\"");
+    FileResource r = (FileResource) checkIsNull(res, "Resource");
     if (r.getName() == null || r.getName().length() == 0) {
-      throw new OdpsException("File Resource Name should not empty.");
+      throw new OdpsException("Resource Name should not empty.");
     }
 
-    String resource = null;
-    String method;
-    if (overwrite) {
-      method = "PUT";
-      resource = ResourceBuilder.buildResourceResource(project, r.getName());
-    } else {
-      method = "POST";
-      resource = ResourceBuilder.buildResourcesResource(project);
+    MessageDigest digest = DigestUtils.getMd5Digest();
+    byte[] tmpContent = new byte[chunkSize];
+    long totalBytes = 0L;
+    int readSize;
+    int cnt = 0;
+    List<String> tmpFiles = new ArrayList<>();
+    while ((readSize = inputStream.read(tmpContent)) != -1) {
+      digest.update(tmpContent, 0, readSize);
+      // prepare inputStream
+      InputStream input = new ByteArrayInputStream(tmpContent, 0, readSize);
+      FileResource tmp = new FileResource();
+      String tmpName = String.format("%s.part.tmp.%06d", r.getName(), cnt);
+      tmp.setIsTempResource(true);
+      tmp.setName(tmpName);
+      tmpFiles.add(tmpName);
+      createTempPartFile(project, tmp, input);
+
+      cnt++;
+      totalBytes += readSize;
+      input.close();
     }
 
-    HashMap<String, String> headers = new HashMap<String, String>();
-    headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
-    headers.put(Headers.CONTENT_DISPOSITION,
-                "attachment;filename=" + r.getName());
-    headers.put(Headers.ODPS_RESOURCE_TYPE, r.getType().toString()
-        .toLowerCase());
-    headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
-    if (r.getComment() != null) {
-      headers.put(Headers.ODPS_COMMENT, r.getComment());
-    }
-
-    if (r.getIsTempResource()) {
-      headers.put(Headers.ODPS_RESOURCE_IS_TEMP, String.valueOf(r.getIsTempResource()));
-    }
-
-    client.request(resource.toString(), method, null, headers,
-                   in, IOUtils.getInputStreamLength(in));
-
+    byte[] md5Bytes = digest.digest();
+    String commitContent = toHexString(md5Bytes) + "|" + String.join(",", tmpFiles);
+    InputStream is = new ByteArrayInputStream(commitContent.getBytes(StandardCharsets.UTF_8));
+    FileResource f = new FileResource();
+    f.setName(r.getName());
+    f.setComment(r.getComment());
+    f.setIsTempResource(r.getIsTempResource());
+    f.model.type = r.getType().toString();
+    mergeTempPartFiles(odps.getDefaultProject(), f, is, isUpdate, totalBytes);
+    is.close();
   }
 
   /**
@@ -505,6 +527,8 @@ public class Resources implements Iterable<Resource> {
    */
   public FileResource createTempResource(String projectName, String fileName, Resource.Type type)
       throws OdpsException {
+    checkIsNull(fileName, "FileName");
+    checkIsNull(type, "Resource.Type");
     File tempFile = null;
     tempFile = new File(fileName);
 
@@ -514,6 +538,7 @@ public class Resources implements Iterable<Resource> {
     if (tempFile.isDirectory()) {
       throw new OdpsException("Temp resource should be file, not directory:" + fileName);
     }
+
     Resource resourceTmp = Resource.createResource(type);
     if (!(resourceTmp instanceof FileResource)) {
       throw new OdpsException("Invalid temp resource type :" + String.valueOf(type) + ".");
@@ -532,6 +557,90 @@ public class Resources implements Iterable<Resource> {
     create(projectName, resource, input);
     IOUtils.closeSilently(input);
     return (FileResource) get(projectName, resourceName);
+  }
+
+  private String toHexString(byte[] bytes) {
+    String md5 = new java.math.BigInteger(1, bytes).toString(16);
+    return new String(new char[32 - md5.length()]).replace("\0", "0") + md5;
+  }
+
+  private void createTempPartFile(String project, Resource res, InputStream in) throws OdpsException, IOException {
+    FileResource r = (FileResource) res;
+    if (r.getName() == null || r.getName().length() == 0) {
+      throw new OdpsException("Temp Part Resource Name should not empty.");
+    }
+
+    if (!r.getIsTempResource()) {
+      throw new OdpsException("Part Resource must be Temp Resource.");
+    }
+
+    if (r.getType().equals(Resource.Type.VOLUMEFILE) ||
+        r.getType().equals(Resource.Type.VOLUMEARCHIVE) ||
+        r.getType().equals(Resource.Type.TABLE) ||
+        r.getType().equals(Resource.Type.UNKOWN)) {
+      throw new OdpsException("Temp Part Resource's type is invalid!");
+    }
+
+    String resource = ResourceBuilder.buildResourcesResource(project);
+    String method = "POST";
+
+    HashMap<String, String> headers = new HashMap<>();
+    headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
+    headers.put(Headers.CONTENT_DISPOSITION,
+                "attachment;filename=" + r.getName());
+    headers.put(Headers.ODPS_RESOURCE_TYPE, r.getType().toString()
+        .toLowerCase());
+    headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
+    if (r.getComment() != null) {
+      headers.put(Headers.ODPS_COMMENT, r.getComment());
+    }
+    headers.put(Headers.ODPS_RESOURCE_IS_TEMP, String.valueOf(r.getIsTempResource()));
+
+    HashMap<String, String> params = new HashMap<>();
+    params.put(Params.ODPS_RESOURCE_IS_PART, "true");
+
+    client.request(resource, method, params, headers,
+                   in, IOUtils.getInputStreamLength(in));
+  }
+
+  private void mergeTempPartFiles(String project, Resource res, InputStream in, boolean overwrite, long totalBytes) throws OdpsException, IOException {
+    InputStream inputStream = Objects.requireNonNull(in);
+    FileResource r = (FileResource) res;
+
+    if (r.getName() == null || r.getName().length() == 0) {
+      throw new OdpsException("File Resource Name should not empty.");
+    }
+
+    String resource;
+    String method;
+    if (overwrite) {
+      method = "PUT";
+      resource = ResourceBuilder.buildResourceResource(project, r.getName());
+    } else {
+      method = "POST";
+      resource = ResourceBuilder.buildResourcesResource(project);
+    }
+
+    HashMap<String, String> headers = new HashMap<>();
+    headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
+    headers.put(Headers.CONTENT_DISPOSITION,
+                "attachment;filename=" + r.getName());
+    headers.put(Headers.ODPS_RESOURCE_TYPE, r.getType().toString()
+        .toLowerCase());
+    headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
+    if (r.getComment() != null) {
+      headers.put(Headers.ODPS_COMMENT, r.getComment());
+    }
+    if (r.getIsTempResource()) {
+      headers.put(Headers.ODPS_RESOURCE_IS_TEMP, String.valueOf(r.getIsTempResource()));
+    }
+    headers.put(Headers.ODPS_RESOURCE_MERGE_TOTAL_BYTES, String.valueOf(totalBytes));
+
+    HashMap<String, String> params = new HashMap<>();
+    params.put(Params.ODPS_RESOURCE_OP_MERGE, "true");
+
+    odps.getRestClient().request(resource, method, params, headers,
+                                 inputStream, IOUtils.getInputStreamLength(inputStream));
   }
 
   /**
@@ -564,12 +673,7 @@ public class Resources implements Iterable<Resource> {
    * @return {@link Resource} iterable 迭代器
    */
   public Iterable<Resource> iterable(final String projectName) {
-    return new Iterable<Resource>() {
-      @Override
-      public Iterator<Resource> iterator() {
-        return new ResourceListIterator(projectName, null);
-      }
-    };
+    return () -> new ResourceListIterator(projectName, null);
   }
 
   /**
@@ -583,7 +687,7 @@ public class Resources implements Iterable<Resource> {
 
   private class ResourceListIterator extends ListIterator<Resource> {
 
-    Map<String, String> params = new HashMap<String, String>();
+    Map<String, String> params = new HashMap<>();
     String name;
     String project;
 
@@ -634,4 +738,7 @@ public class Resources implements Iterable<Resource> {
     return project;
   }
 
+  protected void setChunkSize(int chunkSize) {
+    this.chunkSize = chunkSize;
+  }
 }
