@@ -21,6 +21,7 @@ class SQLExecutorConstants {
   public static final String sessionNotSelectException = "InstanceTypeNotSupported";
   public static final String sessionNotSelectMessage = "Non select query not supported";
   public static final String sessionTunnelTimeoutMessage = "Wait for cache data timeout";
+  public static final String sessionTunnelGetSelectDescTimeoutMessage = "Get select desc from SQLRTTask timeout";
   public static final String SQA_TASK_FLAG = "odps.task.sql.sqa.enable";
   public static final String SESSION_FALLBACK_TRACER = "odps.sql.session.fallback.instance";
 }

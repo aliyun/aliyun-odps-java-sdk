@@ -725,7 +725,9 @@ class SQLExecutorImpl implements SQLExecutor {
             && errorMessage.indexOf(SQLExecutorConstants.sessionResourceNotEnoughFlag) != -1) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4RunningTimeout()
-            && errorMessage.indexOf(SQLExecutorConstants.sessionQueryTimeoutFlag) != -1) {
+        && (errorMessage.indexOf(SQLExecutorConstants.sessionQueryTimeoutFlag) != -1 ||
+            errorMessage.indexOf(SQLExecutorConstants.sessionTunnelTimeoutMessage) != -1 ||
+              errorMessage.indexOf(SQLExecutorConstants.sessionTunnelGetSelectDescTimeoutMessage) != -1)) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4UnknownError()
             && errorMessage.indexOf(SQLExecutorConstants.sessionExceptionFlag) != -1) {
@@ -769,8 +771,9 @@ class SQLExecutorImpl implements SQLExecutor {
             || errorMessage.indexOf(SQLExecutorConstants.sessionTunnelTimeoutMessage) != -1) {
       // get result timeout
       tunnelGetResultRetryCount++;
-      if(tunnelGetResultRetryCount >= tunnelGetResultMaxRetryTime){
-        throw new OdpsException(errorCode + ":" + errorMessage);
+      if (tunnelGetResultRetryCount >= tunnelGetResultMaxRetryTime) {
+        info.status = TunnelRetryStatus.QUERY_FAILED;
+        return info;
       }
       info.status = TunnelRetryStatus.NEED_RETRY;
       return info;

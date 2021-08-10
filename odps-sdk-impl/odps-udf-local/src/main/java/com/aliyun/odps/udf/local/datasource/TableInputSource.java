@@ -53,17 +53,6 @@ public class TableInputSource extends InputSource {
       dataList =
           WareHouse.getInstance().readData(tableInfo.getProjectName(), tableInfo.getTableName(),
               tableInfo.getPartitionSpec(), tableInfo.getCols(), WareHouse.getInstance().getInputColumnSeperator());
-      // convert Date to Long for udf inputs
-      for (Object[] datas : dataList) {
-        if (datas == null) {
-          continue;
-        }
-        for (int i = 0; i < datas.length; ++i) {
-          if (datas[i] instanceof Date) {
-            datas[i] = new Long(((Date)datas[i]).getTime());
-          }
-        }
-      }
     } catch (OdpsException e) {
       throw new LocalRunError(e.getMessage());
     } catch (IOException e) {

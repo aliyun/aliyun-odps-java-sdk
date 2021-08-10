@@ -132,9 +132,9 @@ public class ArgumentConverterUtils {
   public static class DatetimeConverter extends ArgumentConverter {
     @Override
     public void check(Object o) {
-      if (o != null && !(o instanceof Long)) {
+      if (o != null && !(o instanceof Date)) {
         throw new RuntimeException("Input data type '" + o.getClass().getName()
-                                   + "' can't cast to '" + Long.class.getName() + "'");
+                                   + "' can't cast to '" + Date.class.getName() + "'");
       }
     }
   }

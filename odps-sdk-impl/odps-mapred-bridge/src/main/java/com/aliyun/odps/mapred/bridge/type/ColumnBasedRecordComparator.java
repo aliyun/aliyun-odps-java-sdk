@@ -111,5 +111,4 @@ public class ColumnBasedRecordComparator extends NaturalRecordComparator {
     }
     return 0;
   }
-
 }
