@@ -124,7 +124,7 @@ public class SQLTaskTest extends TestBase {
     assertEquals(2, SQLTask.getResultByInstanceTunnel(i, 2L).size());
     assertEquals(3, SQLTask.getResultByInstanceTunnel(i, 5L).size());
 
-    String tableName = "test_select_huge_sql_test_from_tunnel";
+    String tableName = "test_select_huge_sql_test_from_tunnel_in_SQLTaskTest_testInstanceTunnelResult";
     odps.tables().delete(tableName, true);
     OdpsTestUtils.createBigTableForTest(tableName);// table has 10010 records
 

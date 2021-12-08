@@ -330,7 +330,6 @@ public class InstancesTest extends TestBase {
         Assert.assertNotNull(info.getStartTime());
         Assert.assertNotNull(info.getStatus());
         Assert.assertNotNull(info.getProject());
-        Assert.assertNotNull(info.getSkyNetId());
         Assert.assertNotNull(info.getUserAccount());
         Assert.assertNotNull(info.getId());
       }
@@ -365,10 +364,10 @@ public class InstancesTest extends TestBase {
     Assert.assertNotNull(info.getStartTime());
     Assert.assertNotNull(info.getStatus());
     Assert.assertNotNull(info.getProject());
-    Assert.assertNotNull(info.getSkyNetId());
     Assert.assertNotNull(info.getUserAccount());
 
     i.waitForSuccess();
+    Thread.sleep(3000);
     info = i.getQueueingInfo();
     Assert.assertEquals(i.getId(), info.getId());
   }

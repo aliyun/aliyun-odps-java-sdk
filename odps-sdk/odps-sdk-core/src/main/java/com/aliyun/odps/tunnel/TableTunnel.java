@@ -1710,6 +1710,11 @@ public class TableTunnel {
     public TunnelRecordReader openRecordReader(long start, long count, CompressOption compress,
                                                List<Column> columns)
         throws TunnelException, IOException {
+
+      if (columns != null && columns.isEmpty()) {
+        throw new TunnelException("Specified column list is empty.");
+      }
+
       TunnelRecordReader reader = new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
       reader.setTransform(shouldTransform);
 

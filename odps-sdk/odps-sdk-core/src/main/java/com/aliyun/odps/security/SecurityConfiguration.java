@@ -76,6 +76,19 @@ public class SecurityConfiguration extends LazyLoad {
     @Element(name = "ProjectProtection", required = false)
     ProjectProtection projectProtection;
 
+    @Root(name = "EnableExternalResourceAccessControl", strict = false)
+    static class EnableExternalResourceAccessControl {
+      @Attribute(name = "CheckExternalResourcePermissionEnable", required = false)
+      boolean checkExternalResourcePermissionEnable;
+
+      @Element(name = "Locations", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+      String locations;
+    }
+
+    @Element(name = "EnableExternalResourceAccessControl", required = false)
+    EnableExternalResourceAccessControl enableExternalResourceAccessControl;
+
     @Element(name = "CheckPermissionUsingAclV2", required = false)
     boolean checkPermissionUsingAclV2;
 
@@ -157,12 +170,12 @@ public class SecurityConfiguration extends LazyLoad {
     try {
       StringBuilder resource = new StringBuilder();
       resource.append("/projects/").append(project);
-      Map<String, String> params = new HashMap<String, String>();
+      Map<String, String> params = new HashMap<>();
       params.put("security_configuration", null);
       String xmlSecurityConfiguration = SimpleXmlUtils.marshal(model);
       HashMap<String, String> headers = null;
       if (supervisionToken != null) {
-        headers = new HashMap<String, String>();
+        headers = new HashMap<>();
         headers.put(Headers.ODPS_SUPERVISION_TOKEN, supervisionToken);
       }
       client.stringRequest(resource.toString(), "PUT", params, headers,
@@ -260,6 +273,57 @@ public class SecurityConfiguration extends LazyLoad {
       throw new NoSuchObjectException("Exception Policy dose not exist!");
     }
     return model.projectProtection.exceptionPolicy;
+  }
+
+  public boolean externalResourceAccessControl() {
+    if (model.enableExternalResourceAccessControl != null) {
+      return model.enableExternalResourceAccessControl.checkExternalResourcePermissionEnable;
+    } else {
+      throw new UnsupportedOperationException(
+          "External resource access control is not valid. Probably due to a new client talking to an old server");
+    }
+  }
+
+  public void enableExternalResourceAccessControl() {
+    enableExternalResourceAccessControl(null);
+  }
+
+  /**
+   * Enable external resource access control.
+   * @param locations The locations to be controlled. Could be null.
+   */
+  public void enableExternalResourceAccessControl(String locations) {
+    if (model.enableExternalResourceAccessControl != null) {
+      model.enableExternalResourceAccessControl.checkExternalResourcePermissionEnable = true;
+      model.enableExternalResourceAccessControl.locations = locations;
+    } else {
+      throw new UnsupportedOperationException(
+          "External resource access control is not valid. Probably due to a new client talking to an old server");
+    }
+  }
+
+  public void disableExternalResourceAccessControl() {
+    if (model.enableExternalResourceAccessControl != null) {
+      model.enableExternalResourceAccessControl.checkExternalResourcePermissionEnable = false;
+      model.enableExternalResourceAccessControl.locations = null;
+    } else {
+      throw new UnsupportedOperationException(
+          "External resource access control is not valid. Probably due to a new client talking to an old server");
+    }
+  }
+
+  /**
+   * Return the locations that is under control. E.g oss://endpoint/bucket/path.
+   * @return The locations that is under control. Returning null indicates that no location is
+   * under control.
+   */
+  public String getExternalResourceLocations() {
+    if (model.enableExternalResourceAccessControl != null) {
+      return model.enableExternalResourceAccessControl.locations;
+    } else {
+      throw new UnsupportedOperationException(
+          "External resource access control is not valid. Probably due to a new client talking to an old server");
+    }
   }
 
   public boolean checkPermissionUsingAclV2() {

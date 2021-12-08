@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -35,7 +36,7 @@ public class SecurityTest extends TestBase {
   private Odps odps = OdpsTestUtils.newSecurityOdps();
 
   @Test
-  public void securityConfigrationTest() {
+  public void securityConfigurationTest() {
     try {
       SecurityManager sm = odps.projects().get().getSecurityManager();
       SecurityConfiguration sc = sm.getSecurityConfiguration();
@@ -149,6 +150,32 @@ public class SecurityTest extends TestBase {
 
       // Auth version
       System.out.println(sc.getAuthorizationVersion());
+
+      // External resource access control
+      boolean externalResourceAccessControl = sc.externalResourceAccessControl();
+      if (externalResourceAccessControl) {
+        sc.disableExternalResourceAccessControl();
+        sm.setSecurityConfiguration(sc);
+        sc.reload();
+        assertFalse(sc.externalResourceAccessControl());
+
+        sc.enableExternalResourceAccessControl("oss://my_bucket");
+        sm.setSecurityConfiguration(sc);
+        sc.reload();
+        assertTrue(sc.externalResourceAccessControl());
+        assertEquals("oss://my_bucket", sc.getExternalResourceLocations());
+      } else {
+        sc.enableExternalResourceAccessControl("oss://my_bucket");
+        sm.setSecurityConfiguration(sc);
+        sc.reload();
+        assertTrue(sc.externalResourceAccessControl());
+        assertEquals("oss://my_bucket", sc.getExternalResourceLocations());
+
+        sc.disableExternalResourceAccessControl();
+        sm.setSecurityConfiguration(sc);
+        sc.reload();
+        assertFalse(sc.externalResourceAccessControl());
+      }
     } catch (OdpsException e) {
       e.printStackTrace();
       fail();

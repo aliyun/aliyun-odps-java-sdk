@@ -70,24 +70,23 @@ public class Session {
   }
 
   private static final String DEFAULT_TASK_NAME = "console_sqlrt_task";
-  private static final long POLL_INTERVAL = TimeUnit.SECONDS.toMillis(1);
+  private static final long POLL_INTERVAL = TimeUnit.MILLISECONDS.toMillis(1000);
 
   private String taskName = DEFAULT_TASK_NAME;
 
-  public Session(Odps odps, Instance instance) throws OdpsException {
+  public Session(Odps odps, Instance instance) {
     this(odps, instance, null, DEFAULT_TASK_NAME);
   }
 
-  public Session(Odps odps, Instance instance, String sessionName, String taskName) throws OdpsException {
+  public Session(Odps odps, Instance instance, String sessionName, String taskName) {
     this.sessionName = sessionName;
     this.instance = instance;
     this.startSessionMessage = "";
     this.taskName = taskName;
-    if (odps != null) {
-      this.logView = new LogView(odps).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
-    }
+    this.odps = odps;
   }
 
+  private Odps odps;
   private String sessionName;
   private Instance instance;
   private String logView;
@@ -101,7 +100,10 @@ public class Session {
   public static int OBJECT_STATUS_TERMINATED = 5;
   public static int OBJECT_STATUS_CANCELLED = 6;
 
-  public String getLogView() {
+  public String getLogView() throws OdpsException{
+    if (logView == null && odps != null) {
+      logView = new LogView(odps).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
+    }
     return logView;
   }
 
@@ -780,6 +782,27 @@ public class Session {
     return isStarted;
   }
 
+  public void waitAttachSuccess() throws OdpsException {
+    SubQueryResponse response = getResponse(instance.getTaskInfo(taskName, "wait_attach_success"));
+
+    if (response == null || response.status == null) {
+      checkTaskStatus();
+    } else if (response.status == OBJECT_STATUS_RUNNING) {
+      if (response.result != null && response.result.length() > 0) {
+        startSessionMessage += response.result;
+      }
+    } else if (response.status == OBJECT_STATUS_FAILED) {
+      throw new OdpsException(
+          String.format("Start session[%s] failed: %s ", instance.getId(), response.result));
+    } else if(!StringUtils.isNullOrEmpty(response.result)) {
+      try {
+        progress = gson.fromJson(response.result, SessionProgress.class);
+      } catch (Exception e) {
+        // ignore
+      }
+    }
+  }
+
   /**
    * get sqlstats of subqyery
    *
@@ -950,19 +973,24 @@ public class Session {
 
     Session session = new Session(odps, instance, sessionName, taskName);
 
-    if (timeout != null) {
-      session.waitForStart(timeout);
+    // attach mode, long polling
+    if (hints.containsKey("odps.sql.session.share.id")) {
+      session.waitAttachSuccess();
+    } else {
+      if (timeout != null) {
+        session.waitForStart(timeout);
+      }
     }
 
     return session;
   }
 
-  public void printLogView() {
+  public void printLogView() throws OdpsException{
     System.out.println("");
     System.err.println("ID = " + instance.getId());
 
     System.err.println("Log view:");
-    System.err.println(logView);
+    System.err.println(getLogView());
   }
 
   public void cancelQuery(int queryId) throws OdpsException {

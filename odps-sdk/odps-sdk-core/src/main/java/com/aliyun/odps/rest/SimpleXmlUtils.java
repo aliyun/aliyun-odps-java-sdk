@@ -37,8 +37,8 @@ public class SimpleXmlUtils {
             return s;
         }
     };
-    private final static Format AUTO_CDATA_FORMAT = new Format(INDENT, PROLOG, IDENTITY_STYLE,
-        Verbosity.HIGH, true);
+    private final static Format AUTO_ESCAPE_FORMAT =
+        new Format(INDENT, PROLOG, IDENTITY_STYLE, Verbosity.HIGH, false);
 
     /**
      * Marshal & Unmalshal methods
@@ -46,7 +46,7 @@ public class SimpleXmlUtils {
     public static <T> String marshal(T obj) throws Exception {
         // Use SimpleTreeStrategy to avoid unwanted 'class' attribute
         Strategy strategy = new AnnotationStrategy(new SimpleTreeStrategy());
-        Serializer serializer = new Persister(strategy, AUTO_CDATA_FORMAT);
+        Serializer serializer = new Persister(strategy, AUTO_ESCAPE_FORMAT);
         StringWriter out = new StringWriter();
         serializer.write(obj, out);
         return out.toString();
@@ -54,13 +54,13 @@ public class SimpleXmlUtils {
 
     public static <T> void marshal(T obj, OutputNode outputNode) throws Exception {
         Strategy strategy = new AnnotationStrategy(new SimpleTreeStrategy());
-        Serializer serializer = new Persister(strategy, AUTO_CDATA_FORMAT);
+        Serializer serializer = new Persister(strategy, AUTO_ESCAPE_FORMAT);
         serializer.write(obj, outputNode);
     }
 
     public static <T> T unmarshal(byte[] xml, Class<T> clazz) throws Exception {
         Strategy strategy = new AnnotationStrategy();
-        Serializer serializer = new Persister(strategy, AUTO_CDATA_FORMAT);
+        Serializer serializer = new Persister(strategy, AUTO_ESCAPE_FORMAT);
         return serializer.read(clazz, new ByteArrayInputStream(xml));
     }
 
@@ -73,7 +73,7 @@ public class SimpleXmlUtils {
 
     public static <T> T unmarshal(InputNode inputNode, Class<T> clazz) throws Exception {
         Strategy strategy = new AnnotationStrategy();
-        Serializer serializer = new Persister(strategy, AUTO_CDATA_FORMAT);
+        Serializer serializer = new Persister(strategy, AUTO_ESCAPE_FORMAT);
         return serializer.read(clazz, inputNode);
     }
 

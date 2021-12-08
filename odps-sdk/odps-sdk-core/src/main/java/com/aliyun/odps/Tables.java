@@ -682,6 +682,9 @@ public class Tables implements Iterable<Table> {
   /**
    * 批量加载表信息<br />
    *
+   * rest api 对请求数量有限制, 目前一次操作最多可请求 100 张表信息; <br />
+   * 返回的表数据,与操作权限有关.<br />
+   *
    * @param tables
    *     请求表的容器
    * @return 加载后的 {@link Table} 列表

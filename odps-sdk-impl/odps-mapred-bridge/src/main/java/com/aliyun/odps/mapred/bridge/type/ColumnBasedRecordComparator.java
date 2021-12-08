@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.mapred.conf.JobConf;
 import com.aliyun.odps.mapred.conf.JobConf.SortOrder;
 
 /**
@@ -31,7 +32,7 @@ import com.aliyun.odps.mapred.conf.JobConf.SortOrder;
 public class ColumnBasedRecordComparator extends NaturalRecordComparator {
 
   int[] selIdxs;
-  SortOrder[] sortOrders;
+  SortOrder[] sortOrder;
 
   /**
    * ColumnBasedRecordComparator的构造方法，指定排序列的下标索引。例如指定排序列的下标索引为0，3，则比较时先用第0列比较，
@@ -45,7 +46,7 @@ public class ColumnBasedRecordComparator extends NaturalRecordComparator {
   public ColumnBasedRecordComparator(int[] selIdxs, Column[] schema) {
     super(schema);
     this.selIdxs = selIdxs;
-    this.sortOrders = null;
+    this.sortOrder = null;
   }
 
   /**
@@ -59,17 +60,11 @@ public class ColumnBasedRecordComparator extends NaturalRecordComparator {
     this(selCols, schema, null);
   }
 
-  public ColumnBasedRecordComparator(String[] selCols, Column[] schema, SortOrder[] sortOrders) {
+  public ColumnBasedRecordComparator(String[] selCols, Column[] schema, SortOrder[] sortOrder) {
     super(schema);
-
-    if (sortOrders != null && selCols.length != sortOrders.length) {
-      throw new IllegalArgumentException(
-          "Number of sort column is not equal to length of sort order array.");
-    }
-
-    this.sortOrders = sortOrders;
+    this.sortOrder = sortOrder;
     this.selIdxs = new int[selCols.length];
-    Map<String, Integer> reverseLookupMap = new HashMap<>();
+    Map<String, Integer> reverseLookupMap = new HashMap<String, Integer>();
     int i = 0;
     for (Column c : schema) {
       reverseLookupMap.put(c.getName(), i);
@@ -85,30 +80,23 @@ public class ColumnBasedRecordComparator extends NaturalRecordComparator {
   @Override
   public int compare(Object[] l, Object[] r) {
     int result = 0;
-    int index = 0;
     for (int i : selIdxs) {
       if (r.length < i) {
-        if (sortOrders != null && sortOrders[index] == SortOrder.DESC) {
-          return 1;
-        }
         return -1;
       }
       if (l.length < i) {
-        if (sortOrders != null && sortOrders[index] == SortOrder.DESC) {
-          return -1;
-        }
         return 1;
       }
-      result = compare(l[i], r[i], comparators[i]);
+      if (sortOrder != null && sortOrder[i] == JobConf.SortOrder.DESC) {
+        result = compare(r[i], l[i], comparators[i]);
+      } else {
+        result = compare(l[i], r[i], comparators[i]);
+      }
       if (result != 0) {
-        if (sortOrders != null && sortOrders.length == selIdxs.length
-            && sortOrders[index] == SortOrder.DESC) {
-          return (0 - result);
-        }
         return result;
       }
-      index++;
     }
     return 0;
   }
+
 }
