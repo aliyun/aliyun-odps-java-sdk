@@ -89,6 +89,7 @@ public class ResourceTest extends TestBase {
 
   }
 
+
   private void readResourceFile() throws IOException, OdpsException {
     InputStream inputStream = odps.resources().getResourceAsStream("zhemin_res.file");
     ((ResourceInputStream) inputStream).setChunkSize(64L);
@@ -158,7 +159,7 @@ public class ResourceTest extends TestBase {
     odps.resources().create(resource);
   }
 
-  @Test(expected = OdpsException.class)
+  @Test(expected = NullPointerException.class)
   public void testResourceFileNameEmpty() throws OdpsException {
     FileResource resource = new FileResource();
     odps.resources().create(resource, null);

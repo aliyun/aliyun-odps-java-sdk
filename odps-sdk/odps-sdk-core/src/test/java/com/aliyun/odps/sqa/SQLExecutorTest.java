@@ -25,7 +25,10 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.utils.StringUtils;
+
+import org.apache.commons.lang.math.RandomUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -42,13 +45,21 @@ public class SQLExecutorTest extends TestBase {
   private static Session session = null;
   private static String sessionName = "test_sdk_session" + System.currentTimeMillis();
   private static String tableName = "test_session_table" + System.currentTimeMillis();
+  private static String emptyTableName = "test_session_empty_table" + System.currentTimeMillis();
   private static String bigTableName = "test_big_session_table" + System.currentTimeMillis();
+  private static String streamTableName = "test_streamupload_session_table" + System.currentTimeMillis();
   private static String sql = "select * from " + tableName + " where c1!='NotExist';";
   private static String multiQuerySql = "select c1, sum(c2) from " + bigTableName + " group by c1;";
   private static String fallbackSql = "select * from " + tableName + " union all select * from " + tableName + ";";
   private static String sqlNotSelect = "insert overwrite table " + tableName + " select * from "+ tableName +";";
   private static String sqlLocalMode = "select * from " + bigTableName + ";";
+  private static String sqlLocalModeEmpty = "select * from " + emptyTableName + ";";
+  private static String sqlLocalModeCol = "select c1 from " + bigTableName + ";";
+  private static String sqlLocalModeDisableTunnel = "select * from " + tableName + ";";
+  private static String sqlStreamUpload = "select * from " + streamTableName + " where c1!='NotExist';";
+  private static String sqlStreamUploadLocalMode = "select * from " + streamTableName + ";";
 
+  private static int streamRecordCount = 300;
   private static int recordCount = 2998;
   private static int bigRecordCount = 100000;
 
@@ -57,17 +68,19 @@ public class SQLExecutorTest extends TestBase {
     if (session != null) {
       session.stop();
     }
+    odps.tables().delete(emptyTableName, true);
     odps.tables().delete(tableName, true);
     odps.tables().delete(bigTableName, true);
+    odps.tables().delete(streamTableName, true);
   }
 
   @BeforeClass
   public static void prepare() throws OdpsException, IOException {
-
     TableSchema schema = new TableSchema();
     schema.addColumn(new Column("c1", OdpsType.STRING));
     schema.addColumn(new Column("c2", OdpsType.BIGINT));
 
+    odps.tables().create(emptyTableName, schema, true);
     odps.tables().create(tableName, schema, true);
 
     TableTunnel tableTunnel = new TableTunnel(odps);
@@ -94,6 +107,26 @@ public class SQLExecutorTest extends TestBase {
     }
     writer.close();
     uploadSession.commit();
+
+    odps.tables().create(streamTableName, schema, true);
+    TableTunnel.StreamUploadSession upload = tableTunnel.createStreamUploadSession(odps.getDefaultProject(), streamTableName);
+    Record record = upload.newRecord();
+    record.setString(0, "value0");
+    record.setBigint(1, 1L);
+    TableTunnel.StreamRecordPack rawPack = upload.newRecordPack();
+    TableTunnel.StreamRecordPack compressedPack = upload.newRecordPack(new CompressOption());
+    for (int i = 0; i < 2; ++i) {
+      TableTunnel.StreamRecordPack pack;
+      if (i % 2 == 0) {
+        pack = rawPack;
+      } else {
+        pack = compressedPack;
+      }
+      for (int j = 0; j < streamRecordCount; ++j) {
+        pack.append(record);
+      }
+      System.out.println(pack.flush());
+    }
 
     Map<String, String> flags = new HashMap<String, String>();
     flags.put("odps.sql.session.idle.timeout", "30");
@@ -584,7 +617,7 @@ public class SQLExecutorTest extends TestBase {
     builder.odps(odps)
         .executeMode(ExecuteMode.INTERACTIVE)
         .properties(properties)
-        .fallbackPolicy(new FallbackPolicy())
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy())
         .serviceName(sessionName);
     SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
     Assert.assertNotNull(sqlExecutor.getId());
@@ -650,7 +683,7 @@ public class SQLExecutorTest extends TestBase {
     String oldInstanceId = attach.getInstance().getId();
     attach.stop();
     try {
-      Thread.sleep(2000);
+      Thread.sleep(8000);
     } catch (InterruptedException e) {
 
     }
@@ -713,7 +746,7 @@ public class SQLExecutorTest extends TestBase {
     // stop session
     attach.stop();
     try {
-      Thread.sleep(2000);
+      Thread.sleep(8000);
     } catch (InterruptedException e) {
 
     }
@@ -769,7 +802,7 @@ public class SQLExecutorTest extends TestBase {
     // stop session
     attach.stop();
     try {
-      Thread.sleep(2000);
+      Thread.sleep(8000);
     } catch (InterruptedException e) {
 
     }
@@ -1157,7 +1190,8 @@ public class SQLExecutorTest extends TestBase {
     builder.odps(odps)
         .executeMode(ExecuteMode.INTERACTIVE)
         .properties(properties)
-        .serviceName(sessionName);
+        .serviceName(sessionName)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
     SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
     Assert.assertNotNull(sqlExecutor.getId());
 
@@ -1433,6 +1467,7 @@ public class SQLExecutorTest extends TestBase {
 
     Map<String, String> hint = new HashMap<>();
     hint.put("odps.sql.select.auto.limit", "-1");
+    hint.put("odps.sql.session.localmode.enable", "true");
     sqlExecutor.run(sqlLocalMode, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
@@ -1445,6 +1480,112 @@ public class SQLExecutorTest extends TestBase {
         records.add(resultSet.next());
       }
       Assert.assertEquals(records.size(), bigRecordCount);
+
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorLocalModeEmptyTable() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.select.auto.limit", "-1");
+    hint.put("odps.sql.session.localmode.enable", "true");
+    sqlExecutor.run(sqlLocalModeEmpty, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      List<Record> records = new ArrayList<>();
+      while(resultSet.hasNext()) {
+        records.add(resultSet.next());
+      }
+      Assert.assertEquals(records.size(), 0);
+
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorLocalModeSpecificCol() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.select.auto.limit", "-1");
+    hint.put("odps.sql.session.localmode.enable", "true");
+    sqlExecutor.run(sqlLocalModeCol, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      List<Record> records = new ArrayList<>();
+      while(resultSet.hasNext()) {
+        records.add(resultSet.next());
+      }
+      Assert.assertEquals(records.size(), bigRecordCount);
+
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorLocalModeSpecificColDisableTunnel() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName)
+        .useInstanceTunnel(false);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.select.auto.limit", "-1");
+    hint.put("odps.sql.session.localmode.enable", "true");
+    sqlExecutor.run(sqlLocalModeDisableTunnel, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      List<Record> records = new ArrayList<>();
+      while(resultSet.hasNext()) {
+        records.add(resultSet.next());
+      }
+      Assert.assertEquals(records.size(), recordCount);
 
     } catch (IOException e) {
       e.printStackTrace();
@@ -1468,6 +1609,7 @@ public class SQLExecutorTest extends TestBase {
     Map<String, String> hint = new HashMap<>();
     hint.put("odps.sql.select.auto.limit", "-1");
     hint.put("odps.sql.session.multi.output", "true");
+    hint.put("odps.sql.session.localmode.enable", "true");
     sqlExecutor.run(sqlLocalMode, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
@@ -1794,6 +1936,105 @@ public class SQLExecutorTest extends TestBase {
       Assert.assertFalse(StringUtils.isNullOrEmpty(summary));
 
       System.out.println(sqlExecutor.getExecutionLog());
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorAlwaysFallback() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName("session_not_exist")
+        .fallbackPolicy(FallbackPolicy.alwaysFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    sqlExecutor.run(sql, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      System.out.println(sqlExecutor.getLogView());
+      Assert.assertNull(queryId);
+      Assert.assertFalse(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      Assert.assertEquals(resultSet.getRecordCount(), recordCount);
+
+      List<Record> records = sqlExecutor.getResult();
+      Assert.assertEquals(records.size(), recordCount);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    }
+  }
+
+  @Test
+  public void testStreamUploadSelect() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    //hint.put("odps.sql.runtime.flag.executionengine_CommonTableRW_EnableInternalTable","false");
+    sqlExecutor.run(sqlStreamUpload, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      List<Record> records = new ArrayList<>();
+      while(resultSet.hasNext()) {
+        records.add(resultSet.next());
+      }
+      Assert.assertEquals(records.size(), streamRecordCount * 2);
+      printRecords(records);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  //@Test
+  public void testStreamUploadLocalMode() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName);
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.session.localmode.enable", "true");
+    sqlExecutor.run(sqlStreamUploadLocalMode, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      List<Record> records = new ArrayList<>();
+      while(resultSet.hasNext()) {
+        records.add(resultSet.next());
+      }
+      Assert.assertEquals(records.size(), streamRecordCount * 2);
+      printRecords(records);
     } catch (IOException e) {
       e.printStackTrace();
       throw e;

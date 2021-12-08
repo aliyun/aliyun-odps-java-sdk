@@ -103,12 +103,12 @@ public class OdpsTestUtils {
     return props.getProperty("test.nicker.nickname");
   }
 
-  public static String getCurrentUser() throws OdpsException, IOException {
-    Odps odps = newDefaultOdps();
-    String userDetail = odps.projects().get().getSecurityManager().runQuery("whoami", true);
+  public static String getCurrentUser(Odps odps) throws OdpsException {
+    String userDetail =
+        odps.projects().get().getSecurityManager().runQuery("whoami", true);
     JsonObject jsonObject = new JsonParser().parse(userDetail).getAsJsonObject();
-    String owner = jsonObject.has("DisplayName") ? jsonObject.get("DisplayName").getAsString() : null;
-    return owner;
+    return jsonObject
+        .has("DisplayName") ? jsonObject.get("DisplayName").getAsString() : null;
   }
 
   /**
@@ -352,7 +352,7 @@ public class OdpsTestUtils {
   }
 
   public static String getRandomTableName(String prefix) {
-    return prefix + getRandomTableName();
+    return prefix + "_" + getRandomTableName();
   }
 
   public static String getRandomTableName() {

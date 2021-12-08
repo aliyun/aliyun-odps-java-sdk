@@ -65,12 +65,6 @@ public class OdpsTest {
     assertEquals(odps1.instances().getDefaultRunningCluster(), odps2.instances().getDefaultRunningCluster());
   }
 
-  @Test
-  public void testHttps() throws OdpsException {
-    Odps odps = OdpsTestUtils.newHttpsOdps();
-    odps.getRestClient().setIgnoreCerts(true);
-    assertFalse(odps.projects().exists("NOT_EXIST_PROJECT"));
-  }
 
 
 

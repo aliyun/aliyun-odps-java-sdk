@@ -146,11 +146,8 @@ class SQLExecutorImpl implements SQLExecutor {
           attachSuccess = true;
         }
       } catch (OdpsException e) {
-        // ignore attach failed if fallback for alwaysFallback
         if (fallbackPolicy.isAlwaysFallBack()) {
-          if (e.getMessage().contains(SQLExecutorConstants.sessionNoPublicServiceFlag)) {
-            throw e;
-          }
+          // ignore attach failed if fallback for alwaysFallback
         } else {
           throw e;
         }
@@ -255,7 +252,7 @@ class SQLExecutorImpl implements SQLExecutor {
    * @throws
    */
   @Override
-  public String getLogView() {
+  public String getLogView(){
     if (queryInfo != null) {
       // if query running, return query logview
       try {
@@ -270,8 +267,12 @@ class SQLExecutorImpl implements SQLExecutor {
         return null;
       }
     } else if (session != null) {
-      // no query running, return session logview if have
-      return session.getLogView();
+      try {
+        // no query running, return session logview if have
+        return session.getLogView();
+      } catch (OdpsException e) {
+        return null;
+      }
     }
     return null;
   }
@@ -686,7 +687,7 @@ class SQLExecutorImpl implements SQLExecutor {
     //reset tunnelGetResultRetryCount before query run
     tunnelGetResultRetryCount = 0;
     try {
-      runQueryInternal(executeMode, null);
+      runQueryInternal(executeMode, null, false);
     } catch (Exception e) {
       throw e;
     }
@@ -731,6 +732,8 @@ class SQLExecutorImpl implements SQLExecutor {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4UnknownError()
             && errorMessage.indexOf(SQLExecutorConstants.sessionExceptionFlag) != -1) {
+      return ExecuteMode.OFFLINE;
+    } else if (fallbackPolicy.isAlwaysFallBack()) {
       return ExecuteMode.OFFLINE;
     } else {
       throw new OdpsException(errorMessage);
@@ -784,7 +787,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet newEmptyResultSet() {
     return new ResultSet(
-            new SessionRecordSetIterator(new ArrayList<>()),
+            new OfflineRecordSetIterator(new ArrayList<>()),
             null,
             0
     );
@@ -835,7 +838,7 @@ class SQLExecutorImpl implements SQLExecutor {
       }
     } catch (OdpsException e) {
       ExecuteMode executeMode = handleSessionException(e.getMessage());
-      runQueryInternal(executeMode, e.getMessage());
+      runQueryInternal(executeMode, e.getMessage(), true);
       return getResultInternal(null, null, null, true);
     }
     return result.getRecords();
@@ -870,7 +873,7 @@ class SQLExecutorImpl implements SQLExecutor {
         return records;
       } else {
         ExecuteMode executeMode = handleSessionException(retryInfo.errMsg);
-        runQueryInternal(executeMode, retryInfo.errMsg);
+        runQueryInternal(executeMode, retryInfo.errMsg, true);
         return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
       }
     }
@@ -904,11 +907,11 @@ class SQLExecutorImpl implements SQLExecutor {
       }
     } catch (OdpsException e) {
       ExecuteMode executeMode = handleSessionException(e.getMessage());
-      runQueryInternal(executeMode, e.getMessage());
+      runQueryInternal(executeMode, e.getMessage(), true);
       return getResultSetInternal(null, null, null, true);
     }
     return new ResultSet(
-            new SessionRecordSetIterator(result.getRecords()),
+            new OfflineRecordSetIterator(result.getRecords()),
             result.getSchema(),
             result.getRecords().size());
   }
@@ -926,7 +929,12 @@ class SQLExecutorImpl implements SQLExecutor {
                       taskName,
                       queryInfo.getId(),
                       limitEnabled);
+      // remained for :
+      // 1.TunnelException check
+      // 2.Check size limit
+      // 3.Get return result record count
       reader = downloadSession.openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit, sizeLimit == null ? -1 : sizeLimit);
+      reader.close();
     } catch (TunnelException e) {
       TunnelRetryInfo retryInfo = handleTunnelException(e.getErrorCode(), e.getMessage());
       if (retryInfo.status.equals(TunnelRetryStatus.NEED_RETRY)) {
@@ -935,12 +943,13 @@ class SQLExecutorImpl implements SQLExecutor {
         return newEmptyResultSet();
       } else {
         ExecuteMode executeMode = handleSessionException(retryInfo.errMsg);
-        runQueryInternal(executeMode, retryInfo.errMsg);
+        runQueryInternal(executeMode, retryInfo.errMsg, true);
         return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
       }
     }
     return new ResultSet(
-            new SessionRecordSetIterator(reader),
+            new SessionRecordSetIterator(downloadSession, downloadSession.getRecordCount(),
+                                         offset == null ? 0 : offset),
             downloadSession.getSchema(),
             downloadSession.getRecordCount());
   }
@@ -955,7 +964,7 @@ class SQLExecutorImpl implements SQLExecutor {
       CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(selectResult);
       List<Record> records = parseResult.getRecords();
       return new ResultSet(
-              new SessionRecordSetIterator(records),
+              new OfflineRecordSetIterator(records),
               parseResult.getSchema(),
               records.size());
     } else {
@@ -979,20 +988,23 @@ class SQLExecutorImpl implements SQLExecutor {
     if (subQueryInfo.status.equals(Session.SubQueryInfo.kOKCode)) {
       if (subQueryInfo.queryId == -1) {
         ExecuteMode executeMode = handleSessionException(subQueryInfo.result);
-        runQueryInternal(executeMode, subQueryInfo.result);
+        runQueryInternal(executeMode, subQueryInfo.result, true);
       } else {
-        // submit success
+        // submit success, do not generate logview now
+        // call getLogview() if it's needed
         queryInfo.setId(subQueryInfo.queryId);
         queryInfo.setInstance(session.getInstance(),
                 ExecuteMode.INTERACTIVE,
-                new LogView(odps).generateSubQueryLogView(session.getInstance(), subQueryInfo.queryId, 7 * 24),
+                "",
                 rerunMsg);
       }
     } else if (subQueryInfo.status.equals(Session.SubQueryInfo.kNotFoundCode)) {
       // odps worker cannot found instance, may stopped, reattach and retry
       String taskTerminateMsg = session.getInstance().getTaskResults().get(taskName);
       reattach("Submit query failed:" + taskTerminateMsg);
-      runQueryInternal(ExecuteMode.INTERACTIVE, taskTerminateMsg);
+      // if attach failed, will fallback to offline
+      // if attach succeed, this will be the first try, no not inc retry count
+      runQueryInternal(ExecuteMode.INTERACTIVE, taskTerminateMsg, !attachSuccess);
     } else {
       // submit failed
       throw new OdpsException("Submit query failed:" + subQueryInfo.result);
@@ -1011,10 +1023,12 @@ class SQLExecutorImpl implements SQLExecutor {
     queryInfo.setInstance(instance, ExecuteMode.OFFLINE, new LogView(odps).generateLogView(instance, 7 * 24), rerunMsg);
   }
 
-  private void runQueryInternal(ExecuteMode executeMode, String rerunMsg) throws OdpsException {
+  private void runQueryInternal(ExecuteMode executeMode, String rerunMsg, boolean isRerun) throws OdpsException {
     boolean fallbackForAttachFailed = false;
     if (queryInfo.getRetry() < SQLExecutorConstants.MaxRetryTimes) {
-      queryInfo.incRetry();
+      if (isRerun) {
+        queryInfo.incRetry();
+      }
       // INTERACTIVE mode and attach failed and always fallback, try to attach session
       if (executeMode == ExecuteMode.INTERACTIVE && !attachSuccess && fallbackPolicy.isAlwaysFallBack()) {
         try {
@@ -1048,60 +1062,38 @@ class SQLExecutorImpl implements SQLExecutor {
 
 /**
  * class: SessionRecordSetIterator
- * It is both used in getSessionResultSetByInstanceTunnel and getOfflineResultSet
- * In session mode: it opens a real reader,
- *      records are read from tunnel in batches
- * In offline mode: it passes a List to fake a reader,
- *      so reader is null
+ * It is used in getSessionResultSetByInstanceTunnel
  */
 class SessionRecordSetIterator implements Iterator<Record> {
-  private static final long FETCH_COUNT = 1000L;
-  private long actualFetchSize = 0;
-  private int idx = 0;
-  private boolean finishIterRead = false;
-  private TunnelRecordReader reader;
-  private int cursor = 0;
   private List<Record> buffer;
+  private static final long FETCH_SIZE = 10000L;
+  private long cursor = 0;
+  private int idx = 0;
+  private long fetchSize = 0;
+  private long recordCount;
+  private long offset;
+  private InstanceTunnel.DownloadSession session;
 
-  public SessionRecordSetIterator(TunnelRecordReader reader) {
-    this.reader = reader;
-  }
-
-  public SessionRecordSetIterator(List<Record> buffer) {
-    this.buffer = buffer;
+  public SessionRecordSetIterator(InstanceTunnel.DownloadSession session,
+                                  long recordCount,
+                                  long offset) {
+    this.session = session;
+    this.recordCount = recordCount;
+    this.offset = offset;
   }
 
   @Override
   public boolean hasNext() {
-    //In offline mode
-    if (reader == null){
-      if (buffer == null){
-        return false;
-      }
-      return cursor < buffer.size();
-    }
-    //In session mode
-    else{
-      if (idx == actualFetchSize && finishIterRead){
-        return false;
-      }
-      if (buffer == null || idx == actualFetchSize) {
-        fillBuffer();
-      }
-      return idx < actualFetchSize;
-    }
+    return cursor < recordCount;
   }
 
   @Override
   public Record next() {
-    //In offline mode
-    if (reader == null){
-      return buffer.get(cursor++);
+    if (buffer == null || idx == buffer.size()) {
+      fillBuffer();
     }
-    //In session mode
-    else{
-      return buffer.get(idx++);
-    }
+    cursor++;
+    return buffer.get(idx++);
   }
 
   @Override
@@ -1111,24 +1103,54 @@ class SessionRecordSetIterator implements Iterator<Record> {
 
   private void fillBuffer() {
     idx = 0;
-    actualFetchSize = 0;
-    buffer = new ArrayList<>();
+    TunnelRecordReader reader = openNewReader();
+    buffer = new ArrayList<Record>();
     Record r = null;
     try {
-      while (actualFetchSize < FETCH_COUNT){
-        if ((r = reader.read()) != null) {
-          buffer.add(r);
-          actualFetchSize++;
-        }
-        else{
-          break;
-        }
-      }
-      if(actualFetchSize != FETCH_COUNT){
-        finishIterRead = true;
+      while ((r = reader.read()) != null) {
+        buffer.add(r);
       }
     } catch (IOException e) {
-      throw new RuntimeException("Read result failed:" + e.getMessage(), e);
+      throw new RuntimeException("Read from reader failed:", e);
     }
+  }
+
+  private TunnelRecordReader openNewReader() {
+    fetchSize = recordCount - cursor <= FETCH_SIZE ? recordCount - cursor : FETCH_SIZE;
+    try {
+      return session.openRecordReader(cursor + offset, fetchSize);
+    } catch (TunnelException e) {
+      throw new RuntimeException("Open reader failed: " + e.getMessage(), e);
+    } catch (IOException e) {
+      throw new RuntimeException("Open reader failed: " + e.getMessage(), e);
+    }
+  }
+}
+
+/**
+ * class: OfflineRecordSetIterator
+ *  It is used in getOfflineResultSet
+ *  It passes a List to fake a reader
+ *  The record count in List is limited, so there is no memory problem
+ */
+class OfflineRecordSetIterator implements Iterator<Record> {
+  private int cursor = 0;
+  private List<Record> buffer;
+
+  public OfflineRecordSetIterator(List<Record> buffer) {
+    this.buffer = buffer;
+  }
+
+  @Override
+  public boolean hasNext() {
+    if (buffer == null) {
+      return false;
+    }
+    return cursor < buffer.size();
+  }
+
+  @Override
+  public Record next() {
+    return buffer.get(cursor++);
   }
 }

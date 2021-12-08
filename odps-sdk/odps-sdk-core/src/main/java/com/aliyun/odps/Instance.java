@@ -319,6 +319,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
   /**
    * 停止正在执行的Instance
+   * 注意：停止动作为异步执行，如果需要确保 Instance 停止，可以在调用本方法后轮询 Instance.isTerminated() 直至返回 true
    *
    * @throws OdpsException
    */

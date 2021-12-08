@@ -21,6 +21,7 @@ package com.aliyun.odps;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -30,116 +31,126 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.stream.Collectors;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.type.TypeInfoFactory;
+import com.aliyun.odps.utils.StringUtils;
 import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
 public class TablesTest extends TestBase {
 
-  private String tableName = this.getClass().getSimpleName() + "_table_name_for_testTables";
-  private TableSchema schema;
-
-  @Before
-  public void setUp() throws OdpsException {
-    odps = OdpsTestUtils.newDefaultOdps();
-
-    schema = new TableSchema();
-    schema.addColumn(new Column("c1", OdpsType.BIGINT));
-    schema.addColumn(new Column("c2", OdpsType.BOOLEAN));
-    schema.addColumn(new Column("c3", OdpsType.DATETIME));
-    schema.addColumn(new Column("c4", OdpsType.STRING));
-
-    schema.addPartitionColumn(new Column("p1", OdpsType.BIGINT));
-    schema.addPartitionColumn(new Column("p2", OdpsType.STRING));
-
-    createTable(tableName);
+  private static final TableSchema SCHEMA;
+  static {
+    SCHEMA = new TableSchema();
+    SCHEMA.addColumn(new Column("c1", TypeInfoFactory.BIGINT));
+    SCHEMA.addColumn(new Column("c2", TypeInfoFactory.BOOLEAN, "comment"));
+    SCHEMA.addColumn(new Column("c3", TypeInfoFactory.DATETIME));
+    SCHEMA.addColumn(new Column("c4", TypeInfoFactory.STRING));
+    SCHEMA.addPartitionColumn(new Column("p1", TypeInfoFactory.BIGINT));
+    SCHEMA.addPartitionColumn(new Column("p2", TypeInfoFactory.STRING, "comment"));
   }
 
-  private void createTable(String name) throws OdpsException {
-    deleteTable(name);
+  private static final String BASE_TABLE_NAME_PREFIX = TablesTest.class.getSimpleName();
 
-    odps.tables().create(odps.getDefaultProject(), name, schema);
-  }
+  private static final List<String> tablesToDrop = new LinkedList<>();
 
-  private void deleteTable(String name) throws OdpsException {
-    if (odps.tables().exists(name)) {
-      odps.tables().delete(name);
+  @AfterClass
+  public static void tearDown() {
+    // Drop tables created this time
+    for (String tableName : tablesToDrop) {
+      try {
+        odps.tables().delete(tableName, true);
+      } catch (OdpsException e) {
+        System.err.println("Failed to drop table: " + tableName);
+      }
     }
-  }
 
-  @After
-  public void tearDown() throws OdpsException {
-    deleteTable(tableName);
+    // Drop tables previously created
+    for (Table table : odps.tables()) {
+      if (table.getName().startsWith(BASE_TABLE_NAME_PREFIX.toLowerCase())) {
+        try {
+          odps.tables().delete(table.getName());
+        } catch (OdpsException e) {
+          System.err.println("Failed to drop table: " + table.getName());
+        }
+      }
+    }
   }
 
   @Test
   public void testCreateTable() throws OdpsException {
-    UUID id = UUID.randomUUID();
-    String tableName = id.toString().replace("-", "");
-    TableSchema schema = new TableSchema();
-    schema.addColumn(new Column("c1", OdpsType.BIGINT));
-    schema.addColumn(new Column("_c2", OdpsType.STRING, "_comment here"));
-    schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
-    schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
-    odps.tables()
-        .create(odps.getDefaultProject(),
-                "testCreateTable" + tableName,
-                schema,
-                "_table comment",
-                false);
-    Table table = odps.tables().get("testCreateTable" + tableName);
-    assertEquals(table.getComment(), "_table comment");
-    TableSchema returnSchema = table.getSchema();
-    assertEquals(returnSchema.getColumns().size(), 2L);
-    assertEquals(returnSchema.getColumn("c1").getName(), "c1");
-    assertEquals(returnSchema.getColumn("c1").getType(), OdpsType.BIGINT);
-    assertEquals(returnSchema.getColumn("c1").getComment(), "");
-    assertEquals(returnSchema.getColumn("_c2").getName(), "_c2");
-    assertEquals(returnSchema.getColumn("_c2").getType(), OdpsType.STRING);
-    assertEquals(returnSchema.getColumn("_c2").getComment(), "_comment here");
+    String tableName = String.format(
+        "%s_%s_%s", BASE_TABLE_NAME_PREFIX, "testCreateTable", OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
 
-    assertEquals(returnSchema.getPartitionColumn("p1").getName(), "p1");
-    assertEquals(returnSchema.getPartitionColumn("p1").getType(), OdpsType.STRING);
-    assertEquals(returnSchema.getPartitionColumn("p1").getComment(), "");
-    assertEquals(returnSchema.getPartitionColumn("_p2").getName(), "_p2");
-    assertEquals(returnSchema.getPartitionColumn("_p2").getType(), OdpsType.STRING);
-    assertEquals(returnSchema.getPartitionColumn("_p2").getComment(), "_comment here");
+    odps.tables()
+        .create(odps.getDefaultProject(), tableName, SCHEMA, "comment", false);
+
+    // Validate table level attributes
+    Table table = odps.tables().get(tableName);
+    assertEquals(table.getComment(), "comment");
+
+    // Validate column level attributes
+    TableSchema actualSchema = table.getSchema();
+    assertEquals(SCHEMA.getColumns().size(), actualSchema.getColumns().size());
+    for (int i = 0; i < SCHEMA.getColumns().size(); i++) {
+      Column expectedColumn = SCHEMA.getColumn(i);
+      Column actualColumn = actualSchema.getColumn(i);
+      assertEquals(expectedColumn.getName(), actualColumn.getName());
+      assertEquals(expectedColumn.getTypeInfo().getOdpsType(),
+                   actualColumn.getTypeInfo().getOdpsType());
+      assertEquals(StringUtils.isNullOrEmpty(expectedColumn.getComment()),
+                   StringUtils.isNullOrEmpty(actualColumn.getComment()));
+    }
+    assertEquals(SCHEMA.getPartitionColumns().size(), actualSchema.getPartitionColumns().size());
+    for (int i = 0; i < SCHEMA.getPartitionColumns().size(); i++) {
+      Column expectedColumn = SCHEMA.getPartitionColumn(i);
+      Column actualColumn = actualSchema.getPartitionColumn(i);
+      assertEquals(expectedColumn.getName(), actualColumn.getName());
+      assertEquals(expectedColumn.getTypeInfo().getOdpsType(),
+                   actualColumn.getTypeInfo().getOdpsType());
+      assertEquals(StringUtils.isNullOrEmpty(expectedColumn.getComment()),
+                   StringUtils.isNullOrEmpty(actualColumn.getComment()));
+    }
   }
 
   @Test
   public void testCreateTableWithLifeCycle() throws OdpsException {
-    UUID id = UUID.randomUUID();
-    String tableName = "testCreateTableWithLifeCycle" + id.toString().replace("-", "");
-    TableSchema schema = new TableSchema();
-    schema.addColumn(new Column("c1", OdpsType.BIGINT));
-    schema.addColumn(new Column("_c2", OdpsType.STRING, "_comment here"));
-    schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
-    schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
-    odps.tables()
-        .createTableWithLifeCycle(odps.getDefaultProject(), tableName, schema, null, false, 10L);
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testCreateTableWithLifeCycle",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+
+    odps.tables().createTableWithLifeCycle(
+        odps.getDefaultProject(),
+        tableName,
+        SCHEMA,
+        null,
+        false,
+        10L);
+
     assertEquals(odps.tables().get(tableName).getLife(), 10L);
-    deleteTable(tableName);
   }
 
   @Test
-  public void testCreateExternalTable() throws OdpsException {
-    UUID id = UUID.randomUUID();
-    String tableName = "testCreateExternalTable" + id.toString().replace("-", "");
-    TableSchema schema = new TableSchema();
-    schema.addColumn(new Column("c1", OdpsType.BIGINT));
-    schema.addColumn(new Column("_c2", OdpsType.STRING, "_comment here"));
-    schema.addPartitionColumn(new Column("p1", OdpsType.STRING));
-    schema.addPartitionColumn(new Column("_p2", OdpsType.STRING, "_comment here"));
+  public void testCreateExternalTableWithBuiltinStorageHandler() throws OdpsException {
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testCreateExternalTableWithBuiltinStorageHandler",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+
     Map<String, String> hints = new HashMap<String, String>();
     hints.put("odps.sql.preparse.odps2", "lot");
     hints.put("odps.sql.planner.mode", "lot");
@@ -147,70 +158,80 @@ public class TablesTest extends TestBase {
     hints.put("odps.sql.ddl.odps2", "true");
     hints.put("odps.compiler.output.format", "lot,pot");
 
-    String storageHandler = "com.aliyun.odps.CsvStorageHandler";
+    odps.tables().createExternal(
+        odps.getDefaultProject(),
+        tableName,
+        SCHEMA,
+        "MOCKoss://full/uri/path/to/oss/directory/",
+        "com.aliyun.odps.CsvStorageHandler",
+        null,
+        null,
+        "External table with partitions and builtin CsvStorageHandler",
+        false,
+        10L,
+        hints,
+        null);
 
-    odps.tables()
-        .createExternal(
-            odps.getDefaultProject(),
-            tableName,
-            schema,
-            "MOCKoss://full/uri/path/to/oss/directory/",
-            storageHandler,
-            null,
-            null,
-            "External table with partitions and builtin CsvStorageHandler",
-            false,
-            10L,
-            hints,
-            null);
-    Table createdTable = odps.tables().get(tableName);
-    assertEquals(createdTable.isExternalTable(), true);
-    assertEquals(createdTable.getStorageHandler(), storageHandler);
-    assertEquals(createdTable.getLife(), 10L);
-    deleteTable(tableName);
+    Table table = odps.tables().get(tableName);
+    assertTrue(table.isExternalTable());
+    assertEquals(table.getStorageHandler(), "com.aliyun.odps.CsvStorageHandler");
+    assertEquals(table.getLife(), 10L);
+  }
 
-    schema = new TableSchema();
-    schema.addColumn(new Column("c1", OdpsType.BIGINT));
-    schema.addColumn(new Column("_c2", OdpsType.STRING));
+  @Test
+  public void testCreateExternalTableWithUserDefinedStorageHandler() throws OdpsException {
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testCreateExternalTableWithUserDefinedStorageHandler",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
 
-    storageHandler = "com.aliyun.odps.udf.example.text.TextStorageHandler";
     List<String > jars = new ArrayList<String>();
     jars.add("odps-udf-example.jar");
     jars.add("another.jar");
+
     Map<String,String> properties = new HashMap<String, String>();
     properties.put("odps.text.option.delimiter", "|");
     properties.put("my.own.option", "value");
-    odps.tables()
-        .createExternal(
-            odps.getDefaultProject(),
-            tableName,
-            schema,
-            "MOCKoss://full/uri/path/to/oss/directory/",
-            storageHandler,
-            jars,
-            properties,
-            "External table using user defined TextStorageHandler",
-            true,
-            null,
-            hints,
-            null);
-    createdTable = odps.tables().get(tableName);
-    assertEquals(createdTable.isExternalTable(), true);
-    assertEquals(createdTable.getStorageHandler(), storageHandler);
-    assertEquals(createdTable.getResources().split(",").length, 2);
-    deleteTable(tableName);
+
+    Map<String, String> hints = new HashMap<String, String>();
+    hints.put("odps.sql.preparse.odps2", "lot");
+    hints.put("odps.sql.planner.mode", "lot");
+    hints.put("odps.sql.planner.parser.odps2", "true");
+    hints.put("odps.sql.ddl.odps2", "true");
+    hints.put("odps.compiler.output.format", "lot,pot");
+
+    odps.tables().createExternal(
+        odps.getDefaultProject(),
+        tableName,
+        SCHEMA,
+        "MOCKoss://full/uri/path/to/oss/directory/",
+        "com.aliyun.odps.udf.example.text.TextStorageHandler",
+        jars,
+        properties,
+        "External table using user defined TextStorageHandler",
+        true,
+        10L,
+        hints,
+        null);
+
+    Table table = odps.tables().get(tableName);
+    assertTrue(table.isExternalTable());
+    assertEquals(table.getStorageHandler(),
+                 "com.aliyun.odps.udf.example.text.TextStorageHandler");
+    assertEquals(table.getResources().split(",").length, 2);
   }
 
   @Test
   public void testCreateTableWithHints() throws OdpsException {
-    UUID id = UUID.randomUUID();
-    String tableName = "testCreateTableWithHints" + id.toString().replace("-", "");
-    TableSchema schema = new TableSchema();
-    schema.addColumn(new Column("c1", TypeInfoFactory.getCharTypeInfo(10)));
-    schema.addColumn(new Column("_c2", TypeInfoFactory.STRING, "_comment here"));
-    schema.addPartitionColumn(new Column("p1", TypeInfoFactory.getVarcharTypeInfo(20)));
-    schema.addColumn(new Column("_p2", TypeInfoFactory
-        .getMapTypeInfo(TypeInfoFactory.BIGINT, TypeInfoFactory.BOOLEAN)));
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testCreateTableWithHints",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+
     Map<String, String> hints = new HashMap<String, String>();
     hints.put("odps.sql.hive.compatible", "true");
     hints.put("odps.sql.preparse.odps2", "hybrid");
@@ -218,135 +239,282 @@ public class TablesTest extends TestBase {
     hints.put("odps.sql.planner.parser.odps2", "true");
     hints.put("odps.sql.ddl.odps2", "true");
 
-    odps.tables().create(odps.getDefaultProject(), tableName, schema, null, false, 10L, hints, null);
+    odps.tables().create(
+        odps.getDefaultProject(),
+        tableName,
+        SCHEMA,
+        null,
+        false,
+        10L,
+        hints,
+        null);
 
     assertEquals(odps.tables().get(tableName).getLife(), 10L);
-    deleteTable(tableName);
   }
 
   @Test(expected = OdpsException.class)
   public void testCreateTableCrossProjectNeg() throws OdpsException {
-    TableSchema schema = new TableSchema();
-    schema.addColumn(new Column("c1", OdpsType.BIGINT));
-    schema.addColumn(new Column("c2", OdpsType.BOOLEAN));
-    schema.addColumn(new Column("c3", OdpsType.DATETIME));
-    schema.addColumn(new Column("c4", OdpsType.STRING));
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testCreateTableCrossProjectNeg",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
 
-    schema.addPartitionColumn(new Column("p1", OdpsType.BIGINT));
-    schema.addPartitionColumn(new Column("p2", OdpsType.STRING));
-
-    odps.tables().create("NOT_EXIST_PROJECT", tableName, schema);
+    odps.tables().create("nonexistent", tableName, SCHEMA);
   }
 
   @Test
-  public void testGetString() {
-    Table table = odps.tables().get(tableName);
-    Assert.assertNotNull(table);
+  public void testExistsPos() throws OdpsException {
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testExistsPos",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+
+    odps.tables().create(tableName, SCHEMA);
+    assertTrue(odps.tables().exists(tableName));
   }
 
   @Test
-  public void testExistsString() throws OdpsException {
-    boolean flag = odps.tables().exists(tableName);
-    assertEquals(flag, true);
-
-    flag = odps.tables().exists("table_name_for_test_not_exists");
-    assertEquals(flag, false);
+  public void testExistsNeg() throws OdpsException {
+    assertFalse(odps.tables().exists("nonexistent"));
   }
 
   @Test
-  public void testIteratorTableFilter() throws IOException, OdpsException {
+  public void testIteratorFilterByName() throws OdpsException {
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testIteratorFilterByName",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+    odps.tables().create(tableName, SCHEMA);
+
     TableFilter tableFilter = new TableFilter();
-    tableFilter.setName("user");
+    tableFilter.setName(BASE_TABLE_NAME_PREFIX);
     Iterator<Table> iterator = odps.tables().iterator(tableFilter);
     while (iterator.hasNext()) {
       Table table = iterator.next();
-      Assert.assertNotNull(table.getName());
+      assertNotNull(table.getName());
+      assertTrue(table.getName().startsWith(BASE_TABLE_NAME_PREFIX.toLowerCase()));
     }
+  }
 
-    tableFilter = new TableFilter();
-    String owner = OdpsTestUtils.getCurrentUser();
+  @Test
+  public void testIteratorFilterByOwner() throws OdpsException {
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testIteratorFilterByOwner",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+    odps.tables().create(tableName, SCHEMA);
+
+    String owner = OdpsTestUtils.getCurrentUser(odps);
+    assertNotNull(owner);
+
+    TableFilter tableFilter = new TableFilter();
     tableFilter.setOwner(owner);
-    iterator = odps.tables().iterator(tableFilter);
+    Iterator<Table> iterator = odps.tables().iterator(tableFilter);
     while (iterator.hasNext()) {
       Table table = iterator.next();
-      Assert.assertNotNull(table.getOwner());
+      assertEquals(owner, table.getOwner());
     }
   }
 
   @Test
-  public void testIterableTableFilter() throws IOException, OdpsException {
+  public void testIterableFilterByName() throws OdpsException {
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testIterableFilterByName",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+    odps.tables().create(tableName, SCHEMA);
+
     TableFilter tableFilter = new TableFilter();
-    tableFilter.setName("user");
-
+    tableFilter.setName(BASE_TABLE_NAME_PREFIX);
     for (Table table : odps.tables().iterable(tableFilter)) {
-      Assert.assertNotNull(table.getName());
+      System.out.println(table.getName());
+      assertNotNull(table.getName());
+      assertTrue(table.getName().startsWith(BASE_TABLE_NAME_PREFIX.toLowerCase()));
     }
+  }
 
-    tableFilter = new TableFilter();
-    String owner = OdpsTestUtils.getCurrentUser();
+  @Test
+  public void testIterableFilterByOwner() throws OdpsException {
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testIterableFilterByOwner",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+    odps.tables().create(tableName, SCHEMA);
+
+    String owner = OdpsTestUtils.getCurrentUser(odps);
+    assertNotNull(owner);
+
+    TableFilter tableFilter = new TableFilter();
     tableFilter.setOwner(owner);
-
     for (Table table : odps.tables().iterable(tableFilter)) {
-      Assert.assertNotNull(table.getOwner());
+      assertEquals(owner, table.getOwner());
     }
   }
 
   @Test
-  public void testIteratorString() {
-    Iterator<Table> iterator = odps.tables().iterator();
-    if (iterator.hasNext()) {
-      Assert.assertNotNull(iterator.next().getName());
-    }
+  public void testBatchLoading() throws OdpsException {
+    List<Table> expectedTables = getTables(odps, odps.getDefaultProject(), 10);
+    assertTrue(expectedTables.size() > 0);
+
+    List<String> names = expectedTables.stream().map(Table::getName).collect(Collectors.toList());
+
+    // Test method Tables#reloadTables
+    List<Table> actualTables = odps.tables().reloadTables(expectedTables);
+    batchAsserting(expectedTables, actualTables);
+
+    // Test method Tables#loadTables
+    actualTables = odps.tables().loadTables(names);
+    batchAsserting(expectedTables, actualTables);
   }
 
   @Test
-  public void testIterableString() {
-    for (Table table : odps.tables().iterable()) {
-      Assert.assertNotNull(table.getName());
-    }
+  public void testBatchLoadingCrossProjects() throws OdpsException, IOException {
+    String crossProject = OdpsTestUtils.loadConfig().getProperty("security.project");
+    assertNotEquals(odps.getDefaultProject(), crossProject);
+
+    List<Table> expectedTables = getTables(odps, crossProject, 10);
+    assertTrue(expectedTables.size() > 0);
+
+    List<String> names = expectedTables.stream().map(Table::getName).collect(Collectors.toList());
+
+    // Test method Tables#loadTables
+    List<Table> actualTables = odps.tables().loadTables(crossProject, names);
+    batchAsserting(expectedTables, actualTables);
+
+    // Test method Tables#reloadTables
+    expectedTables.addAll(getTables(odps, odps.getDefaultProject(), 10));
+    assertTrue(expectedTables.size() > actualTables.size());
+    actualTables = odps.tables().reloadTables(expectedTables);
+    batchAsserting(expectedTables, actualTables);
   }
 
   @Test
-  public void testDeleteString() throws OdpsException {
-    //Already Test in method tearDown() ,please don't delete again
+  public void testBatchLoadingDuplicated() throws OdpsException {
+    List<Table> expectedTables = getTables(odps, odps.getDefaultProject(), 10);
+    assertTrue(expectedTables.size() > 0);
+
+    expectedTables.add(expectedTables.get(0));
+
+    List<Table> actualTables = odps.tables().reloadTables(expectedTables);
+    assertEquals(expectedTables.size() - 1, actualTables.size());
+
+    batchAsserting(expectedTables.subList(0, expectedTables.size() - 1), actualTables);
   }
 
+  // Make sure CheckPermissionUsingAcl=true !!!
+  @Test
+  public void testBatchLoadingVariousPermission() throws OdpsException, InterruptedException {
+    Odps grantOdps = OdpsTestUtils.newGrantOdps(odps.getDefaultProject());
+
+    // Use OdpsTestUtils.getProperty("grant.user") to test privilege
+    List<Table> expectedTables = new ArrayList<Table>();
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testBatchLoadingVariousPermission",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+    odps.tables().create(tableName, SCHEMA);
+
+    expectedTables.add(odps.tables().get(tableName));
+
+    // Make sure OdpsTestUtils.getProperty("grant.user") has role admin and list privilege
+    try {
+      odps.projects().get().getSecurityManager()
+          .runQuery("GRANT ADMIN TO " + OdpsTestUtils.getProperty("grant.user"), false);
+    } catch (OdpsException e) {
+      assertTrue(e.getMessage().contains("Principal already have the Role:admin"));
+    }
+    odps.projects().get().getSecurityManager()
+        .runQuery("GRANT LIST ON PROJECT " + odps.getDefaultProject() + " TO " + OdpsTestUtils.getProperty("grant.user"), false);
+
+    // Revoke role admin
+    odps.projects().get().getSecurityManager()
+        .runQuery("REVOKE ADMIN FROM " + OdpsTestUtils.getProperty("grant.user"), false);
+    // Revoke list privilege from odpstest4
+    odps.projects().get().getSecurityManager()
+        .runQuery("REVOKE LIST ON PROJECT " + odps.getDefaultProject() + " FROM USER " + OdpsTestUtils.getProperty("grant.user"), false);
+
+
+    List<Table> actualTables = grantOdps.tables().reloadTables(expectedTables);
+    assertEquals(1, actualTables.size());
+    assertEquals(tableName.toLowerCase(), actualTables.get(0).getName());
+    assertEquals(odps.getDefaultProject(), actualTables.get(0).getProject());
+    // Owner and schema should not be visible due to lack of privilege
+    assertNull(actualTables.get(0).getOwner());
+    assertNull(actualTables.get(0).getSchema());
+
+    // Re-grant list privilege
+    odps.projects().get().getSecurityManager()
+        .runQuery("GRANT LIST ON PROJECT " + odps.getDefaultProject() + " TO USER " + OdpsTestUtils.getProperty("grant.user"), false);
+
+    actualTables = grantOdps.tables().reloadTables(expectedTables);
+    assertEquals(1, actualTables.size());
+    assertEquals(tableName.toLowerCase(), actualTables.get(0).getName());
+    assertEquals(odps.getDefaultProject(), actualTables.get(0).getProject());
+    // Owner should be visible since list privilege is granted
+    assertEquals(odps.tables().get(tableName).getOwner(), actualTables.get(0).getOwner());
+    // Schema should still not visible since it required desc privilege
+    assertNull(actualTables.get(0).getSchema());
+
+    // Re-grant role admin. Now it has desc privilege
+    odps.projects().get().getSecurityManager()
+        .runQuery("GRANT ADMIN TO " + OdpsTestUtils.getProperty("grant.user"), false);
+
+    actualTables = grantOdps.tables().reloadTables(expectedTables);
+    assertEquals(1, actualTables.size());
+    assertEquals(tableName.toLowerCase(), actualTables.get(0).getName());
+    assertEquals(odps.getDefaultProject(), actualTables.get(0).getProject());
+    assertEquals(odps.tables().get(tableName).getOwner(), actualTables.get(0).getOwner());
+    assertNotNull(actualTables.get(0).getSchema());
+    // app account return size=-1
+    // assertEquals(odps.tables().get(tableName).getJsonSchema(), actualTables.get(0).getJsonSchema());
+  }
 
   @Test(expected = NoSuchObjectException.class)
-  public void testLoadTablesNeg_TableNotExists() throws OdpsException {
+  public void testBatchLoadingNonExistent() throws OdpsException {
     List<String> tables = new ArrayList<String>();
-    String name = OdpsTestUtils.getRandomTableName("TABLE_RELOAD_TEST_NOT_EXIST");
-    deleteTable(name);
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testBatchLoadingNeg",
+        OdpsTestUtils.getRandomTableName());
 
-    tables.add(name);
+    tables.add(tableName);
     odps.tables().loadTables(tables);
-
     fail();
   }
 
   @Test(expected = OdpsException.class)
-  public void testLoadTablesNeg_OverHeadTables() throws OdpsException {
-    List<Table> tables = getTables(odps, 101);
-    List<String> tableNames = new ArrayList<String>(); // for tear down
-    String name = null;
-    if (tables.size() < 100) {
-      int number = 101 - tables.size();
-      while (number-- > 0) {
-        name = OdpsTestUtils.getRandomTableName("testReloadTables_OverHead");
-        tableNames.add(name);
-        createTable(name);
-        tables.add(odps.tables().get(name));
-      }
+  public void testBatchLoadingExceedsNumTablesLimit() throws OdpsException {
+    List<Table> expectedTables = getTables(odps, odps.getDefaultProject(), 101);
+    // Make sure there are more than 101 tables
+    for (int i = 0; i < 101 - expectedTables.size(); i++) {
+      String tableName = String.format(
+          "%s_%s_%s",
+          BASE_TABLE_NAME_PREFIX,
+          "testBatchLoadingExceedsNumTablesLimit",
+          OdpsTestUtils.getRandomTableName());
+      tablesToDrop.add(tableName);
+      odps.tables().create(tableName, SCHEMA);
     }
 
     try {
-      odps.tables().reloadTables(tables);
+      odps.tables().reloadTables(expectedTables);
     } catch (OdpsException e) {
       assertTrue(e.getMessage().contains("limit"));
-
-      for (String n : tableNames) {
-        deleteTable(n);
-      }
       throw e;
     }
 
@@ -354,11 +522,20 @@ public class TablesTest extends TestBase {
   }
 
   @Test
-  public void testIteratorExtended() {
+  public void testIteratorExtended() throws OdpsException {
+    // Make sure there are at least one table
+    String tableName = String.format(
+        "%s_%s_%s",
+        BASE_TABLE_NAME_PREFIX,
+        "testBatchLoadingExceedsNumTablesLimit",
+        OdpsTestUtils.getRandomTableName());
+    tablesToDrop.add(tableName);
+    odps.tables().create(tableName, SCHEMA);
+
     Iterator<Table> it = odps.tables().iterator(odps.getDefaultProject(), null, true);
 
     int counter = 0;
-    while (it.hasNext() && counter < 100) {
+    while (it.hasNext() && counter < 10) {
       Table t = it.next();
       // The following fields should be loaded when listing table with extended flag
       t.isExternalTable();
@@ -369,21 +546,27 @@ public class TablesTest extends TestBase {
       assertFalse(t.isLoaded());
       counter += 1;
     }
+    assertTrue(counter > 0);
   }
 
 
-  private void checkReloadResult(List<Table> reloadedTables) {
-    for (Table t : reloadedTables) {
-      assertTrue(t.isLoaded());
-      assertNotNull(t.getSchema());
-      assertEquals(odps.tables().get(t.getName()).getJsonSchema(), t.getJsonSchema());
-      assertEquals(odps.getDefaultProject(), t.getProject());
+  private void batchAsserting(List<Table> expectedTables, List<Table> actualTables) {
+    assertEquals(expectedTables.size(), actualTables.size());
+
+    for (int i = 0; i < expectedTables.size(); i++) {
+      Table expected = expectedTables.get(i);
+      Table actual = actualTables.get(i);
+
+      assertTrue(actual.isLoaded());
+      assertNotNull(actual.getSchema());
+      assertEquals(expected.getJsonSchema(), actual.getJsonSchema());
+      assertEquals(expected.getProject(), actual.getProject());
     }
   }
 
-  private List<Table> getTables(Odps odps, int limit) {
+  private List<Table> getTables(Odps odps, String project, int limit) {
     List<Table> tables = new ArrayList<Table>();
-    Iterator<Table> tableIterator = odps.tables().iterator();
+    Iterator<Table> tableIterator = odps.tables().iterator(project);
     while (tableIterator.hasNext() && tables.size() < limit) {
       tables.add(tableIterator.next());
     }

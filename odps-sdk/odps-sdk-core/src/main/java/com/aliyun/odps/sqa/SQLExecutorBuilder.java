@@ -22,7 +22,7 @@ public class SQLExecutorBuilder {
   private String serviceName = SQLExecutorConstants.DEFAULT_SERVICE;
   private String tunnelEndpoint = null;
   private SQLExecutorPool pool = null;
-  private FallbackPolicy fallbackPolicy = new FallbackPolicy();
+  private FallbackPolicy fallbackPolicy = FallbackPolicy.alwaysFallbackPolicy();
   private int tunnelGetResultMaxRetryTime = 3;
 
   private String runningCluster = null;

@@ -155,35 +155,4 @@ public class XFlowsTest {
       System.out.println(xResult.getNodeType());
     }
   }
-
-  @Test
-  public void testXFlowCData() throws Exception {
-    XFlowInstance instance = new XFlowInstance();
-    instance.setParameter("abc", "\"<>\"");
-    instance.setPriority(2);
-    instance.setProperty("key1", "value1");
-    instance.setProperty("key2", "value2");
-    String st = SimpleXmlUtils.marshal(instance);
-    assertEquals(st,
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        + "<XflowInstance>\n"
-        + "   <Parameters>\n"
-        + "      <Parameter>\n"
-        + "         <Key>abc</Key>\n"
-        + "         <Value><![CDATA[\"<>\"]]></Value>\n"
-        + "      </Parameter>\n"
-        + "   </Parameters>\n"
-        + "   <Priority>2</Priority>\n"
-        + "   <Config>\n"
-        + "      <Property>\n"
-        + "         <Name>key1</Name>\n"
-        + "         <Value>value1</Value>\n"
-        + "      </Property>\n"
-        + "      <Property>\n"
-        + "         <Name>key2</Name>\n"
-        + "         <Value>value2</Value>\n"
-        + "      </Property>\n"
-        + "   </Config>\n"
-        + "</XflowInstance>");
-  }
 }

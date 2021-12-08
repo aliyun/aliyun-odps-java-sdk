@@ -166,12 +166,7 @@ public class LocalGraphRunUtils {
           if (val.startsWith("ODPS-BASE64")) {
             return new Text(Base64.decodeBase64(val.substring("ODPS-BASE64".length())));
           } else {
-            try {
-              byte[] v = LocalRunUtils.fromReadableString(val);
-              return new Text(v);
-            } catch (Exception e) {
-              throw new RuntimeException("from readable string failed!" + e);
-            }
+            return new Text(val);
           }
         case DataType.DOUBLE:
           return new DoubleWritable(Double.parseDouble(val));

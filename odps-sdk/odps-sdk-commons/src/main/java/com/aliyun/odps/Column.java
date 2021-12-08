@@ -43,47 +43,104 @@ public final class Column {
   private boolean hasDefaultValue = false;
 
   private List<OdpsType> genericOdpsTypeList;
-  private List<String> extendedlabels;
+  private List<String> extendedLabels;
 
   /**
-   * 构造Column对象
+   * Constructor of {@link Column}. Representing a column of a table.
    *
-   * @param name
-   *     列名
-   * @param type
-   *     列类型
-   * @param comment
-   *     列注释
+   * @param name Column name.
+   * @param typeInfo TypeInfo. See {@link TypeInfoFactory}.
+   */
+  public Column(String name, TypeInfo typeInfo) {
+    this(name, typeInfo, null);
+  }
+
+  /**
+   * Constructor of {@link Column}. Representing a column of a table.
+   *
+   * @param name Column name.
+   * @param typeInfo TypeInfo. See {@link TypeInfoFactory}.
+   * @param comment Comment.
+   */
+  public Column(String name, TypeInfo typeInfo, String comment) {
+    this(name, typeInfo, comment, (String) null);
+  }
+
+  /**
+   * Constructor of {@link Column}. Representing a column of a table.
+   *
+   * @param name Column name.
+   * @param typeInfo TypeInfo. See {@link TypeInfoFactory}.
+   * @param comment Comment.
+   * @param label Column label.
+   */
+  public Column(String name, TypeInfo typeInfo, String comment, String label) {
+    this(name, typeInfo, comment, label, null);
+  }
+
+  /**
+   * Constructor of {@link Column}. Representing a column of a table.
+   *
+   * @param name Column name.
+   * @param typeInfo TypeInfo. See {@link TypeInfoFactory}.
+   * @param comment Comment.
+   * @param label Column label.
+   * @param extendedLabels Column extended labels.
+   */
+  public Column(
+      String name,
+      TypeInfo typeInfo,
+      String comment,
+      String label,
+      List<String> extendedLabels) {
+    this.name = name;
+    this.comment = comment;
+    this.typeInfo = typeInfo;
+    this.label = label;
+    this.type = typeInfo.getOdpsType();
+    this.extendedLabels = extendedLabels;
+
+    // if it is array or map, should init genericOdpsTypeList.
+    // otherwise, getGenericTypeList returns null when init column by this constructor
+    initGenericOdpsTypeList();
+  }
+
+  /**
+   * Deprecated.
+   * @see #Column(String, TypeInfo).
+   */
+  @Deprecated
+  public Column(String name, OdpsType type) {
+    this(name, type, null);
+  }
+
+  /**
+   * Deprecated.
+   *
+   * @see #Column(String, TypeInfo, String).
    */
   @Deprecated
   public Column(String name, OdpsType type, String comment) {
     this(name, type, comment, (String) null, null);
   }
 
-  public Column(String name, TypeInfo typeInfo, String comment) {
-    this(name, typeInfo, comment, (String) null);
-  }
-
-  public Column(String name, TypeInfo typeInfo) {
-    this(name, typeInfo, null);
-  }
-
-  public Column(String name, TypeInfo typeInfo, String comment, String label) {
-    this(name, typeInfo, comment, label, null);
-  }
-
-
-  public Column(String name, TypeInfo typeInfo, String comment, String label, List<String> extendedlabels) {
+  /**
+   * Deprecated.
+   *
+   * @see #Column(String, TypeInfo).
+   */
+  @Deprecated
+  public Column(String name, OdpsType type, String comment, String label,
+                List<OdpsType> genericOdpsTypeList) {
     this.name = name;
     this.comment = comment;
-    this.typeInfo = typeInfo;
     this.label = label;
-    this.type = typeInfo.getOdpsType();
-    this.extendedlabels = extendedlabels;
+    this.type = type;
+    this.genericOdpsTypeList = genericOdpsTypeList;
 
-    // if it is array or map, should init genericOdpsTypeList.
-    // otherwise, getGenericTypeList returns null when init column by this constructor
-    initGenericOdpsTypeList();
+    // if genericOdpsTypeList is null, array and map typeinfo object is null
+    // it will create when setGenericOdpsTypeList
+    initTypeInfo();
   }
 
   private void initGenericOdpsTypeList() {
@@ -102,31 +159,6 @@ public final class Column {
         break;
       }
     }
-  }
-
-  public Column(String name, OdpsType type, String comment, String label,
-         List<OdpsType> genericOdpsTypeList) {
-    this.name = name;
-    this.comment = comment;
-    this.label = label;
-    this.type = type;
-    this.genericOdpsTypeList = genericOdpsTypeList;
-
-    // if genericOdpsTypeList is null, array and map typeinfo object is null
-    // it will create when setGenericOdpsTypeList
-    initTypeInfo();
-  }
-
-  /**
-   * 构造Column对象
-   *
-   * @param name
-   *     列名
-   * @param type
-   *     列类型
-   */
-  public Column(String name, OdpsType type) {
-    this(name, type, null);
   }
 
   private void initTypeInfo() {
@@ -196,9 +228,9 @@ public final class Column {
   }
 
   /**
-   * 获得列类型
+   * Deprecated.
    *
-   * @return 列类型{@link OdpsType}
+   * @see #getTypeInfo().
    */
   @Deprecated
   public OdpsType getType() {
@@ -208,7 +240,7 @@ public final class Column {
   /**
    * 获得列类型
    *
-   * @return 列类型{@link TypeInfo}
+   * @return 列类型. See {@link TypeInfo}.
    */
   public TypeInfo getTypeInfo() {
     // if the GenericTypeList have not set before, the typeInfo is null for array and map type
@@ -230,10 +262,11 @@ public final class Column {
   }
 
   /**
-   * 获得列标签
+   * Deprecated.
    *
    * @return 列标签
-   * @see #getCategoryLabel() 替代
+   * @see #getCategoryLabel().
+   *
    */
   @Deprecated
   public Long getLabel() {
@@ -254,17 +287,25 @@ public final class Column {
    * @return 列扩展标签
    */
   public List<String> getExtendedlabels() {
-    return extendedlabels;
+    return extendedLabels;
   }
 
   public String getCategoryLabel() {
     return label;
   }
 
+  /**
+   * Deprecated.
+   */
+  @Deprecated
   public List<OdpsType> getGenericTypeList() {
     return genericOdpsTypeList;
   }
 
+  /**
+   * Deprecated.
+   */
+  @Deprecated
   public void setGenericTypeList(List<OdpsType> genericOdpsTypeList) {
     // for array and map, compatible to OdpsType enum
     this.genericOdpsTypeList = genericOdpsTypeList;

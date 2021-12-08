@@ -489,4 +489,45 @@ public class StreamUploadSessionImpl implements TableTunnel.StreamUploadSession 
     public Record newRecord() {
         return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
     }
+
+    public void abort() throws TunnelException {
+        HashMap<String, String> params = new HashMap<String, String>();
+
+        params.put(TunnelConstants.UPLOADID, id);
+
+        if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
+            params.put(TunnelConstants.RES_PARTITION, partitionSpec);
+        }
+
+        HashMap<String, String> headers = TableTunnel.getCommonHeader();
+        Slot slot = slots.iterator().next();
+        headers.put(HttpHeaders.HEADER_ODPS_ROUTED_SERVER, slot.getServer());
+
+        Connection conn = null;
+        String requestId = null;
+        try {
+            conn = tunnelServiceClient.connect(getResource(), "POST", params, headers);
+            Response resp = conn.getResponse();
+            requestId = resp.getHeader(HEADER_ODPS_REQUEST_ID);
+
+            if (!resp.isOK()) {
+                throw new TunnelException(requestId, conn.getInputStream(), resp.getStatus());
+            }
+        } catch (IOException e) {
+            throw new TunnelException(requestId, "Failed abort upload session with tunnel endpoint "
+                    + tunnelServiceClient.getEndpoint(), e);
+        } catch (TunnelException e) {
+            // Do not delete here! TunnelException extends from OdpsException.
+            throw e;
+        } catch (OdpsException e) {
+            throw new TunnelException("not available", e.getMessage(), e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.disconnect();
+                } catch (IOException e) {
+                }
+            }
+        }
+    }
 }

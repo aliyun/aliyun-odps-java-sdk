@@ -5,15 +5,17 @@ package com.aliyun.odps.sqa;
  */
 public class FallbackPolicy {
   // fallback when resource not enough exception happened
-  private boolean fallback4ResourceNotEnough = false;
+  private boolean fallback4ResourceNotEnough = true;
   // fallback when unsupported feature
-  private boolean fallback4UnsupportedFeature = false;
+  private boolean fallback4UnsupportedFeature = true;
   // fallback when query running timeout
-  private boolean fallback4RunningTimeout = false;
+  private boolean fallback4RunningTimeout = true;
   // fallback during service upgrading
-  private boolean fallback4Upgrading = false;
+  private boolean fallback4Upgrading = true;
   // fallback when unknown error happened
-  private boolean fallback4UnknownError = false;
+  private boolean fallback4UnknownError = true;
+  // fallback when attach session failed
+  private boolean fallback4AttachError = true;
 
   FallbackPolicy() {
   }
@@ -24,11 +26,28 @@ public class FallbackPolicy {
         .fallback4UnsupportedFeature(true)
         .fallback4RunningTimeout(true)
         .fallback4Upgrading(true)
-        .fallback4UnknownError(true);
+        .fallback4UnknownError(true)
+        .fallback4AttachError(true);
+  }
+
+  public static FallbackPolicy alwaysFallbackExceptAttachPolicy() {
+    FallbackPolicy policy = new FallbackPolicy();
+    return policy.fallback4ResourceNotEnough(true)
+        .fallback4UnsupportedFeature(true)
+        .fallback4RunningTimeout(true)
+        .fallback4Upgrading(true)
+        .fallback4UnknownError(true)
+        .fallback4AttachError(false);
   }
 
   public static FallbackPolicy nonFallbackPolicy() {
-    return new FallbackPolicy();
+    FallbackPolicy policy = new FallbackPolicy();
+    return policy.fallback4ResourceNotEnough(false)
+        .fallback4UnsupportedFeature(false)
+        .fallback4RunningTimeout(false)
+        .fallback4Upgrading(false)
+        .fallback4UnknownError(false)
+        .fallback4AttachError(false);
   }
 
   public FallbackPolicy fallback4ResourceNotEnough(boolean enable) {
@@ -56,6 +75,11 @@ public class FallbackPolicy {
     return this;
   }
 
+  public FallbackPolicy fallback4AttachError(boolean enable) {
+    fallback4AttachError = enable;
+    return this;
+  }
+
   public boolean isFallback4ResourceNotEnough() {
     return fallback4ResourceNotEnough;
   }
@@ -76,8 +100,12 @@ public class FallbackPolicy {
     return fallback4UnknownError;
   }
 
+  public boolean isFallback4AttachError() {
+    return fallback4AttachError;
+  }
+
   public boolean isAlwaysFallBack() {
     return fallback4ResourceNotEnough && fallback4UnsupportedFeature && fallback4RunningTimeout
-        && fallback4Upgrading && fallback4UnknownError;
+        && fallback4Upgrading && fallback4UnknownError && fallback4AttachError;
   }
 }

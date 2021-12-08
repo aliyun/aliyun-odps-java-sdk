@@ -13,7 +13,7 @@ import java.util.Map;
 class QueryInfo {
   // SESSION subquery id
   private int id = -1;
-  private int retry = -1;
+  private int retry = 0;
   private boolean isSelect = true;
   private String sql;
   private Map<String, String> hint;
