@@ -147,6 +147,34 @@ public class SQLExecutorTest extends TestBase {
   }
 
   @Test
+  public void testExecutorCancel() throws OdpsException, IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .fallbackPolicy(FallbackPolicy.alwaysFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.session.localmode.enable", "false");
+    sqlExecutor.run(sql, hint);
+    try {
+      sqlExecutor.cancel();
+      List<Record> records = sqlExecutor.getResult();
+      Assert.assertEquals(true, false);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } catch (OdpsException e) {
+
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
   public void testExecutorPoolNormal() throws OdpsException {
     Map<String, String> properties = new HashMap<>();
     SQLExecutorPoolBuilder sqlExecutorPoolBuilder = SQLExecutorPoolBuilder.builder();
@@ -725,7 +753,8 @@ public class SQLExecutorTest extends TestBase {
         .executeMode(ExecuteMode.INTERACTIVE)
         .properties(properties)
         .serviceName(sessionName)
-        .recoverFrom(oldInstance);
+        .recoverFrom(oldInstance)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
     SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
     Assert.assertNotNull(sqlExecutor.getId());
     Assert.assertEquals(sqlExecutor.getInstance().getId(), oldInstanceId);
@@ -746,7 +775,7 @@ public class SQLExecutorTest extends TestBase {
     // stop session
     attach.stop();
     try {
-      Thread.sleep(8000);
+      Thread.sleep(15000);
     } catch (InterruptedException e) {
 
     }
@@ -781,7 +810,8 @@ public class SQLExecutorTest extends TestBase {
         .properties(properties)
         .serviceName(sessionName)
         .enableReattach(false)
-        .recoverFrom(oldInstance);
+        .recoverFrom(oldInstance)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
     SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
     Assert.assertNotNull(sqlExecutor.getId());
     Assert.assertEquals(sqlExecutor.getInstance().getId(), oldInstanceId);
@@ -1678,7 +1708,8 @@ public class SQLExecutorTest extends TestBase {
     builder.odps(odps)
         .executeMode(ExecuteMode.INTERACTIVE)
         .properties(properties)
-        .serviceName(sessionName);
+        .serviceName(sessionName)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
     SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
     Assert.assertNotNull(sqlExecutor.getId());
 
