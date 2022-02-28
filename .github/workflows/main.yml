@@ -36,3 +36,11 @@ jobs:
           nexus_password: ${{ secrets.nexus_password }}
           server_id: ossrh
           maven_args: -DskipTests
+
+      - name: Release to GitHub packages
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitName: true
+          artifacts: 'CHANGELOG.md'
+          token: ${{ secrets.RELEASE_TOKEN }}
