@@ -17,6 +17,8 @@ class SQLExecutorConstants {
   public static final String sessionQueryTimeoutFlag = "ODPS-186";
   public static final String sessionNoPublicServiceFlag = "ODPS-1820002";
   public static final String sessionTunnelTimeoutFlag = "OdpsTaskTimeout";
+  public static final String sessionJobCancelledFlag = "Job is cancelled";
+  public static final String sessionJobCancelledComplierFlag = "OdpsJobCancelledException";
   public static final Long DEFAULT_ATTACH_TIMEOUT = 60L;
   public static final String sessionNotSelectException = "InstanceTypeNotSupported";
   public static final String sessionNotSelectMessage = "Non select query not supported";

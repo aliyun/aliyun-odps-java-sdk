@@ -995,7 +995,7 @@ public class Session {
 
   public void cancelQuery(int queryId) throws OdpsException {
     Instance.SetInformationResult setInformationResult
-        = instance.setInformation(DEFAULT_TASK_NAME, "cancel", String.valueOf(queryId));
+        = instance.setInformation(taskName, "cancel", String.valueOf(queryId));
     if (!setInformationResult.status.equals(SubQueryInfo.kOKCode)) {
       throw new OdpsException(setInformationResult.result);
     }

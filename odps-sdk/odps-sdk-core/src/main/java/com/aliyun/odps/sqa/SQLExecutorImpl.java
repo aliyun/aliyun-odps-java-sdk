@@ -713,6 +713,9 @@ class SQLExecutorImpl implements SQLExecutor {
     if (errorMessage.indexOf(SQLExecutorConstants.sessionReattachFlag) != -1) {
       reattach(errorMessage);
       return ExecuteMode.INTERACTIVE;
+    } else if (errorMessage.indexOf(SQLExecutorConstants.sessionJobCancelledComplierFlag) != -1 ||
+               errorMessage.indexOf(SQLExecutorConstants.sessionJobCancelledFlag) != -1) {
+      throw new OdpsException(errorMessage);
     } else if (fallbackPolicy.isFallback4UnsupportedFeature()
             && errorMessage.indexOf(SQLExecutorConstants.sessionUnsupportedFeatureFlag) != -1) {
       return ExecuteMode.OFFLINE;

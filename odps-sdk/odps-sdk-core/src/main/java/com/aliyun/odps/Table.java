@@ -71,7 +71,11 @@ public class Table extends LazyLoad {
     /**
      * External table
      */
-    EXTERNAL_TABLE
+    EXTERNAL_TABLE,
+    /**
+     * Materialized view
+     */
+    MATERIALIZED_VIEW
   }
 
   /**
@@ -159,6 +163,8 @@ public class Table extends LazyLoad {
 
     Date lastMetaModifiedTime;
     boolean isVirtualView;
+    boolean isMaterializedViewRewriteEnabled;
+    boolean isMaterializedViewOutdated;
     boolean isExternalTable;
     long life = -1L;
     long hubLifecycle = -1L;
@@ -479,6 +485,40 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * Return if this table is a materialized view.
+   */
+  public boolean isMaterializedView() {
+    lazyLoad();
+    return TableType.MATERIALIZED_VIEW.equals(model.type);
+  }
+
+  /**
+   * Return if this materialized view could be used by query rewrite.
+   *
+   * @throws IllegalStateException If this table is not a materialized view.
+   */
+  public boolean isMaterializedViewRewriteEnabled() {
+    lazyLoad();
+    if (!isMaterializedView()) {
+      throw new IllegalStateException("Not a materialized view");
+    }
+    return model.isMaterializedViewRewriteEnabled;
+  }
+
+  /**
+   * Return if this materialized view is outdated.
+   *
+   * @throws IllegalStateException If this table is not a materialized view.
+   */
+  public boolean isMaterializedViewOutdated() {
+    lazyLoadExtendInfo();
+    if (!isMaterializedView()) {
+      throw new IllegalStateException("Not a materialized view");
+    }
+    return model.isMaterializedViewOutdated;
+  }
+
+  /**
    * 判断表是否为外部表
    *
    * @return 如果是外部表返回true, 否则返回false
@@ -766,6 +806,7 @@ public class Table extends LazyLoad {
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit, String timezone)
       throws OdpsException {
     if (limit < 0) {
+      // TODO: should throw IllegalArgumentException
       throw new OdpsException("limit number should >= 0.");
     }
     Map<String, String> params = new HashMap<String, String>();
@@ -827,6 +868,19 @@ public class Table extends LazyLoad {
 
       if (tree.has("isVirtualView")) {
         model.isVirtualView = tree.get("isVirtualView").getAsBoolean();
+      }
+
+      if (tree.has("isMaterializedView") && tree.get("isVirtualView").getAsBoolean()) {
+        model.type = TableType.MATERIALIZED_VIEW;
+      }
+
+      if (tree.has("isMaterializedViewRewriteEnabled")) {
+        model.isMaterializedViewRewriteEnabled =
+            tree.get("isMaterializedViewRewriteEnabled").getAsBoolean();
+      }
+
+      if (tree.has("IsMaterializedViewOutdated")) {
+        model.isMaterializedViewOutdated = tree.get("IsMaterializedViewOutdated").getAsBoolean();
       }
 
       if (tree.has("isExternal")) {
@@ -1363,7 +1417,7 @@ public class Table extends LazyLoad {
 
   private void lazyLoadExtendInfo() {
     if (!this.isExtendInfoLoaded) {
-      Map<String, String> params = new LinkedHashMap<String, String>();
+      Map<String, String> params = new LinkedHashMap<>();
       params.put("extended", null);
 
       String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
