@@ -26,7 +26,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.aliyun.odps.Instance.InstanceResultModel;
-import com.aliyun.odps.rest.SimpleXmlUtils;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Date;
@@ -45,7 +45,6 @@ import com.aliyun.odps.Instance.Result;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.TunnelException;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 public class InstancesTest extends TestBase {
 
@@ -261,7 +260,7 @@ public class InstancesTest extends TestBase {
   @Test
   public void testCreateSyncInstance() throws OdpsException {
     // suppose create table is a sync instance
-    String name = OdpsTestUtils.getRandomTableName();
+    String name = OdpsTestUtils.getRandomName();
     String taskname = "testSyncInstance";
 
     // success instance

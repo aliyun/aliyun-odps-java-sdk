@@ -49,6 +49,11 @@
             <artifactId>snappy-java</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.lz4</groupId>
+            <artifactId>lz4-pure-java</artifactId>
+            <version>1.8.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
         </dependency>

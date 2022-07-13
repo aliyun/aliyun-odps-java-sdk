@@ -19,9 +19,19 @@
 
 package com.aliyun.odps.rest;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.google.gson.Gson;
+import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 /**
  * 表示ODPS RESTful API返回的出错信息
@@ -31,14 +41,20 @@ public class ErrorMessage {
 
   @Element(name = "Code", required = false)
   @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+  @Expose()
+  @SerializedName("Code")
   private String errorcode;
 
   @Element(name = "Message", required = false)
   @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+  @Expose
+  @SerializedName("Message")
   private String message;
 
   @Element(name = "RequestId", required = false)
   @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+  @Expose
+  @SerializedName("RequestId")
   private String requestId;
 
   @Element(name = "HostId", required = false)
@@ -61,11 +77,44 @@ public class ErrorMessage {
     return HostId;
   }
 
+  @Override
   public String toString() {
     StringBuffer sb = new StringBuffer();
     sb.append("RequestId=").append(requestId).append(',');
     sb.append("Code=").append(errorcode).append(',');
     sb.append("Message=").append(message);
     return sb.toString();
+  }
+
+  private static ErrorMessage fromJson(byte[] body) {
+    try {
+      return GsonObjectBuilder
+          .get()
+          .fromJson(new String(body, StandardCharsets.UTF_8), ErrorMessage.class);
+    } catch (Exception ignore) {
+      return null;
+    }
+  }
+
+  private static ErrorMessage fromXml(byte[] body) {
+    try {
+      return SimpleXmlUtils.unmarshal(body, ErrorMessage.class);
+    } catch (Exception ignore) {
+      return null;
+    }
+  }
+
+  public static ErrorMessage from(byte[] body) {
+    if (body == null) {
+      return null;
+    }
+
+    ErrorMessage ret;
+    ret = fromXml(body);
+    if (ret == null) {
+      ret = fromJson(body);
+    }
+
+    return ret;
   }
 }

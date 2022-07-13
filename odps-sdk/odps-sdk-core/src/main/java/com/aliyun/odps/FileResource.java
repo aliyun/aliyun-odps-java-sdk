@@ -63,6 +63,7 @@ public class FileResource extends Resource {
    *     是否是临时资源
    */
   public void setIsTempResource(boolean isTempResource) {
+    // TODO: replace with a static builder
     model.isTempResource = isTempResource;
   }
 

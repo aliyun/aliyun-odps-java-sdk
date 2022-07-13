@@ -17,7 +17,7 @@ import com.aliyun.odps.task.SQLTask;
  * Created by zhenhong.gzh on 16/7/22.
  */
 public class BearerTokenAccountTest extends TestBase {
-  private static String tableName = OdpsTestUtils.getRandomTableName();
+  private static String tableName = OdpsTestUtils.getRandomName();
 
   private static TableSchema schema = new TableSchema();
 
@@ -28,7 +28,7 @@ public class BearerTokenAccountTest extends TestBase {
       schema.addColumn(new Column("c3", OdpsType.DATETIME));
       schema.addColumn(new Column("c4", OdpsType.STRING));
 
-      tableName = OdpsTestUtils.getRandomTableName();
+      tableName = OdpsTestUtils.getRandomName();
       odps.tables().create(tableName, schema);
     }
   }
@@ -76,6 +76,6 @@ public class BearerTokenAccountTest extends TestBase {
     tokenOdps.setDefaultProject(odps.getDefaultProject());
     tokenOdps.setEndpoint(odps.getEndpoint());
 
-    tokenOdps.tables().create(OdpsTestUtils.getRandomTableName(), schema);
+    tokenOdps.tables().create(OdpsTestUtils.getRandomName(), schema);
   }
 }

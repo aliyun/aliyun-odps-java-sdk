@@ -144,16 +144,16 @@ public abstract class Task {
   @Root(name = "Config", strict = false)
   public static class Properties {
 
-    Set<Property> properties = new LinkedHashSet<Property>();
+    Set<Property> properties = new LinkedHashSet<>();
 
     @ElementList(entry = "Property", inline = true, required = false)
     private List<Property> getPropertyList() {
-      return new ArrayList<Property>(properties);
+      return new ArrayList<>(properties);
     }
 
     @ElementList(entry = "Property", inline = true, required = false)
     private void setPropertyList(List<Property> propertyList) {
-      properties = new LinkedHashSet<Property>(propertyList);
+      properties = new LinkedHashSet<>(propertyList);
     }
 
     public void addProperty(Property property) {
@@ -256,7 +256,7 @@ public abstract class Task {
    *     配置项名称
    */
   public final void setProperties(Map<String, String> properties) {
-    this.properties = new LinkedHashMap<String, String>();
+    this.properties = new LinkedHashMap<>();
     this.properties.putAll(properties);
   }
 
@@ -278,11 +278,7 @@ public abstract class Task {
    * @return Task 命令信息
    */
   public String getCommandText() {
-    if (getProperties().containsKey("commandText")) {
-      return getProperties().get("commandText");
-    } else {
-      return "";
-    }
+    return getProperties().getOrDefault("commandText", "");
   }
 
   static Map<String, String> getGlobalSettings() {

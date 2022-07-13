@@ -35,7 +35,7 @@ public class SqlBridgeJobRunner extends BridgeJobRunner {
     Map<String, String> aliases = new HashMap<String, String>();
     aliases.putAll(aliasToTempResource);
     aliases.putAll(SessionState.get().getAliases());
-    return JobUtils.submitOpenMR(metaExplorer, SqlGenerator.generate(job, jobId, metaExplorer), taskName,
+    return JobUtils.submitOpenMR(metaExplorer, SqlGenerator.generate(job, jobId, metaExplorer, aliasToTempResource), taskName,
                                  JobHintTranslator.apply(job), aliases,
                                  job.getInstancePriority());
   }

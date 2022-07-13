@@ -38,6 +38,7 @@ import java.util.UUID;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import com.aliyun.odps.Resource.ResourceModel;
+import com.aliyun.odps.Resource.Type;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Params;
 import com.aliyun.odps.commons.util.IOUtils;
@@ -48,6 +49,8 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.utils.NameSpaceSchemaUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Resources 表示ODPS内所有{@link Resource}的集合，可以通过此对象可以创建、删除和浏览
@@ -101,13 +104,6 @@ public class Resources implements Iterable<Resource> {
     this.chunkSize = 64 << 20;
   }
 
-  private <T> T checkIsNull(T t, String parameterName) {
-    if (t == null) {
-      throw new NullPointerException(String.format("%s cannot be null.", parameterName));
-    }
-    return t;
-  }
-
   /**
    * 创建文件资源
    *
@@ -134,22 +130,38 @@ public class Resources implements Iterable<Resource> {
    */
   public void create(String projectName, FileResource r, InputStream in)
       throws OdpsException {
+    create(projectName, odps.getCurrentSchema(), r, in);
+  }
+
+  /**
+   * Create a file resource.
+   *
+   * @param project Project name.
+   * @param schema Schema name. Null or empty string means using the default schema.
+   * @param resource File resource.
+   * @param in Input stream of the content.
+   */
+  public void create(
+      String project,
+      String schema,
+      FileResource resource,
+      InputStream in) throws OdpsException {
     try {
-      createFile(projectName, r, in, false);
+      createFileResource(project, schema, resource, in, false);
     } catch (IOException e) {
-      throw new OdpsException(e.getMessage(), e);
+      throw new OdpsException(e);
     }
   }
 
   /**
    * 创建表资源
    *
-   * @param r
+   * @param resource
    *     {@link TableResource}类型对象
    * @throws OdpsException
    */
-  public void create(TableResource r) throws OdpsException {
-    create(getDefaultProjectName(), r);
+  public void create(TableResource resource) throws OdpsException {
+    create(getDefaultProjectName(), resource);
   }
 
   /**
@@ -157,46 +169,61 @@ public class Resources implements Iterable<Resource> {
    *
    * @param projectName
    *     资源所在{@link Project}名称
-   * @param r
+   * @param resource
    *     {@link TableResource}类型对象
    * @throws OdpsException
    */
-  public void create(String projectName, TableResource r) throws OdpsException {
-    createTable(projectName, r, false);
+  public void create(String projectName, TableResource resource) throws OdpsException {
+    create(projectName, odps.getCurrentSchema(), resource);
+  }
+
+  /**
+   * Create a table resource.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param resource Table resource.
+   * @throws OdpsException
+   */
+  public void create(
+      String projectName,
+      String schemaName,
+      TableResource resource) throws OdpsException {
+    createTableResource(projectName, schemaName, resource, false);
   }
 
   /**
    * 创建 Volume 资源
    *
-   * @param r
+   * @param resource
    *     {@link VolumeResource}类型对象
    * @throws OdpsException
    */
-  public void create(VolumeResource r) throws OdpsException {
-    create(getDefaultProjectName(), r);
+  public void create(VolumeResource resource) throws OdpsException {
+    create(getDefaultProjectName(), resource);
   }
 
   /**
    * 创建 Volume 资源
    *
    * @param projectName
-   * @param r
+   * @param resource
    *     {@link VolumeResource}类型对象
    * @throws OdpsException
    */
-  public void create(String projectName, VolumeResource r) throws OdpsException {
-    addVolumeResource(projectName, r, false);
+  public void create(String projectName, VolumeResource resource) throws OdpsException {
+    addVolumeResource(projectName, resource, false);
   }
 
   /**
    * 更新 Volume 资源
    *
-   * @param r
+   * @param resource
    *     {@link VolumeResource}类型对象
    * @throws OdpsException
    */
-  public void update(VolumeResource r) throws OdpsException {
-    update(getDefaultProjectName(), r);
+  public void update(VolumeResource resource) throws OdpsException {
+    update(getDefaultProjectName(), resource);
   }
 
   /**
@@ -212,8 +239,17 @@ public class Resources implements Iterable<Resource> {
   }
 
 
-  private void addVolumeResource(String projectName, VolumeResource r, boolean isUpdate) throws OdpsException {
-    checkIsNull(r, "VolumeResource");
+  private void addVolumeResource(
+      String projectName,
+      VolumeResource r,
+      boolean isUpdate) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (r == null) {
+      throw new IllegalArgumentException("Argument 'resource' cannot be null or empty");
+    }
+
     RestClient client = odps.getRestClient();
     String method;
     String resource;
@@ -258,7 +294,21 @@ public class Resources implements Iterable<Resource> {
    * @throws OdpsException
    */
   public void update(String projectName, TableResource r) throws OdpsException {
-    createTable(projectName, r, true);
+    update(projectName, odps.getCurrentSchema(), r);
+  }
+
+  /**
+   * Update designated table resource.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param resource Table resource.
+   */
+  public void update(
+      String projectName,
+      String schemaName,
+      TableResource resource) throws OdpsException {
+    createTableResource(projectName, schemaName, resource, true);
   }
 
   /**
@@ -287,11 +337,39 @@ public class Resources implements Iterable<Resource> {
    */
   public void update(String projectName, FileResource r, InputStream in)
       throws OdpsException {
+    update(projectName, odps.getCurrentSchema(), r, in);
+  }
+
+  /**
+   * Update designated file resource.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param resource File resource.
+   * @param in Input stream of the content.
+   * @throws OdpsException
+   */
+  public void update(
+      String projectName,
+      String schemaName,
+      FileResource resource,
+      InputStream in) throws OdpsException {
     try {
-      createFile(projectName, r, in, true);
+      createFileResource(projectName, schemaName, resource, in, true);
     } catch (IOException e) {
-      throw new OdpsException(e.getMessage(), e);
+      throw new OdpsException(e);
     }
+  }
+
+  /**
+   * 获得资源文件的字节流
+   *
+   * @param resourceName
+   *     资源名称
+   * @throws OdpsException
+   */
+  public InputStream getResourceAsStream(String resourceName) throws OdpsException {
+    return getResourceAsStream(getDefaultProjectName(), resourceName);
   }
 
   /**
@@ -299,29 +377,42 @@ public class Resources implements Iterable<Resource> {
    *
    * @param projectName
    *     资源所在{@link Project}名称
-   * @param name
+   * @param resourceName
    *     资源名称
    * @throws OdpsException
    */
-  public InputStream getResourceAsStream(String projectName, String name) throws OdpsException {
-    return new ResourceInputStream(client, projectName, name);
+  public InputStream getResourceAsStream(
+      String projectName,
+      String resourceName) throws OdpsException {
+    return getResourceAsStream(projectName, odps.getCurrentSchema(), resourceName);
   }
 
-  /**
-   * 获得资源文件的字节流
-   *
-   * @param name
-   *     资源名称
-   * @throws OdpsException
-   */
-  public InputStream getResourceAsStream(String name) throws OdpsException {
-    return getResourceAsStream(getDefaultProjectName(), name);
+  public InputStream getResourceAsStream(
+      String projectName,
+      String schemaName,
+      String resourceName) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(resourceName)) {
+      throw new IllegalArgumentException("Argument 'resourceName' cannot be null or empty");
+    }
+
+    return new ResourceInputStream(client, projectName, schemaName, resourceName);
   }
 
-  private void createTable(String project, TableResource r, Boolean overwrite)
-      throws OdpsException {
-    checkIsNull(r, "TableResource");
-    checkIsNull(overwrite, "Parameter \"overwrite\"");
+  private void createTableResource(
+      String project,
+      String schema,
+      TableResource r,
+      boolean overwrite) throws OdpsException {
+
+    if (StringUtils.isNullOrEmpty(project)) {
+      throw new IllegalArgumentException("Argument 'project' cannot be null or empty");
+    }
+    if (r == null) {
+      throw new IllegalArgumentException("Argument 'resource' cannot be null");
+    }
     if (r.getName() == null || r.getName().length() == 0) {
       throw new OdpsException("Table Resource Name should not empty.");
     }
@@ -336,6 +427,8 @@ public class Resources implements Iterable<Resource> {
       resource = ResourceBuilder.buildResourcesResource(project);
     }
 
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schema);
+
     HashMap<String, String> headers = new HashMap<String, String>();
     headers.put(Headers.CONTENT_TYPE, "text/plain");
     headers.put(Headers.ODPS_RESOURCE_TYPE, r.getType().toString()
@@ -347,16 +440,27 @@ public class Resources implements Iterable<Resource> {
       headers.put(Headers.ODPS_COMMENT, r.getComment());
     }
 
-    client.request(resource, method, null, headers, null);
+    client.request(resource, method, params, headers, null);
   }
 
-  private void createFile(String project, Resource res, InputStream in,
-                          Boolean overwrite) throws OdpsException, IOException {
-    InputStream inputStream = checkIsNull(in, "InputStream");
-    Boolean isUpdate = checkIsNull(overwrite, "Parameter \"overwrite\"");
-    FileResource r = (FileResource) checkIsNull(res, "Resource");
-    if (r.getName() == null || r.getName().length() == 0) {
+  private void createFileResource(
+      String project,
+      String schema,
+      FileResource r,
+      InputStream in,
+      boolean overwrite) throws OdpsException, IOException {
+
+    if (StringUtils.isNullOrEmpty(project)) {
+      throw new IllegalArgumentException("Argument 'project' cannot be null or empty");
+    }
+    if (r == null) {
+      throw new IllegalArgumentException("Argument 'resource' cannot be null");
+    }
+    if (StringUtils.isNullOrEmpty(r.getName())) {
       throw new OdpsException("Resource Name should not empty.");
+    }
+    if (in == null) {
+      throw new OdpsException("Argument 'in' cannot be null");
     }
 
     MessageDigest digest = DigestUtils.getMd5Digest();
@@ -365,16 +469,25 @@ public class Resources implements Iterable<Resource> {
     int readSize;
     int cnt = 0;
     List<String> tmpFiles = new ArrayList<>();
-    while ((readSize = inputStream.read(tmpContent)) != -1) {
+    while ((readSize = in.read(tmpContent)) != -1) {
       digest.update(tmpContent, 0, readSize);
-      // prepare inputStream
       InputStream input = new ByteArrayInputStream(tmpContent, 0, readSize);
       FileResource tmp = new FileResource();
-      String tmpName = String.format("%s.part.tmp.%06d", r.getName(), cnt);
+      String tmpName;
+
+      // Using a deterministic temp resource name instead of a random UUID has 2 benefits:
+      // 1. Human readable, much easier to debug
+      // 2. Temp resources that has been uploaded could be reused if the MD5 matches.
+      if (NameSpaceSchemaUtils.isSchemaEnabled(schema)) {
+        tmpName = String.format("%s.%s.part.tmp.%06d", schema, r.getName(), cnt);
+      } else {
+        tmpName = String.format("%s.part.tmp.%06d", r.getName(), cnt);
+      }
+
       tmp.setIsTempResource(true);
       tmp.setName(tmpName);
       tmpFiles.add(tmpName);
-      createTempPartFile(project, tmp, input);
+      createTempPartFile(project, schema, tmp, input);
 
       cnt++;
       totalBytes += readSize;
@@ -389,7 +502,7 @@ public class Resources implements Iterable<Resource> {
     f.setComment(r.getComment());
     f.setIsTempResource(r.getIsTempResource());
     f.model.type = r.getType().toString();
-    mergeTempPartFiles(odps.getDefaultProject(), f, is, isUpdate, totalBytes);
+    mergeTempPartFiles(project, schema, f, is, overwrite, totalBytes);
     is.close();
   }
 
@@ -417,14 +530,37 @@ public class Resources implements Iterable<Resource> {
    *
    * @param projectName
    *     所在{@link Project}名称
-   * @param name
+   * @param resourceName
    *     资源名称
    * @return {@link Resource}对象
    * @throws OdpsException
    */
-  public Resource get(String projectName, String name) {
+  public Resource get(String projectName, String resourceName) {
+    return get(projectName, odps.getCurrentSchema(), resourceName);
+  }
+
+  /**
+   * Get designated file resource.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param resourceName Resource name.
+   * @return {@link Resource}
+   */
+  public Resource get(
+      String projectName,
+      String schemaName,
+      String resourceName) {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(resourceName)) {
+      throw new IllegalArgumentException("Argument 'resourceName' cannot be null");
+    }
+
     ResourceModel rm = new ResourceModel();
-    rm.name = name;
+    rm.name = resourceName;
+    rm.schemaName = schemaName;
     return Resource.getResource(rm, projectName, odps);
   }
 
@@ -452,8 +588,31 @@ public class Resources implements Iterable<Resource> {
    */
   public boolean exists(String projectName, String resourceName)
       throws OdpsException {
+    return exists(projectName, odps.getCurrentSchema(), resourceName);
+  }
+
+  /**
+   * Check if designated resource exists.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param resourceName Resource name.
+   * @return True if the resource exists, else false.
+   * @throws OdpsException
+   */
+  public boolean exists(
+      String projectName,
+      String schemaName,
+      String resourceName) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(resourceName)) {
+      throw new IllegalArgumentException("Argument 'resourceName' cannot be null or empty");
+    }
+
     try {
-      Resource t = get(projectName, resourceName);
+      Resource t = get(projectName, schemaName, resourceName);
       t.reload();
       return true;
     } catch (NoSuchObjectException e) {
@@ -469,11 +628,11 @@ public class Resources implements Iterable<Resource> {
   /**
    * 删除资源
    *
-   * @param name
+   * @param resourceName
    *     资源名称
    */
-  public void delete(String name) throws OdpsException {
-    delete(getDefaultProjectName(), name);
+  public void delete(String resourceName) throws OdpsException {
+    delete(getDefaultProjectName(), resourceName);
   }
 
   /**
@@ -481,12 +640,35 @@ public class Resources implements Iterable<Resource> {
    *
    * @param projectName
    *     所在{@link Project}名称
-   * @param name
+   * @param resourceName
    *     资源名称
    */
-  public void delete(String projectName, String name) throws OdpsException {
-    String resource = ResourceBuilder.buildResourceResource(projectName, name);
-    client.request(resource, "DELETE", null, null, null);
+  public void delete(String projectName, String resourceName) throws OdpsException {
+    delete(projectName, odps.getCurrentSchema(), resourceName);
+  }
+
+  /**
+   * Delete designated resource.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param resourceName Resource name.
+   * @throws OdpsException
+   */
+  public void delete(
+      String projectName,
+      String schemaName,
+      String resourceName) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(resourceName)) {
+      throw new IllegalArgumentException("Argument 'resourceName' cannot be null or empty");
+    }
+
+    String resource = ResourceBuilder.buildResourceResource(projectName, resourceName);
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+    client.request(resource, "DELETE", params, null, null);
   }
 
   /**
@@ -516,47 +698,71 @@ public class Resources implements Iterable<Resource> {
   }
 
   /**
-   * @param projectName
-   *     本地文件名
-   * @param fileName
-   *     所在{@link Project}名称
-   * @param type
-   *     资源类型
-   * @return {@link Resource}对象
-   * @throws OdpsException
+   * Create a temporary file resource.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param filePath Local file path.
+   * @param type Resource type. Could be {@link Resource.Type#FILE}, {@link Resource.Type#ARCHIVE},
+   *             {@link Resource.Type#PY} and {@link Resource.Type#JAR}.
+   * @return {@link FileResource}
    */
-  public FileResource createTempResource(String projectName, String fileName, Resource.Type type)
-      throws OdpsException {
-    checkIsNull(fileName, "FileName");
-    checkIsNull(type, "Resource.Type");
-    File tempFile = null;
-    tempFile = new File(fileName);
+  public FileResource createTempFileResource(
+      String projectName,
+      String schemaName,
+      String filePath,
+      Type type) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(filePath)) {
+      throw new IllegalArgumentException("Argument 'filePath' cannot be null or empty");
+    }
+    if (type == null) {
+      throw new IllegalArgumentException("Argument 'type' cannot be null");
+    }
 
+    File tempFile = new File(filePath);
     if (!tempFile.exists()) {
-      throw new OdpsException("File or Directory '" + fileName + "' does not exist.");
+      throw new IllegalArgumentException("File or Directory '" + filePath + "' does not exist.");
     }
     if (tempFile.isDirectory()) {
-      throw new OdpsException("Temp resource should be file, not directory:" + fileName);
+      throw new IllegalArgumentException("Temp resource should be file, not directory:" + filePath);
     }
 
-    Resource resourceTmp = Resource.createResource(type);
-    if (!(resourceTmp instanceof FileResource)) {
-      throw new OdpsException("Invalid temp resource type :" + String.valueOf(type) + ".");
+    Resource resource = Resource.createResource(type);
+    if (!(resource instanceof FileResource)) {
+      throw new IllegalArgumentException("Unsupported resource type: " + type.toString());
     }
-    FileResource resource = (FileResource) resourceTmp;
-    resource.setIsTempResource(true);
+
+    ((FileResource) resource).setIsTempResource(true);
     String resourceName = UUID.randomUUID().toString() + "_" + tempFile.getName();
     resource.setName(resourceName);
     FileInputStream input;
     try {
       input = new FileInputStream(tempFile);
     } catch (FileNotFoundException e) {
-      throw new OdpsException("File or Directory '" + fileName + "' does not exist.");
+      throw new OdpsException("File or Directory '" + filePath + "' does not exist.");
     }
 
-    create(projectName, resource, input);
+    create(projectName, schemaName, (FileResource) resource, input);
     IOUtils.closeSilently(input);
     return (FileResource) get(projectName, resourceName);
+  }
+
+  /**
+   * @param projectName
+   *     本地文件名
+   * @param filePath
+   *     所在{@link Project}名称
+   * @param type
+   *     资源类型
+   * @return {@link Resource}对象
+   * @throws OdpsException
+   */
+  public FileResource createTempResource(String projectName, String filePath, Type type)
+      throws OdpsException {
+    return createTempFileResource(projectName, odps.getCurrentSchema(), filePath, type);
   }
 
   private String toHexString(byte[] bytes) {
@@ -564,7 +770,12 @@ public class Resources implements Iterable<Resource> {
     return new String(new char[32 - md5.length()]).replace("\0", "0") + md5;
   }
 
-  private void createTempPartFile(String project, Resource res, InputStream in) throws OdpsException, IOException {
+  private void createTempPartFile(
+      String project,
+      String schema,
+      Resource res,
+      InputStream in) throws OdpsException, IOException {
+
     FileResource r = (FileResource) res;
     if (r.getName() == null || r.getName().length() == 0) {
       throw new OdpsException("Temp Part Resource Name should not empty.");
@@ -596,14 +807,20 @@ public class Resources implements Iterable<Resource> {
     }
     headers.put(Headers.ODPS_RESOURCE_IS_TEMP, String.valueOf(r.getIsTempResource()));
 
-    HashMap<String, String> params = new HashMap<>();
+    HashMap<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schema);
     params.put(Params.ODPS_RESOURCE_IS_PART, "true");
 
-    client.request(resource, method, params, headers,
-                   in, IOUtils.getInputStreamLength(in));
+    client.request(resource, method, params, headers, in, IOUtils.getInputStreamLength(in));
   }
 
-  private void mergeTempPartFiles(String project, Resource res, InputStream in, boolean overwrite, long totalBytes) throws OdpsException, IOException {
+  private void mergeTempPartFiles(
+      String project,
+      String schema,
+      Resource res,
+      InputStream in,
+      boolean overwrite,
+      long totalBytes) throws OdpsException, IOException {
+
     InputStream inputStream = Objects.requireNonNull(in);
     FileResource r = (FileResource) res;
 
@@ -636,7 +853,7 @@ public class Resources implements Iterable<Resource> {
     }
     headers.put(Headers.ODPS_RESOURCE_MERGE_TOTAL_BYTES, String.valueOf(totalBytes));
 
-    HashMap<String, String> params = new HashMap<>();
+    HashMap<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schema);
     params.put(Params.ODPS_RESOURCE_OP_MERGE, "true");
 
     odps.getRestClient().request(resource, method, params, headers,
@@ -651,7 +868,22 @@ public class Resources implements Iterable<Resource> {
    * @return {@link Resource}迭代器
    */
   public Iterator<Resource> iterator(final String projectName) {
-    return new ResourceListIterator(projectName, null);
+    return new ResourceListIterator(projectName, odps.getCurrentSchema(), null);
+  }
+
+  /**
+   * Get a resource iterator of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @return A resource iterator.
+   */
+  public Iterator<Resource> iterator(final String projectName, String schemaName) {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+
+    return new ResourceListIterator(projectName, schemaName, null);
   }
 
   /**
@@ -673,7 +905,7 @@ public class Resources implements Iterable<Resource> {
    * @return {@link Resource} iterable 迭代器
    */
   public Iterable<Resource> iterable(final String projectName) {
-    return () -> new ResourceListIterator(projectName, null);
+    return () -> new ResourceListIterator(projectName, odps.getCurrentSchema(), null);
   }
 
   /**
@@ -685,15 +917,33 @@ public class Resources implements Iterable<Resource> {
     return iterable(getDefaultProjectName());
   }
 
+  /**
+   * Get a resource iterable of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @return A resource iterable.
+   */
+  public Iterable<Resource> iterable(final String projectName, String schemaName) {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+
+    return () -> new ResourceListIterator(projectName, schemaName, null);
+  }
+
   private class ResourceListIterator extends ListIterator<Resource> {
 
     Map<String, String> params = new HashMap<>();
     String name;
     String project;
+    String schemaName;
 
-    ResourceListIterator(String projectName, String resourceName) {
+    ResourceListIterator(String projectName, String schemaName, String resourceName) {
       this.project = projectName;
+      this.schemaName = schemaName;
       this.name = resourceName;
+      params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
     }
 
     @Override
@@ -713,10 +963,13 @@ public class Resources implements Iterable<Resource> {
 
       String resource = ResourceBuilder.buildResourcesResource(project);
       try {
+
+
         ListResourcesResponse resp = client.request(
             ListResourcesResponse.class, resource, "GET", params);
 
         for (ResourceModel model : resp.resources) {
+          model.schemaName = schemaName;
           Resource t = Resource.getResource(model, project, odps);
           resources.add(t);
         }

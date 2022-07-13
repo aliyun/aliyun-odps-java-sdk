@@ -143,6 +143,7 @@ public class XFlow extends LazyLoad {
 
   private static final String CHARSET = "UTF-8";
 
+  @Override
   public void reload() throws OdpsException {
     String resource = ResourceBuilder.buildXFlowResource(project, getName());
     Response response = odps.getRestClient().request(resource, "GET", null, null, null);

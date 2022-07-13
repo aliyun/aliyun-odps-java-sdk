@@ -29,7 +29,7 @@ import com.aliyun.odps.utils.StringUtils;
 public class LogView {
 
   private static final String POLICY_TYPE = "BEARER";
-  private static final String HOST_DEFAULT = "http://logview.odps.aliyun.com";
+  private static final String HOST_DEFAULT = "http://logview.aliyun.com";
   private String logViewHost = "";
 
   Odps odps;

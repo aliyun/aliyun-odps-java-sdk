@@ -79,11 +79,17 @@ public class ArrowTunnelRecordWriter implements ArrowRecordWriter {
         }
         WriteChannel writeChannel = new WriteChannel(outputStream);
         VectorUnloader loader = new VectorUnloader(root);
-        ArrowRecordBatch recordBatch = loader.getRecordBatch();
-        try {
+        try (ArrowRecordBatch recordBatch = loader.getRecordBatch()) {
             MessageSerializer.serialize(writeChannel, recordBatch);
         } catch (IOException e) {
-            throw new IOException("ArrowHttpOutputStream Serialize Exception", e);
+            Response response = connection.getResponse();
+            if (response != null && !response.isOK()) {
+                TunnelException exception = new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID), connection.getInputStream(),
+                    response.getStatus());
+                throw new IOException(exception.getMessage(), exception);
+            } else {
+                throw new IOException("ArrowHttpOutputStream Serialize Exception", e);
+            }
         }
     }
 

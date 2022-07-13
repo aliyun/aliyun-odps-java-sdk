@@ -25,6 +25,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.junit.AfterClass;
@@ -32,10 +35,19 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.aliyun.odps.Classification.AttributeDefinition;
+import com.aliyun.odps.Classification.BooleanAttributeDefinition;
+import com.aliyun.odps.Classification.EnumAttributeDefinition;
+import com.aliyun.odps.Classification.IntegerAttributeDefinition;
+import com.aliyun.odps.Classification.StringAttributeDefinition;
+import com.aliyun.odps.Tags.TagBuilder;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.task.SQLTask;
 
 public class FunctionTest extends TestBase {
+
+  private static final String BASE_CLASSIFICATION_NAME_PREFIX = FunctionTest.class.getSimpleName();
+  private static final String BASE_TAG_NAME_PREFIX = FunctionTest.class.getSimpleName();
 
   public static final String FUNCTION_TEST = "function_test";
   public static final String SQL_FUNCTION_TEST = "sql_function_test";
@@ -203,5 +215,92 @@ public class FunctionTest extends TestBase {
       Assert.assertNotNull(f.getOwner());
     }
     assertTrue("function nums > 0 ", count > 0);
+  }
+
+  @Test
+  public void testTag() throws OdpsException {
+    // Create classification
+    Map<String, AttributeDefinition> attributes = new HashMap<>();
+    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
+                                                                      .minLength(10)
+                                                                      .build());
+    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
+                                                                       .maximum(10)
+                                                                       .build());
+    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
+                                                                     .element("bar")
+                                                                     .build());
+    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
+
+    String classificationName = String.format(
+        "%s_%s_%s",
+        BASE_CLASSIFICATION_NAME_PREFIX,
+        "testFunctionTag",
+        OdpsTestUtils.getRandomName());
+    odps.classifications().create(classificationName, attributes, true);
+
+    // Create tag
+    String tagName = String.format(
+        "%s_%s_%s",
+        BASE_TAG_NAME_PREFIX,
+        "testFunctionTag",
+        OdpsTestUtils.getRandomName());
+    TagBuilder builder = new TagBuilder(odps.classifications().get(classificationName), tagName)
+        .attribute("str_attr", "1234567890")
+        .attribute("int_attr", "7")
+        .attribute("enum_attr", "foo")
+        .attribute("bool_attr", "true");
+    odps.classifications().get(classificationName).tags().create(builder, true);
+    Tag tag = odps.classifications().get(classificationName).tags().get(tagName);
+
+    Function function = odps.functions().get(FUNCTION_TEST);
+
+    // There shouldn't be any tag
+    Assert.assertEquals(0, function.getTags().size());
+
+    // Add tag
+    function.addTag(tag);
+    function.reload();
+    List<Tag> tags = function.getTags();
+    Assert.assertEquals(1, tags.size());
+    tag = tags.get(0);
+    Assert.assertEquals(4, tag.getAttributes().size());
+    Assert.assertEquals("1234567890", tag.getAttributes().get("str_attr"));
+    Assert.assertEquals("7", tag.getAttributes().get("int_attr"));
+    Assert.assertEquals("foo", tag.getAttributes().get("enum_attr"));
+    Assert.assertEquals("true", tag.getAttributes().get("bool_attr"));
+
+    // Remove tag
+    function.removeTag(tag);
+    function.reload();
+    tags = function.getTags();
+    Assert.assertEquals(0, tags.size());
+  }
+
+  @Test
+  public void testSimpleTag() throws OdpsException {
+    Function function = odps.functions().get(FUNCTION_TEST);
+
+    // There shouldn't be any simple tag
+    Assert.assertEquals(0, function.getSimpleTags().size());
+
+    // Create simple tags
+    function.addSimpleTag("test_category", "simple_tag_key", "simple_tag_value");
+    function.reload();
+    Map<String, Map<String, String>> categoryToKvs = function.getSimpleTags();
+    assertEquals(1, categoryToKvs.size());
+    assertNotNull(categoryToKvs.get("test_category"));
+    assertTrue(categoryToKvs.get("test_category").containsKey("simple_tag_key"));
+    assertEquals("simple_tag_value",
+                 categoryToKvs.get("test_category").get("simple_tag_key"));
+
+    // Remove simple tags
+    function.removeSimpleTag(
+        "test_category",
+        "simple_tag_key",
+        "simple_tag_value");
+    function.reload();
+    categoryToKvs = function.getSimpleTags();
+    assertEquals(0, categoryToKvs.size());
   }
 }

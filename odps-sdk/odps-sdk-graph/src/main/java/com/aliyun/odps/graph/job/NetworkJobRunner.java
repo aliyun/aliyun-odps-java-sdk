@@ -145,7 +145,7 @@ public class NetworkJobRunner extends Configured implements JobRunner {
   private void printLogViewIfNecessary(Instance instance) {
     try {
       String log = SessionState.get().getOdps().logview().generateLogView(instance, 7 * 24);
-      System.out.println(log);
+      System.err.println(log);
     } catch (Exception e) {
       // do nothing if not load logview class
     }

@@ -53,6 +53,8 @@ import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.data.ArrowRecordWriter;
 import com.aliyun.odps.data.ArrowRecordReader;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.impl.ConfigurationImpl;
+import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 import com.aliyun.odps.tunnel.io.ArrowTunnelRecordReader;
 import com.aliyun.odps.tunnel.io.ArrowTunnelRecordWriter;
 import com.aliyun.odps.utils.ConnectionWatcher;
@@ -146,7 +148,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 public class TableTunnel {
 
-  private Configuration config;
+  private ConfigurationImpl config;
   private Random random = new Random();
 
   /**
@@ -156,7 +158,7 @@ public class TableTunnel {
    *     {@link Odps}
    */
   public TableTunnel(Odps odps) {
-    this.config = new Configuration(odps);
+    this.config = new ConfigurationImpl(odps);
   }
 
   public Configuration getConfig() {
@@ -175,8 +177,7 @@ public class TableTunnel {
    */
   public TableTunnel.UploadSession createUploadSession(String projectName, String tableName)
       throws TunnelException {
-    return new TableTunnel.UploadSession(
-        projectName, tableName, null, null, false);
+    return createUploadSession(projectName, config.getOdps().getCurrentSchema(), tableName, false);
   }
 
   /**
@@ -193,8 +194,24 @@ public class TableTunnel {
    */
   public TableTunnel.UploadSession createUploadSession(String projectName, String tableName,
       boolean overwrite) throws TunnelException {
-    return new TableTunnel.UploadSession(
-        projectName, tableName, null, null, overwrite);
+    return createUploadSession(projectName, config.getOdps().getCurrentSchema(), tableName, overwrite);
+  }
+
+  /**
+   * Create an upload session of a non-partitioned table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param overwrite Overwrite.
+   * @return {@link TableTunnel.UploadSession}
+   */
+  public TableTunnel.UploadSession createUploadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      boolean overwrite) throws TunnelException {
+    return new TableTunnel.UploadSession(projectName, schemaName, tableName, null, null, overwrite);
   }
 
   /**
@@ -213,7 +230,9 @@ public class TableTunnel {
    * @return {@link TableTunnel.UploadSession}
    * @throws TunnelException
    */
-  public TableTunnel.UploadSession createUploadSession(String projectName, String tableName,
+  public TableTunnel.UploadSession createUploadSession(
+      String projectName,
+      String tableName,
       PartitionSpec partitionSpec) throws TunnelException {
     return createUploadSession(projectName, tableName, partitionSpec, false);
   }
@@ -236,13 +255,41 @@ public class TableTunnel {
    * @return {@link TableTunnel.UploadSession}
    * @throws TunnelException
    */
-  public TableTunnel.UploadSession createUploadSession(String projectName, String tableName,
-      PartitionSpec partitionSpec, boolean overwrite) throws TunnelException {
+  public TableTunnel.UploadSession createUploadSession(
+      String projectName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      boolean overwrite) throws TunnelException {
+    return createUploadSession(projectName, config.getOdps().getCurrentSchema(), tableName, partitionSpec, overwrite);
+  }
+
+  /**
+   * Create an upload session of a partitioned table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param partitionSpec Partition spec.
+   * @param overwrite Overwrite.
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession createUploadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      boolean overwrite) throws TunnelException {
     if (partitionSpec == null || partitionSpec.keys().size() == 0) {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
-    return new TableTunnel.UploadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), null, overwrite);
+    return new TableTunnel.UploadSession(
+        projectName,
+        schemaName,
+        tableName,
+        partitionSpec.toString().replaceAll("'", ""),
+        null,
+        overwrite);
   }
 
   /**
@@ -307,9 +354,12 @@ public class TableTunnel {
    * @return {@link TableTunnel.UploadSession}
    * @throws TunnelException
    */
-  public TableTunnel.UploadSession getUploadSession(String projectName, String tableName,
-                                                    String id, long shares, long shareId)
-      throws TunnelException {
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String tableName,
+      String id,
+      long shares,
+      long shareId) throws TunnelException {
     return getUploadSession(projectName, tableName, null, id, shares, shareId);
   }
 
@@ -332,10 +382,42 @@ public class TableTunnel {
    * @return {@link TableTunnel.UploadSession}
    * @throws TunnelException
    */
-  public TableTunnel.UploadSession getUploadSession(String projectName, String tableName,
-                                                    PartitionSpec partitionSpec, String id,
-                                                    long shares, long shareId)
-      throws TunnelException {
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      String id,
+      long shares,
+      long shareId) throws TunnelException {
+    return getUploadSession(projectName, config.getOdps().getCurrentSchema(), tableName, partitionSpec, id, shares, shareId);
+  }
+
+  /**
+   * Get the upload session specified by the upload session ID. Make sure the upload session uses
+   * {@link TunnelBufferedWriter} to upload data.
+   *
+   * When the upload session is shared by multiple threads or processes, the total number of threads
+   * or processes should be passed as {@code shares}, and a unique {@code shareId} should be passed
+   * for each thread or process.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param partitionSpec Partition spec.
+   * @param id Upload session ID.
+   * @param shares Number of clients that shares this upload session.
+   * @param shareId Unique ID of this client.
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      String id,
+      long shares,
+      long shareId) throws TunnelException {
     if (!(shares >= 1)) {
       throw new IllegalArgumentException("Invalid arguments, shares must >= 1");
     }
@@ -347,9 +429,9 @@ public class TableTunnel {
     }
     TableTunnel.UploadSession session;
     if (partitionSpec != null) {
-       session = getUploadSession(projectName, tableName, partitionSpec, id);
+      session = getUploadSession(projectName, schemaName, tableName, partitionSpec, id);
     } else {
-       session = getUploadSession(projectName, tableName, id);
+      session = getUploadSession(projectName, schemaName, tableName, id);
     }
     session.shares = shares;
     session.curBlockId = shareId;
@@ -368,9 +450,29 @@ public class TableTunnel {
    * @return {@link TableTunnel.UploadSession}
    * @throws TunnelException
    */
-  public TableTunnel.UploadSession getUploadSession(String projectName, String tableName, String id)
-      throws TunnelException {
-    return new TableTunnel.UploadSession(projectName, tableName, null, id);
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String tableName,
+      String id) throws TunnelException {
+    return getUploadSession(projectName, config.getOdps().getCurrentSchema(), tableName, id);
+  }
+
+  /**
+   * Get the upload session specified by the upload session ID.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param id Upload session ID.
+   * @return
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      String id) throws TunnelException {
+    return new TableTunnel.UploadSession(projectName, schemaName, tableName, null, id, false);
   }
 
   /**
@@ -387,14 +489,41 @@ public class TableTunnel {
    * @return {@link TableTunnel.UploadSession}
    * @throws TunnelException
    */
-  public TableTunnel.UploadSession getUploadSession(String projectName, String tableName,
-                                                    PartitionSpec partitionSpec, String id)
-      throws TunnelException {
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      String id) throws TunnelException {
+    return getUploadSession(projectName, config.getOdps().getCurrentSchema(), tableName, partitionSpec, id);
+  }
+
+  /**
+   * Get the upload session specified by the upload session ID.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param partitionSpec Partition spec.
+   * @param id Upload session ID.
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      String id) throws TunnelException {
     if (partitionSpec == null || partitionSpec.keys().size() == 0) {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
-    return new TableTunnel.UploadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), id);
+    return new TableTunnel.UploadSession(
+        projectName,
+        schemaName,
+        tableName,
+        partitionSpec.toString().replaceAll("'", ""),
+        id,
+        false);
   }
 
   /**
@@ -407,8 +536,9 @@ public class TableTunnel {
    * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName)
-      throws TunnelException {
+  public TableTunnel.DownloadSession createDownloadSession(
+      String projectName,
+      String tableName) throws TunnelException {
       return createDownloadSession(projectName, tableName, false);
   }
 
@@ -424,9 +554,30 @@ public class TableTunnel {
    * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName, boolean async)
-          throws TunnelException {
-    return new TableTunnel.DownloadSession(projectName, tableName, null, null, null, async);
+  public TableTunnel.DownloadSession createDownloadSession(
+      String projectName,
+      String tableName,
+      boolean async) throws TunnelException {
+    return createDownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, async);
+  }
+
+  /**
+   * Create a download session of a non-partitioned table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param async Create the session asynchronously. Enable this option to avoid the connection
+   *              timeout error caused by the small file issue.
+   * @return {@link TableTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.DownloadSession createDownloadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      boolean async) throws TunnelException {
+    return new TableTunnel.DownloadSession(projectName, schemaName, tableName, null, null, null, async);
   }
 
   /**
@@ -445,14 +596,11 @@ public class TableTunnel {
    * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName,
-                                                           PartitionSpec partitionSpec)
-      throws TunnelException {
-    if (partitionSpec == null || partitionSpec.keys().size() == 0) {
-      throw new IllegalArgumentException("Invalid arguments, partition spec required.");
-    }
-    return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), null, null, false);
+  public TableTunnel.DownloadSession createDownloadSession(
+      String projectName,
+      String tableName,
+      PartitionSpec partitionSpec) throws TunnelException {
+    return createDownloadSession(projectName, tableName, partitionSpec, false);
   }
 
   /**
@@ -473,50 +621,64 @@ public class TableTunnel {
    * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName,
-                                                           PartitionSpec partitionSpec, boolean async)
-      throws TunnelException {
+  public TableTunnel.DownloadSession createDownloadSession(
+      String projectName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      boolean async) throws TunnelException {
     if (partitionSpec == null || partitionSpec.keys().size() == 0) {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
-    return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), null, null, async);
+    return createDownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, partitionSpec, async);
   }
 
   /**
-   * 在shard表上创建下载会话
+   * Create a download session of a partitioned table.
    *
-   * @param projectName
-   *     Project名
-   * @param tableName
-   *     表名，非视图
-   * @param shardId
-   *     指定shardId
-   * @return {@link DownloadSession}
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param partitionSpec Partition spec.
+   * @param async Create the session asynchronously. Enable this option to avoid the connection
+   *              timeout error caused by the small file issue.
+   * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
+  public TableTunnel.DownloadSession createDownloadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      boolean async) throws TunnelException {
+    if (partitionSpec == null || partitionSpec.keys().size() == 0) {
+      throw new IllegalArgumentException("Invalid arguments, partition spec required.");
+    }
+    return new TableTunnel.DownloadSession(
+        projectName,
+        schemaName,
+        tableName,
+        partitionSpec.toString().replaceAll("'", ""),
+        null,
+        null,
+        async);
+  }
+
+  /**
+   * This method is deprecated. Shard table is no longer supported.
+   */
+  @Deprecated
   public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName,
                                                            long shardId) throws TunnelException {
     if (shardId < 0) {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
-    return new TableTunnel.DownloadSession(projectName, tableName, null, shardId, null, false);
+    return new TableTunnel.DownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, null, shardId, null, false);
   }
 
   /**
-   * 在shard表上创建下载会话
-   *
-   * @param projectName
-   *     Project名
-   * @param tableName
-   *     表名，非视图
-   * @param partitionSpec
-   *     指定分区 {@link PartitionSpec}
-   * @param shardId
-   *     指定shardIs
-   * @return {@link DownloadSession}
-   * @throws TunnelException
+   * This method is deprecated. Shard table is no longer supported.
    */
+  @Deprecated
   public TableTunnel.DownloadSession createDownloadSession(String projectName, String tableName,
                                                            PartitionSpec partitionSpec,
                                                            long shardId) throws TunnelException {
@@ -526,7 +688,7 @@ public class TableTunnel {
     if (shardId < 0) {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
-    return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
+    return new TableTunnel.DownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, partitionSpec.toString()
         .replaceAll("'", ""), shardId, null, false);
   }
 
@@ -542,27 +704,41 @@ public class TableTunnel {
    * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public TableTunnel.DownloadSession getDownloadSession(String projectName, String tableName,
-                                                        String id) throws TunnelException {
-    return new TableTunnel.DownloadSession(projectName, tableName, null, null, id, false);
+  public TableTunnel.DownloadSession getDownloadSession(
+      String projectName,
+      String tableName,
+      String id) throws TunnelException {
+    return getDownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, id);
   }
 
   /**
-   * 获得在非分区表上创建的下载会话
+   * Get the download session specified by the download session ID.
    *
-   * @param projectName
-   *     Project名
-   * @param tableName
-   *     表名，非视图
-   * @param id
-   *     下载会话ID {@link TableTunnel.DownloadSession#getId()}
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param id Download session ID.
    * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public TableTunnel.DownloadSession getDownloadSession(String projectName, String tableName,
-                                                        long shardId, String id)
-      throws TunnelException {
-    return new TableTunnel.DownloadSession(projectName, tableName, null, shardId, id, false);
+  public TableTunnel.DownloadSession getDownloadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      String id) throws TunnelException {
+    return new TableTunnel.DownloadSession(projectName, schemaName, tableName, null, null, id, false);
+  }
+
+  /**
+   * This method is deprecated. Shard table is no longer supported.
+   */
+  @Deprecated
+  public TableTunnel.DownloadSession getDownloadSession(
+      String projectName,
+      String tableName,
+      long shardId,
+      String id) throws TunnelException {
+    return new TableTunnel.DownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, null, shardId, id, false);
   }
 
   /**
@@ -579,32 +755,48 @@ public class TableTunnel {
    * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
-  public TableTunnel.DownloadSession getDownloadSession(String projectName, String tableName,
-                                                        PartitionSpec partitionSpec, String id)
-      throws TunnelException {
-    if (partitionSpec == null || partitionSpec.keys().size() == 0) {
-      throw new IllegalArgumentException("Invalid arguments, partition spec required.");
-    }
-    return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), null, id, false);
+  public TableTunnel.DownloadSession getDownloadSession(
+      String projectName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      String id) throws TunnelException {
+    return getDownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, partitionSpec, id);
   }
 
   /**
-   * 获得在shard表上创建的下载会话
+   * Get the download session specified by the download session ID.
    *
-   * @param projectName
-   *     Project名
-   * @param tableName
-   *     表名，非视图
-   * @param partitionSpec
-   *     指定分区 {@link PartitionSpec}
-   * @param shardId
-   *     指定shardId
-   * @param id
-   *     下载会话ID {@link DownloadSession#getId()}
-   * @return {@link DownloadSession}
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param partitionSpec Partition spec.
+   * @param id Download session ID.
+   * @return {@link TableTunnel.DownloadSession}
    * @throws TunnelException
    */
+  public TableTunnel.DownloadSession getDownloadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      String id) throws TunnelException {
+    if (partitionSpec == null || partitionSpec.keys().size() == 0) {
+      throw new IllegalArgumentException("Invalid arguments, partition spec required.");
+    }
+    return new TableTunnel.DownloadSession(
+        projectName,
+        schemaName,
+        tableName,
+        partitionSpec.toString().replaceAll("'", ""),
+        null,
+        id,
+        false);
+  }
+
+  /**
+   * This method is deprecated. Shard table is no longer supported.
+   */
+  @Deprecated
   public TableTunnel.DownloadSession getDownloadSession(String projectName, String tableName,
                                                         PartitionSpec partitionSpec, long shardId,
                                                         String id) throws TunnelException {
@@ -614,8 +806,7 @@ public class TableTunnel {
     if (shardId < 0) {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
-    return new TableTunnel.DownloadSession(projectName, tableName, partitionSpec.toString()
-        .replaceAll("'", ""), shardId, id, false);
+    return new TableTunnel.DownloadSession(projectName, config.getOdps().getCurrentSchema(), tableName, partitionSpec.toString().replaceAll("'", ""), shardId, id, false);
   }
 
   private String getResource(String projectName, String tableName) {
@@ -640,82 +831,11 @@ public class TableTunnel {
     }
   }
 
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName) throws TunnelException {
-    return createStreamUploadSession(projectName, tableName, 0, null);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, long slotNum) throws TunnelException {
-    return createStreamUploadSession(projectName, tableName, slotNum, null);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, List<Column> columns) throws TunnelException {
-    return createStreamUploadSession(projectName, tableName, 0, columns);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, long slotNum, List<Column> columns) throws TunnelException {
-    return createStreamUploadSession(projectName, tableName, null, slotNum, false, columns);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, String partitionSpec) throws TunnelException {
-    return createStreamUploadSession(projectName,
-                                     tableName,
-                                     partitionSpec == null ? null : new PartitionSpec(partitionSpec));
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName,  PartitionSpec partitionSpec) throws TunnelException {
-    return createStreamUploadSession(projectName,
-                                     tableName,
-                                     partitionSpec,
-                                     0,
-                                     false,
-                                     null);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, PartitionSpec partitionSpec, long slotNum) throws TunnelException {
-    return createStreamUploadSession(projectName,
-            tableName,
-            partitionSpec,
-            slotNum,
-            false,
-            null);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, PartitionSpec partitionSpec, boolean createParitition) throws TunnelException {
-    return createStreamUploadSession(projectName,
-            tableName,
-            partitionSpec,
-            0,
-            createParitition,
-            null);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName,  PartitionSpec partitionSpec, List<Column> columns) throws TunnelException {
-    return createStreamUploadSession(projectName,
-            tableName,
-            partitionSpec,
-            0,
-            false,
-            columns);
-  }
-
-  public TableTunnel.StreamUploadSession createStreamUploadSession(
-          String projectName, String tableName, PartitionSpec partitionSpec, long slotNum, boolean createParitition, List<Column> columns) throws TunnelException {
-    return new StreamUploadSessionImpl(projectName,
-                                       tableName,
-                                       partitionSpec == null ? null : partitionSpec.toString().replaceAll("'", ""),
-                                       this.config,
-                                       slotNum,
-                                       createParitition,
-                                       columns);
+  public TableTunnel.StreamUploadSession.Builder buildStreamUploadSession(
+          String projectName, String tableName) {
+    return new StreamUploadSessionImpl.Builder().setConfig(this.config)
+                                                .setProjectName(projectName)
+                                                .setTableName(tableName).setSchemaName(config.getOdps().getCurrentSchema());
   }
 
   public interface FlushResult {
@@ -831,6 +951,55 @@ public class TableTunnel {
      */
     public Record newRecord();
 
+    abstract class Builder {
+      private String schemaName;
+      private PartitionSpec partitionSpec;
+      private long slotNum = 0;
+      private boolean createPartition = false;
+
+      public String getSchemaName() {
+        return schemaName;
+      }
+
+      public Builder setSchemaName(String schemaName) {
+        this.schemaName = schemaName;
+        return this;
+      }
+
+      public String getPartitionSpec() {
+        return this.partitionSpec == null ? null : partitionSpec.toString().replaceAll("'", "");
+      }
+
+      public Builder setPartitionSpec(PartitionSpec spec) {
+        this.partitionSpec = spec;
+        return this;
+      }
+
+      public Builder setPartitionSpec(String spec) {
+        this.partitionSpec = spec == null ? null : new PartitionSpec(spec);
+        return this;
+      }
+
+      public long getSlotNum() {
+        return slotNum;
+      }
+
+      public Builder setSlotNum(long slotNum) {
+        this.slotNum = slotNum;
+        return this;
+      }
+
+      public boolean isCreatePartition() {
+        return createPartition;
+      }
+
+      public Builder setCreatePartition(boolean createPartition) {
+        this.createPartition = createPartition;
+        return this;
+      }
+
+      abstract public StreamUploadSession build() throws TunnelException;
+    }
   }
 
   /**
@@ -885,13 +1054,14 @@ public class TableTunnel {
     private String id;
     private TableSchema schema = new TableSchema();
     private String projectName;
+    private String schemaName;
     private String tableName;
     private String partitionSpec;
     private Long fieldMaxSize;
     private List<Long> blocks = new ArrayList<Long>();
     private UploadStatus status = UploadStatus.UNKNOWN;
 
-    private Configuration conf;
+    private ConfigurationImpl conf;
 
     private RestClient tunnelServiceClient;
 
@@ -907,7 +1077,7 @@ public class TableTunnel {
     private boolean overwrite = false;
 
     /**
-     * 根据已有的uploadId构造一个{@link UploadSession}对象
+     * 构造一个{@link UploadSession}对象
      *
      * <p>
      * 在多线程或者多进程模式下，推荐各个进程或者线程共享相同的uploadId， 使用此方法创建Upload对象来进行上传，可以提高性能。
@@ -915,22 +1085,27 @@ public class TableTunnel {
      *
      * @param projectName
      *     上传数据表所在的project名称。
+     * @param schemaName
+     *     上传数据表所在的schema名称。
      * @param tableName
      *     上传数据表名称。
      * @param partitionSpec
      *     上传数据表的partition描述，格式如下: pt=xxx,dt=xxx。
      * @param uploadId
-     *     Upload的唯一标识符
+     *     Upload的唯一标识符。
+     * @param overwrite
+     *     是否覆盖数据。
      */
-    UploadSession(String projectName, String tableName, String partitionSpec, String uploadId)
-        throws TunnelException {
-      this(projectName, tableName, partitionSpec, uploadId, false);
-    }
-
-    UploadSession(String projectName, String tableName, String partitionSpec, String uploadId,
+    UploadSession(
+        String projectName,
+        String schemaName,
+        String tableName,
+        String partitionSpec,
+        String uploadId,
         boolean overwrite) throws TunnelException {
       this.conf = TableTunnel.this.config;
       this.projectName = projectName;
+      this.schemaName = schemaName;
       this.tableName = tableName;
       this.partitionSpec = partitionSpec;
       this.id = uploadId;
@@ -946,18 +1121,16 @@ public class TableTunnel {
 
     /* Initiate upload session */
     private void initiate() throws TunnelException {
+      HashMap<String, String> headers = getCommonHeader();
 
-      HashMap<String, String> params = new HashMap<String, String>();
+      HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.UPLOADS, null);
-
       if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
       if (this.overwrite) {
         params.put(TunnelConstants.OVERWRITE, "true");
       }
-
-      HashMap<String, String> headers = getCommonHeader();
 
       Connection conn = null;
       try {
@@ -1260,15 +1433,11 @@ public class TableTunnel {
 
     private Connection getConnection(long blockId, boolean isArrow, CompressOption compress)
         throws OdpsException, IOException {
-      HashMap<String, String> params = new HashMap<String, String>();
-      HashMap<String, String> headers = new HashMap<String, String>();
-
+      HashMap<String, String> headers = new HashMap<>();
       headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
       headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
       // req.setHeader("Expect", "100-continue");
-
       headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
-
       switch (compress.algorithm) {
         case ODPS_RAW: {
           break;
@@ -1281,29 +1450,33 @@ public class TableTunnel {
           headers.put(Headers.CONTENT_ENCODING, "x-snappy-framed");
           break;
         }
+        case ODPS_LZ4_FRAME: {
+          headers.put(Headers.CONTENT_ENCODING, "x-lz4-frame");
+          break;
+        }
         default: {
           throw new TunnelException("invalid compression option.");
         }
       }
 
+      HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.UPLOADID, id);
       params.put(TunnelConstants.BLOCKID, Long.toString(blockId));
-
       if (isArrow) {
         params.put(TunnelConstants.PARAM_ARROW,"");
       }
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
+
       return tunnelServiceClient.connect(getResource(), "PUT", params, headers);
     }
 
     private void reload() throws TunnelException {
-      HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = getCommonHeader();
 
+      HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.UPLOADID, id);
-
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
@@ -1384,13 +1557,10 @@ public class TableTunnel {
     }
 
     private void completeUpload() throws TunnelException, IOException {
-      HashMap<String, String> params = new HashMap<String, String>();
-      HashMap<String, String> headers = new HashMap<String, String>();
+      HashMap<String, String> headers = getCommonHeader();
 
-      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
-
+      HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.UPLOADID, id);
-
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
@@ -1501,7 +1671,7 @@ public class TableTunnel {
     }
 
     private String getResource() {
-      return conf.getResource(projectName, tableName);
+      return conf.getResource(projectName, schemaName, tableName);
     }
 
     /*
@@ -1577,13 +1747,14 @@ public class TableTunnel {
 
     private String id;
     private String projectName;
+    private String schemaName;
     private String tableName;
     private String partitionSpec;
     private Long shardId;
     private long count;
     private TableSchema schema = new TableSchema();
     private DownloadStatus status = DownloadStatus.UNKNOWN;
-    private Configuration conf;
+    private ConfigurationImpl conf;
 
     private RestClient tunnelServiceClient;
     private boolean shouldTransform = false;
@@ -1593,6 +1764,8 @@ public class TableTunnel {
      *
      * @param projectName
      *     下载数据表所在project名称
+     * @param schemaName
+     *     下载数据表所在schema名称
      * @param tableName
      *     下载数据表名称
      * @param partitionSpec
@@ -1604,10 +1777,17 @@ public class TableTunnel {
      * @param async
      *     异步创建session,小文件多的场景下可以避免连接超时的问题
      */
-    DownloadSession(String projectName, String tableName, String partitionSpec, Long shardId,
-                    String downloadId, boolean async) throws TunnelException {
+    DownloadSession(
+        String projectName,
+        String schemaName,
+        String tableName,
+        String partitionSpec,
+        Long shardId,
+        String downloadId,
+        boolean async) throws TunnelException {
       this.conf = TableTunnel.this.config;
       this.projectName = projectName;
+      this.schemaName = schemaName;
       this.tableName = tableName;
       this.partitionSpec = partitionSpec;
       this.shardId = shardId;
@@ -1762,19 +1942,16 @@ public class TableTunnel {
 
     // initiate a new download session
     private void initiate(boolean async) throws TunnelException {
-      HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = getCommonHeader();
 
+      HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.DOWNLOADS, null);
-
       if (async) {
         params.put(TunnelConstants.ASYNC_MODE, "true");
       }
-
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
-
       if (this.shardId != null) {
         params.put(TunnelConstants.RES_SHARD, String.valueOf(this.shardId));
       }
@@ -1820,15 +1997,13 @@ public class TableTunnel {
 
     // reload download session properties
     private void reload() throws TunnelException {
-      HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = getCommonHeader();
 
+      HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.DOWNLOADID, id);
-
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
-
       if (shardId != null) {
         params.put(TunnelConstants.RES_SHARD, String.valueOf(shardId));
       }
@@ -1907,13 +2082,16 @@ public class TableTunnel {
     public String getProjectName() {
       return projectName;
     }
+    public String getSchemaName() {
+      return schemaName;
+    }
 
     public String getTableName() {
       return tableName;
     }
 
     private String getResource() {
-      return conf.getResource(projectName, tableName);
+      return conf.getResource(projectName, schemaName, tableName);
     }
 
     private void loadFromJson(InputStream is) throws TunnelException {
@@ -1949,10 +2127,11 @@ public class TableTunnel {
   }
 
   static HashMap<String, String> getCommonHeader() {
-    HashMap<String, String> headers = new HashMap<String, String>();
+    HashMap<String, String> headers = new HashMap<>();
 
     headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
     headers.put(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM, TUNNEL_DATE_TRANSFORM_VERSION);
+    headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
     return headers;
   }
 }

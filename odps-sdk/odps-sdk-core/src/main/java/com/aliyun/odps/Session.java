@@ -71,6 +71,7 @@ public class Session {
 
   private static final String DEFAULT_TASK_NAME = "console_sqlrt_task";
   private static final long POLL_INTERVAL = TimeUnit.MILLISECONDS.toMillis(1000);
+  private static final Long SESSION_TIMEOUT = 60L;
 
   private String taskName = DEFAULT_TASK_NAME;
 
@@ -782,25 +783,39 @@ public class Session {
     return isStarted;
   }
 
-  public void waitAttachSuccess() throws OdpsException {
-    SubQueryResponse response = getResponse(instance.getTaskInfo(taskName, "wait_attach_success"));
+  /**
+   * 等待 attach session 返回
+   *
+   * @param timeout
+   *     等待的超时时间(单位: 秒)
+   *     0 表示阻塞等待
+   * @throws OdpsException
+   */
+  public void waitAttachSuccess(long timeout) throws OdpsException {
+    long startTime = System.currentTimeMillis();
+    long endTime = 0;
 
-    if (response == null || response.status == null) {
-      checkTaskStatus();
-    } else if (response.status == OBJECT_STATUS_RUNNING) {
-      if (response.result != null && response.result.length() > 0) {
-        startSessionMessage += response.result;
-      }
-    } else if (response.status == OBJECT_STATUS_FAILED) {
-      throw new OdpsException(
-          String.format("Start session[%s] failed: %s ", instance.getId(), response.result));
-    } else if(!StringUtils.isNullOrEmpty(response.result)) {
-      try {
-        progress = gson.fromJson(response.result, SessionProgress.class);
-      } catch (Exception e) {
-        // ignore
+    if (timeout > 0) {
+      endTime += startTime + TimeUnit.SECONDS.toMillis(timeout);
+    }
+
+    while (0 == endTime || System.currentTimeMillis() < endTime) {
+      SubQueryResponse response = getResponse(instance.getTaskInfo(taskName, "wait_attach_success"));
+
+      if (response == null || response.status == null) {
+        checkTaskStatus();
+      } else if (response.status == OBJECT_STATUS_RUNNING) {
+        if (response.result != null && response.result.length() > 0) {
+          startSessionMessage += response.result;
+        }
+        return;
+      } else if (response.status == OBJECT_STATUS_FAILED) {
+        throw new OdpsException(
+            String.format("Attach session[%s] failed: %s ", instance.getId(), response.result));
       }
     }
+
+    throw new OdpsException("Attach session timeout.");
   }
 
   /**
@@ -975,7 +990,11 @@ public class Session {
 
     // attach mode, long polling
     if (hints.containsKey("odps.sql.session.share.id")) {
-      session.waitAttachSuccess();
+      if (timeout != null) {
+        session.waitAttachSuccess(timeout);
+      } else {
+        session.waitAttachSuccess(SESSION_TIMEOUT);
+      }
     } else {
       if (timeout != null) {
         session.waitForStart(timeout);

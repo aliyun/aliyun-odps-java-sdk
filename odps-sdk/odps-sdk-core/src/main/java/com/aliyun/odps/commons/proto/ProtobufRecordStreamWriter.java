@@ -42,6 +42,7 @@ import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
 import org.apache.commons.io.output.CountingOutputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
+import net.jpountz.lz4.LZ4FrameOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -87,6 +88,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         tmpOut = new DeflaterOutputStream(out, def);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
         tmpOut = new SnappyFramedOutputStream(out);
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
+        tmpOut = new LZ4FrameOutputStream(out);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
         tmpOut = out;
       } else {

@@ -1090,7 +1090,7 @@ public class ArrayRecord implements Record {
   }
 
   @SuppressWarnings({"unchecked"})
-  private <T> T getInternal(int idx) {
+  protected <T> T getInternal(int idx) {
     if (values[idx] == null) {
       return null;
     }

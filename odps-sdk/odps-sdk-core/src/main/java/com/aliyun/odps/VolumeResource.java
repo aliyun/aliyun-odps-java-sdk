@@ -18,6 +18,7 @@ public abstract class VolumeResource extends Resource {
   }
 
   public void setVolumePath(String volumePath) {
+    // TODO: replace with a static builder
     model.volumePath = volumePath;
   }
 }

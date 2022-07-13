@@ -86,6 +86,7 @@ public class SqlPlanTask extends Task {
     this.query = query;
   }
 
+  @Override
   public String getCommandText() {
     return query;
   }
