@@ -29,6 +29,7 @@ import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
+
 import java.util.Map;
 
 /**
@@ -73,9 +74,12 @@ public class Odps {
   private AppStsAccount appStsAccount;
   private String endpoint;
   private String defaultProject;
+  private String currentSchema;
 
   /* resource collection objects */
+  private Tenant tenant;
   private Projects projects;
+  private Schemas schemas;
   private Tables tables;
   private Instances instances;
   private Resources resources;
@@ -83,6 +87,8 @@ public class Odps {
   private Volumes volumes;
   private XFlows xflows;
   private OfflineModels offlineModels;
+  private Classifications classifications;
+  private Quotas quotas;
 
   /* RestClient instance */
   protected RestClient client;
@@ -128,7 +134,9 @@ public class Odps {
 
     setEndpoint(defaultEndpoint);
 
+    tenant = new Tenant(this);
     projects = new Projects(this);
+    schemas = new Schemas(this);
     tables = new Tables(this);
     instances = new Instances(this);
     resources = new Resources(this);
@@ -136,6 +144,8 @@ public class Odps {
     volumes = new Volumes(client);
     xflows = new XFlows(this);
     offlineModels = new OfflineModels(this);
+    classifications = new Classifications(this);
+    quotas = new Quotas(this);
   }
 
   public Odps(Odps odps) {
@@ -148,6 +158,10 @@ public class Odps {
     instances.setDefaultRunningCluster(odps.instances.getDefaultRunningCluster());
   }
 
+  public Tenant tenant() {
+    return tenant;
+  }
+
   /**
    * 获取表示ODPS所有{@link Project}的集合对象
    *
@@ -155,6 +169,10 @@ public class Odps {
    */
   public Projects projects() {
     return projects;
+  }
+
+  public Schemas schemas() {
+    return schemas;
   }
 
   /**
@@ -200,6 +218,17 @@ public class Odps {
    */
   public Volumes volumes() {
     return volumes;
+  }
+
+  /**
+   * 获取表示ODPS所有{@link Classification}的集合对象
+   */
+  public Classifications classifications() {
+    return classifications;
+  }
+
+  public Quotas quotas() {
+    return quotas;
   }
 
   /**
@@ -264,14 +293,35 @@ public class Odps {
   }
 
   /**
-   * 指定默认使用的{@link Project}名称
+   * Get current schema.
+   *
+   * @return Current schema name. Null or empty string means using the default schema.
+   */
+  public String getCurrentSchema() {
+    return currentSchema;
+  }
+
+  /**
+   * 指定默认使用的{@link Project}名称，同时将当前schema置为该project下的默认schema
    *
    * @param defaultProject
    *     默认{@link Project}名称，不允许为null或空串
    */
   public void setDefaultProject(String defaultProject) {
     this.defaultProject = defaultProject;
+    this.currentSchema = null;
     client.setDefaultProject(defaultProject);
+    client.setCurrentSchema(null);
+  }
+
+  /**
+   * Set current schema.
+   *
+   * @param schema Schema name. Null or empty string means using the default schema.
+   */
+  public void setCurrentSchema(String schema) {
+    this.currentSchema = schema;
+    client.setCurrentSchema(schema);
   }
 
   /**

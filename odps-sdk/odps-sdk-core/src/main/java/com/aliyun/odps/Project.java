@@ -126,6 +126,14 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String projectGroupName;
 
+    @Element(name = "DefaultQuotaNickname", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultQuotaNickname;
+
+    @Element(name = "DefaultQuotaRegion", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultQuotaRegion;
+
     @Element(name = "Properties", required = false)
     @Convert(PropertyConverter.class)
     LinkedHashMap<String, String> properties;
@@ -438,6 +446,16 @@ public class Project extends LazyLoad {
   String getProjectGroupName() {
     lazyLoad();
     return model.projectGroupName;
+  }
+
+  public String getDefaultQuotaNickname() {
+    lazyLoad();
+    return model.defaultQuotaNickname;
+  }
+
+  public String getDefaultQuotaRegion() {
+    lazyLoad();
+    return model.defaultQuotaRegion;
   }
 
   /**

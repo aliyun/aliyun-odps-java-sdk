@@ -267,4 +267,11 @@ public interface SQLExecutor {
    * @throws OdpsException
    */
   public void run(String sql, Map<String, String> hint) throws OdpsException;
+
+  /**
+   * 判断run中执行的sql是否具备结果集
+   *
+   * @return 是否具备结果集
+   */
+  public boolean hasResultSet();
 }

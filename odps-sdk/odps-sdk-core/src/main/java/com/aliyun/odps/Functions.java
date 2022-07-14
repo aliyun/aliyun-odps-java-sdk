@@ -25,6 +25,7 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -67,7 +68,6 @@ public class Functions implements Iterable<Function> {
     this.client = odps.getRestClient();
   }
 
-
   /**
    * 获取 Function 对象
    *
@@ -76,7 +76,7 @@ public class Functions implements Iterable<Function> {
    * @throws OdpsException
    */
   public Function get(String functionName)  throws OdpsException {
-    return get(getDefaultProjectName(), functionName);
+    return get(odps.getDefaultProject(), functionName);
   }
 
   /**
@@ -87,7 +87,28 @@ public class Functions implements Iterable<Function> {
    * @return
    */
   public Function get(String projectName, String functionName) {
+    return get(projectName, odps.getCurrentSchema(), functionName);
+  }
+
+  /**
+   * Get designated function.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param functionName Function name.
+   * @return {@link Function}
+   */
+  public Function get(String projectName, String schemaName, String functionName) {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+
+    if (StringUtils.isNullOrEmpty(functionName)) {
+      throw new IllegalArgumentException("Argument 'functionName' cannot be null or empty");
+    }
+
     FunctionModel model = new FunctionModel();
+    model.schemaName = schemaName;
     model.name = functionName;
     return new Function(model, projectName, odps);
   }
@@ -110,7 +131,23 @@ public class Functions implements Iterable<Function> {
    * @return
    */
   public boolean exists(String projectName, String functionName) throws OdpsException {
-    Function function = get(projectName, functionName);
+    return exists(projectName, odps.getCurrentSchema(), functionName);
+  }
+
+  /**
+   * Check if designated function exists.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param functionName Function name.
+   * @return True if the function exists, else false.
+   * @throws OdpsException
+   */
+  public boolean exists(
+      String projectName,
+      String schemaName,
+      String functionName) throws OdpsException {
+    Function function = get(projectName, schemaName, functionName);
     try {
       function.reload();
       return true;
@@ -126,7 +163,7 @@ public class Functions implements Iterable<Function> {
    * @throws OdpsException
    */
   public void update(Function func) throws OdpsException {
-    update(getDefaultProjectName(), func);
+    update(odps.getDefaultProject(), func);
   }
 
   /**
@@ -137,17 +174,41 @@ public class Functions implements Iterable<Function> {
    * @throws OdpsException
    */
   public void update(String projectName, Function func) throws OdpsException {
-    String resource = ResourceBuilder.buildFunctionResource(projectName, func.getName());
-    HashMap<String, String> header = new HashMap<String, String>();
-    header.put(Headers.CONTENT_TYPE, "application/xml");
+    update(projectName, odps.getCurrentSchema(), func);
+  }
 
-    String ret;
+  /**
+   * Update designated function.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param function {@link Function}
+   * @throws OdpsException
+   */
+  public void update(
+      String projectName,
+      String schemaName,
+      Function function) throws OdpsException {
+
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(function.getName())) {
+      throw new IllegalArgumentException(
+          "Argument 'function' is invalid. Its name is null or empty");
+    }
+
+    String resource = ResourceBuilder.buildFunctionResource(projectName, function.getName());
+    HashMap<String, String> header = new HashMap<>();
+    header.put(Headers.CONTENT_TYPE, "application/xml");
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+    String body;
     try {
-      ret = SimpleXmlUtils.marshal(func.model);
+      body = SimpleXmlUtils.marshal(function.model);
     } catch (Exception e) {
       throw new OdpsException(e);
     }
-    client.stringRequest(resource, "PUT", null, header, ret);
+    client.stringRequest(resource, "PUT", params, header, body);
   }
 
   /**
@@ -159,7 +220,7 @@ public class Functions implements Iterable<Function> {
    *     创建函数失败
    */
   public void create(Function func) throws OdpsException {
-    create(getDefaultProjectName(), func);
+    create(odps.getDefaultProject(), func);
   }
 
   /**
@@ -173,17 +234,40 @@ public class Functions implements Iterable<Function> {
    *     创建函数失败
    */
   public void create(String projectName, Function func) throws OdpsException {
-    String resource = ResourceBuilder.buildFunctionsResource(projectName);
-    HashMap<String, String> header = new HashMap<String, String>();
-    header.put(Headers.CONTENT_TYPE, "application/xml");
+    create(projectName, odps.getCurrentSchema(), func);
+  }
 
-    String ret;
+  /**
+   * Create a function.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param function {@link Function}
+   */
+  public void create(
+      String projectName,
+      String schemaName,
+      Function function) throws OdpsException {
+
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(function.getName())) {
+      throw new IllegalArgumentException(
+          "Argument 'function' is invalid. Its name is null or empty");
+    }
+
+    String resource = ResourceBuilder.buildFunctionsResource(projectName);
+    Map<String, String> header = new HashMap<>();
+    header.put(Headers.CONTENT_TYPE, "application/xml");
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+    String body;
     try {
-      ret = SimpleXmlUtils.marshal(func.model);
+      body = SimpleXmlUtils.marshal(function.model);
     } catch (Exception e) {
       throw new OdpsException(e);
     }
-    client.stringRequest(resource, "POST", null, header, ret);
+    client.stringRequest(resource, "POST", params, header, body);
   }
 
   /**
@@ -195,7 +279,7 @@ public class Functions implements Iterable<Function> {
    *     删除函数失败
    */
   public void delete(String name) throws OdpsException {
-    delete(getDefaultProjectName(), name);
+    delete(odps.getDefaultProject(), name);
   }
 
   /**
@@ -214,45 +298,36 @@ public class Functions implements Iterable<Function> {
   }
 
   /**
+   * Delete designated function.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param functionName Function name.
+   */
+  public void delete(
+      String projectName,
+      String schemaName,
+      String functionName) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(projectName)) {
+      throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+    }
+    if (StringUtils.isNullOrEmpty(functionName)) {
+      throw new IllegalArgumentException("Argument 'functionName' cannot be null or empty");
+    }
+
+    String resource = ResourceBuilder.buildFunctionResource(projectName, functionName);
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+    client.request(resource, "DELETE", params, null, null);
+  }
+
+  /**
    * 返回默认Project下所有函数的迭代器
    *
    * @return {@link Function}迭代器
    */
   @Override
   public Iterator<Function> iterator() {
-    return iterator(getDefaultProjectName());
-  }
-
-  /**
-   * 返回指定Project下所有函数的迭代器
-   *
-   * @return {@link Function}迭代器
-   */
-
-  public Iterable<Function> iterable() {
-    return new Iterable<Function>() {
-      @Override
-      public Iterator<Function> iterator() {
-        return new FunctionListIterator(getDefaultProjectName());
-      }
-    };
-  }
-
-  /**
-   * 返回指定Project下所有函数的迭代器
-   *
-   * @param projectName
-   *     Project名称
-   * @return {@link Function}迭代器
-   */
-
-  public Iterable<Function> iterable(final String projectName) {
-    return new Iterable<Function>() {
-      @Override
-      public Iterator<Function> iterator() {
-        return new FunctionListIterator(projectName);
-      }
-    };
+    return iterator(odps.getDefaultProject());
   }
 
   /**
@@ -263,23 +338,65 @@ public class Functions implements Iterable<Function> {
    * @return {@link Function}迭代器
    */
   public Iterator<Function> iterator(final String projectName) {
-    return new FunctionListIterator(projectName);
+    return iterator(projectName, odps.getCurrentSchema());
   }
 
-  private String getDefaultProjectName() {
-    String project = client.getDefaultProject();
-    if (project == null || project.length() == 0) {
-      throw new RuntimeException("No default project specified.");
-    }
-    return project;
+  /**
+   * Get a function iterator of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @return A function iterator.
+   */
+  public Iterator<Function> iterator(final String projectName, String schemaName) {
+    return new FunctionListIterator(projectName, schemaName);
+  }
+
+
+  /**
+   * 返回指定Project下所有函数的迭代器
+   *
+   * @return {@link Function}迭代器
+   */
+  public Iterable<Function> iterable() {
+    return iterable(odps.getDefaultProject());
+  }
+
+  /**
+   * 返回指定Project下所有函数的迭代器
+   *
+   * @param projectName
+   *     Project名称
+   * @return {@link Function}迭代器
+   */
+  public Iterable<Function> iterable(final String projectName) {
+    return iterable(projectName, odps.getCurrentSchema());
+  }
+
+  /**
+   * Get a function iterable of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @return A function iterable.
+   */
+  public Iterable<Function> iterable(final String projectName, String schemaName) {
+    return () -> new FunctionListIterator(projectName, schemaName);
   }
 
   private class FunctionListIterator extends ListIterator<Function> {
-    Map<String, String> params = new HashMap<String, String>();
+    Map<String, String> params = new HashMap<>();
     String projectName;
+    String schemaName;
 
-    public FunctionListIterator(final String projectName) {
+    public FunctionListIterator(final String projectName, String schemaName) {
+      if (StringUtils.isNullOrEmpty(projectName)) {
+        throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
+      }
+
       this.projectName = projectName;
+      this.schemaName = schemaName;
+      params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
     }
 
     @Override
@@ -300,6 +417,7 @@ public class Functions implements Iterable<Function> {
             ListFunctionsResponse.class, resource, "GET", params);
 
         for (FunctionModel model : resp.functions) {
+          model.schemaName = schemaName;
           Function t = new Function(model, projectName, odps);
           functions.add(t);
         }

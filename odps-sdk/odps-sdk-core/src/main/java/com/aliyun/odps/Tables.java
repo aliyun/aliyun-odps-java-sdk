@@ -37,8 +37,8 @@ import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.StringUtils;
-import com.google.gson.GsonBuilder;
 
 /**
  * Tables表示ODPS中所有{@link Table}的集合
@@ -75,11 +75,16 @@ public class Tables implements Iterable<Table> {
       @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       private String tableName;
 
+      @Element(name = "Schema", required = false)
+      @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+      private String schemaName;
+
       QueryTable() {
       }
 
-      QueryTable(String projectName, String tableName) {
+      QueryTable(String projectName, String schemaName, String tableName) {
         this.projectName = projectName;
+        this.schemaName = schemaName;
         this.tableName = tableName;
       }
     }
@@ -118,10 +123,21 @@ public class Tables implements Iterable<Table> {
    * @return 指定表的信息 {@link Table}
    */
   public Table get(String projectName, String tableName) {
+    return get(projectName, odps.getCurrentSchema(), tableName);
+  }
+
+  /**
+   * Get designated table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param tableName Table name.
+   * @return {@link Table}
+   */
+  public Table get(String projectName, String schemaName, String tableName) {
     TableModel model = new TableModel();
     model.name = tableName;
-    Table t = new Table(model, projectName, odps);
-    return t;
+    return new Table(model, projectName, schemaName, odps);
   }
 
   /**
@@ -147,8 +163,24 @@ public class Tables implements Iterable<Table> {
    * @throws OdpsException
    */
   public boolean exists(String projectName, String tableName) throws OdpsException {
+    return exists(projectName, odps.getCurrentSchema(), tableName);
+  }
+
+  /**
+   * Check if designated table exists.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param tableName Table name.
+   * @return True if the table exists, else false.
+   * @throws OdpsException
+   */
+  public boolean exists(
+      String projectName,
+      String schemaName,
+      String tableName) throws OdpsException {
     try {
-      Table t = get(projectName, tableName);
+      Table t = get(projectName, schemaName, tableName);
       t.reload();
       return true;
     } catch (NoSuchObjectException e) {
@@ -199,7 +231,7 @@ public class Tables implements Iterable<Table> {
    * @return {@link Table}迭代器
    */
   public Iterator<Table> iterator(final String projectName, final TableFilter filter) {
-    return new TableListIterator(projectName, filter, false);
+    return iterator(projectName, filter, false);
   }
 
   /**
@@ -213,10 +245,28 @@ public class Tables implements Iterable<Table> {
    *     是否同时获取额外信息
    * @return {@link Table}迭代器
    */
-  public Iterator<Table> iterator(final String projectName,
-                                  final TableFilter filter,
-                                  boolean extended) {
-    return new TableListIterator(projectName, filter, extended);
+  public Iterator<Table> iterator(
+      final String projectName,
+      final TableFilter filter,
+      boolean extended) {
+    return new TableListIterator(projectName, odps.getCurrentSchema(), filter, extended);
+  }
+
+  /**
+   * Get a table iterator of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param filter Table filter, see {@link TableFilter}.
+   * @param extended Get extended fields or not. Extended fields are "type" and "comment".
+   * @return A table iterator.
+   */
+  public Iterator<Table> iterator(
+      final String projectName,
+      final String schemaName,
+      final TableFilter filter,
+      boolean extended) {
+    return new TableListIterator(projectName, schemaName, filter, extended);
   }
 
   /**
@@ -277,21 +327,46 @@ public class Tables implements Iterable<Table> {
   public Iterable<Table> iterable(final String projectName,
                                   final TableFilter filter,
                                   boolean extended) {
-    return () -> new TableListIterator(projectName, filter, extended);
+    return iterable(projectName, odps.getCurrentSchema(), filter, extended);
+  }
+
+  /**
+   * Get a table iterable of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param filter Table filter, see {@link TableFilter}.
+   * @param extended Get extended fields or not. Extended fields are "type" and "comment".
+   * @return A table iterable.
+   */
+  public Iterable<Table> iterable(
+      final String projectName,
+      final String schemaName,
+      final TableFilter filter,
+      boolean extended) {
+    return () -> new TableListIterator(projectName, schemaName, filter, extended);
   }
 
   private class TableListIterator extends ListIterator<Table> {
 
-    Map<String, String> params = new HashMap<String, String>();
+    Map<String, String> params = new HashMap<>();
 
     private TableFilter filter;
     private String projectName;
+    private String schemaName;
     private boolean extended;
 
-    TableListIterator(String projectName, TableFilter filter, boolean extended) {
+    TableListIterator(
+        String projectName,
+        String schemaName,
+        TableFilter filter,
+        boolean extended) {
       this.filter = filter;
       this.projectName = projectName;
+      this.schemaName = schemaName;
       this.extended = extended;
+
+      params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
     }
 
     @Override
@@ -325,7 +400,7 @@ public class Tables implements Iterable<Table> {
                                                  params);
 
         for (TableModel model : resp.tables) {
-          Table t = new Table(model, projectName, odps);
+          Table t = new Table(model, projectName, schemaName, odps);
           tables.add(t);
         }
 
@@ -443,13 +518,17 @@ public class Tables implements Iterable<Table> {
   public void create(String projectName, String tableName, TableSchema schema,
                      String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle)
       throws OdpsException {
-    // new SQLTask
-    String taskName = "SQLCreateTableTask";
-    SQLTask task = new SQLTask();
-    task.setName(taskName);
-    task.setQuery(
-        getHubString(projectName, tableName, schema, comment, ifNotExists, shardNum, hubLifecycle));
-    submitCreateAndWait(task, null, null);
+    String sql = getHubString(
+        projectName,
+        odps.getCurrentSchema(),
+        tableName,
+        schema,
+        comment,
+        ifNotExists,
+        shardNum,
+        hubLifecycle);
+
+    submitCreateAndWait(odps.getCurrentSchema(), sql, "SQLCreateTableTask", null, null);
   }
 
   /**
@@ -493,7 +572,6 @@ public class Tables implements Iterable<Table> {
     create(projectName, tableName, schema, comment, ifNotExists, lifeCycle, null, null);
   }
 
-
   /**
    * 创建表
    *
@@ -513,17 +591,61 @@ public class Tables implements Iterable<Table> {
    * @param aliases
    *     Alias信息。详情请参考用户手册中alias命令的相关介绍
    */
-  public void create(String projectName, String tableName, TableSchema schema,
-                     String comment, boolean ifNotExists, Long lifeCycle,
-                     Map<String, String> hints, Map<String, String> aliases)
-      throws OdpsException {
-    // new SQLTask
-    String taskName = "SQLCreateTableTask";
-    SQLTask task = new SQLTask();
-    task.setName(taskName);
-    task.setQuery(getSQLString(projectName, tableName, schema, comment, ifNotExists, lifeCycle));
+  public void create(
+      String projectName,
+      String tableName,
+      TableSchema schema,
+      String comment,
+      boolean ifNotExists,
+      Long lifeCycle,
+      Map<String, String> hints,
+      Map<String, String> aliases) throws OdpsException {
+    create(
+        projectName,
+        odps.getCurrentSchema(),
+        tableName,
+        schema,
+        comment,
+        ifNotExists,
+        lifeCycle,
+        hints,
+        aliases);
+  }
 
-    submitCreateAndWait(task, hints, aliases);
+  /**
+   * Create a table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param tableName Table name
+   * @param schema Table schema.
+   * @param comment Comment, should not contain single quotes.
+   * @param ifNotExists Create only if the table doesn't exist.
+   * @param lifeCycle Lifecycle.
+   * @param hints Hints.
+   * @param aliases Aliases.
+   */
+  public void create(
+      String projectName,
+      String schemaName,
+      String tableName,
+      TableSchema schema,
+      String comment,
+      boolean ifNotExists,
+      Long lifeCycle,
+      Map<String, String> hints,
+      Map<String, String> aliases) throws OdpsException {
+    // new SQLTask
+    String ddl = getCreateTableStatement(
+        projectName,
+        schemaName,
+        tableName,
+        schema,
+        comment,
+        ifNotExists,
+        lifeCycle);
+
+    submitCreateAndWait(schemaName, ddl, "SQLCreateTableTask", hints, aliases);
   }
 
   /**
@@ -554,18 +676,81 @@ public class Tables implements Iterable<Table> {
    *     Alias信息。详情请参考用户手册中alias命令的相关介绍
    * @throws OdpsException
    */
-  public void createExternal(String projectName, String tableName, TableSchema schema,
-                             String location, String storedBy, List<String> usingJars, Map<String, String> serdeProperties,
-                             String comment, boolean ifNotExists, Long lifeCycle,
-                             Map<String, String> hints, Map<String, String> aliases)
-      throws OdpsException {
-    SQLTask task = new SQLTask();
-    task.setName("SQLCreateExternalTableTask");
-    task.setQuery(
-        getExternalSQLStringStoredBy(projectName, tableName, schema, comment, ifNotExists, lifeCycle,
-                                     storedBy, location, usingJars, serdeProperties));
+  public void createExternal(
+      String projectName,
+      String tableName,
+      TableSchema schema,
+      String location,
+      String storedBy,
+      List<String> usingJars,
+      Map<String, String> serdeProperties,
+      String comment,
+      boolean ifNotExists,
+      Long lifeCycle,
+      Map<String, String> hints,
+      Map<String, String> aliases) throws OdpsException {
+    createExternal(
+        projectName,
+        odps.getCurrentSchema(),
+        tableName,
+        schema,
+        location,
+        storedBy,
+        usingJars,
+        serdeProperties,
+        comment,
+        ifNotExists,
+        lifeCycle,
+        hints,
+        aliases);
+  }
 
-    submitCreateAndWait(task, hints, aliases);
+  /**
+   * Create an external table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param tableName Table name
+   * @param schema Table schema.
+   * @param location Location, like "oss://path/to/directory/".
+   * @param storedBy Name of the storage handler to use, like "com.aliyun.odps.TsvStorageHandler".
+   * @param usingJars Names of jar needed by the storage handler, could be null.
+   * @param serdeProperties Arguments of the storage handler, could be null.
+   * @param comment Comment, should not contain single quotes.
+   * @param ifNotExists Create only if the table doesn't exist.
+   * @param lifeCycle Lifecycle.
+   * @param hints Hints.
+   * @param aliases Aliases.
+   * @throws OdpsException
+   */
+  public void createExternal(
+      String projectName,
+      String schemaName,
+      String tableName,
+      TableSchema schema,
+      String location,
+      String storedBy,
+      List<String> usingJars,
+      Map<String, String> serdeProperties,
+      String comment,
+      boolean ifNotExists,
+      Long lifeCycle,
+      Map<String, String> hints,
+      Map<String, String> aliases) throws OdpsException {
+    String sql = getCreateExternalTableStatement(
+        projectName,
+        schemaName,
+        tableName,
+        schema,
+        comment,
+        ifNotExists,
+        lifeCycle,
+        storedBy,
+        location,
+        usingJars,
+        serdeProperties);
+
+    submitCreateAndWait(schemaName, sql, "SQLCreateExternalTableTask", hints, aliases);
   }
 
 
@@ -606,6 +791,7 @@ public class Tables implements Iterable<Table> {
     delete(projectName, tableName, false);
   }
 
+
   /**
    * 删除表
    *
@@ -617,9 +803,30 @@ public class Tables implements Iterable<Table> {
    *     如果为 false 表不存在，则返回异常；若为 true，无论表是否存在，皆返回成功。
    * @throws OdpsException
    */
-  public void delete(String projectName, String tableName, boolean ifExists) throws OdpsException {
+  public void delete(
+      String projectName,
+      String tableName,
+      boolean ifExists) throws OdpsException {
+    delete(projectName, odps.getCurrentSchema(), tableName, ifExists);
+  }
+
+  /**
+   * Delete designated table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param tableName Table name.
+   * @param ifExists Delete only if the table exists.
+   * @throws OdpsException
+   */
+  public void delete(
+      String projectName,
+      String schemaName,
+      String tableName,
+      boolean ifExists) throws OdpsException {
+
     if (projectName == null || tableName == null) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException("Argument 'projectName' or 'tableName' cannot be null");
     }
     StringBuilder sb = new StringBuilder();
     sb.append("DROP TABLE ");
@@ -627,17 +834,16 @@ public class Tables implements Iterable<Table> {
       sb.append(" IF EXISTS ");
     }
 
-    sb.append(projectName).append(".").append(tableName).append(";");
+    sb.append(NameSpaceSchemaUtils.getFullName(projectName, schemaName, tableName));
+    sb.append(";");
 
     // new SQLTask
     String taskName = "SQLDropTableTask";
     SQLTask task = new SQLTask();
     task.setName(taskName);
     task.setQuery(sb.toString());
-    Instances instances = new Instances(odps);
-    Instance instance = instances.create(task);
 
-    instance.waitForSuccess();
+    submitCreateAndWait(schemaName, sb.toString(), "SQLDropTableTask", null, null);
   }
 
   /**
@@ -662,8 +868,25 @@ public class Tables implements Iterable<Table> {
    * @return 加载后的 {@link Table} 列表
    * @throws OdpsException
    */
-  public List<Table> loadTables(final String projectName, final Collection<String> tableNames)
-      throws OdpsException {
+  public List<Table> loadTables(
+      final String projectName,
+      final Collection<String> tableNames) throws OdpsException {
+    return loadTables(projectName, odps.getCurrentSchema(), tableNames);
+  }
+
+  /**
+   * Batch loading tables.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param tableNames Table names.
+   * @return List of {@link Table}.
+   * @throws OdpsException
+   */
+  public List<Table> loadTables(
+      final String projectName,
+      final String schemaName,
+      final Collection<String> tableNames) throws OdpsException {
     if (StringUtils.isNullOrEmpty(projectName)) {
       throw new IllegalArgumentException("Invalid project name.");
     }
@@ -673,7 +896,7 @@ public class Tables implements Iterable<Table> {
 
     QueryTables queryTables = new QueryTables();
     for (String name : tableNames) {
-      queryTables.tables.add(new QueryTables.QueryTable(projectName, name));
+      queryTables.tables.add(new QueryTables.QueryTable(projectName, schemaName, name));
     }
 
     return loadTablesInternal(queryTables);
@@ -727,7 +950,8 @@ public class Tables implements Iterable<Table> {
         // table is loaded, do not need to request again
         loadedTables.add(t);
       } else {
-        queryTables.tables.add(new QueryTables.QueryTable(t.getProject(), t.getName()));
+        queryTables.tables.add(
+            new QueryTables.QueryTable(t.getProject(), t.getSchemaName(), t.getName()));
       }
     }
 
@@ -739,16 +963,16 @@ public class Tables implements Iterable<Table> {
   }
 
   private List<Table> loadTablesInternal(QueryTables queryTables) throws OdpsException {
-    ArrayList<Table> reloadTables = new ArrayList<Table>();
+    ArrayList<Table> reloadTables = new ArrayList<>();
     if (queryTables.tables.isEmpty()) {
       return reloadTables;
     }
 
-    Map<String, String> params = new HashMap<String, String>();
+    Map<String, String> params = new HashMap<>();
     params.put("query", null);
 
     String resource = ResourceBuilder.buildTablesResource(getDefaultProjectName());
-    HashMap<String, String> headers = new HashMap<String, String>();
+    HashMap<String, String> headers = new HashMap<>();
     headers.put(Headers.CONTENT_TYPE, "application/xml");
 
     String xml = null;
@@ -761,7 +985,7 @@ public class Tables implements Iterable<Table> {
     ListTablesResponse resp =
         client.stringRequest(ListTablesResponse.class, resource, "POST", params, headers, xml);
     for (TableModel model : resp.tables) {
-      Table t = new Table(model, model.projectName, odps);
+      Table t = new Table(model, model.projectName, model.schemaName, odps);
       t.reload(model);
       reloadTables.add(t);
     }
@@ -778,38 +1002,37 @@ public class Tables implements Iterable<Table> {
     return project;
   }
 
-  private void submitCreateAndWait(
-      SQLTask task,
-      Map<String, String> hints, Map<String, String> aliases) throws OdpsException {
-    if (hints != null) {
-      try {
-        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
-        task.setProperty("settings", json);
-      } catch (Exception e) {
-        throw new OdpsException(e.getMessage(), e);
-      }
-    }
-
-    if (aliases != null) {
-      try {
-        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(aliases);
-        task.setProperty("aliases", json);
-      } catch (Exception e) {
-        throw new OdpsException(e.getMessage(), e);
-      }
-    }
-
-    Instances instances = new Instances(odps);
-    Instance instance = instances.create(task);
-
-    instance.waitForSuccess();
+  private void submitCreateAndWait(String schemaName,
+                                   String sql,
+                                   String taskName,
+                                   Map<String, String> hints,
+                                   Map<String, String> aliases
+  ) throws OdpsException {
+    hints = NameSpaceSchemaUtils.setSchemaFlagInHints(hints, schemaName);
+    Instance i = SQLTask.run(odps, odps.getDefaultProject(), sql, taskName, hints, aliases);
+    i.waitForSuccess();
   }
 
-  private String getHubString(String projectName, String tableName, TableSchema schema,
-                              String comment, boolean ifNotExists, Long shardNum,
-                              Long hubLifecycle) {
+  private String getHubString(
+      String projectName,
+      String schemaName,
+      String tableName,
+      TableSchema schema,
+      String comment,
+      boolean ifNotExists,
+      Long shardNum,
+      Long hubLifecycle) {
     StringBuilder sb = new StringBuilder();
-    sb.append(getSQLString(projectName, tableName, schema, comment, ifNotExists, null));
+    sb.append(
+        getCreateTableStatement(
+            projectName,
+            schemaName,
+            tableName,
+            schema,
+            comment,
+            ifNotExists,
+            null)
+    );
     if (sb.length() > 0) {
       sb.deleteCharAt(sb.length() - 1);
     }
@@ -827,11 +1050,27 @@ public class Tables implements Iterable<Table> {
     return sb.toString();
   }
 
-  private String getExternalSQLStringStoredBy(
-      String projectName, String tableName, TableSchema schema,
-      String comment, boolean ifNotExists, Long lifeCycle,
-      String storedBy, String location, List<String> jars, Map<String, String> properties) {
-    String plainString = getSQLString(projectName, tableName, schema, comment, ifNotExists, lifeCycle);
+  private String getCreateExternalTableStatement(
+      String projectName,
+      String schemaName,
+      String tableName,
+      TableSchema schema,
+      String comment,
+      boolean ifNotExists,
+      Long lifeCycle,
+      String storedBy,
+      String location,
+      List<String> jars,
+      Map<String, String> properties) {
+
+    String plainString = getCreateTableStatement(
+        projectName,
+        schemaName,
+        tableName,
+        schema,
+        comment,
+        ifNotExists,
+        lifeCycle);
     if (!plainString.startsWith("CREATE TABLE ")){
       throw new RuntimeException("Plain sql table creation must start with CREATE TABLE .");
     }
@@ -888,11 +1127,17 @@ public class Tables implements Iterable<Table> {
     return plainString + sb.toString();
   }
 
-  private String getSQLString(
-      String projectName, String tableName, TableSchema schema,
-      String comment, boolean ifNotExists, Long lifeCycle) {
+  private String getCreateTableStatement(
+      String projectName,
+      String schemaName,
+      String tableName,
+      TableSchema schema,
+      String comment,
+      boolean ifNotExists,
+      Long lifeCycle) {
     if (projectName == null || tableName == null || schema == null) {
-      throw new IllegalArgumentException();
+      throw new IllegalArgumentException(
+          "Argument 'projectName', 'tableName', or 'schema' cannot be null");
     }
 
     StringBuilder sb = new StringBuilder();
@@ -901,7 +1146,9 @@ public class Tables implements Iterable<Table> {
       sb.append(" IF NOT EXISTS ");
     }
 
-    sb.append(projectName).append(".`").append(tableName).append("` (");
+    sb.append(NameSpaceSchemaUtils.getFullName(projectName, schemaName, tableName));
+    sb.append(" (");
+
 
     List<Column> columns = schema.getColumns();
     for (int i = 0; i < columns.size(); i++) {

@@ -1,17 +1,17 @@
 package com.aliyun.odps.sqa;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by dongxiao on 2020/3/17.
  */
 public class SQLExecutorBuilder {
+
   private ExecuteMode executeMode = ExecuteMode.INTERACTIVE;
   private boolean enableReattach = true;
   private boolean useInstanceTunnel = true;
@@ -21,12 +21,18 @@ public class SQLExecutorBuilder {
   private String taskName = SQLExecutorConstants.DEFAULT_TASK_NAME;
   private String serviceName = SQLExecutorConstants.DEFAULT_SERVICE;
   private String tunnelEndpoint = null;
+  // fallback offline quota
+  private String quotaName = null;
   private SQLExecutorPool pool = null;
   private FallbackPolicy fallbackPolicy = FallbackPolicy.alwaysFallbackPolicy();
   private int tunnelGetResultMaxRetryTime = 3;
 
+  private Long attachTimeout = SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT;
+
   private String runningCluster = null;
   private Instance recoverInstance = null;
+
+  private boolean useCommandApi = false;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -34,8 +40,10 @@ public class SQLExecutorBuilder {
 
   public SQLExecutor build() throws OdpsException {
     return new SQLExecutorImpl(odps, serviceName, taskName, tunnelEndpoint,
-        properties, executeMode, fallbackPolicy, enableReattach, useInstanceTunnel, useOdpsWorker,
-             pool, recoverInstance, runningCluster,tunnelGetResultMaxRetryTime);
+                               properties, executeMode, fallbackPolicy, enableReattach,
+                               useInstanceTunnel, useOdpsWorker,
+                               pool, recoverInstance, runningCluster, tunnelGetResultMaxRetryTime,
+                               useCommandApi, quotaName, attachTimeout);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -64,8 +72,18 @@ public class SQLExecutorBuilder {
     return this;
   }
 
+  public SQLExecutorBuilder quotaName(String quotaName) {
+    this.quotaName = quotaName;
+    return this;
+  }
+
   public SQLExecutorBuilder executeMode(ExecuteMode executeMode) {
     this.executeMode = executeMode;
+    return this;
+  }
+
+  public SQLExecutorBuilder attachTimeout(Long timeout) {
+    this.attachTimeout = timeout;
     return this;
   }
 

@@ -25,6 +25,8 @@ package com.aliyun.odps.rest;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 
+import com.aliyun.odps.utils.StringUtils;
+
 /**
  * 用来构造RESTful API调用的资源标识符
  *
@@ -32,7 +34,10 @@ import java.net.URLEncoder;
  */
 public class ResourceBuilder {
 
+  public static final String TENANTS = "/tenants";
+  public static final String AUTHORIZATION = "/authorization";
   public static final String PROJECTS = "/projects";
+  public static final String SCHEMAS = "/schemas";
   public static final String TABLES = "/tables";
   public static final String REGISTRATION = "/registration";
   public static final String FUNCTIONS = "/functions";
@@ -47,6 +52,9 @@ public class ResourceBuilder {
   private static final String STREAMJOBS = "/streamjobs";
   private static final String SERVERS = "/servers";
   private static final String MATRICES = "/matrices";
+  private static final String CLASSIFICATIONS =  "/classifications";
+  private static final String TAGS = "/tags";
+  private static final String QUOTAS = "/quotas";
 
   private static final String OFFLINEMODELS = "/offlinemodels";
   private static final String USERS = "/users";
@@ -79,6 +87,23 @@ public class ResourceBuilder {
     sb.append(PROJECTS).append('/').append(encodeObjectName(projectName));
     sb.append(TABLES).append('/').append(encodeObjectName(tableName));
 
+    return sb.toString();
+  }
+
+  public static String buildTableResource(String projectName, String schemaName, String tableName) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(PROJECTS)
+      .append('/')
+      .append(encodeObjectName(projectName));
+    if (!StringUtils.isNullOrEmpty(schemaName)) {
+      sb.append(SCHEMAS)
+        .append('/')
+        .append(encodeObjectName(schemaName));
+    }
+    sb.append(TABLES)
+      .append('/')
+      .append(encodeObjectName(tableName));
     return sb.toString();
   }
 
@@ -376,5 +401,77 @@ public class ResourceBuilder {
     sb.append(PROJECTS).append('/').append(encodeObjectName(projectName)).append(SESSIONS);
 
     return sb.toString();
+  }
+
+  public static String buildClassificationsResource(String projectName) {
+    return PROJECTS + "/" + encodeObjectName(projectName) + CLASSIFICATIONS;
+  }
+
+  public static String buildClassificationResource(String projectName, String classificationName) {
+    return PROJECTS + "/" + encodeObjectName(projectName) + CLASSIFICATIONS
+        + "/" + encodeObjectName(classificationName);
+  }
+
+  public static String buildTagsResource(String projectName, String classificationName) {
+    return PROJECTS + "/" + encodeObjectName(projectName) + CLASSIFICATIONS
+        + "/" + encodeObjectName(classificationName) + TAGS;
+  }
+
+  public static String buildTagResource(
+      String projectName,
+      String classificationName,
+      String tagName) {
+    return PROJECTS + "/" + encodeObjectName(projectName) + CLASSIFICATIONS
+        + "/" + encodeObjectName(classificationName) + TAGS + "/" + encodeObjectName(tagName);
+  }
+
+  public static String buildProjectSecurityManagerResource(String projectName) {
+    return PROJECTS
+        + "/" + encodeObjectName(projectName)
+        + AUTHORIZATION;
+  }
+
+  public static String buildProjectAuthorizationInstanceResource(
+      String projectName,
+      String instanceId) {
+    return PROJECTS
+        + "/" + encodeObjectName(projectName)
+        + AUTHORIZATION
+        + "/" + instanceId;
+  }
+
+  public static String buildTenantSecurityManagerResource(String tenantId) {
+    return TENANTS
+        + "/" + encodeObjectName(tenantId)
+        + AUTHORIZATION;
+  }
+
+  public static String buildTenantAuthorizationInstanceResource(
+      String tenantId,
+      String instanceId) {
+    return TENANTS
+        + "/" + encodeObjectName(tenantId)
+        + AUTHORIZATION
+        + "/" + instanceId;
+  }
+
+
+  public static String buildTenantRoleResource(String tenantId, String roleName) {
+    return TENANTS
+        + "/" + encodeObjectName(tenantId)
+        + AUTHORIZATION
+        + ROLES
+        + "/" + encodeObjectName(roleName);
+  }
+
+  public static String buildTenantUsersResource(String tenantId) {
+    return TENANTS
+        + "/" + encodeObjectName(tenantId)
+        + AUTHORIZATION
+        + USERS;
+  }
+
+  public static String buildQuotaResource(String name) {
+    return QUOTAS + "/" + encodeObjectName(name);
   }
 }

@@ -64,6 +64,7 @@ public class Headers {
   public static final String ODPS_RESOURCE_IS_TEMP = "x-odps-resource-istemp";
   public static final String ODPS_RESOURCE_LAST_UPDATOR = "x-odps-updator";
   public static final String ODPS_RESOURCE_SIZE = "x-odps-resource-size";
+  public static final String SCHEMA_NAME = "schema-name";
   public static final String CONTENT_DISPOSITION = "Content-Disposition";
   public static final String ODPS_RESOURCE_HAS_REMAINING_CONTENT = "x-odps-resource-has-remaining";
   public static final String ODPS_RESOURCE_MERGE_TOTAL_BYTES = "x-odps-resource-merge-total-bytes";

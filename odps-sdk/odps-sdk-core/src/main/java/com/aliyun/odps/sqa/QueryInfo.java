@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * Created by dongxiao on 2020/3/16.
  */
-class QueryInfo {
+public class QueryInfo {
   // SESSION subquery id
   private int id = -1;
   private int retry = 0;
@@ -22,6 +22,9 @@ class QueryInfo {
   private Instance instance = null;
   private ExecuteMode executeMode = ExecuteMode.INTERACTIVE;
   private List<String> executionLog = new ArrayList<>();
+
+  private Command command;
+  private String taskName;
 
   QueryInfo(String sql, Map<String, String> hint, ExecuteMode executeMode) {
     this.sql = sql;
@@ -113,5 +116,21 @@ class QueryInfo {
       executionLog.clear();
       return log;
     }
+  }
+
+  Command getCommand() {
+    return command;
+  }
+
+  void setCommand(Command command) {
+    this.command = command;
+  }
+
+  String getTaskName() {
+    return taskName;
+  }
+
+  void setTaskName(String taskName) {
+    this.taskName = taskName;
   }
 }

@@ -88,7 +88,7 @@ public class TablesTest extends TestBase {
   @Test
   public void testCreateTable() throws OdpsException {
     String tableName = String.format(
-        "%s_%s_%s", BASE_TABLE_NAME_PREFIX, "testCreateTable", OdpsTestUtils.getRandomTableName());
+        "%s_%s_%s", BASE_TABLE_NAME_PREFIX, "testCreateTable", OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
 
     odps.tables()
@@ -128,7 +128,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testCreateTableWithLifeCycle",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
 
     odps.tables().createTableWithLifeCycle(
@@ -148,7 +148,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testCreateExternalTableWithBuiltinStorageHandler",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
 
     Map<String, String> hints = new HashMap<String, String>();
@@ -184,7 +184,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testCreateExternalTableWithUserDefinedStorageHandler",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
 
     List<String > jars = new ArrayList<String>();
@@ -229,7 +229,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testCreateTableWithHints",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
 
     Map<String, String> hints = new HashMap<String, String>();
@@ -258,7 +258,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testCreateTableCrossProjectNeg",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
 
     odps.tables().create("nonexistent", tableName, SCHEMA);
@@ -270,7 +270,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testExistsPos",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
 
     odps.tables().create(tableName, SCHEMA);
@@ -288,7 +288,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testIteratorFilterByName",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
     odps.tables().create(tableName, SCHEMA);
 
@@ -308,7 +308,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testIteratorFilterByOwner",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
     odps.tables().create(tableName, SCHEMA);
 
@@ -330,7 +330,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testIterableFilterByName",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
     odps.tables().create(tableName, SCHEMA);
 
@@ -349,7 +349,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testIterableFilterByOwner",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
     odps.tables().create(tableName, SCHEMA);
 
@@ -424,7 +424,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testBatchLoadingVariousPermission",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
     odps.tables().create(tableName, SCHEMA);
 
@@ -490,7 +490,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testBatchLoadingNeg",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
 
     tables.add(tableName);
     odps.tables().loadTables(tables);
@@ -506,7 +506,7 @@ public class TablesTest extends TestBase {
           "%s_%s_%s",
           BASE_TABLE_NAME_PREFIX,
           "testBatchLoadingExceedsNumTablesLimit",
-          OdpsTestUtils.getRandomTableName());
+          OdpsTestUtils.getRandomName());
       tablesToDrop.add(tableName);
       odps.tables().create(tableName, SCHEMA);
     }
@@ -528,7 +528,7 @@ public class TablesTest extends TestBase {
         "%s_%s_%s",
         BASE_TABLE_NAME_PREFIX,
         "testBatchLoadingExceedsNumTablesLimit",
-        OdpsTestUtils.getRandomTableName());
+        OdpsTestUtils.getRandomName());
     tablesToDrop.add(tableName);
     odps.tables().create(tableName, SCHEMA);
 

@@ -128,7 +128,17 @@ public enum OdpsType {
   /**
    * 结构体
    */
-  STRUCT;
+  STRUCT,
+
+  /**
+   * JSON类型
+   */
+  JSON,
+
+  /**
+   * Unsupported types from external systems
+   */
+  UNKNOWN;
 
   @Deprecated
   public static String getFullTypeString(OdpsType type, List<OdpsType> genericTypeList) {

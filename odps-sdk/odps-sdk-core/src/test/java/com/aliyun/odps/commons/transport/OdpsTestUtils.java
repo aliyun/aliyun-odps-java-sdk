@@ -158,7 +158,7 @@ public class OdpsTestUtils {
    * @return
    */
   public static Odps newDefaultOdps() {
-    Odps odps = null;
+    Odps odps;
 
     String accessId = props.getProperty("default.access.id");
     String accessKey = props.getProperty("default.access.key");
@@ -175,6 +175,7 @@ public class OdpsTestUtils {
     }
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
+    odps.getRestClient().setRetryTimes(0);
 
     return odps;
   }
@@ -286,8 +287,10 @@ public class OdpsTestUtils {
     createTableForTest(newDefaultOdps(), tableName);
   }
 
-  public static void createTableForTest(Odps odps, String tableName) throws TunnelException, OdpsException,
-                                                                 IOException {
+  public static void createTableForTest(
+      Odps odps,
+      String tableName) throws OdpsException, IOException {
+
     if (!odps.tables().exists(tableName)) {
       TableSchema schema = new TableSchema();
       schema.addColumn(new Column("c1", OdpsType.BIGINT));
@@ -351,11 +354,11 @@ public class OdpsTestUtils {
     return tunnel;
   }
 
-  public static String getRandomTableName(String prefix) {
-    return prefix + "_" + getRandomTableName();
+  public static String getRandomName(String prefix) {
+    return prefix + "_" + getRandomName();
   }
 
-  public static String getRandomTableName() {
+  public static String getRandomName() {
     return UUID.randomUUID().toString().replace("-", "");
   }
 }

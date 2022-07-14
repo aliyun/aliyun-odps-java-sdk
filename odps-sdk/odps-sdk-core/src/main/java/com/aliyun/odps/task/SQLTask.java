@@ -24,28 +24,24 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.IOException;
-import java.io.StringReader;
 import java.net.URI;
 import java.util.*;
 
-import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.Project;
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.Task;
 import com.aliyun.odps.commons.util.EmptyIterator;
-import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.CSVRecordParser;
+import com.aliyun.odps.utils.OdpsConstants;
 import com.aliyun.odps.utils.StringUtils;
-import com.csvreader.CsvReader;
 import com.google.gson.*;
 
 /**
@@ -617,6 +613,11 @@ public class SQLTask extends Task {
 
     if (hints != null) {
       try {
+        // default schema priority: hints.get(ODPS_DEFAULT_SCHEMA) > odps.getCurrentSchema()
+        if (!hints.containsKey(OdpsConstants.ODPS_DEFAULT_SCHEMA)) {
+          hints.put(OdpsConstants.ODPS_DEFAULT_SCHEMA, odps.getCurrentSchema());
+        }
+
         String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
         task.setProperty("settings", json);
       } catch (Exception e) {

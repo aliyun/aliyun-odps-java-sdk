@@ -79,6 +79,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
         headers.put(Headers.ACCEPT_ENCODING, "x-snappy-framed");
         break;
       }
+      case ODPS_LZ4_FRAME: {
+        headers.put(Headers.ACCEPT_ENCODING, "x-lz4-frame");
+        break;
+      }
       default: {
         throw new TunnelException("invalid compression option.");
       }
@@ -152,6 +156,9 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
         } else if (content_encoding.equals("x-snappy-framed")) {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY,
               -1, 0);
+        } else if (content_encoding.equals("x-lz4-frame")) {
+          option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME,
+                  -1, 0);
         } else {
           throw new TunnelException("invalid content encoding");
         }
@@ -232,6 +239,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
           headers.put(Headers.ACCEPT_ENCODING, "x-snappy-framed");
           break;
         }
+        case ODPS_LZ4_FRAME: {
+          headers.put(Headers.ACCEPT_ENCODING, "x-lz4-frame");
+          break;
+        }
         default: {
           throw new TunnelException("invalid compression option.");
         }
@@ -261,9 +272,9 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
 
     Connection conn = null;
     try {
-      conn = restClient.connect(
-          ResourceBuilder.buildTableResource(session.getProjectName(), session.getTableName()),
-          "GET", params, headers);
+      String resource = ResourceBuilder.buildTableResource(
+          session.getProjectName(), session.getSchemaName(), session.getTableName());
+      conn = restClient.connect(resource, "GET", params, headers);
 
       Response resp = conn.getResponse();
       if (!resp.isOK()) {
@@ -280,6 +291,8 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_ZLIB, -1, 0);
         } else if (content_encoding.equals("x-snappy-framed")) {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY, -1, 0);
+        } else if (content_encoding.equals("x-lz4-frame")) {
+          option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME, -1, 0);
         } else {
           throw new TunnelException("invalid content encoding");
         }

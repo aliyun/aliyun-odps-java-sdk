@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package com.aliyun.odps.data;
 
@@ -9,7 +9,7 @@ import com.aliyun.odps.TableSchema;
 
 /**
  * ResultSet for SQLTask
- * 
+ *
  * @author emerson
  *
  */
@@ -19,6 +19,11 @@ public class ResultSet implements Iterable<Record>, Iterator<Record> {
   private long recordCount;
   private TableSchema schema;
 
+  /**
+   * @param recordIterator
+   * @param schema
+   * @param recordCount -1 when we don't know iterator size.
+   */
   public ResultSet(Iterator<Record> recordIterator, TableSchema schema, long recordCount) {
     this.recordIterator = recordIterator;
     this.recordCount = recordCount;
@@ -43,7 +48,7 @@ public class ResultSet implements Iterable<Record>, Iterator<Record> {
   public Record next() {
     return recordIterator.next();
   }
-  
+
   @Override
   public void remove() {
     recordIterator.remove();

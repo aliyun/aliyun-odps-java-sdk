@@ -4,6 +4,8 @@ import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -18,6 +20,8 @@ import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.simpleframework.xml.stream.Style;
 import com.aliyun.odps.simpleframework.xml.stream.Verbosity;
+import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.google.gson.reflect.TypeToken;
 
 
 public class SimpleXmlUtils {
@@ -136,5 +140,29 @@ public class SimpleXmlUtils {
             String value = node.getValue();
             return value == null ? "" : value;
         }
+    }
+
+    public static class JsonMapConverter implements Converter<Map<String, String>> {
+      @Override
+      public void write(OutputNode node, Map<String, String> value) throws Exception {
+        if (value == null) {
+          node.remove();
+        }
+
+        node.setValue(GsonObjectBuilder.get().toJson(value));
+        node.commit();
+      }
+
+      @Override
+      public Map<String, String> read(InputNode node) throws Exception {
+        String value = node.getValue();
+        if (value == null) {
+          return new HashMap<>();
+        } else {
+          return GsonObjectBuilder
+              .get()
+              .fromJson(value, new TypeToken<Map<String, String>>() {}.getType());
+        }
+      }
     }
 }

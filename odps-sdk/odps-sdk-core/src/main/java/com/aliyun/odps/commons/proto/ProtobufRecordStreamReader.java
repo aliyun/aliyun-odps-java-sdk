@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.zip.InflaterInputStream;
 
 import org.xerial.snappy.SnappyFramedInputStream;
+import net.jpountz.lz4.LZ4FrameInputStream;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
@@ -105,6 +106,8 @@ public class ProtobufRecordStreamReader implements RecordReader {
         this.in = CodedInputStream.newInstance(new InflaterInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
         this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
+        this.in = CodedInputStream.newInstance(new LZ4FrameInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
         this.in = CodedInputStream.newInstance((bin));
       } else {
@@ -143,7 +146,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
       int checkSum = 0;
 
       if (in.isAtEnd()) {
-        throw new IOException("No more record");
+        return null;
       }
 
       int i = getTagFieldNumber(in);

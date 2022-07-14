@@ -61,7 +61,7 @@ import com.aliyun.odps.data.Record;
  * Columns）可以由
  * {@link com.aliyun.odps.mapred.conf.JobConf#setOutputKeySortColumns(String[])}
  * 进行指定，如果没有指定，使用 key中的所有列做排序。
- * <li>按 Key 对 Values 分组：经过第一步的归并排序，所有的 Key/Value 对都已经有序，这是会使用
+ * <li>按 Key 对 Values 分组：经过第一步的归并排序，所有的 Key/Value 对都已经有序，这时会使用
  * {@link com.aliyun.odps.mapred.conf.JobConf#setOutputGroupingColumns(String[])}
  * 指定的分组列对排好序的 Key/Value 对进行分组，如果没有指定，则默认使用key中的所有列做分组。
  * <li>循环调用 reduce 方法，传入 Key 和 Value迭代器进行规约计算。

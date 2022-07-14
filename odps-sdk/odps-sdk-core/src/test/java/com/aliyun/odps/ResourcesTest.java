@@ -65,7 +65,7 @@ public class ResourcesTest extends TestBase {
     assertEquals(r.getType(), Resource.Type.FILE);
   }
 
-  @Test(expected = OdpsException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testNotExists() throws OdpsException {
     FileResource r = odps.resources().createTempResource("abcdef");
   }
@@ -96,16 +96,14 @@ public class ResourcesTest extends TestBase {
     assertEquals(r.getType(), Resource.Type.PY);
   }
 
-  @Test(expected = NullPointerException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testTypeNull() throws OdpsException {
     URL testFile = Odps.class.getClassLoader().getResource("resource.jar");
     assertNotNull(testFile);
-    FileResource
-        r =
-        odps.resources().createTempResource(odps.getDefaultProject(), testFile.getFile(), null);
+    FileResource r = odps.resources().createTempResource(odps.getDefaultProject(), testFile.getFile(), null);
   }
 
-  @Test(expected = NullPointerException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testFileNull() throws OdpsException {
     FileResource r = odps.resources().createTempResource(null);
   }

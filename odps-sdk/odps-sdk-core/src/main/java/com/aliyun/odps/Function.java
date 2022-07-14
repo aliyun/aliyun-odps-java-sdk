@@ -25,15 +25,25 @@ import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-import com.aliyun.odps.Resource.ResourceModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.utils.NameSpaceSchemaUtils;
+import com.aliyun.odps.utils.TagUtils;
+import com.aliyun.odps.utils.TagUtils.OBJECT_TYPE;
+import com.aliyun.odps.utils.TagUtils.OPERATION_TYPE;
+import com.aliyun.odps.utils.TagUtils.ObjectRef;
+import com.aliyun.odps.utils.TagUtils.ObjectTagInfo;
+import com.aliyun.odps.utils.TagUtils.SetObjectTagInput;
+import com.aliyun.odps.utils.TagUtils.SimpleTag;
+import com.aliyun.odps.utils.TagUtils.TagRef;
 
 /**
  * Function表示ODPS中的函数
@@ -47,6 +57,10 @@ public class Function extends LazyLoad {
    */
   @Root(name = "Function", strict = false)
   static class FunctionModel {
+
+    @Element(name = "SchemaName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String schemaName;
 
     @Element(name = "Alias", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
@@ -76,11 +90,13 @@ public class Function extends LazyLoad {
   }
 
   FunctionModel model;
+  private ObjectTagInfo functionTagInfo;
   String project;
   RestClient client;
   Odps odps;
 
   public Function() {
+    // TODO: replace with a static builder
     this.model = new FunctionModel();
   }
 
@@ -111,6 +127,7 @@ public class Function extends LazyLoad {
    *     函数名
    */
   public void setName(String name) {
+    // TODO: replace with a static builder
     model.name = name;
   }
 
@@ -167,6 +184,7 @@ public class Function extends LazyLoad {
    */
   @Deprecated
   public void setClassType(String classType) {
+    // TODO: replace with a static builder
     model.classType = classType;
   }
 
@@ -177,6 +195,7 @@ public class Function extends LazyLoad {
    *     函数使用的类名
    */
   public void setClassPath(String classPath) {
+    // TODO: replace with a static builder
     model.classType = classPath;
   }
 
@@ -191,15 +210,10 @@ public class Function extends LazyLoad {
     }
 
     /* copy */
-    ArrayList<Resource> resources = new ArrayList<Resource>();
+    ArrayList<Resource> resources = new ArrayList<>();
     if (model.resources != null) {
-      Map<String, String> resourceNames = parseResourcesName(model.resources);
-
-      for (Map.Entry<String, String> entry : resourceNames.entrySet()) {
-        ResourceModel rm = new ResourceModel();
-        rm.name = entry.getKey();
-        Resource res = Resource.getResource(rm, entry.getValue(), odps);
-        resources.add(res);
+      for (String resourceFullName : model.resources) {
+        resources.add(Resource.from(project, resourceFullName, odps));
       }
     }
 
@@ -213,6 +227,7 @@ public class Function extends LazyLoad {
    *     function 对应资源的名字列表
    * @return 资源名称与其所属 project 对: Map<resource_name, project_name>
    */
+  @Deprecated
   private Map<String, String> parseResourcesName(List<String> resources) {
     Map<String, String> resourceMap = new HashMap<>();
 
@@ -235,12 +250,9 @@ public class Function extends LazyLoad {
   }
 
   /**
-   * 获得函数相关的资源名称列表。
-   *
-   * @return 资源名称列表
-   *     若该资源与 UDF 在同一 project, 则返回 resourcename
-   *     若该资源与 UDF 在不同 project, 返回格式为 projectname/resourcename
+   * This method is deprecated. See {@link Function#getResourceFullNames()}
    */
+  @Deprecated
   public List<String> getResourceNames() {
     if (model.resources == null && client != null) {
       lazyLoad();
@@ -262,12 +274,26 @@ public class Function extends LazyLoad {
   }
 
   /**
+   * Get the full names of resources that this function depends on. This method lazy loads the
+   * function information, and a {@link ReloadException} will be thrown if lazy loading failed.
+   *
+   * @return Full names. Possible patters:
+   * <project_name>/resources/<resource_name>
+   * <project_name>/schemas/<schema_name>/resources/<resource_name>
+   */
+  public List<String> getResourceFullNames() {
+    lazyLoad();
+    return model.resources;
+  }
+
+  /**
    * 设置函数依赖的相关资源
    *
    * @param resources
    *     资源列表
    */
   public void setResources(List<String> resources) {
+    // TODO: replace with a static builder
     model.resources = new ArrayList<>();
     model.resources.addAll(resources);
   }
@@ -279,6 +305,11 @@ public class Function extends LazyLoad {
    */
   public String getProject() {
     return project;
+  }
+
+  public String getSchemaName() {
+    lazyLoad();
+    return model.schemaName;
   }
 
   /**
@@ -314,18 +345,140 @@ public class Function extends LazyLoad {
   @Override
   public void reload() throws OdpsException {
     String resource = ResourceBuilder.buildFunctionResource(project, model.name);
-    model = client.request(FunctionModel.class, resource, "GET", null);
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(model.schemaName);
+    model = client.request(FunctionModel.class, resource, "GET", params);
+    setLoaded(true);
+  }
+
+  private void reloadTagInfo() {
+    String resource = ResourceBuilder.buildFunctionResource(project, model.name);
+    // Convert the OdpsException to a ReloadException the keep the consistency of the getter's
+    // method signature.
+    try {
+      functionTagInfo = TagUtils.getObjectTagInfo(resource, null, client);
+    } catch (OdpsException e) {
+      throw new ReloadException(e);
+    }
   }
 
   public void updateOwner(String newOwner) throws OdpsException {
     String method = "PUT";
     String resource = ResourceBuilder.buildFunctionResource(project, model.name);
-    HashMap<String, String> params = new HashMap<String, String>();
+    HashMap<String, String> params = new HashMap<>();
     params.put("updateowner", null);
-    HashMap<String, String> headers = new HashMap<String, String>();
+    HashMap<String, String> headers = new HashMap<>();
     headers.put(Headers.ODPS_OWNER, newOwner);
-    FunctionModel model = new FunctionModel();
     client.request(resource, method, params, headers, null);
     this.model.owner = newOwner;
+  }
+
+  /**
+   * Get {@link Tag}(s) attached to this function.
+   * @return list of {@link Tag}
+   */
+  public List<Tag> getTags() {
+    reloadTagInfo();
+    return TagUtils.getTags(functionTagInfo, odps);
+  }
+
+  /**
+   * Get simple tags attached to this function.
+   * @return a map from category to key value pairs
+   */
+  public Map<String, Map<String, String>> getSimpleTags() {
+    reloadTagInfo();
+    return TagUtils.getSimpleTags(functionTagInfo);
+  }
+
+  /**
+   * Attach a {@link Tag} to this function. The function and tag should be in a same project.
+   *
+   * @param tag tag to attach
+   */
+  public void addTag(Tag tag) throws OdpsException {
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.FUNCTION,
+        project,
+        model.name,
+        null);
+    TagRef tagRef = new TagRef(tag.getClassification(), tag.getName());
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.SET, objectRef, tagRef, null);
+
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
+  }
+
+  /**
+   * Attach a simple tag to this function. A simple tag is a triad consisted of category, tag key,
+   * and tag value.
+   *
+   * @param category simple tag category, could be nul.
+   * @param key simple tag key, cannot be null.
+   * @param value simple tag value, cannot be null.
+   */
+  public void addSimpleTag(
+      String category,
+      String key,
+      String value) throws OdpsException {
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.FUNCTION,
+        project,
+        model.name,
+        null);
+    SimpleTag simpleTag = new SimpleTag(category, Collections.singletonMap(key, value));
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.SET, objectRef, null, simpleTag);
+
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
+  }
+
+  /**
+   * Remove a {@link Tag}.
+   *
+   * @param tag tag to remove.
+   */
+  public void removeTag(Tag tag) throws OdpsException {
+
+    Objects.requireNonNull(tag);
+
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.FUNCTION,
+        project,
+        model.name,
+        null);
+    TagRef tagRef = new TagRef(tag.getClassification(), tag.getName());
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.UNSET, objectRef, tagRef, null);
+
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
+  }
+
+  /**
+   * Remove a simple tag. A simple tag is a triad consisted of category, tag key, and
+   * tag value.
+   *
+   * @param category category.
+   * @param key key.
+   * @param value value.
+   * @throws OdpsException
+   */
+  public void removeSimpleTag(
+      String category,
+      String key,
+      String value) throws OdpsException {
+
+    Objects.requireNonNull(category);
+    Objects.requireNonNull(key);
+    Objects.requireNonNull(value);
+
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.FUNCTION,
+        project,
+        model.name,
+        null);
+    SimpleTag simpleTag = new SimpleTag(category, Collections.singletonMap(key, value));
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.UNSET, objectRef, null, simpleTag);
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
   }
 }

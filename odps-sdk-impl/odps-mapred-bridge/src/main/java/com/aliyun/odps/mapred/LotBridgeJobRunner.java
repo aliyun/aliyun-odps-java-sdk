@@ -64,7 +64,7 @@ public class LotBridgeJobRunner extends BridgeJobRunner {
     task.setName(taskName);
 
     try {
-      task.setQuery(SqlGenerator.generate(job, jobId, metaExplorer));
+      task.setQuery(SqlGenerator.generate(job, jobId, metaExplorer, aliasToTempResource));
     } catch (Exception e) {
       task.setProperty(SessionState.MR_EXECUTION_SQL_ERROR, e.getMessage());
       e.printStackTrace();

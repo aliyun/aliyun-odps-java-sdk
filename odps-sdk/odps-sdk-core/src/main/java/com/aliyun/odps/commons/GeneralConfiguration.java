@@ -26,6 +26,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.rest.ResourceBuilder;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Created by dongxiao.dx on 2015/9/7.
@@ -118,6 +119,22 @@ public class GeneralConfiguration {
    */
   public String getResource(String projectName, String tableName) {
     return ResourceBuilder.buildTableResource(projectName, tableName);
+  }
+
+  /**
+   * Get the URI of the given table.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @return
+   */
+  public String getResource(String projectName, String schemaName, String tableName) {
+    if (!StringUtils.isNullOrEmpty(schemaName)) {
+      return ResourceBuilder.buildTableResource(projectName, schemaName, tableName);
+    } else {
+      return getResource(projectName, tableName);
+    }
   }
 
   /**

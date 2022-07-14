@@ -32,6 +32,7 @@ public class TableResource extends Resource {
    * 构造此类的对象
    */
   public TableResource() {
+    // TODO: replace with a static builder
     this(null, null);
   }
 
@@ -43,6 +44,7 @@ public class TableResource extends Resource {
    *     对应的表名
    */
   public TableResource(String tableName) {
+    // TODO: replace with a static builder
     this(tableName, null);
   }
 
@@ -55,6 +57,7 @@ public class TableResource extends Resource {
    *     所属的{@link Project}
    */
   public TableResource(String tableName, String projectName) {
+    // TODO: replace with a static builder
     this(tableName, projectName, null);
   }
 
@@ -70,6 +73,7 @@ public class TableResource extends Resource {
    */
   public TableResource(String tableName, String projectName,
                        PartitionSpec partition) {
+    // TODO: replace with a static builder
     super();
     if (projectName != null) {
       model.sourceTableName = projectName + "." + tableName;
@@ -95,6 +99,7 @@ public class TableResource extends Resource {
    */
   @Deprecated
   public TableResource(Resource resource) {
+    // TODO: replace with a static builder
     super(resource.model, resource.project, resource.odps);
 
     if (model == null
@@ -129,16 +134,24 @@ public class TableResource extends Resource {
     String[] res = src.split(" partition\\(");
     src = res[0];
 
-    int off = src.indexOf('.');
-    if (off == -1) {
-      throw new IllegalArgumentException("Malformed source table name:" + src);
+    String[] names = src.trim().split("\\.");
+    String projectName;
+    String schemaName;
+    String tableName;
+    if (names.length == 2) {
+      projectName = names[0];
+      schemaName = null;
+      tableName = names[1];
+    } else if (names.length == 3) {
+      projectName = names[0];
+      schemaName = names[1];
+      tableName = names[2];
     } else {
-      String projName = src.substring(0, off).trim();
-      String tblName = src.substring(off + 1, src.length()).trim();
-      TableModel tm = new TableModel();
-      tm.name = tblName;
-      return new Table(tm, projName, odps);
+      throw new IllegalArgumentException("Malformed source table name:" + src);
     }
+    TableModel tableModel = new TableModel();
+    tableModel.name = tableName;
+    return new Table(tableModel, projectName, schemaName, odps);
   }
 
   /**

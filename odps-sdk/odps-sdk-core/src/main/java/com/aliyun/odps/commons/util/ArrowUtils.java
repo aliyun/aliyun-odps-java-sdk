@@ -21,17 +21,19 @@ package com.aliyun.odps.commons.util;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.type.DecimalTypeInfo;
-import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.*;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.IntervalUnit;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.codehaus.jackson.map.type.MapType;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class ArrowUtils {
@@ -60,9 +62,44 @@ public class ArrowUtils {
     private static Field columnToArrowField(Column fieldColumn) {
         String fieldName = fieldColumn.getName();
         TypeInfo typeInfo = fieldColumn.getTypeInfo();
-        ArrowType arrowType = getArrowType(typeInfo);
-        return fieldColumn.isNullable() ? Field.nullable(fieldName, arrowType) : new Field(fieldName, new FieldType(false, arrowType, null, null), null);
+        return convertTypeInfoToArrowField(fieldName, typeInfo, fieldColumn.isNullable());
     }
+
+    private static Field convertTypeInfoToArrowField(String fieldName, TypeInfo typeInfo, boolean nullable) {
+        ArrowType arrowType = getArrowType(typeInfo);
+        return new Field(fieldName, new FieldType(nullable, arrowType, null, null), generateSubFields(typeInfo));
+    }
+
+    private static List<Field> generateSubFields(TypeInfo typeInfo) {
+        if (typeInfo instanceof ArrayTypeInfo) {
+            ArrayTypeInfo arrayTypeInfo = (ArrayTypeInfo)typeInfo;
+            TypeInfo subti = arrayTypeInfo.getElementTypeInfo();
+            return Arrays.asList(convertTypeInfoToArrowField("element", subti, true));
+        } else if (typeInfo instanceof MapTypeInfo) {
+            MapTypeInfo mapTypeInfo = (MapTypeInfo)typeInfo;
+            TypeInfo keyti = mapTypeInfo.getKeyTypeInfo(), valti = mapTypeInfo.getValueTypeInfo();
+            return Arrays.asList(
+                new Field("element", new FieldType(false, new ArrowType.Struct(), null, null),
+                    Arrays.asList(
+                        convertTypeInfoToArrowField("key", keyti, false),
+                        convertTypeInfoToArrowField("value", valti, true)
+                    )
+                )
+            );
+        } else if (typeInfo instanceof StructTypeInfo) {
+            StructTypeInfo structTypeInfo = (StructTypeInfo)typeInfo;
+            ArrayList<Field> sfields = new ArrayList<>();
+            List<TypeInfo> subTypeInfos = structTypeInfo.getFieldTypeInfos();
+            List<String> subNames = structTypeInfo.getFieldNames();
+            for(int i = 0; i < structTypeInfo.getFieldCount(); i++) {
+                sfields.add(convertTypeInfoToArrowField(subNames.get(i), subTypeInfos.get(i), true));
+            }
+            return sfields;
+        } else {
+            return null;
+        }
+    }
+
 
     private static ArrowType getArrowType(TypeInfo typeInfo) {
         ArrowType arrowType = null;
@@ -113,9 +150,17 @@ public class ArrowUtils {
                 arrowType = new ArrowType.List();
                 break;
             case INTERVAL_DAY_TIME:
+                arrowType = new ArrowType.Interval(IntervalUnit.DAY_TIME);
+                break;
             case INTERVAL_YEAR_MONTH:
+                arrowType = new ArrowType.Interval(IntervalUnit.YEAR_MONTH);
+                break;
             case STRUCT:
+                arrowType = new ArrowType.Struct();
+                break;
             case MAP:
+                arrowType = new ArrowType.Map(false);
+                break;
             case VOID:
             default:
                 throw new UnsupportedOperationException("Unsupported type: " + typeInfo.getOdpsType());

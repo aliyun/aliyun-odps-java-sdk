@@ -27,6 +27,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,6 +55,7 @@ import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
 import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.commons.util.backoff.FixedBackOffStrategy;
+import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.GsonBuilder;
 
 /**
@@ -127,6 +129,7 @@ public class RestClient {
   private boolean ignoreCerts = DEFAULT_IGNORE_CERTS;
 
   private String defaultProject;
+  private String currentSchema;
 
   private static final String
       USER_AGENT_PREFIX =
@@ -375,15 +378,9 @@ public class RestClient {
   private void handleErrorResponse(Response resp) throws OdpsException {
 
     if (!resp.isOK()) {
-      ErrorMessage error = null;
+      ErrorMessage error = ErrorMessage.from(resp.getBody());
 
-      try {
-        error = SimpleXmlUtils.unmarshal(resp, ErrorMessage.class);
-      } catch (Exception e) {
-        //
-      }
-
-      OdpsException e = null;
+      OdpsException e;
       if (resp.getStatus() == 404) {
         if (error != null) {
           e = new NoSuchObjectException(error.getMessage(), new RestException(error));
@@ -551,6 +548,14 @@ public class RestClient {
     this.defaultProject = defaultProject;
   }
 
+  public String getCurrentSchema() {
+    return currentSchema;
+  }
+
+  public void setCurrentSchema(String schema) {
+    this.currentSchema = schema;
+  }
+
   public String getEndpoint() {
     return endpoint;
   }
@@ -560,7 +565,7 @@ public class RestClient {
     return transport;
   }
 
-  protected Request buildRequest(String resource, String method, Map<String, String> params,
+  public Request buildRequest(String resource, String method, Map<String, String> params,
                                  Map<String, String> headers) {
     return buildRequest(resource, method, params, headers, this.endpoint);
   }
@@ -582,10 +587,10 @@ public class RestClient {
     url.append(endpoint).append(resource);
 
     if (params == null) {
-      params = new HashMap<String, String>();
+      params = new HashMap<>();
     }
 
-    if (!params.containsKey("curr_project") && defaultProject != null) {
+    if (!params.containsKey("curr_project") && !StringUtils.isNullOrEmpty(defaultProject)) {
       params.put("curr_project", defaultProject);
     }
 
