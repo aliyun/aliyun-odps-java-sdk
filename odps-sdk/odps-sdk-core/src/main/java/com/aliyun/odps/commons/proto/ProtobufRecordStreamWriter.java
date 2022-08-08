@@ -19,10 +19,13 @@
 
 package com.aliyun.odps.commons.proto;
 
+import static com.aliyun.odps.data.ArrayRecord.DEFAULT_CALENDAR;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.AbstractChar;
+import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.IntervalDayTime;
 import com.aliyun.odps.data.IntervalYearMonth;
@@ -48,7 +51,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -195,13 +202,13 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case DATETIME: {
-        Date value = (Date) v;
+        ZonedDateTime value = (ZonedDateTime) v;
 
         long longValue;
         if (!shouldTransform) {
-          longValue = ((Date) v).getTime();
+          longValue = value.toInstant().toEpochMilli();
         } else {
-          longValue = DateUtils.date2ms(value, DateUtils.LOCAL_CAL);
+          longValue = DateUtils.date2ms(Date.from(value.toInstant()), DateUtils.LOCAL_CAL);
         }
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
@@ -214,8 +221,9 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case TIMESTAMP: {
-        int nano = ((Timestamp) v).getNanos();
-        long value = (((Timestamp) v).getTime() - (nano / 1000000)) / 1000;
+        Instant instant = (Instant) v;
+        int nano = instant.getNano();
+        long value = instant.getEpochSecond();
         crc.update(value);
         crc.update(nano);
         out.writeSInt64NoTag(value);

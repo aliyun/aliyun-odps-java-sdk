@@ -3,7 +3,9 @@ package com.aliyun.odps.data;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -39,7 +41,7 @@ public class OdpsTypeTransformer {
   static {
     ODPS_TYPE_MAPPER.put(OdpsType.BIGINT, Long.class);
     ODPS_TYPE_MAPPER.put(OdpsType.STRING, String.class);
-    ODPS_TYPE_MAPPER.put(OdpsType.DATETIME, java.util.Date.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.DATETIME, ZonedDateTime.class);
     ODPS_TYPE_MAPPER.put(OdpsType.DOUBLE, Double.class);
     ODPS_TYPE_MAPPER.put(OdpsType.BOOLEAN, Boolean.class);
     ODPS_TYPE_MAPPER.put(OdpsType.DECIMAL, BigDecimal.class);
@@ -50,7 +52,7 @@ public class OdpsTypeTransformer {
     ODPS_TYPE_MAPPER.put(OdpsType.TINYINT, Byte.class);
     ODPS_TYPE_MAPPER.put(OdpsType.SMALLINT, Short.class);
     ODPS_TYPE_MAPPER.put(OdpsType.DATE, LocalDate.class);
-    ODPS_TYPE_MAPPER.put(OdpsType.TIMESTAMP, java.sql.Timestamp.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.TIMESTAMP, Instant.class);
     ODPS_TYPE_MAPPER.put(OdpsType.FLOAT, Float.class);
     ODPS_TYPE_MAPPER.put(OdpsType.CHAR, Char.class);
     ODPS_TYPE_MAPPER.put(OdpsType.BINARY, Binary.class);
@@ -104,6 +106,14 @@ public class OdpsTypeTransformer {
   private static void validateDateTime(java.util.Date value) {
     if ((value.getTime() > DATETIME_MAX_TICKS || value.getTime() < DATETIME_MIN_TICKS)) {
       throw new IllegalArgumentException("InvalidData: Datetime out of range.");
+    }
+  }
+
+  private static void validateDateTime(ZonedDateTime value) {
+    long millis = value.toInstant().toEpochMilli();
+    if (millis < DATETIME_MIN_TICKS || millis > DATETIME_MAX_TICKS) {
+      throw new IllegalArgumentException(
+          String.format("InvalidData: Datetime(%s) out of range.", millis));
     }
   }
 
@@ -192,8 +202,13 @@ public class OdpsTypeTransformer {
         validateBigint((Long) value);
         break;
       case DATETIME:
+
+        if (value instanceof java.util.Date) {
+          value  = ArrayRecord.dateToZonedDateTime((java.util.Date) value);
+        }
+
         if (strict) {
-          validateDateTime((java.util.Date) value);
+          validateDateTime((ZonedDateTime) value);
         }
         break;
       case DECIMAL:
@@ -214,6 +229,11 @@ public class OdpsTypeTransformer {
       case DATE:
         if (value instanceof java.util.Date) {
           value = ArrayRecord.dateToLocalDate((java.util.Date) value, ArrayRecord.DEFAULT_CALENDAR);
+        }
+        break;
+      case TIMESTAMP:
+        if (value instanceof java.sql.Timestamp) {
+          value = ArrayRecord.timestampToInstant((java.sql.Timestamp) value);
         }
         break;
       default:

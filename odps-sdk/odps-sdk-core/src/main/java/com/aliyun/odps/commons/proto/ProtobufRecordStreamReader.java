@@ -24,7 +24,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -250,7 +254,8 @@ public class ProtobufRecordStreamReader implements RecordReader {
       case DATETIME:{
         long v = in.readSInt64();
         crc.update(v);
-        return shouldTransform ? DateUtils.ms2date(v, DateUtils.LOCAL_CAL) : new java.util.Date(v);
+        return shouldTransform ? DateUtils.ms2date(v, DateUtils.LOCAL_CAL).toInstant().atZone(ZoneId.systemDefault()) :
+               Instant.ofEpochMilli(v).atZone(ZoneId.systemDefault());
       }
       case DATE: {
         long v = in.readSInt64();
@@ -270,9 +275,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
         int nano = in.readSInt32();
         crc.update(time);
         crc.update(nano);
-        Timestamp t = new Timestamp(time * 1000);
-        t.setNanos(nano);
-        return t;
+        return Instant.ofEpochSecond(time, nano);
       }
       case DECIMAL: {
         int size = in.readRawVarint32();
