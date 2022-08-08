@@ -20,14 +20,23 @@
 package com.aliyun.odps.data;
 
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.chrono.IsoEra;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -51,6 +60,9 @@ import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
 
+import sun.security.provider.SHA;
+import sun.util.calendar.LocalGregorianCalendar;
+
 public class ArrayRecordTest {
 
   private static final String STRING_CHARSET = "UTF-8";
@@ -60,6 +72,12 @@ public class ArrayRecordTest {
       .setLenient(true)
       .setTimeZone(TimeZone.getTimeZone("GMT"))
       .build();
+
+  private static final Calendar
+      SHANGHAI_CALENDER =
+      new Calendar.Builder().setCalendarType("iso8601").setLenient(true)
+          .setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"))
+          .build();
 
   private static final List<LocalDate> LOCAL_DATES;
   private static final List<java.sql.Date> DATES;
@@ -81,6 +99,23 @@ public class ArrayRecordTest {
     }
     DATES = Collections.unmodifiableList(dates);
   }
+
+  private static final Collection<String[]>
+      notSameDateTimes = Arrays.asList(new String[]{"0001-01-01 00:00:00", "0001-01-01 00:05:43"},
+                                        new String[]{"0011-11-03 00:00:00", "0011-11-03 00:05:43"},
+                                        new String[]{"1900-01-01 00:00:00", "1900-01-01 00:05:43"});
+
+  private static final List<String> sameDateTimes =
+      Arrays.asList(
+                    "1927-12-31 23:54:07",
+                    "1928-01-01 00:00:00",
+                    "1939-08-01 22:22:22",
+                    "1986-05-04 00:00:00",
+                    "1992-01-01 00:00:30",
+                    "9988-09-27 09:09:09",
+                    "1970-01-01 00:00:00",
+                    "1970-01-01 08:00:00",
+                    "9999-12-31 23:59:59");
 
   @Test
   public void testTypeInfo() {
@@ -542,6 +577,36 @@ public class ArrayRecordTest {
       return false;
     }
     return true;
+  }
+
+  @Test
+  public void testDateZonedDatetimeTransfer() throws Exception {
+//    testDateToZonedDateTime(GMT_CALENDER);
+    testDateToZonedDateTime(SHANGHAI_CALENDER);
+  }
+
+  public void testDateToZonedDateTime(Calendar cal) throws Exception {
+    Calendar calendar = (Calendar) cal.clone();
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(calendar.getTimeZone().toZoneId());
+
+    SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    dateFormatter.setCalendar(calendar);
+
+    for (String dateStr : sameDateTimes) {
+      java.util.Date date = dateFormatter.parse(dateStr);
+      ZonedDateTime dateTime = ArrayRecord.dateToZonedDateTime(date);
+      Assert.assertEquals(dateTime, ZonedDateTime.parse(dateStr, formatter));
+      Assert.assertEquals(dateStr, formatter.format(dateTime));
+      Assert.assertEquals(date, ArrayRecord.zonedDateTimeToDate(dateTime));
+    }
+
+    for (String[] pair : notSameDateTimes) {
+      java.util.Date date = dateFormatter.parse(pair[0]);
+      ZonedDateTime dateTime = ArrayRecord.dateToZonedDateTime(date);
+      Assert.assertNotEquals(dateTime, ZonedDateTime.parse(pair[0], formatter));
+      Assert.assertEquals(pair[1], formatter.format(dateTime));
+      Assert.assertEquals(date, ArrayRecord.zonedDateTimeToDate(dateTime));
+    }
   }
 
   @Test

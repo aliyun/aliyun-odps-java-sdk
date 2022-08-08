@@ -22,7 +22,12 @@ package com.aliyun.odps.data;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.chrono.IsoChronology;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -51,7 +56,7 @@ public class ArrayRecord implements Record {
   private static final Long DEFAULT_FIELD_MAX_SIZE = 8 * 1024 * 1024L;
   private static final String DEFAULT_CHARSET = "utf-8";
 
-  static final Calendar DEFAULT_CALENDAR = new Calendar.Builder()
+  public static final Calendar DEFAULT_CALENDAR = new Calendar.Builder()
       .setCalendarType("iso8601")
       .setLenient(true)
       .setTimeZone(TimeZone.getTimeZone("GMT"))
@@ -219,14 +224,27 @@ public class ArrayRecord implements Record {
     return getBoolean(getColumnIndex(columnName));
   }
 
-  @Override
   public void setDatetime(int idx, Date value) {
     set(idx, value);
   }
 
-  @Override
+  @Deprecated
   public Date getDatetime(int idx) {
+    Object value = getInternal(idx);
+
+    if (value instanceof ZonedDateTime) {
+      // default gmt calendar or local cal
+      return zonedDateTimeToDate((ZonedDateTime) value);
+    }
+    return (Date) value;
+  }
+
+  public ZonedDateTime getDatetimeAsZonedDateTime(int idx) {
     return getInternal(idx);
+  }
+
+  public ZonedDateTime getDatetimeAsZonedDateTime(String columnName) {
+    return getInternal(getColumnIndex(columnName));
   }
 
   @Override
@@ -234,7 +252,15 @@ public class ArrayRecord implements Record {
     setDatetime(getColumnIndex(columnName), value);
   }
 
-  @Override
+  public void setDatetimeAsZonedDateTime(String columnName, ZonedDateTime value) {
+    set(getColumnIndex(columnName), value);
+  }
+
+  public void setDatetimeAsZonedDateTime(int idx, ZonedDateTime value) {
+    set(idx,  value);
+  }
+
+  @Deprecated
   public Date getDatetime(String columnName) {
     return getDatetime(getColumnIndex(columnName));
   }
@@ -461,6 +487,20 @@ public class ArrayRecord implements Record {
         continue;
       }
       switch (elementTypeInfo.getOdpsType()) {
+        case DATETIME:
+          if (o instanceof ZonedDateTime) {
+            ret.add(zonedDateTimeToDate((ZonedDateTime) o));
+          } else {
+            ret.add(o);
+          }
+          break;
+        case TIMESTAMP:
+          if (o instanceof Instant) {
+            ret.add(instantToTimestamp((Instant) o));
+          } else {
+            ret.add(o);
+          }
+          break;
         case DATE:
           ret.add(new java.sql.Date(localDateToDate((LocalDate) o, DEFAULT_CALENDAR).getTime()));
           break;
@@ -551,6 +591,16 @@ public class ArrayRecord implements Record {
       if (value != null) {
         TypeInfo valueTypeInfo = typeInfo.getValueTypeInfo();
         switch (typeInfo.getValueTypeInfo().getOdpsType()) {
+          case DATETIME:
+            if (value instanceof ZonedDateTime) {
+              value = zonedDateTimeToDate((ZonedDateTime) value);
+            }
+            break;
+          case TIMESTAMP:
+            if (value instanceof Instant) {
+              value = instantToTimestamp((Instant) value);
+            }
+            break;
           case DATE:
             value =
                 new java.sql.Date(localDateToDate((LocalDate) value, DEFAULT_CALENDAR).getTime());
@@ -567,9 +617,24 @@ public class ArrayRecord implements Record {
         }
       }
 
-      if (key != null && OdpsType.DATE.equals(typeInfo.getKeyTypeInfo().getOdpsType())) {
-        key = new java.sql.Date(localDateToDate((LocalDate) key, DEFAULT_CALENDAR).getTime());
+      if (key != null) {
+        switch (typeInfo.getKeyTypeInfo().getOdpsType()) {
+          case DATE:
+            key = new java.sql.Date(localDateToDate((LocalDate) key, DEFAULT_CALENDAR).getTime());
+            break;
+          case DATETIME:
+            if (key instanceof ZonedDateTime) {
+              key = zonedDateTimeToDate((ZonedDateTime) key);
+            }
+            break;
+          case TIMESTAMP:
+            if (key instanceof Instant) {
+              key = instantToTimestamp((Instant) key);
+            }
+            break;
+        }
       }
+
 
       ret.put(key, value);
     }
@@ -905,11 +970,34 @@ public class ArrayRecord implements Record {
   }
 
   public void setTimestamp(int idx, Timestamp value) {
-    set(idx, value);
+    set(idx, timestampToInstant(value));
+  }
+
+  public void setTimestampAsInstant(int idx, Instant instant) {
+    set(idx, instant);
+  }
+
+  public void setTimestampAsInstant(String columnName, Instant instant) {
+    setTimestampAsInstant(getColumnIndex(columnName), instant);
+  }
+
+  public Instant getTimestampAsInstant(int idx) {
+    return getInternal(idx);
+  }
+
+  public Instant getTimestampAsInstant(String columnName) {
+    return getInternal(getColumnIndex(columnName));
   }
 
   public Timestamp getTimestamp(int idx) {
-    return getInternal(idx);
+    Object value = getInternal(idx);
+
+    if (value instanceof Instant) {
+      // default gmt calendar or local cal
+      return instantToTimestamp(getInternal(idx));
+    }
+
+    return (Timestamp) value;
   }
 
   public void setTimestamp(String columnName, Timestamp value) {
@@ -1016,6 +1104,16 @@ public class ArrayRecord implements Record {
       }
 
       switch (fieldTypeInfo.getOdpsType()) {
+        case DATETIME:
+          if (o instanceof ZonedDateTime) {
+            o = zonedDateTimeToDate((ZonedDateTime) o);
+          }
+          break;
+        case TIMESTAMP:
+          if (o instanceof Instant) {
+            o = instantToTimestamp((Instant) o);
+          }
+          break;
         case DATE:
           o = new java.sql.Date(localDateToDate((LocalDate) o, DEFAULT_CALENDAR).getTime());
           break;
@@ -1183,6 +1281,49 @@ public class ArrayRecord implements Record {
           // Starts from 1
           calendar.get(Calendar.MONTH) + 1,
           calendar.get(Calendar.DAY_OF_MONTH));
+    }
+
+    return null;
+  }
+
+  static ZonedDateTime dateToZonedDateTime(java.util.Date date) {
+    if (date != null) {
+      // Convert Date to Instant.
+      Instant instant = Instant.ofEpochMilli(date.getTime());
+      // Instant + default time zone.
+      return instant.atZone(ZoneId.systemDefault());
+    }
+
+    return null;
+  }
+
+  static java.util.Date zonedDateTimeToDate(ZonedDateTime dateTime) {
+    if (dateTime != null) {
+      return new Date(dateTime.withZoneSameInstant(ZoneId.systemDefault()).toInstant().toEpochMilli());
+    }
+
+    return null;
+  }
+
+  static Instant timestampToInstant(java.sql.Timestamp timestamp) {
+    if (timestamp != null) {
+      return timestamp.toInstant().atZone(ZoneId.systemDefault())
+          .withZoneSameInstant(DEFAULT_CALENDAR.getTimeZone().toZoneId()).toInstant();
+    }
+
+    return null;
+  }
+
+  static java.sql.Timestamp instantToTimestamp(Instant instant){
+    if (instant != null) {
+      java.sql.Timestamp
+          timestamp =
+          new java.sql.Timestamp(instant.atZone(DEFAULT_CALENDAR.getTimeZone().toZoneId())
+                                     .withZoneSameInstant(ZoneId.systemDefault()).toInstant()
+                                     .toEpochMilli());
+      timestamp.setNanos(instant.getNano());
+
+      return timestamp;
     }
 
     return null;
