@@ -259,6 +259,22 @@ public class Projects {
     }
 
     @Override
+    public List<Project> list(String marker, long maxItems) {
+      if (marker != null) {
+        params.put("marker", marker);
+      }
+      if (maxItems >= 0) {
+        params.put("maxitems", String.valueOf(maxItems));
+      }
+      return list();
+    }
+
+    @Override
+    public String getMarker() {
+      return params.get("marker");
+    }
+
+    @Override
     protected List<Project> list() {
       try {
         ArrayList<Project> projects = new ArrayList<Project>();
@@ -270,19 +286,7 @@ public class Projects {
         }
 
         if (filter != null) {
-
-          if (filter.getOwner() != null) {
-            params.put("owner", filter.getOwner());
-          }
-
-          if (filter.getUser() != null) {
-            params.put("user", filter.getUser());
-          }
-
-          if (filter.getGroup() != null) {
-            params.put("group", filter.getGroup());
-          }
-
+          filter.addTo(params);
         }
         AccountFormat.setParam(odps.getAccountFormat(), params);
 

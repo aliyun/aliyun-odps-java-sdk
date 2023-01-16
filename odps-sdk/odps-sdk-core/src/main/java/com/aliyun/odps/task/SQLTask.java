@@ -19,30 +19,47 @@
 
 package com.aliyun.odps.task;
 
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.Root;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Project;
 import com.aliyun.odps.Survey;
+import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.Task;
 import com.aliyun.odps.commons.util.EmptyIterator;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.CSVRecordParser;
+import com.aliyun.odps.utils.ColumnUtils;
+import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.aliyun.odps.utils.OdpsConstants;
 import com.aliyun.odps.utils.StringUtils;
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * SQLTask的定义
@@ -59,6 +76,8 @@ public class SQLTask extends Task {
   private static Map<String,String> defaultHints;
 
   private static final String AnonymousSQLTaskName = "AnonymousSQLTask";
+
+  private static final String AnonymousLineageTask = "AnonymousLineageTask";
 
   public String getQuery() {
     return query;
@@ -496,6 +515,73 @@ public class SQLTask extends Task {
     } catch (JsonParseException e) {
       return null;
     }
+  }
+
+  /**
+   * 获取运行 SQL 运行结果的 schema 信息。
+   *
+   * @param instance
+   *    {@link Instance} 对象
+   *
+   * @return 运行结果的 schema
+   *
+   */
+  public static TableSchema getResultSchema(Instance instance) throws OdpsException {
+    // Create a LineageTask with the same context of the original SQLTask
+    Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+    SQLTask sqlTask;
+    if (instance.getTasks() == null
+        || instance.getTasks().isEmpty()
+        || !(instance.getTasks().get(0) instanceof SQLTask)) {
+      throw new IllegalArgumentException("Not a SQLTask instance");
+    }
+    sqlTask = (SQLTask) instance.getTasks().get(0);
+    Map<String, String> taskProperties = sqlTask.getProperties();
+    Map<String, String> settings = new HashMap<>();
+    if (taskProperties.containsKey("settings")) {
+      settings.putAll(
+          gson.fromJson(
+              taskProperties.get("settings"), new TypeToken<Map<String, String>>(){}.getType()));
+    }
+    settings.put("odps.sql.task.mode", "LINEAGE");
+    settings.put("odps.sql.select.output.format", "json");
+    taskProperties.put("settings", gson.toJson(settings));
+    SQLTask task = new SQLTask();
+    task.setQuery(sqlTask.getQuery());
+    task.setName(AnonymousLineageTask);
+    for (Entry<String, String> entry : taskProperties.entrySet()) {
+      task.setProperty(entry.getKey(), entry.getValue());
+    }
+    Instance lineageInstance = instance.getOdps().instances().create(task);
+    lineageInstance.waitForSuccess();
+    String result = lineageInstance.getTaskResults().get(AnonymousLineageTask);
+
+    if (!StringUtils.isNullOrEmpty(result)) {
+      JsonObject tree = new JsonParser().parse(result).getAsJsonObject();
+      if (tree != null
+          && tree.has("outputTables")
+          && tree.get("outputTables") != null) {
+        JsonArray tableArray = tree.get("outputTables").getAsJsonArray();
+        // The result of a query should contain exactly one element
+        if (tableArray.size() != 1) {
+          throw new IllegalArgumentException("Not a query");
+        }
+        TableSchema schema = new TableSchema();
+        JsonObject item = tableArray.get(0).getAsJsonObject();
+        // The result of a query shouldn't contain a member named 'tableName'
+        if (item.has("tableName")) {
+          throw new IllegalArgumentException("Not a query");
+        }
+        JsonArray columnArray = item.getAsJsonArray("columns");
+        for (int j = 0; j < columnArray.size(); ++j) {
+          JsonObject n = columnArray.get(j).getAsJsonObject();
+          schema.addColumn(ColumnUtils.fromJson(n.toString()));
+        }
+        return schema;
+      }
+    }
+
+    throw new OdpsException("Failed to get the result schema");
   }
 
   /**

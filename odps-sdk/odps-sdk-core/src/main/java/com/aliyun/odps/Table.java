@@ -49,8 +49,7 @@ import com.aliyun.odps.simpleframework.xml.convert.Converter;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.task.SQLTask;
-import com.aliyun.odps.type.TypeInfo;
-import com.aliyun.odps.type.TypeInfoParser;
+import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.utils.TagUtils;
@@ -73,7 +72,7 @@ import com.google.gson.reflect.TypeToken;
  */
 public class Table extends LazyLoad {
 
-  enum TableType {
+  public enum TableType {
     /**
      * Regular table managed by ODPS
      */
@@ -353,6 +352,15 @@ public class Table extends LazyLoad {
       lazyLoad();
     }
     return model.owner;
+  }
+
+  /**
+   * table接口目前不能获取table类型，现在只有Tables接口返回的table list中的table有类型
+   *
+   * @return 表类型
+   */
+  public TableType getType() {
+    return model.type;
   }
 
   /**
@@ -1017,6 +1025,7 @@ public class Table extends LazyLoad {
    * @throws OdpsException
    */
   public RecordReader read(int limit) throws OdpsException {
+    //TODO FIX DATE
     return read(null, null, limit);
   }
 
@@ -1037,6 +1046,7 @@ public class Table extends LazyLoad {
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit)
       throws OdpsException {
+    //TODO FIX DATE
     return read(partition, columns, limit, null);
   }
 
@@ -1059,6 +1069,7 @@ public class Table extends LazyLoad {
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit, String timezone)
       throws OdpsException {
+    //TODO FIX DATE
     if (limit < 0) {
       // TODO: should throw IllegalArgumentException
       throw new OdpsException("limit number should >= 0.");
@@ -1213,7 +1224,7 @@ public class Table extends LazyLoad {
         JsonArray columnsNode = tree.get("columns").getAsJsonArray();
         for (int i = 0; i < columnsNode.size(); ++i) {
           JsonObject n = columnsNode.get(i).getAsJsonObject();
-          s.addColumn(parseColumn(n));
+          s.addColumn(ColumnUtils.fromJson(n.toString()));
         }
       }
 
@@ -1232,7 +1243,7 @@ public class Table extends LazyLoad {
         JsonArray columnsNode = tree.get("partitionKeys").getAsJsonArray();
         for (int i = 0; i < columnsNode.size(); ++i) {
           JsonObject n = columnsNode.get(i).getAsJsonObject();
-          s.addPartitionColumn(parseColumn(n));
+          s.addPartitionColumn(ColumnUtils.fromJson(n.toString()));
         }
       }
 
@@ -1602,41 +1613,6 @@ public class Table extends LazyLoad {
     Instance i = SQLTask.run(odps, odps.getDefaultProject(), query, taskName, hints, null);
     i.waitForSuccess();
   }
-
-  /* private */
-  private Column parseColumn(JsonObject node) {
-    String name = node.has("name") ? node.get("name").getAsString() : null;
-    String typeString = node.has("type") ? node.get("type").getAsString().toUpperCase() : null;
-    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
-
-    String comment = node.has("comment") ? node.get("comment").getAsString() : null;
-    String label = null;
-    if (node.has("label") && (!node.get("label").getAsString().isEmpty())) {
-      label = node.get("label").getAsString();
-    }
-
-    List<String> extendedLabels = null;
-    if (node.has("extendedLabels") && (node.get("extendedLabels").getAsJsonArray().size() != 0)) {
-      Iterator<JsonElement> it = node.get("extendedLabels").getAsJsonArray().iterator();
-      extendedLabels = new LinkedList<String>();
-      while (it.hasNext()) {
-        extendedLabels.add(it.next().getAsString());
-      }
-    }
-
-    Column column = new Column(name, typeInfo, comment, label, extendedLabels);
-
-    if (node.has("isNullable")) {
-      column.setNullable(node.get("isNullable").getAsBoolean());
-    }
-
-    if (node.has("defaultValue")) {
-      column.setDefaultValue(node.get("defaultValue").getAsString());
-    }
-
-    return column;
-  }
-
 
   private HashMap<String, String> initParamsWithSchema() throws OdpsException {
     return NameSpaceSchemaUtils.initParamsWithSchema(model.schemaName);

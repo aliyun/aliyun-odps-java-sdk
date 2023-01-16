@@ -71,8 +71,8 @@ public class TagTest extends TestBase {
         .registerTypeHierarchyAdapter(TagModel.class, new TagModelDeserializer())
         .create();
 
-    // String json = "{\"Classification\":\"test_classification\",\"CreateTime\":1606727313,\"DatabaseName\":\"security_test_shuxu_2\",\"ExtendedInfo\":{\"Policy\":\"{\\n    \\\"Statement\\\": [{\\n            \\\"Action\\\": [\\\"odps:Download\\\",\\n                \\\"odps:PurgeTable\\\"],\\n            \\\"Effect\\\": \\\"Allow\\\",\\n            \\\"Principal\\\": [\\\"ALIYUN$odpstest@aliyun.com\\\",\\n                \\\"ALIYUN$odpstest1@aliyun.com\\\",\\n                \\\"ALIYUN$odpstest2@aliyun.com\\\",\\n                \\\"ALIYUN$odpstest3@aliyun.com\\\"],\\n            \\\"Resource\\\": [\\\"acs:odps:*:projects/old_priv_prj/tables/de3_tbl_1\\\",\\n                \\\"acs:odps:*:projects/old_priv_prj/tables/*\\\"]}],\\n    \\\"Version\\\": \\\"1\\\"}\"},\"Id\":\"9df2441327a945f285268f6a2d01caf1\",\"Name\":\"test_tag_1\",\"Owner\":\"ALIYUN$odpstest4@aliyun.com\",\"TagValues\":{\"test_attr_1\":\"element-2\",\"test_attr_2\":\"1000\",\"test_attr_3\":\"阿里巴巴测试test\",\"test_attr_4\":\"true\",\"test_属性5\":\"安全部隐私\"},\"UpdateTime\":1606796549}";
-    String json = "";
+    String json = "{\"Classification\":\"test_classification\",\"CreateTime\":1606727313,\"DatabaseName\":\"security_test_shuxu_2\",\"ExtendedInfo\":{\"Policy\":\"{\\\"Statement\\\":[{\\\"Action\\\":[\\\"odps:Download\\\",\\\"odps:PurgeTable\\\"],\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":[\\\"ALIYUN$odpstest@aliyun.com\\\",\\\"ALIYUN$odpstest1@aliyun.com\\\",\\\"ALIYUN$odpstest2@aliyun.com\\\",\\\"ALIYUN$odpstest3@aliyun.com\\\"],\\\"Resource\\\":[\\\"acs:odps:*:projects/old_priv_prj/tables/de3_tbl_1\\\",\\\"acs:odps:*:projects/old_priv_prj/tables/*\\\"]}],\\\"Version\\\":\\\"1\\\"}\"},\"Id\":\"9df2441327a945f285268f6a2d01caf1\",\"Name\":\"test_tag_1\",\"Owner\":\"ALIYUN$odpstest4@aliyun.com\",\"TagValues\":{\"test_attr_1\":\"element-2\",\"test_attr_2\":\"1000\",\"test_attr_3\":\"阿里巴巴测试test\",\"test_attr_4\":\"true\",\"test_属性5\":\"安全部隐私test\"},\"UpdateTime\":1606796549}";
+
     TagModel model = gson.fromJson(json, TagModel.class);
     Assert.assertEquals("security_test_shuxu_2", model.project);
     Assert.assertEquals("test_classification", model.classification);
@@ -80,13 +80,13 @@ public class TagTest extends TestBase {
     Assert.assertEquals("ALIYUN$odpstest4@aliyun.com", model.owner);
     Assert.assertEquals(1606727313, model.createdTime.getTime());
     Assert.assertEquals(1606796549, model.lastModifiedTime.getTime());
-    String policy = "{\n    \"Statement\": [{\n            \"Action\": [\"odps:Download\",\n                \"odps:PurgeTable\"],\n            \"Effect\": \"Allow\",\n            \"Principal\": [\"ALIYUN$odpstest@aliyun.com\",\n                \"ALIYUN$odpstest1@aliyun.com\",\n                \"ALIYUN$odpstest2@aliyun.com\",\n                \"ALIYUN$odpstest3@aliyun.com\"],\n            \"Resource\": [\"acs:odps:*:projects/old_priv_prj/tables/de3_tbl_1\",\n                \"acs:odps:*:projects/old_priv_prj/tables/*\"]}],\n    \"Version\": \"1\"}";
+    String policy = "{\"Statement\":[{\"Action\":[\"odps:Download\",\"odps:PurgeTable\"],\"Effect\":\"Allow\",\"Principal\":[\"ALIYUN$odpstest@aliyun.com\",\"ALIYUN$odpstest1@aliyun.com\",\"ALIYUN$odpstest2@aliyun.com\",\"ALIYUN$odpstest3@aliyun.com\"],\"Resource\":[\"acs:odps:*:projects/old_priv_prj/tables/de3_tbl_1\",\"acs:odps:*:projects/old_priv_prj/tables/*\"]}],\"Version\":\"1\"}";
     Assert.assertEquals(policy, model.policy);
 
     Assert.assertEquals("element-2", model.attributes.get("test_attr_1"));
     Assert.assertEquals("1000", model.attributes.get("test_attr_2"));
     Assert.assertEquals("阿里巴巴测试test", model.attributes.get("test_attr_3"));
     Assert.assertEquals("true", model.attributes.get("test_attr_4"));
-    Assert.assertEquals("安全部隐私", model.attributes.get("test_属性5"));
+    Assert.assertEquals("安全部隐私test", model.attributes.get("test_属性5"));
   }
 }

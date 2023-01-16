@@ -386,6 +386,20 @@ public class SecurityManager {
     client.stringRequest(resource, "PUT", params, null, policy);
   }
 
+  public User getUserById(String id) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, id);
+    UserModel resp = client.request(UserModel.class, resource, "GET");
+    return new User(resp, project, client);
+  }
+
+  public User getUserByName(String name) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, name);
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("type", "displayname");
+    UserModel resp = client.request(UserModel.class, resource, "GET", params);
+    return new User(resp, project, client);
+  }
+
   public List<User> listUsers() throws OdpsException {
     String resource = ResourceBuilder.buildUsersResource(project);
     ListUsersResponse resp = client.request(ListUsersResponse.class,

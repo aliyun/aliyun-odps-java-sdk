@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -213,5 +214,71 @@ public class SQLTaskTest extends TestBase {
       }
     }
 
+  }
+
+  @Test
+  public void testGetResultSchema() throws OdpsException {
+    String query = "select 1;";
+    Map<String, String> hints = new HashMap<>();
+    hints.put("odps.sql.type.system.odps2", "true");
+    Instance i = SQLTask.run(odps, odps.getDefaultProject(), query, hints, null);
+
+    TableSchema schema = SQLTask.getResultSchema(i);
+    Assert.assertEquals(1, schema.getColumns().size());
+    Column column = schema.getColumn(0);
+    Assert.assertEquals(OdpsType.INT, column.getTypeInfo().getOdpsType());
+  }
+
+  @Test
+  public void testGetResultSchemaWithSettings() throws OdpsException {
+    String query = "select 1;";
+    Map<String, String> hints = new HashMap<>();
+    // In hive compatible mode, the integer constant type will be INT, instead of BIGINT
+    hints.put("odps.sql.hive.compatible", "true");
+    Instance i = SQLTask.run(odps, odps.getDefaultProject(), query, hints, null);
+
+    TableSchema schema = SQLTask.getResultSchema(i);
+    Assert.assertEquals(1, schema.getColumns().size());
+    Column column = schema.getColumn(0);
+    Assert.assertEquals(OdpsType.INT, column.getTypeInfo().getOdpsType());
+  }
+
+  @Test
+  public void testGetResultSchemaFromDDL() throws OdpsException {
+    try {
+      String ddl = "create table if not exists testGetResultSchemaFromDDL(col1 string);";
+      Instance i = SQLTask.run(odps, ddl);
+      i.waitForSuccess();
+      try {
+        SQLTask.getResultSchema(i);
+        Assert.fail();
+      } catch (OdpsException e) {
+        Assert.assertTrue(e.getMessage().contains("DDL not supported in LINEAGE analyze"));
+      }
+    } finally {
+      odps.tables().delete("testGetResultSchemaFromDDL", true);
+    }
+  }
+
+  @Test
+  public void testGetResultSchemaFromDML() throws OdpsException {
+    try {
+      Instance i = SQLTask.run(
+          odps,
+          "create table if not exists testGetResultSchemaFromDML(col1 string);");
+      i.waitForSuccess();
+      i = SQLTask.run(
+          odps,
+          "insert into testGetResultSchemaFromDML values('foo');");
+      i.waitForSuccess();
+      try {
+        SQLTask.getResultSchema(i);
+        Assert.fail();
+      } catch (IllegalArgumentException e) {
+        Assert.assertTrue(e.getMessage().contains("Not a query"));
+      }
+    } finally {
+      odps.tables().delete("testGetResultSchemaFromDDL", true);
+    }
   }
 }

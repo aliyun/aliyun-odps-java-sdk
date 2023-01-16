@@ -121,6 +121,14 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
     }
 
     @Override
+    public long bytesRead() {
+        if (messageReader != null) {
+            return messageReader.bytesRead();
+        }
+        return 0L;
+    }
+
+    @Override
     public void close() throws IOException {
         if (!isClosed) {
             if (inputStream != null) {
@@ -150,6 +158,10 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
             }
             case ODPS_SNAPPY: {
                 headers.put(Headers.ACCEPT_ENCODING, "x-snappy-framed");
+                break;
+            }
+            case ODPS_ARROW_LZ4_FRAME: {
+                headers.put(Headers.ACCEPT_ENCODING, "x-odps-lz4-frame");
                 break;
             }
             default: {
@@ -199,6 +211,9 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
                         -1, 0);
                 } else if (content_encoding.equals("x-snappy-framed")) {
                     reply_compression = new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY,
+                        -1, 0);
+                } else if (content_encoding.equals("x-odps-lz4-frame")) {
+                    reply_compression = new CompressOption(CompressOption.CompressAlgorithm.ODPS_ARROW_LZ4_FRAME,
                         -1, 0);
                 } else {
                     throw new TunnelException("invalid content encoding");

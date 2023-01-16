@@ -19,12 +19,17 @@
 
 package com.aliyun.odps.security;
 
+import java.util.List;
+import java.util.Map;
+
 import com.aliyun.odps.LazyLoad;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.ElementMap;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 
@@ -44,6 +49,15 @@ public class User extends LazyLoad {
     @Element(name = "Comment", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
+
+    @Element(name = "Label", required = false)
+    int label;
+
+    @ElementList(name = "Roles", entry = "Role", required = false)
+    List<String> roles;
+
+    @ElementMap(name = "Properties", entry = "Property", key = "key", value = "value", required = false)
+    Map<String, String> properties;
   }
 
   private UserModel model;
@@ -74,5 +88,20 @@ public class User extends LazyLoad {
   public String getComment() {
     lazyLoad();
     return model.comment;
+  }
+
+  public int getLabel() {
+    lazyLoad();
+    return model.label;
+  }
+
+  public List<String> getRoles() {
+    lazyLoad();
+    return model.roles;
+  }
+
+  public Map<String, String> getProperties() {
+    lazyLoad();
+    return model.properties;
   }
 }

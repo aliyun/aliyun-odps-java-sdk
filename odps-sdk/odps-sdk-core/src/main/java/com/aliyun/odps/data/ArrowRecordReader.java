@@ -32,4 +32,9 @@ public interface ArrowRecordReader extends Closeable {
      * @throws IOException 读取过程发生异常, 发生异常后不可重试
      */
     public VectorSchemaRoot read() throws IOException;
+
+    /**
+     * 返回读取的字节数
+     */
+    public long bytesRead();
 }

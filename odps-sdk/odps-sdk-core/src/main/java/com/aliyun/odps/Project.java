@@ -114,6 +114,10 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
+    @Element(name = "SuperAdministrator", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String superAdministrator;
+
     @Element(name = "CreationTime", required = false)
     @Convert(SimpleXmlUtils.DateConverter.class)
     Date creationTime;
@@ -138,6 +142,10 @@ public class Project extends LazyLoad {
     @Convert(PropertyConverter.class)
     LinkedHashMap<String, String> properties;
 
+    @Element(name = "Property", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String propertyJsonString;
+
     @Element(name = "ExtendedProperties", required = false)
     @Convert(PropertyConverter.class)
     LinkedHashMap<String, String> extendedProperties;
@@ -152,6 +160,10 @@ public class Project extends LazyLoad {
 
     @Element(name = "Clusters", required = false)
     Clusters clusters;
+
+    @Element(name = "Region", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String regionId;
   }
 
   public static class ExternalProjectProperties {
@@ -417,6 +429,18 @@ public class Project extends LazyLoad {
       lazyLoad();
     }
     return model.owner;
+  }
+
+  /**
+   * 获取 project 所属 region
+   * @return region id
+   */
+  public String getRegionId() {
+    if (model.regionId == null) {
+      lazyLoad();
+    }
+
+    return model.regionId;
   }
 
   /**

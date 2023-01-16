@@ -25,10 +25,10 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.AbstractChar;
-import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.IntervalDayTime;
 import com.aliyun.odps.data.IntervalYearMonth;
+import com.aliyun.odps.data.OdpsTypeTransformer;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
@@ -53,8 +53,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -202,26 +201,41 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case DATETIME: {
-        ZonedDateTime value = (ZonedDateTime) v;
-
         long longValue;
-        if (!shouldTransform) {
-          longValue = value.toInstant().toEpochMilli();
+        if (v instanceof ZonedDateTime) {
+          longValue = ((ZonedDateTime) v).toInstant().toEpochMilli();
         } else {
-          longValue = DateUtils.date2ms(Date.from(value.toInstant()), DateUtils.LOCAL_CAL);
+          longValue = ((Date) v).getTime();
+        }
+
+        if (shouldTransform) {
+          longValue = DateUtils.date2ms(new Date(longValue), DateUtils.LOCAL_CAL);
         }
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
       }
       case DATE: {
-        long longValue = ((LocalDate) v).toEpochDay();
+        long longValue;
+        LocalDate localDate;
+        if (v instanceof LocalDate) {
+          localDate = (LocalDate) v;
+        } else {
+          // to date in GMT, for compatible
+          localDate = OdpsTypeTransformer.dateToLocalDate((java.sql.Date)v, DEFAULT_CALENDAR);
+        }
+        longValue = localDate.toEpochDay();
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
       }
       case TIMESTAMP: {
-        Instant instant = (Instant) v;
+        Instant instant;
+        if (v instanceof Instant) {
+          instant = (Instant) v;
+        } else {
+          instant = ((Timestamp) v).toInstant();
+        }
         int nano = instant.getNano();
         long value = instant.getEpochSecond();
         crc.update(value);

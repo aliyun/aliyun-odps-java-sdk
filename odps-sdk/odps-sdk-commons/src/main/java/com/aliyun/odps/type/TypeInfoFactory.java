@@ -57,6 +57,9 @@ public class TypeInfoFactory {
   public static final DecimalTypeInfo
       DECIMAL = new DecimalTypeInfo();
 
+  public static final PrimitiveTypeInfo
+      JSON = new SimplePrimitiveTypeInfo(OdpsType.JSON);
+
   private static HashMap<OdpsType, PrimitiveTypeInfo> typeInfoMap = new HashMap<OdpsType, PrimitiveTypeInfo>();
 
   static {
@@ -78,6 +81,7 @@ public class TypeInfoFactory {
     typeInfoMap.put(UNKNOWN.getOdpsType(), UNKNOWN);
 
     typeInfoMap.put(DECIMAL.getOdpsType(), DECIMAL);
+    typeInfoMap.put(JSON.getOdpsType(), JSON);
   }
 
   public static PrimitiveTypeInfo getPrimitiveTypeInfo(OdpsType odpsType) {

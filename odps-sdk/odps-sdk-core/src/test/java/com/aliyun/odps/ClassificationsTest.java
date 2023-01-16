@@ -53,38 +53,11 @@ public class ClassificationsTest extends TestBase {
         System.err.println("Failed to drop classification: " + name);
       }
     }
-
-    for (Classification classification : odps.classifications()) {
-      if (classification.getName().startsWith(BASE_CLASSIFICATION_NAME_PREFIX)) {
-        try {
-          odps.classifications().delete(classification.getName());
-        } catch (OdpsException e) {
-          System.err.println("Failed to drop classification: " + classification.getName());
-        }
-      }
-    }
   }
 
   @Test
   public void testCreateClassification() throws OdpsException {
-    Map<String, AttributeDefinition> attributes = new HashMap<>();
-    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
-                                                                      .minLength(10)
-                                                                      .build());
-    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
-                                                                       .maximum(10)
-                                                                       .build());
-    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
-                                                                     .element("bar")
-                                                                     .build());
-    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
-    String name = String.format(
-        "%s_%s_%s",
-        BASE_CLASSIFICATION_NAME_PREFIX,
-        "testCreateClassification",
-        OdpsTestUtils.getRandomName());
-    odps.classifications().create(name, attributes, true);
-    classificationsToDrop.add(name);
+    String name = createTmpClassification("testCreateClassification");
 
     Classification classification = odps.classifications().get(name);
     Assert.assertEquals(odps.getDefaultProject(), classification.getProject());
@@ -116,47 +89,14 @@ public class ClassificationsTest extends TestBase {
 
   @Test
   public void testDeleteClassification() throws OdpsException {
-    Map<String, AttributeDefinition> attributes = new HashMap<>();
-    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
-                                                                      .minLength(10)
-                                                                      .build());
-    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
-                                                                       .maximum(10)
-                                                                       .build());
-    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
-                                                                     .element("bar")
-                                                                     .build());
-    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
-    String name = String.format(
-        "%s_%s_%s",
-        BASE_CLASSIFICATION_NAME_PREFIX,
-        "testDeleteClassification",
-        OdpsTestUtils.getRandomName());
-    odps.classifications().create(name, attributes, true);
-
+    String name = createTmpClassification("testDeleteClassification");
     odps.classifications().delete(name);
     Assert.assertFalse(odps.classifications().exists(name));
   }
 
   @Test
   public void testUpdateClassification() throws OdpsException {
-    Map<String, AttributeDefinition> attributes = new HashMap<>();
-    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
-                                                                      .minLength(10)
-                                                                      .build());
-    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
-                                                                       .maximum(10)
-                                                                       .build());
-    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
-                                                                     .element("bar")
-                                                                     .build());
-    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
-    String name = String.format(
-        "%s_%s_%s",
-        BASE_CLASSIFICATION_NAME_PREFIX,
-        "testUpdateClassification",
-        OdpsTestUtils.getRandomName());
-    odps.classifications().create(name, attributes, true);
+    String name = createTmpClassification("testUpdateClassification");
 
     Classification classification = odps.classifications().get(name);
 
@@ -182,33 +122,37 @@ public class ClassificationsTest extends TestBase {
 
   @Test
   public void testClassificationIterator() throws OdpsException {
-    Map<String, AttributeDefinition> attributes = new HashMap<>();
-    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
-                                                                      .minLength(10)
-                                                                      .build());
-    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
-                                                                       .maximum(10)
-                                                                       .build());
-    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
-                                                                     .element("bar")
-                                                                     .build());
-    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
-    String name = String.format(
-        "%s_%s_%s",
-        BASE_CLASSIFICATION_NAME_PREFIX,
-        "testClassificationIterator",
-        OdpsTestUtils.getRandomName());
-    odps.classifications().create(name, attributes, true);
+    createTmpClassification("testClassificationIterator");
 
     boolean found = false;
     for (Classification classification : odps.classifications()) {
-      if (name.equals(classification.getName())) {
-        found = true;
-      }
+      found = true;
     }
 
     Assert.assertTrue(found);
   }
 
-   // TODO: test classification page splits
+  private String createTmpClassification(String name)
+      throws OdpsException {
+    Map<String, AttributeDefinition> attributes = new HashMap<>();
+    attributes.put("str_attr", new StringAttributeDefinition.Builder()
+        .maxLength(10).minLength(10).build());
+    attributes.put("int_attr", new IntegerAttributeDefinition.Builder()
+        .minimum(0).maximum(10).build());
+    attributes.put("enum_attr", new EnumAttributeDefinition.Builder()
+        .element("foo").element("bar").build());
+    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
+
+    String fullName = String.format(
+        "%s_%s_%s",
+        BASE_CLASSIFICATION_NAME_PREFIX,
+        name,
+        OdpsTestUtils.getRandomName());
+
+    odps.classifications().create(fullName, attributes, true);
+    classificationsToDrop.add(fullName);
+    return fullName;
+  }
+
+  // TODO: test classification page splits
 }

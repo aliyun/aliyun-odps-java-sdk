@@ -127,6 +127,27 @@ public class LogView {
   }
 
   /**
+   * 生成 session subquery logview 链接
+   *
+   * @param instance
+   *          instance 对象
+   * @param queryId
+   *           session subquery id
+   * @param token
+   *           同一个attach session 可以复用已有的token
+   * @return  logview
+   */
+  public String generateSubQueryLogView(Instance instance, int queryId, String token) {
+    if (StringUtils.isNullOrEmpty(logViewHost)) {
+      logViewHost = getLogviewHost();
+    }
+
+    String logview = logViewHost + "/logview/?h=" + odps.getEndpoint() + "&p="
+                     + instance.getProject() + "&i=" + instance.getId() + "&subQuery=" + queryId +"&token=" + token;
+    return logview;
+  }
+
+  /**
    * 生成带有 instance 访问权限的 token
    *
    * @param instance

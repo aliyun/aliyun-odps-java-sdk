@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.40.10-public</version>
+        <version>0.43.0-table-api-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -97,6 +97,15 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
         </dependency>
     </dependencies>
 

@@ -106,7 +106,7 @@ public class DefaultConnection implements Connection {
           conn.setRequestProperty(kv.getKey(), kv.getValue());
           if (Headers.TRANSFER_ENCODING.equalsIgnoreCase(kv.getKey())
               && Headers.CHUNKED.equalsIgnoreCase(kv.getValue())) {
-            conn.setChunkedStreamingMode(1500 - 4); // XXX: hardcode
+            conn.setChunkedStreamingMode(req.getRestClient().getChunkSize()); // XXX: hardcode
           }
         }
       }

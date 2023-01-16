@@ -27,7 +27,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -119,6 +118,11 @@ public class RestClient {
    * 是否忽略HTTPS证书验证
    */
   public static final boolean DEFAULT_IGNORE_CERTS = false;
+
+  /**
+   * 上传数据时HTTP使用的块大小(单位字节)
+   */
+  public static final int DEFAULT_CHUNK_SIZE = 1500 - 4;
 
   private final Transport transport;
 
@@ -623,9 +627,16 @@ public class RestClient {
       req.setURI(new URI(url.toString()));
       req.setMethod(Method.valueOf(method));
 
-      if (headers != null) {
-        req.setHeaders(headers);
+      Map<String, String> reqHeaders =  req.getHeaders();
+
+      if (!userDefinedHeaders.isEmpty()) {
+        reqHeaders.putAll(userDefinedHeaders);
       }
+      if (headers != null) {
+        reqHeaders.putAll(headers);
+      }
+
+      req.setHeaders(reqHeaders);
 
       // set User-Agent
       if (req.getHeaders().get(Headers.USER_AGENT) == null && userAgent != null) {
@@ -750,6 +761,16 @@ public class RestClient {
     this.ignoreCerts = ignoreCerts;
   }
 
+  int chunkSize = DEFAULT_CHUNK_SIZE;
+
+  public void setChunkSize(int chunkSize) {
+    this.chunkSize = chunkSize;
+  }
+
+  public int getChunkSize() {
+    return chunkSize;
+  }
+
   public void enableDeprecatedLogger() {
     this.deprecatedLoggerEnabled = true;
   }
@@ -757,5 +778,16 @@ public class RestClient {
   public void disableDeprecatedLogger() {
     this.deprecatedLoggerEnabled = false;
   }
+
+
+  public Map<String, String> getUserDefinedHeaders() {
+    return userDefinedHeaders;
+  }
+
+  public void addUserDefinedHeader(String key, String value) {
+    this.userDefinedHeaders.put(key, value);
+  }
+
+  private Map<String, String> userDefinedHeaders = new HashMap<>();
 
 }

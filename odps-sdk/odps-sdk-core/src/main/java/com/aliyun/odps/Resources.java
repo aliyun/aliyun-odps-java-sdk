@@ -879,11 +879,25 @@ public class Resources implements Iterable<Resource> {
    * @return A resource iterator.
    */
   public Iterator<Resource> iterator(final String projectName, String schemaName) {
+    return iterator(projectName, schemaName, null);
+  }
+
+  /**
+   * Get a resource iterator of the given schema in the given project.
+   *
+   * @param projectName  Project name.
+   * @param schemaName   Schema name. Null or empty string means using the default schema.
+   * @param resourceName the resource name to filter.
+   *                     The resource name of the result will contain this string, not start with
+   * @return A resource iterator.
+   */
+  public Iterator<Resource> iterator(final String projectName, String schemaName,
+                                     String resourceName) {
     if (StringUtils.isNullOrEmpty(projectName)) {
       throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
     }
 
-    return new ResourceListIterator(projectName, schemaName, null);
+    return new ResourceListIterator(projectName, schemaName, resourceName);
   }
 
   /**
@@ -925,11 +939,24 @@ public class Resources implements Iterable<Resource> {
    * @return A resource iterable.
    */
   public Iterable<Resource> iterable(final String projectName, String schemaName) {
+   return iterable(projectName, schemaName, null);
+  }
+
+
+  /**
+   * Get a resource iterable of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param resourceName the resource name to filter
+   * @return A resource iterable.
+   */
+  public Iterable<Resource> iterable(final String projectName, String schemaName, String resourceName) {
     if (StringUtils.isNullOrEmpty(projectName)) {
       throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
     }
 
-    return () -> new ResourceListIterator(projectName, schemaName, null);
+    return () -> new ResourceListIterator(projectName, schemaName, resourceName);
   }
 
   private class ResourceListIterator extends ListIterator<Resource> {
@@ -944,6 +971,22 @@ public class Resources implements Iterable<Resource> {
       this.schemaName = schemaName;
       this.name = resourceName;
       params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+    }
+
+    @Override
+    public List<Resource> list(String marker, long maxItems) {
+      if (marker != null) {
+        params.put("marker", marker);
+      }
+      if (maxItems >= 0) {
+        params.put("maxitems", String.valueOf(maxItems));
+      }
+      return list();
+    }
+
+    @Override
+    public String getMarker() {
+      return params.get("marker");
     }
 
     @Override

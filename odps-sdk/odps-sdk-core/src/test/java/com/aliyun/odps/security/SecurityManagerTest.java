@@ -25,19 +25,26 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.aliyun.odps.Instance;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.security.CheckPermissionConstants.ActionType;
 import com.aliyun.odps.security.CheckPermissionConstants.CheckPermissionResult;
 import com.aliyun.odps.security.CheckPermissionConstants.ObjectType;
+import com.aliyun.odps.task.SQLTask;
 
 public class SecurityManagerTest extends TestBase {
 
@@ -74,6 +81,29 @@ public class SecurityManagerTest extends TestBase {
   }
 
   @Test
+  public void testGetUserById() throws OdpsException {
+    String name = OdpsTestUtils.getCurrentUser(odps);
+    String id = sm.getUserByName(name).getID();
+    User user = sm.getUserById(id);
+    Assert.assertEquals(user.getLabel(), 0);
+    Assert.assertEquals(user.getDisplayname(), name);
+    Assert.assertEquals(user.getComment(), "");
+    Assert.assertEquals(user.getRoles().size(), 0);
+    Assert.assertEquals(user.getProperties().size(), 0);
+  }
+
+  @Test
+  public void testGetUserByName() throws OdpsException {
+    String name = OdpsTestUtils.getCurrentUser(odps);
+    User user = sm.getUserByName(name);
+    Assert.assertEquals(user.getLabel(), 0);
+    Assert.assertEquals(user.getDisplayname(), name);
+    Assert.assertEquals(user.getComment(), "");
+    Assert.assertEquals(user.getRoles().size(), 0);
+    Assert.assertEquals(user.getProperties().size(), 0);
+  }
+
+  @Test
   public void testListUsers() throws OdpsException {
     List<User> list = sm.listUsers();
     for (User user : list) {
@@ -86,6 +116,11 @@ public class SecurityManagerTest extends TestBase {
   public void testListRoles() throws OdpsException {
     List<Role> roles = sm.listRoles();
     Assert.assertNotEquals(0, roles.size());
+
+    roles.forEach(role -> {
+      Assert.assertNotNull(role.getName());
+      Assert.assertNotNull(role.getType());
+    });
   }
 
   @Test

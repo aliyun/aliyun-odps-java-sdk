@@ -6,5 +6,6 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface UdfProperty {
   boolean isDeterministic() default false;
+  boolean forcePartialAggregate() default false;
 }
 

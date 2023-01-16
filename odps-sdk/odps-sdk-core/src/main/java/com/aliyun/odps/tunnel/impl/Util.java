@@ -41,7 +41,7 @@ public class Util {
         return odpsServiceClient;
     }
 
-    public static List<Slot> parseSlots(JsonArray slotElements, boolean reload) throws TunnelException {
+    public static List<Slot> parseSlots(JsonArray slotElements) throws TunnelException {
         List<Slot> slots = new ArrayList<>();
 
         for (JsonElement slot : slotElements) {
@@ -54,7 +54,7 @@ public class Util {
             if (slotInfo.size() != 2) {
                 throw new TunnelException("Invalid slot routes");
             }
-            slots.add(new Slot(slotInfo.get(0).getAsString(), slotInfo.get(1).getAsString(), reload));
+            slots.add(new Slot(slotInfo.get(0).getAsString(), slotInfo.get(1).getAsString()));
         }
 
         return slots;

@@ -11,6 +11,7 @@ import com.aliyun.odps.simpleframework.xml.ElementMap;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 
 public class Quota extends LazyLoad {
@@ -37,6 +38,7 @@ public class Quota extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     public String resourceSystemType;
 
+    @Deprecated
     @Element(name = "SessionServiceName", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     public String sessionServiceName;
@@ -74,6 +76,9 @@ public class Quota extends LazyLoad {
 
     @Element(name = "AdhocMemory", required = false)
     public Long adhocMemory;
+
+    @Element(name = "AdhocGPU", required = false)
+    public Long adhocGpu;
 
     @Element(name = "Strategy", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
@@ -125,6 +130,10 @@ public class Quota extends LazyLoad {
     @Element(name = "ParGroupId", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     public String parentId;
+
+    @Element(name = "ParentName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    public String parentName;
 
     @ElementMap(
         name = "UserDefinedTag",
@@ -181,6 +190,9 @@ public class Quota extends LazyLoad {
     @Element(name = "IsPureLink", required = false)
     public Boolean isPureLink;
 
+    @Element(name = "QuotaVersion", required = false)
+    public Long quotaVersion;
+
     @Element(name = "IsMetaOnly", required = false)
     public Boolean isMetaOnly;
 
@@ -204,6 +216,63 @@ public class Quota extends LazyLoad {
     OFF,
     INITIALIZING,
     ABNORMAL
+  }
+
+  public enum ResourceSystemType {
+    FUXI_OFFLINE,
+    FUXI_ONLINE
+  }
+
+  public static class BillingPolicy {
+    public enum BillingMethod {
+      payasyougo,
+      subscription
+    }
+
+    @SerializedName("billingMethod")
+    public String billingMethod;
+    @SerializedName("OdpsSpecCode")
+    public String specification;
+    @SerializedName("orderId")
+    public String orderId;
+
+    public static BillingPolicy SUBSCRIPTION(String specification) {
+      BillingPolicy policy = new BillingPolicy();
+      policy.billingMethod = String.valueOf(BillingMethod.subscription);
+      policy.specification = specification;
+      return policy;
+    }
+
+    public static BillingPolicy PAYASYOUGO(String specification) {
+      BillingPolicy policy = new BillingPolicy();
+      policy.billingMethod = String.valueOf(BillingMethod.payasyougo);
+      policy.specification = specification;
+      return policy;
+    }
+
+    public BillingPolicy withOrderId(String orderId) {
+      this.orderId = orderId;
+      return this;
+    }
+
+    public boolean isSubscription() {
+      if (billingMethod.equals(String.valueOf(BillingMethod.subscription))) {
+        return true;
+      }
+      return false;
+    }
+
+    public boolean isPayAsYouGo() {
+      if (billingMethod.equals(String.valueOf(BillingMethod.payasyougo))) {
+        return true;
+      }
+      return false;
+    }
+
+    public String toString() {
+      Gson gson = new Gson();
+      return gson.toJson(this);
+    }
   }
 
   public static class AffinityRuleItem {
@@ -293,15 +362,10 @@ public class Quota extends LazyLoad {
     return model.name;
   }
 
-//  public String getSystemInnerId() {
-//    lazyLoad();
-//    return model.id;
-//  }
-
-//  public Boolean isEnabled() {
-//    lazyLoad();
-//    return model.isEnabled;
-//  }
+  public Boolean isEnabled() {
+    lazyLoad();
+    return model.isEnabled;
+  }
 
   public Boolean forceReservedMin() {
     lazyLoad();

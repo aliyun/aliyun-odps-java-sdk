@@ -163,7 +163,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         } else {
             // reset routed server slot rescheduled
             if (!slot.getServer().equals(server)) {
-                slot.setServer(server, false);
+                slot.setServer(server);
             }
         }
     }

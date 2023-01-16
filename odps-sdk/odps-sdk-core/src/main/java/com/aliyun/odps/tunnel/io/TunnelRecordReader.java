@@ -242,6 +242,10 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     return bytesReaded + reader.getTotalBytes();
   }
 
+  public TableSchema getTableSchema() {
+    return reader.getTableSchema();
+  }
+
   private boolean needRetry() {
     if (instanceSession == null) {
       // table tunnel

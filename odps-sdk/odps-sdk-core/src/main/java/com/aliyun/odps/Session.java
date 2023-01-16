@@ -74,6 +74,9 @@ public class Session {
   private static final Long SESSION_TIMEOUT = 60L;
 
   private String taskName = DEFAULT_TASK_NAME;
+  // attach session reuse token
+  private String token;
+  private long tokenExpiredHours = 7 * 24;
 
   public Session(Odps odps, Instance instance) {
     this(odps, instance, null, DEFAULT_TASK_NAME);
@@ -101,7 +104,7 @@ public class Session {
   public static int OBJECT_STATUS_TERMINATED = 5;
   public static int OBJECT_STATUS_CANCELLED = 6;
 
-  public String getLogView() throws OdpsException{
+  public String getLogView() throws OdpsException {
     if (logView == null && odps != null) {
       logView = new LogView(odps).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
     }
@@ -815,8 +818,23 @@ public class Session {
       }
     }
 
-    throw new OdpsException("Attach session timeout.");
+    instance.stop();
+    throw new OdpsException("Attach session[%s] timeout.", instance.getId());
   }
+
+  /**
+   * 返回当前 attach session 可复用的 token
+   *
+   * @return token
+   */
+
+  public String getToken() throws OdpsException {
+    if (token == null && odps != null) {
+      token = new LogView(odps).generateInstanceToken(instance, tokenExpiredHours);
+    }
+    return token;
+  }
+
 
   /**
    * get sqlstats of subqyery
@@ -903,7 +921,7 @@ public class Session {
       }
       sleep();
     }
-    throw new OdpsException("Start session timeout.");
+    throw new OdpsException("Start session[%s] timeout.", instance.getId());
   }
 
   private SubQueryResponse getResponse(String result) throws OdpsException {

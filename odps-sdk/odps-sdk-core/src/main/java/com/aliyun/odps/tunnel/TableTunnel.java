@@ -55,8 +55,11 @@ import com.aliyun.odps.data.ArrowRecordReader;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.impl.ConfigurationImpl;
 import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
+import com.aliyun.odps.tunnel.impl.UpsertSessionImpl;
+import com.aliyun.odps.tunnel.impl.UpsertStreamImpl;
 import com.aliyun.odps.tunnel.io.ArrowTunnelRecordReader;
 import com.aliyun.odps.tunnel.io.ArrowTunnelRecordWriter;
+import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.utils.ConnectionWatcher;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
@@ -838,6 +841,13 @@ public class TableTunnel {
                                                 .setTableName(tableName).setSchemaName(config.getOdps().getCurrentSchema());
   }
 
+  public TableTunnel.UpsertSession.Builder buildUpsertSession(
+          String projectName, String tableName) {
+    return new UpsertSessionImpl.Builder().setConfig(this.config)
+                                          .setProjectName(projectName)
+                                          .setTableName(tableName);
+  }
+
   public interface FlushResult {
     public String getTraceId();
     public long getFlushSize();
@@ -999,6 +1009,72 @@ public class TableTunnel {
       }
 
       abstract public StreamUploadSession build() throws TunnelException;
+    }
+  }
+
+  public interface UpsertSession {
+
+    /**
+     * 获取Session ID
+     * @return Session ID
+     */
+    String getId();
+
+    /**
+     * 获取Session状态
+     * @return 状态码
+     *  normal
+     *  committing
+     *  committed
+     *  expired
+     *  critical
+     *  aborted
+     */
+    String getStatus() throws TunnelException;
+
+    /**
+     * 获取表结构
+     */
+    TableSchema getSchema();
+
+    /**
+     * 提交UpsertSession
+     */
+    void commit(boolean async) throws TunnelException;
+
+    /**
+     * 中止UpsertSession
+     */
+    void abort() throws TunnelException;
+
+    /**
+     * 创建一个{@Link Record}对象
+     * @return Record对象
+     */
+    Record newRecord();
+
+    UpsertStream.Builder buildUpsertStream();
+
+    interface Builder {
+      String getUpsertId();
+
+      UpsertSession.Builder setUpsertId(String upsertId);
+
+      String getSchemaName();
+
+      UpsertSession.Builder setSchemaName(String schemaName);
+
+      String getPartitionSpec();
+
+      UpsertSession.Builder setPartitionSpec(PartitionSpec spec);
+
+      UpsertSession.Builder setPartitionSpec(String spec);
+
+      long getSlotNum();
+
+      UpsertSession.Builder setSlotNum(long slotNum);
+
+      UpsertSession build() throws TunnelException, IOException;
     }
   }
 
@@ -1452,6 +1528,10 @@ public class TableTunnel {
         }
         case ODPS_LZ4_FRAME: {
           headers.put(Headers.CONTENT_ENCODING, "x-lz4-frame");
+          break;
+        }
+        case ODPS_ARROW_LZ4_FRAME: {
+          headers.put(Headers.CONTENT_ENCODING, "x-odps-lz4-frame");
           break;
         }
         default: {

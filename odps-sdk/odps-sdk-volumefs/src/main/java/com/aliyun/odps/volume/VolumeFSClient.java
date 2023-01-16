@@ -117,7 +117,7 @@ public class VolumeFSClient {
             throw new VolumeException(e);
           }
           Volume v = odps.volumes().get(VolumeFSUtil.getVolumeFromPath(path));
-          if (isNewVolume(v)) {
+          if (isNewVolume(v) || isExternalVolume(v)) {
             return VolumeFSFile.transferVolumeToVolumeFSFile(odps.getDefaultProject(), v,
                 odps.getRestClient());
           } else {
@@ -294,7 +294,7 @@ public class VolumeFSClient {
         Iterator<Volume> it = volumes.iterator();
         while (it.hasNext()) {
           Volume v = it.next();
-          if (isNewVolume(v)) {
+          if (isNewVolume(v) || isExternalVolume(v)) {
             files.add(VolumeFSFile.transferVolumeToVolumeFSFile(odps.getDefaultProject(), v,
                 odps.getRestClient()));
           }
@@ -415,7 +415,7 @@ public class VolumeFSClient {
         if (VolumeFSUtil.checkPathIsJustVolume(path)) {
           try {
             Volume v = odps.volumes().get(VolumeFSUtil.getVolumeFromPath(path));
-            if (isNewVolume(v)) {
+            if (isNewVolume(v) || isExternalVolume(v)) {
               odps.volumes().delete(VolumeFSUtil.getVolumeFromPath(path));
               return true;
             } else {
@@ -634,7 +634,11 @@ public class VolumeFSClient {
     return tunnelFS;
   }
 
-  private boolean isNewVolume(Volume v) {
+  public static boolean isNewVolume(Volume v) {
     return Volume.Type.NEW.equals(v.getType());
+  }
+
+  public static boolean isExternalVolume(Volume v) {
+    return Volume.Type.EXTERNAL.equals(v.getType());
   }
 }

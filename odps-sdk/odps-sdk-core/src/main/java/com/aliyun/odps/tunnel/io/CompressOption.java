@@ -29,6 +29,7 @@ public class CompressOption {
     ODPS_ZLIB,
     ODPS_SNAPPY,
     ODPS_LZ4_FRAME,
+    ODPS_ARROW_LZ4_FRAME,
   }
 
   public CompressOption() {

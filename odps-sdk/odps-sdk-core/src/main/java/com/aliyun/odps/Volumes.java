@@ -34,6 +34,7 @@ import java.util.Map;
 import com.aliyun.odps.Volume.VolumeModel;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Volumes表示ODPS中所有Volume的集合
@@ -42,6 +43,9 @@ import com.aliyun.odps.rest.RestClient;
  * @author lu.lu@alibaba-inc.com
  */
 public class Volumes implements Iterable<Volume> {
+
+  public final static String EXTERNAL_VOLUME_LOCATION_KEY = "external.location";
+  public final static String EXTERNAL_VOLUME_ROLEARN_KEY = "odps.properties.rolearn";
 
   @Root(name = "Volumes", strict = false)
   private static class ListVolumesResponse {
@@ -394,5 +398,111 @@ public class Volumes implements Iterable<Volume> {
       throw new RuntimeException("No default project specified.");
     }
     return project;
+  }
+
+  /**
+   * 创建 volume
+   * @param builder volume 的参数配置
+   * @throws OdpsException
+   */
+  public void create(VolumeBuilder builder) throws OdpsException {
+    if (builder.type == null || StringUtils.isNullOrEmpty(builder.model.name)) {
+      throw new IllegalArgumentException("Volume type or volume name is empty.");
+    }
+
+    if ((Volume.Type.EXTERNAL == builder.type) && (StringUtils.isNullOrEmpty(builder.extLocation))) {
+      throw new IllegalArgumentException("External location is empty for external volume.");
+    }
+
+    if (StringUtils.isNullOrEmpty(builder.projectName)) {
+      builder.projectName =  getDefaultProjectName();
+    }
+
+    String resource = ResourceBuilder.buildVolumesResource(builder.projectName);
+    Volume.VolumeModel model = builder.model;
+
+    String xml = null;
+    try {
+      xml = SimpleXmlUtils.marshal(model);
+    } catch (Exception e) {
+      throw new OdpsException(e.getMessage(), e);
+    }
+
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
+
+    client.stringRequest(resource, "POST", null, headers, xml);
+  }
+
+  public static class VolumeBuilder {
+    VolumeModel model;
+
+    String projectName;
+    Volume.Type type;
+    String extLocation;
+
+
+    public VolumeBuilder() {
+      this.model = new VolumeModel();
+    }
+
+    public VolumeBuilder project(String projectName) {
+      this.projectName = projectName;
+      return this;
+    }
+
+    public VolumeBuilder volumeName(String volumeName) {
+      this.model.name = volumeName;
+      return this;
+    }
+
+    public VolumeBuilder type(Volume.Type type) {
+      this.model.type = type.name().toLowerCase();
+      this.type = type;
+      return this;
+    }
+
+    public VolumeBuilder comment(String comment) {
+      this.model.comment = comment;
+      return this;
+    }
+
+    public VolumeBuilder lifecycle(long lifecycle) {
+      this.model.lifecycle = lifecycle;
+      return this;
+    }
+
+    public VolumeBuilder extLocation(String location) {
+      this.extLocation = location;
+
+      this.addProperty(EXTERNAL_VOLUME_LOCATION_KEY, location);
+      return this;
+    }
+
+    public VolumeBuilder properties(Map<String, String> props) {
+      this.model.properties = props;
+
+      return this;
+    }
+
+    /**
+     * volume properties
+     *
+     * @param key
+     *        {@link #EXTERNAL_VOLUME_LOCATION_KEY}: the location for external volumme
+     *        {@link #EXTERNAL_VOLUME_ROLEARN_KEY}: the ram role, value is like "acs:ram::xxx"
+     *
+     * @param value
+     * @return
+     */
+    public VolumeBuilder addProperty(String key, String value) {
+      if (this.model.properties == null) {
+        this.model.properties = new HashMap<>();
+      }
+
+      this.model.properties.put(key, value);
+
+      return this;
+    }
   }
 }

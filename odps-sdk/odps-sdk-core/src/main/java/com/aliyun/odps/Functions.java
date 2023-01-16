@@ -352,6 +352,17 @@ public class Functions implements Iterable<Function> {
     return new FunctionListIterator(projectName, schemaName);
   }
 
+  /**
+   * Get a function iterator of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param functionName function prefix name to filter
+   * @return A function iterator.
+   */
+  public Iterator<Function> iterator(final String projectName, String schemaName, String functionName) {
+    return new FunctionListIterator(projectName, schemaName, functionName);
+  }
 
   /**
    * 返回指定Project下所有函数的迭代器
@@ -384,12 +395,25 @@ public class Functions implements Iterable<Function> {
     return () -> new FunctionListIterator(projectName, schemaName);
   }
 
+  /**
+   * Get a function iterable of the given schema in the given project.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name. Null or empty string means using the default schema.
+   * @param functionName function prefix name to filter
+   * @return A function iterable.
+   */
+  public Iterable<Function> iterable(final String projectName, String schemaName, String functionName) {
+    return () -> new FunctionListIterator(projectName, schemaName, functionName);
+  }
+
   private class FunctionListIterator extends ListIterator<Function> {
     Map<String, String> params = new HashMap<>();
     String projectName;
     String schemaName;
+    String functionName;
 
-    public FunctionListIterator(final String projectName, String schemaName) {
+    FunctionListIterator(final String projectName, String schemaName, String functionName) {
       if (StringUtils.isNullOrEmpty(projectName)) {
         throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
       }
@@ -397,6 +421,27 @@ public class Functions implements Iterable<Function> {
       this.projectName = projectName;
       this.schemaName = schemaName;
       params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+      this.functionName = functionName;
+    }
+
+    public FunctionListIterator(final String projectName, String schemaName) {
+      this(projectName, schemaName, null);
+    }
+
+    @Override
+    public List<Function> list(String marker, long maxItems) {
+      if (marker != null) {
+        params.put("marker", marker);
+      }
+      if (maxItems >= 0) {
+        params.put("maxitems", String.valueOf(maxItems));
+      }
+      return list();
+    }
+
+    @Override
+    public String getMarker() {
+      return params.get("marker");
     }
 
     @Override
@@ -408,6 +453,11 @@ public class Functions implements Iterable<Function> {
       String lastMarker = params.get("marker");
       if (params.containsKey("marker") && StringUtils.isNullOrEmpty(lastMarker)) {
         return null;
+      }
+
+
+      if (functionName != null) {
+        params.put("name", functionName);
       }
 
       String resource = ResourceBuilder.buildFunctionsResource(projectName);

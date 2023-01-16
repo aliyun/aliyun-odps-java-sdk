@@ -40,4 +40,5 @@ public class VolumeFileSystemConfigKeys extends CommonConfigurationKeys {
   public static final String ODPS_VOLUME_SEEK_OPTIMIZATION_ENABLED =
       "odps.volume.seek.optimization.enabled";
   public static final String DFS_REPLICATION_KEY = "dfs.replication";
+  public static final String ODPS_RESTCLIENT_RETRYTIME = "odps.restclient.retrytime";
 }

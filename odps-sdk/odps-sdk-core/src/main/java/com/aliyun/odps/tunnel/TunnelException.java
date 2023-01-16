@@ -37,6 +37,8 @@ public class TunnelException extends OdpsException {
 
   private String errorMsg;
 
+  private String serverHoldClientMillis;
+
   /**
    * 构造异常对象
    */
@@ -50,6 +52,11 @@ public class TunnelException extends OdpsException {
       message = new String(bytes);
       ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
       loadFromJson(bis);
+      if (serverHoldClientMillis != null) {
+        int sleepTime = Integer.parseInt(serverHoldClientMillis);
+        sleepTime = Math.min(sleepTime, 10 * 1000);
+        Thread.sleep(sleepTime);
+      }
     } catch (Exception e) {
       if (StringUtils.isNullOrEmpty(message)) {
         message = "Error message not available";
@@ -175,6 +182,11 @@ public class TunnelException extends OdpsException {
       if (tree.has("Message")) {
         node = tree.get("Message").getAsString();
         errorMsg = node;
+      }
+
+      if (tree.has("HoldClientMillis")) {
+        node = tree.get("HoldClientMillis").getAsString();
+        serverHoldClientMillis = node;
       }
     } catch (Exception e) {
       throw new TunnelException("Parse response failed", e);

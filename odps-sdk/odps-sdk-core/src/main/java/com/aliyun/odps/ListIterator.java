@@ -36,6 +36,15 @@ public abstract class ListIterator<E> implements Iterator<E> {
    */
   protected abstract List<E> list();
 
+  public List<E> list(String marker, long maxItems) {
+    return list();
+  }
+
+  public String getMarker() {
+    // marker = empty string => end of loop
+    return null;
+  }
+
   private LinkedList<E> cache = new LinkedList<E>();
 
   @Override

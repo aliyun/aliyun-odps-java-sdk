@@ -20,6 +20,7 @@
 package com.aliyun.odps.tunnel.io;
 
 import com.google.protobuf.CodedInputStream;
+import net.jpountz.lz4.LZ4FrameInputStream;
 import org.xerial.snappy.PureJavaCrc32C;
 import org.xerial.snappy.SnappyFramedInputStream;
 
@@ -64,6 +65,8 @@ public class ArrowHttpInputStream implements ReadableByteChannel {
                 this.in = new InflaterInputStream(inputStream);
             } else if (compress.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
                 this.in = new SnappyFramedInputStream(inputStream);
+            } else if (compress.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ARROW_LZ4_FRAME)) {
+                this.in = new LZ4FrameInputStream(inputStream);
             } else {
                 throw new IOException("invalid compression option.");
             }

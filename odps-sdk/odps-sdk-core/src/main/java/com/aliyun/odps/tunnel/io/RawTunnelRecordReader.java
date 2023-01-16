@@ -37,6 +37,12 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
     this.conn = conn;
   }
 
+  public RawTunnelRecordReader(List<Column> columns, Connection conn,
+                               CompressOption option) throws IOException {
+    super(columns, conn.getInputStream(), option);
+    this.conn = conn;
+  }
+
   @Override
   public void close() throws IOException {
     super.close();
@@ -106,6 +112,8 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
     params.put("data", null);
 
     if (longPolling) {
+      // get schema from http stream
+      params.put(TunnelConstants.SCHEMA_IN_STREAM, null);
       params.put(TunnelConstants.CACHED, null);
       params.put(TunnelConstants.TASK_NAME, session.getTaskName());
       if (session.getQueryId() != -1) {
@@ -164,20 +172,28 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
         }
       }
       if (longPolling) {
-        // get schema from resp header
-        String schemaStr = resp.getHeader(Headers.TUNNEL_SCHEMA);
         long recordCount = 0;
         if (resp.getHeaders().containsKey(Headers.TUNNEL_RECORD_COUNT)) {
           recordCount = Long.parseLong(resp.getHeader(Headers.TUNNEL_RECORD_COUNT));
         }
-        if (StringUtils.isNullOrEmpty(schemaStr)) {
-          throw new TunnelException("Invalid response schema in header:" + schemaStr);
-        }
-        JsonObject tree = new JsonParser().parse(schemaStr).getAsJsonObject();
-        TableSchema schema = new TunnelTableSchema(tree);
-        // in direct mode, schema in session is null, we need to set it back
-        session.setSchema(schema);
         session.setRecordCount(recordCount);
+        // tunnel server do not support schema in stream
+        if (resp.getHeaders().containsKey(Headers.TUNNEL_SCHEMA)) {
+          String schemaStr = resp.getHeader(Headers.TUNNEL_SCHEMA);
+          if (StringUtils.isNullOrEmpty(schemaStr)) {
+            throw new TunnelException("Invalid response schema in header:" + schemaStr);
+          }
+          JsonObject tree = new JsonParser().parse(schemaStr).getAsJsonObject();
+          TableSchema schema = new TunnelTableSchema(tree);
+          // in direct mode, schema in session is null, we need to set it back
+          session.setSchema(schema);
+          return new RawTunnelRecordReader(session.getSchema(), columns, conn, option);
+        } else {
+          RawTunnelRecordReader reader =  new RawTunnelRecordReader(columns, conn, option);
+          // in direct mode, schema in session is null, we need to set it back
+          session.setSchema(reader.getTableSchema());
+          return reader;
+        }
       }
       return new RawTunnelRecordReader(session.getSchema(), columns, conn, option);
 
