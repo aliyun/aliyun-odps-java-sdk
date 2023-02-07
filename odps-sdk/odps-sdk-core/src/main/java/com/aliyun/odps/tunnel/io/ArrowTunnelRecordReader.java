@@ -181,9 +181,9 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
 
         Connection conn = null;
         try {
-            conn = restClient.connect(
-                    ResourceBuilder.buildTableResource(session.getProjectName(), session.getTableName()),
-                    "GET", params, headers);
+            String resource = ResourceBuilder.buildTableResource(
+                session.getProjectName(), session.getSchemaName(), session.getTableName());
+            conn = restClient.connect(resource, "GET", params, headers);
 
             Response resp = conn.getResponse();
             if (!resp.isOK()) {

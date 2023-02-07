@@ -19,7 +19,14 @@
 
 package com.aliyun.odps.graph;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.logging.Log;
@@ -27,15 +34,23 @@ import org.apache.commons.logging.LogFactory;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.Project;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.conf.Configuration;
 import com.aliyun.odps.counter.Counters;
+import com.aliyun.odps.graph.GRAPH_CONF;
 import com.aliyun.odps.graph.job.JobRunner;
 import com.aliyun.odps.mapred.RunningJob;
 import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.utils.ReflectionUtils;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import org.apache.commons.io.FileUtils;
 
 /**
  * GraphJob 继承自 {@link JobConf}，用于定义、提交和管理一个 ODPS Graph 作业.
@@ -176,6 +191,11 @@ public class GraphJob extends JobConf {
   private static final Log LOG = LogFactory.getLog(GraphJob.class);
 
   private RunningJob rJob = null;
+  private RunningJob rJobShadow = null;
+
+  private JsonObject cupidProp;
+  private JsonObject gsProp;
+  private JsonObject userSetting;
 
   /**
    * 构造一个 ODPS Graph 作业.
@@ -188,7 +208,7 @@ public class GraphJob extends JobConf {
    * 构造一个 ODPS Graph 作业，可以指示是否加载 CLASSPATH 路径上的 odps-graph.xml 配置文件.
    *
    * @param loadDefaults
-   *     指示是否加载 CLASSPATH 路径上的 odps-graph.xml 配置文件
+   *                     指示是否加载 CLASSPATH 路径上的 odps-graph.xml 配置文件
    */
   @Deprecated
   public GraphJob(boolean loadDefaults) {
@@ -199,9 +219,9 @@ public class GraphJob extends JobConf {
    * 构造一个 ODPS Graph 作业.
    *
    * @param conf
-   *     配置管理器
+   *             配置管理器
    * @param js
-   *     作业初始状态，定义或运行状态
+   *             作业初始状态，定义或运行状态
    */
   @Deprecated
   public GraphJob(Configuration conf, JobState js) {
@@ -212,7 +232,7 @@ public class GraphJob extends JobConf {
    * 构造一个 ODPS Graph 作业.
    *
    * @param conf
-   *     配置管理器
+   *             配置管理器
    */
   public GraphJob(Configuration conf) {
     super(conf);
@@ -234,13 +254,12 @@ public class GraphJob extends JobConf {
    * </pre>
    *
    * @param config
-   *     Configuration-format XML 配置文件
+   *               Configuration-format XML 配置文件
    */
   @Deprecated
   public GraphJob(String config) {
     super(config);
   }
-
 
   /**
    * 查询作业是否结束.
@@ -302,35 +321,26 @@ public class GraphJob extends JobConf {
    * </p>
    *
    * @throws IOException
-   *     作业提交失败时抛异常
+   *                     作业提交失败时抛异常
    */
   public void submit() throws IOException {
     ensureState(JobState.DEFINE);
 
     try {
       parseArgs();
-      String runner = "com.aliyun.odps.graph.job.NetworkJobRunner";
-      if (SessionState.get().isLocalRun()) {
-        runner = "com.aliyun.odps.graph.local.LocalGraphJobRunner";
-      }
-      JobRunner jobrunner = null;
-      try {
-        Class<? extends JobRunner> clz = (Class<? extends JobRunner>) Class.forName(runner);
-        jobrunner = ReflectionUtils.newInstance(clz, this);
-      } catch (ClassNotFoundException e) {
-        LOG.fatal("Internal error: currupted installation.", e);
-        throw new RuntimeException(e);
-      }
-      rJob = jobrunner.submit();
-
-    } catch (OdpsException oe) {
-      LOG.error(StringUtils.stringifyException(oe));
-      throw new IOException(oe.getMessage());
     } catch (Exception e) {
       LOG.error(StringUtils.stringifyException(e));
       throw new IOException(e.getMessage());
     }
-
+      try {
+        submitOdpsGraphJob();
+      } catch (OdpsException oe) {
+        LOG.error(StringUtils.stringifyException(oe));
+        throw new IOException(oe.getMessage());
+      } catch (Exception e) {
+        LOG.error(StringUtils.stringifyException(e));
+        throw new IOException(e.getMessage());
+      }
     state = JobState.RUNNING;
   }
 
@@ -360,7 +370,7 @@ public class GraphJob extends JobConf {
    * </pre>
    *
    * @throws IOException
-   *     如果发生提交作业异常、轮询作业状态异常或者作业失败，则抛 IOException 异常
+   *                     如果发生提交作业异常、轮询作业状态异常或者作业失败，则抛 IOException 异常
    * @see #submit()
    */
   public void run() throws IOException {
@@ -382,6 +392,23 @@ public class GraphJob extends JobConf {
   public Counters getCounters() throws IOException {
     return rJob.getCounters();
   }
+
+  private void submitOdpsGraphJob() throws Exception {
+    String runner = "com.aliyun.odps.graph.job.NetworkJobRunner";
+    if (SessionState.get().isLocalRun()) {
+      runner = "com.aliyun.odps.graph.local.LocalGraphJobRunner";
+    }
+    JobRunner jobrunner = null;
+    try {
+      Class<? extends JobRunner> clz = (Class<? extends JobRunner>) Class.forName(runner);
+      jobrunner = ReflectionUtils.newInstance(clz, this);
+    } catch (ClassNotFoundException e) {
+      LOG.fatal("Internal error: currupted installation.", e);
+      throw new RuntimeException(e);
+    }
+    rJob = jobrunner.submit();
+  }
+
 
   private void parseArgs() {
     Properties prop = System.getProperties();
@@ -414,7 +441,7 @@ public class GraphJob extends JobConf {
       if (logViewHost != null && logViewHost.length() != 0) {
         odps.setLogViewHost(logViewHost);
       }
-      
+
       // set running cluster to new odps
       String runningCluster = SessionState.get().getOdps().instances().getDefaultRunningCluster();
       odps.instances().setDefaultRunningCluster(runningCluster);
@@ -423,11 +450,12 @@ public class GraphJob extends JobConf {
     }
     // if in local mode and no odps in sessionState, fill it.
     else if (SessionState.get().isLocalRun() &&
-             SessionState.get().getOdps() == null) {
+        SessionState.get().getOdps() == null) {
       Account account = new AliyunAccount("defaultId", "defaultKey");
       Odps odps = new Odps(account);
       odps.setDefaultProject(project);
       SessionState.get().setOdps(odps);
     }
   }
+
 }

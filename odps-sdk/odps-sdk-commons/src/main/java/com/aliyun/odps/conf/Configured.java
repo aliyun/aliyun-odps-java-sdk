@@ -20,7 +20,7 @@
 package com.aliyun.odps.conf;
 
 /**
- * 提供 {@link Comparable} 接口的基类实现.
+ * 提供 {@link Configurable} 接口的基类实现.
  */
 public class Configured implements Configurable {
 

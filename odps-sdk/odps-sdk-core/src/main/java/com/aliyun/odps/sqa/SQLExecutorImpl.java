@@ -19,20 +19,37 @@
 
 package com.aliyun.odps.sqa;
 
-import com.aliyun.odps.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+
+import com.aliyun.odps.Instance;
+import com.aliyun.odps.LogView;
+import com.aliyun.odps.Odps;
+import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.Session;
+import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.TunnelEndpointLocalCache;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
+import com.aliyun.odps.sqa.commandapi.Command;
+import com.aliyun.odps.sqa.commandapi.CommandInfo;
+import com.aliyun.odps.sqa.commandapi.RecordIter;
+import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
+import com.aliyun.odps.sqa.commandapi.utils.SqlParserUtil;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
-import com.aliyun.odps.TunnelEndpointLocalCache;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
 
 class SQLExecutorImpl implements SQLExecutor {
 
@@ -49,11 +66,14 @@ class SQLExecutorImpl implements SQLExecutor {
   private String serviceName;
   private String taskName;
   private String runningCluster;
+  private String fallbackQuota;
   private int tunnelGetResultMaxRetryTime;
   private int tunnelGetResultRetryCount = 0;
   private static final long cacheSize = 1000;
   private static final int durationSeconds = 900;
-  private static TunnelEndpointLocalCache cache = new TunnelEndpointLocalCache(cacheSize,durationSeconds);
+  private static TunnelEndpointLocalCache cache = new TunnelEndpointLocalCache(cacheSize,
+      durationSeconds);
+  private Long attachTimeout = SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT;
 
   private InstanceTunnel instanceTunnel = null;
   private SQLExecutorPool pool = null;
@@ -63,6 +83,14 @@ class SQLExecutorImpl implements SQLExecutor {
   // current query info
   QueryInfo queryInfo = null;
 
+  // enable Command API
+  private CommandApi commandApi = null;
+  private boolean useCommandApi = false;
+  private boolean parseSuccess = false;
+
+  // 三层模型开关
+  private boolean odpsNamespaceSchema = false;
+
   enum TunnelRetryStatus {
     NEED_RETRY,
     NON_SELECT_QUERY,
@@ -70,6 +98,7 @@ class SQLExecutorImpl implements SQLExecutor {
   }
 
   private class TunnelRetryInfo {
+
     public TunnelRetryStatus status;
     public String errCode;
     public String errMsg;
@@ -78,47 +107,42 @@ class SQLExecutorImpl implements SQLExecutor {
   /**
    * 创建一个Executor
    *
-   * @param odps
-   *     odps 对象
-   * @param serviceName
-   *     指定 service 的名字
-   * @param taskName
-   *     task名字
-   * @param tunnelEndpoint
-   *     默认tunnel地址,若不配置,则走路由
-   * @param properties
-   *     执行连接参数
-   * @param executeMode
-   *     默认执行模式,INTERACTIVE/OFFLINE
-   * @param fallbackPolicy
-   *     允许回退到离线执行的策略
-   * @param enableReattach
-   *     允许内部重连
-   * @param useInstanceTunnel
-   *     默认使用instanceTunnel获取结果,如果设置为false,获取的结果将会全部转为string
-   * @param pool
-   *     如果为连接池模式,则保存连接池,在close时将Executor释放回连接池,否则为null
-   * @param recoverInstance
-   *     若设置,则从该instance恢复状态,若该instance无效或未设置,则重新attach
-   * @param runningCluster
-   *     设置运行集群
+   * @param odps              odps 对象
+   * @param serviceName       指定 service 的名字
+   * @param taskName          task名字
+   * @param tunnelEndpoint    默认tunnel地址,若不配置,则走路由
+   * @param properties        执行连接参数
+   * @param executeMode       默认执行模式,INTERACTIVE/OFFLINE
+   * @param fallbackPolicy    允许回退到离线执行的策略
+   * @param enableReattach    允许内部重连
+   * @param useInstanceTunnel 默认使用instanceTunnel获取结果,如果设置为false,获取的结果将会全部转为string
+   * @param pool              如果为连接池模式,则保存连接池,在close时将Executor释放回连接池,否则为null
+   * @param recoverInstance   若设置,则从该instance恢复状态,若该instance无效或未设置,则重新attach
+   * @param runningCluster    设置运行集群
+   * @param useCommandApi     是否开启CommandApi，开启后将能够使用SDK内封装的拓展命令
+   * @param odpsNamespaceSchema 是否开启三层模型
    * @return
    * @throws OdpsException
    */
-  SQLExecutorImpl(Odps odps,
-                  String serviceName,
-                  String taskName,
-                  String tunnelEndpoint,
-                  Map<String, String> properties,
-                  ExecuteMode executeMode,
-                  FallbackPolicy fallbackPolicy,
-                  boolean enableReattach,
-                  boolean useInstanceTunnel,
-                  boolean useOdpsWorker,
-                  SQLExecutorPool pool,
-                  Instance recoverInstance,
-                  String runningCluster,
-                  int tunnelGetResultMaxRetryTime) throws OdpsException {
+  SQLExecutorImpl(
+      Odps odps,
+      String serviceName,
+      String taskName,
+      String tunnelEndpoint,
+      Map<String, String> properties,
+      ExecuteMode executeMode,
+      FallbackPolicy fallbackPolicy,
+      boolean enableReattach,
+      boolean useInstanceTunnel,
+      boolean useOdpsWorker,
+      SQLExecutorPool pool,
+      Instance recoverInstance,
+      String runningCluster,
+      int tunnelGetResultMaxRetryTime,
+      boolean useCommandApi,
+      String quotaName,
+      Long timeout,
+      boolean odpsNamespaceSchema) throws OdpsException {
     this.properties.putAll(properties);
     this.serviceName = serviceName;
     this.taskName = taskName;
@@ -131,6 +155,16 @@ class SQLExecutorImpl implements SQLExecutor {
     this.pool = pool;
     this.runningCluster = runningCluster;
     this.tunnelGetResultMaxRetryTime = tunnelGetResultMaxRetryTime;
+    this.useCommandApi = useCommandApi;
+    this.odpsNamespaceSchema = odpsNamespaceSchema;
+    this.fallbackQuota = quotaName;
+    this.commandApi = new CommandApi(odps);
+    if (timeout != null) {
+      this.attachTimeout = timeout;
+    }
+    if (!StringUtils.isNullOrEmpty(quotaName)) {
+      this.properties.put(SQLExecutorConstants.WLM_QUOTA_FLAG, quotaName);
+    }
     if (executeMode.equals(ExecuteMode.INTERACTIVE)) {
       // try recover
       if (recoverInstance != null) {
@@ -142,7 +176,9 @@ class SQLExecutorImpl implements SQLExecutor {
       try {
         // recover failed, attach new session
         if (session == null) {
-          session = Session.attach(odps, serviceName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT, runningCluster, taskName);
+          session = Session
+              .attach(odps, serviceName, this.properties, attachTimeout,
+                  runningCluster, taskName);
           attachSuccess = true;
         }
       } catch (OdpsException e) {
@@ -164,11 +200,11 @@ class SQLExecutorImpl implements SQLExecutor {
       if (StringUtils.isNullOrEmpty(tunnelEndpoint)) {
         //try to get tunnelEndpoint from local cache
         try {
-          tunnelEndpoint = cache.getTunnelEndpointFromLocalCache(odps);
-        }
-        catch (ExecutionException e)
-        {
-          throw new OdpsException("Get tunnel endpoint from localCache exception:" + e.getMessage());
+          // TODO: support specify tunnel quota name
+          tunnelEndpoint = cache.getTunnelEndpointFromLocalCache(odps, null);
+        } catch (ExecutionException e) {
+          throw new OdpsException(
+              "Get tunnel endpoint from localCache exception:" + e.getMessage());
         }
         instanceTunnel.setEndpoint(tunnelEndpoint);
       } else {
@@ -179,6 +215,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 默认行为关闭该executor,若为连接池模式,则归还Executor到连接池中
+   *
    * @return
    * @throws
    */
@@ -199,7 +236,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取Executor的ID
-
+   *
    * @return
    * @throws
    */
@@ -210,22 +247,23 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取当前query taskName
-
+   *
    * @return
    * @throws
    */
   @Override
-  public String getTaskName() {return taskName; }
+  public String getTaskName() {
+    return taskName;
+  }
 
   /**
    * 获取当前subquery ID
-
+   *
    * @return
    * @throws
    */
   @Override
-  public int getSubqueryId()
-  {
+  public int getSubqueryId() {
     if (queryInfo != null && queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE)) {
       return queryInfo.getId();
     }
@@ -234,7 +272,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取当前queryId
-
+   *
    * @return
    * @throws
    */
@@ -247,21 +285,37 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取当前query Logview
-
+   *
    * @return
    * @throws
    */
   @Override
-  public String getLogView(){
+  public String getLogView() {
+    if (parseSuccess) {
+      Command command = queryInfo.getCommandInfo().getCommand();
+      if (command.isSync()) {
+        return null;
+      }
+      try {
+        return new LogView(odps).generateLogView(queryInfo.getCommandInfo().getInstance(), 7 * 24);
+      } catch (OdpsException e) {
+        return null;
+      }
+    }
+
     if (queryInfo != null) {
       // if query running, return query logview
       try {
         if (queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE)) {
-          return new LogView(odps).generateSubQueryLogView(
-                  queryInfo.getInstance(), queryInfo.getId(), 7 * 24);
+          if (session != null) {
+            return new LogView(odps)
+                .generateSubQueryLogView(queryInfo.getInstance(), queryInfo.getId(), session.getToken());
+          } else {
+            return new LogView(odps)
+                .generateSubQueryLogView(queryInfo.getInstance(), queryInfo.getId(), 7 * 24);
+          }
         } else {
-          return new LogView(odps).generateLogView(
-                  queryInfo.getInstance(), 7 * 24);
+          return new LogView(odps).generateLogView(queryInfo.getInstance(), 7 * 24);
         }
       } catch (OdpsException e) {
         return null;
@@ -279,7 +333,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 检查该Executor是否活跃
-
+   *
    * @return 是否存活
    * @throws
    */
@@ -293,7 +347,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 取消当前查询
-
+   *
    * @return
    * @throws
    */
@@ -311,11 +365,19 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取当前查询Instance
-
+   *
    * @return
    * @throws
    */
   public Instance getInstance() {
+    if (parseSuccess) {
+      Command command = queryInfo.getCommandInfo().getCommand();
+      if (command.isSync()) {
+        return null;
+      }
+      return queryInfo.getCommandInfo().getInstance();
+    }
+
     if (queryInfo != null) {
       // current query is running
       return queryInfo.getInstance();
@@ -329,7 +391,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取当前查询的进度信息
-
+   *
    * @return 各阶段进度信息
    * @throws OdpsException
    */
@@ -337,6 +399,15 @@ class SQLExecutorImpl implements SQLExecutor {
     if (queryInfo == null) {
       return null;
     }
+
+    if (parseSuccess) {
+      Command command = queryInfo.getCommandInfo().getCommand();
+      if (command.isSync()) {
+        return null;
+      }
+      return queryInfo.getCommandInfo().getInstance().getTaskProgress(queryInfo.getCommandInfo().getTaskName());
+    }
+
     if (queryInfo.getExecuteMode().equals(ExecuteMode.OFFLINE)) {
       return queryInfo.getInstance().getTaskProgress(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
     } else {
@@ -347,16 +418,30 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取当前查询的Summary信息
-
+   *
    * @return SQL summary
    * @throws OdpsException
    */
-  public String getSummary() throws OdpsException  {
+  public String getSummary() throws OdpsException {
     if (queryInfo == null) {
       return null;
     }
+
+    if (parseSuccess) {
+      Command command = queryInfo.getCommandInfo().getCommand();
+      if (command.isSync()) {
+        return null;
+      }
+      Instance.TaskSummary
+          summary =
+          queryInfo.getCommandInfo().getInstance().getTaskSummary(queryInfo.getCommandInfo().getTaskName());
+      return summary == null ? null : summary.getSummaryText();
+    }
+
     if (queryInfo.getExecuteMode().equals(ExecuteMode.OFFLINE)) {
-      Instance.TaskSummary summary = queryInfo.getInstance().getTaskSummary(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+      Instance.TaskSummary
+          summary =
+          queryInfo.getInstance().getTaskSummary(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
       if (summary == null) {
         return null;
       }
@@ -368,11 +453,11 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 获取当前查询的执行日志
-
-   * @return 执行信息,包括回退等消息
+   *
+   * @return 执行信息, 包括回退等消息
    * @throws OdpsException
    */
-  public List<String> getExecutionLog(){
+  public List<String> getExecutionLog() {
     if (queryInfo == null) {
       return null;
     }
@@ -387,7 +472,7 @@ class SQLExecutorImpl implements SQLExecutor {
    */
   @Override
   public List<Record> getResult()
-          throws OdpsException, IOException  {
+      throws OdpsException, IOException {
     return getResult(null);
   }
 
@@ -399,23 +484,22 @@ class SQLExecutorImpl implements SQLExecutor {
    */
   @Override
   public ResultSet getResultSet()
-          throws OdpsException, IOException {
+      throws OdpsException, IOException {
     return getResultSet(null);
   }
 
   /**
    * 获取有限集结果
-
-   * @param countLimit
-   *     返回结果数量
-   * @return query执行的所有结果
-   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
-   *  大数据量下载建议直接使用{@link #getResultSet(Long)};
+   *
+   * @param countLimit 返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @return query执行的所有结果 注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销 大数据量下载建议直接使用{@link
+   * #getResultSet(Long)};
    * @throws OdpsException, IOException
    */
   @Override
   public List<Record> getResult(Long countLimit)
-          throws OdpsException, IOException  {
+      throws OdpsException, IOException {
     if (queryInfo == null) {
       throw new OdpsException("No query running now.");
     }
@@ -426,27 +510,23 @@ class SQLExecutorImpl implements SQLExecutor {
       return getResultInternal(null, countLimit, null, false);
     } catch (Exception e) {
       throw e;
-    } finally {
     }
   }
 
   /**
    * 获取有限集结果
-
-   * @param countLimit
-   *     返回结果数量
-   * @param sizeLimit
-   *     返回结果大小(Bytes)
-   * 如果超过count大小会截断
-   * 如果超过sizeLimit会直接抛出异常
-   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
-   *  大数据量下载建议直接使用{@link #getResultSet(Long, Long)};
+   *
+   * @param countLimit 返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit  返回结果大小(Bytes) 如果超过count大小会截断 如果超过sizeLimit会直接抛出异常 注意 : 返回结果类型为 {@link List},
+   *                   数据量较大时会带来较多内存开销 大数据量下载建议直接使用{@link #getResultSet(Long, Long)};
+   *                   在打开command api的情况下，同步和异步command均不受该参数限制。
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
   @Override
   public List<Record> getResult(Long countLimit, Long sizeLimit)
-      throws OdpsException, IOException  {
+      throws OdpsException, IOException {
     if (queryInfo == null) {
       throw new OdpsException("No query running now.");
     }
@@ -466,15 +546,14 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 通过InstanceTunnel获取有限集结果
-
-   * @param offset
-   *     返回结果的开始行数，从第几行开始取结果
-   * @param countLimit
-   *     返回结果数量
-   * @param sizeLimit
-   *     返回结果大小
-   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
-   *  大数据量下载建议直接使用{@link #getResultSet(Long, Long, Long)};
+   *
+   * @param offset     返回结果的开始行数，从第几行开始取结果。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param countLimit 返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit  返回结果大小 注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销 大数据量下载建议直接使用{@link
+   *                   #getResultSet(Long, Long, Long)};
+   *                   在打开command api的情况下，同步和异步command均不受该参数限制。
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
@@ -504,19 +583,17 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 通过InstanceTunnel获取有限集结果
-
-   * @param offset
-   *     返回结果的开始行数, 从第几行开始取结果
-   * @param countLimit
-   *     返回结果数量
-   * @param sizeLimit
-   *     返回结果大小
-   * @return query执行的所有结果
-   *  注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销
-   *  大数据量下载建议直接使用{@link #getResultSet(Long, Long, Long, boolean)};
-   * @param limitEnabled
-   *     是否启用project设置的READ_TABLE_MAX_ROW, 启用后countLimit设置不再生效(被READ_TABLE_MAX_ROW覆盖)
-   *     不启用则取countLimit数量的结果, 但会进行权限校验, 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception, 否则无权下载
+   *
+   * @param offset       返回结果的开始行数, 从第几行开始取结果。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param countLimit   返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit    返回结果大小。在打开command api的情况下，同步和异步command均不受该参数限制。
+   * @param limitEnabled 是否启用project设置的READ_TABLE_MAX_ROW, 启用后countLimit设置不再生效(被READ_TABLE_MAX_ROW覆盖)
+   *                     不启用则取countLimit数量的结果, 但会进行权限校验, 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception,
+   *                     否则无权下载。在打开command api的情况下，同步和异步command均不受该参数限制。
+   * @return query执行的所有结果 注意 : 返回结果类型为 {@link List}, 数据量较大时会带来较多内存开销 大数据量下载建议直接使用{@link
+   * #getResultSet(Long, Long, Long, boolean)};
    * @throws OdpsException, IOException
    */
   public List<Record> getResult(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
@@ -543,9 +620,9 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 通过InstanceTunnel获取有限集结果的迭代器
-
-   * @param countLimit
-   *     返回结果数量
+   *
+   * @param countLimit 返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
@@ -568,19 +645,17 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 通过InstanceTunnel获取有限集结果的迭代器
-
-   * @param countLimit
-   *     返回结果数量
-   * @param sizeLimit
-   *     返回结果大小(Bytes)
-   * 如果超过count大小会截断
-   * 如果超过sizeLimit会直接抛出异常
+   *
+   * @param countLimit 返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit  返回结果大小(Bytes) 如果超过count大小会截断 如果超过sizeLimit会直接抛出异常。
+   *                   在打开command api的情况下，同步和异步command均不受该参数限制。
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
   @Override
   public ResultSet getResultSet(Long countLimit, Long sizeLimit)
-          throws OdpsException, IOException {
+      throws OdpsException, IOException {
     if (queryInfo == null) {
       throw new OdpsException("No query running now.");
     }
@@ -600,13 +675,12 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 通过InstanceTunnel获取有限集结果的迭代器
-
-   * @param offset
-   *     返回结果的开始行数，从第几行开始取结果
-   * @param countLimit
-   *     返回结果数量
-   * @param sizeLimit
-   *     返回结果大小
+   *
+   * @param offset     返回结果的开始行数，从第几行开始取结果。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param countLimit 返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                   见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit  返回结果大小。在打开command api的情况下，同步和异步command均不受该参数限制。
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
@@ -635,17 +709,15 @@ class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 通过InstanceTunnel获取有限集结果的迭代器
-
-   * @param offset
-   *     返回结果的开始行数, 从第几行开始取结果
-   * @param countLimit
-   *     返回结果数量
-   * @param sizeLimit
-   *     返回结果大小
-   * @param limitEnabled
-   *     是否启用project设置的READ_TABLE_MAX_ROW, 启用后countLimit设置不再生效(被READ_TABLE_MAX_ROW覆盖)
-   *     不启用则取countLimit数量的结果, 但会进行权限校验, 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception, 否则无权下载
    *
+   * @param offset       返回结果的开始行数, 从第几行开始取结果。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param countLimit   返回结果数量。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit    返回结果大小。在打开command api的情况下，同步和异步command均不受该参数限制。
+   * @param limitEnabled 是否启用project设置的READ_TABLE_MAX_ROW, 启用后countLimit设置不再生效(被READ_TABLE_MAX_ROW覆盖)
+   *                     不启用则取countLimit数量的结果, 但会进行权限校验, 需要提前在policy中为对应SQL中涉及的相应表和视图添加exception,
+   *                     否则无权下载。在打开command api的情况下，同步和异步command均不受该参数限制。
    * @return query执行的所有结果
    * @throws OdpsException, IOException
    */
@@ -674,16 +746,35 @@ class SQLExecutorImpl implements SQLExecutor {
   /**
    * 提交一个query
    *
-   * @param sql
-   *     sql语句
-   * @param hint
-   *     query需要的hint参数
+   * @param sql  sql语句
+   * @param hint query需要的hint参数
    * @return
    * @throws OdpsException
    */
   @Override
   public void run(String sql, Map<String, String> hint) throws OdpsException {
+    if (hint == null) {
+      hint = new HashMap<>();
+    }
     queryInfo = new QueryInfo(sql, hint, executeMode);
+    queryInfo.setCommandInfo(new CommandInfo(sql, hint));
+
+    if (useCommandApi) {
+      Command command = CommandUtil.parseCommand(sql);
+      // 如果command为null说明解析失败, 执行之前的逻辑
+      if (command != null) {
+        queryInfo.getCommandInfo().setCommand(command);
+        queryInfo.getCommandInfo().setOdpsNamespaceSchema(odpsNamespaceSchema);
+        if (!command.isSync()) {
+          // 异步command非阻塞执行
+          command.run(odps, queryInfo.getCommandInfo());
+        }
+        parseSuccess = true;
+        return;
+      }
+    }
+
+    parseSuccess = false;
     //reset tunnelGetResultRetryCount before query run
     tunnelGetResultRetryCount = 0;
     try {
@@ -697,7 +788,10 @@ class SQLExecutorImpl implements SQLExecutor {
     if (enableReattach) {
       try {
         attachSuccess = false;
-        session = Session.attach(odps, serviceName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT, runningCluster, taskName);
+        session =
+            Session
+                .attach(odps, serviceName, properties, attachTimeout,
+                    runningCluster, taskName);
         attachSuccess = true;
       } catch (OdpsException e) {
         if (!fallbackPolicy.isAlwaysFallBack()) {
@@ -717,16 +811,16 @@ class SQLExecutorImpl implements SQLExecutor {
                errorMessage.indexOf(SQLExecutorConstants.sessionJobCancelledFlag) != -1) {
       throw new OdpsException(errorMessage);
     } else if (fallbackPolicy.isFallback4UnsupportedFeature()
-            && errorMessage.indexOf(SQLExecutorConstants.sessionUnsupportedFeatureFlag) != -1) {
+        && errorMessage.indexOf(SQLExecutorConstants.sessionUnsupportedFeatureFlag) != -1) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4Upgrading()
-            && errorMessage.indexOf(SQLExecutorConstants.sessionUnavailableFlag) != -1) {
+        && errorMessage.indexOf(SQLExecutorConstants.sessionUnavailableFlag) != -1) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4Upgrading()
-            && errorMessage.indexOf(SQLExecutorConstants.sessionAccessDenyFlag) != -1) {
+        && errorMessage.indexOf(SQLExecutorConstants.sessionAccessDenyFlag) != -1) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4ResourceNotEnough()
-            && errorMessage.indexOf(SQLExecutorConstants.sessionResourceNotEnoughFlag) != -1) {
+        && errorMessage.indexOf(SQLExecutorConstants.sessionResourceNotEnoughFlag) != -1) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4RunningTimeout()
         && (errorMessage.indexOf(SQLExecutorConstants.sessionQueryTimeoutFlag) != -1 ||
@@ -734,7 +828,7 @@ class SQLExecutorImpl implements SQLExecutor {
               errorMessage.indexOf(SQLExecutorConstants.sessionTunnelGetSelectDescTimeoutMessage) != -1)) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isFallback4UnknownError()
-            && errorMessage.indexOf(SQLExecutorConstants.sessionExceptionFlag) != -1) {
+        && errorMessage.indexOf(SQLExecutorConstants.sessionExceptionFlag) != -1) {
       return ExecuteMode.OFFLINE;
     } else if (fallbackPolicy.isAlwaysFallBack()) {
       return ExecuteMode.OFFLINE;
@@ -745,14 +839,15 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private boolean checkIsSelect(String errorCode, String errorMessage) throws OdpsException {
     if (errorCode.equals(SQLExecutorConstants.sessionNotSelectException)
-            || errorMessage.indexOf(SQLExecutorConstants.sessionNotSelectMessage) != -1) {
+        || errorMessage.indexOf(SQLExecutorConstants.sessionNotSelectMessage) != -1) {
       queryInfo.setSelect(false);
       return false;
     }
     return true;
   }
 
-  private TunnelRetryInfo handleTunnelException(String errorCode, String errorMessage) throws OdpsException {
+  private TunnelRetryInfo handleTunnelException(String errorCode, String errorMessage)
+      throws OdpsException {
     boolean isSelect = checkIsSelect(errorCode, errorMessage);
     TunnelRetryInfo info = new TunnelRetryInfo();
     info.errCode = errorCode;
@@ -774,7 +869,7 @@ class SQLExecutorImpl implements SQLExecutor {
       }
     }
     if (errorCode.equals(SQLExecutorConstants.sessionTunnelTimeoutFlag)
-            || errorMessage.indexOf(SQLExecutorConstants.sessionTunnelTimeoutMessage) != -1) {
+        || errorMessage.indexOf(SQLExecutorConstants.sessionTunnelTimeoutMessage) != -1) {
       // get result timeout
       tunnelGetResultRetryCount++;
       if (tunnelGetResultRetryCount >= tunnelGetResultMaxRetryTime) {
@@ -790,15 +885,111 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet newEmptyResultSet() {
     return new ResultSet(
-            new OfflineRecordSetIterator(new ArrayList<>()),
-            null,
-            0
+        new OfflineRecordSetIterator(new ArrayList<>()),
+        new TableSchema(),
+        0
     );
   }
 
-  private List<Record> getResultInternal(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
-          throws OdpsException, IOException  {
-    if (useInstanceTunnel) {
+  /**
+   * 获取command的结果, 同步的command在此处才真正的run并获得结果, 异步的command在此处检查instance成功之后返回结果
+   *
+   * @param offset       返回结果开始的行数,从第几行开始。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param countLimit   返回结果的最大数目。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit    在打开command api的情况下，同步和异步command均不受该参数限制。
+   * @param limitEnabled 在打开command api的情况下，同步和异步command均不受该参数限制。
+   * @return Record的集合
+   * @throws OdpsException
+   */
+  private List<Record> getCommandResult(Long offset, Long countLimit, Long sizeLimit,
+      boolean limitEnabled) throws OdpsException {
+    if (offset != null && offset < 0L) {
+      throw new IllegalArgumentException("illegal argument. offset = " + offset);
+    }
+    if (countLimit != null && countLimit < 0L) {
+      throw new IllegalArgumentException("illegal argument. countLimit = " + countLimit);
+    }
+    Command command = queryInfo.getCommandInfo().getCommand();
+    // 同步直接阻塞返回结果
+    if (command.isSync()) {
+      RecordIter recordIterator = command.run(odps, queryInfo.getCommandInfo());
+      if (recordIterator == null) {
+        return Collections.emptyList();
+      }
+      recordIterator.setCountLimit(countLimit == null ? -1L : countLimit);
+      recordIterator.setOffset(offset == null ? 0L : offset);
+      List<Record> records = new ArrayList<>();
+      while (recordIterator.hasNext()) {
+        Record record = recordIterator.next();
+        records.add(record);
+      }
+      return records;
+    }
+    Instance instance = queryInfo.getCommandInfo().getInstance();
+    instance.waitForSuccess();
+    instance = queryInfo.getCommandInfo().getInstance();
+    String res = instance.getTaskResults().get(queryInfo.getCommandInfo().getTaskName());
+
+    return CommandUtil.toRecord(res, command.getResultHeaders().get(0));
+  }
+
+  /**
+   * 获取command的结果, 同步的command在此处才真正的run并获得结果, 异步的command在此处检查instance成功之后返回结果。
+   *
+   * @param offset       返回结果开始的行数,从第几行开始。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param countLimit   返回结果的最大数目。在打开command api的情况下，异步command不受该参数限制，
+   *                     见{@link SQLExecutorBuilder#enableCommandApi(boolean)}
+   * @param sizeLimit    同步和异步command均不受该参数限制。
+   * @param limitEnabled 同步和异步command均不受该参数限制。
+   * @return 结果封装为ResultSet形式。其中，同步command运行结果的recordCount不可知，规定为-1。
+   * @throws OdpsException
+   */
+  private ResultSet getCommandResultSet(Long offset, Long countLimit, Long sizeLimit,
+      boolean limitEnabled)
+      throws OdpsException {
+    if (offset != null && offset < 0L) {
+      throw new IllegalArgumentException("illegal argument. offset = " + offset);
+    }
+    if (countLimit != null && countLimit < 0L) {
+      throw new IllegalArgumentException("illegal argument. countLimit = " + countLimit);
+    }
+
+    Command command = queryInfo.getCommandInfo().getCommand();
+    // 同步直接阻塞返回结果
+    if (command.isSync()) {
+      RecordIter recordIterator = command.run(odps, queryInfo.getCommandInfo());
+      if (recordIterator == null) {
+        return newEmptyResultSet();
+      }
+      recordIterator.setCountLimit(countLimit == null ? -1L : countLimit);
+      recordIterator.setOffset(offset == null ? 0L : offset);
+      TableSchema schema = new TableSchema();
+      schema.setColumns(Arrays.asList(recordIterator.getColumns()));
+      return new ResultSet(recordIterator, schema, -1);
+    }
+    Instance instance = queryInfo.getCommandInfo().getInstance();
+    instance.waitForSuccess();
+    instance = queryInfo.getCommandInfo().getInstance();
+    String res = instance.getTaskResults().get(queryInfo.getCommandInfo().getTaskName());
+    List<Record> records = CommandUtil.toRecord(res, command.getResultHeaders().get(0));
+    TableSchema schema = new TableSchema();
+    schema.setColumns(Arrays.asList(records.get(0).getColumns()));
+    return new ResultSet(records.iterator(), schema, records.size());
+  }
+
+  private List<Record> getResultInternal(Long offset, Long countLimit, Long sizeLimit,
+      boolean limitEnabled)
+      throws OdpsException, IOException {
+    // 如果解析成功 走语法树的处理逻辑
+    if (parseSuccess) {
+      return getCommandResult(offset, countLimit, sizeLimit, limitEnabled);
+    }
+
+    queryInfo.setSelect(hasResultSet());
+    if (useInstanceTunnel && queryInfo.isSelect()) {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       } else {
@@ -813,9 +1004,16 @@ class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
-  private ResultSet getResultSetInternal(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
-          throws OdpsException, IOException {
-    if (useInstanceTunnel) {
+  private ResultSet getResultSetInternal(Long offset, Long countLimit, Long sizeLimit,
+      boolean limitEnabled)
+      throws OdpsException, IOException {
+    // 如果解析成功 走语法树的处理逻辑
+    if (parseSuccess) {
+      return getCommandResultSet(offset, countLimit, sizeLimit, limitEnabled);
+    }
+
+    queryInfo.setSelect(hasResultSet());
+    if (useInstanceTunnel && queryInfo.isSelect()) {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       } else {
@@ -830,8 +1028,8 @@ class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
-  private List<Record> getSessionResult ()
-          throws OdpsException, IOException {
+  private List<Record> getSessionResult()
+      throws OdpsException, IOException {
     Session.SubQueryResult result = null;
     try {
       if (!useOdpsWorker) {
@@ -847,21 +1045,29 @@ class SQLExecutorImpl implements SQLExecutor {
     return result.getRecords();
   }
 
-  private List<Record> getSessionResultByInstanceTunnel(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
-          throws OdpsException, IOException  {
+  private List<Record> getSessionResultByInstanceTunnel(Long offset, Long countLimit,
+      Long sizeLimit, boolean limitEnabled)
+      throws OdpsException, IOException, RuntimeException {
     Instance instance = queryInfo.getInstance();
     List<Record> records = new ArrayList<>();
     try {
       InstanceTunnel.DownloadSession downloadSession =
-              instanceTunnel.createDirectDownloadSession(
-                      instance.getProject(),
-                      instance.getId(),
-                      taskName,
-                      queryInfo.getId(),
-                      limitEnabled);
-      TunnelRecordReader reader = downloadSession.openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit, sizeLimit == null ? -1 : sizeLimit);
+          instanceTunnel.createDirectDownloadSession(
+              instance.getProject(),
+              instance.getId(),
+              taskName,
+              queryInfo.getId(),
+              limitEnabled);
+      TunnelRecordReader
+          reader =
+          downloadSession
+              .openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit,
+                  sizeLimit == null ? -1 : sizeLimit);
       while (true) {
         Record record = reader.read();
+        if (sizeLimit != null && sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
+          throw new RuntimeException("InvalidArgument: sizeLimit, fetched data is larger than limit size");
+        }
         if (record == null) {
           break;
         } else {
@@ -883,24 +1089,37 @@ class SQLExecutorImpl implements SQLExecutor {
     return records;
   }
 
-  private List<Record> getOfflineResult()
-          throws OdpsException, IOException {
+  private List<Record> getOfflineResult() throws OdpsException {
     queryInfo.getInstance().waitForSuccess();
-    return SQLTask.getResult(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+    Map<String, String> results = queryInfo.getInstance().getTaskResults();
+    String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+
+    if (selectResult != null) {
+      if (queryInfo.isSelect()) {
+        return SQLTask.parseCsvRecord(selectResult);
+      } else {
+        // 非select但是具备结果集的命令
+        return CommandUtil.toRecord(selectResult, "Info");
+      }
+    }
+
+    return null;
   }
 
   private List<Record> getOfflineResultByInstanceTunnel(Long limit)
-          throws OdpsException, IOException {
+      throws OdpsException, IOException {
     queryInfo.getInstance().waitForSuccess();
     if (queryInfo.isSelect()) {
-      return SQLTask.getResultByInstanceTunnel(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME, limit);
+      return SQLTask.getResultByInstanceTunnel(queryInfo.getInstance(),
+          SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME, limit);
     } else {
-      return SQLTask.getResult(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+      return SQLTask
+          .getResult(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
     }
   }
 
   private ResultSet getSessionResultSet()
-          throws OdpsException, IOException  {
+      throws OdpsException, IOException {
     Session.SubQueryResult result = null;
     try {
       if (!useOdpsWorker) {
@@ -914,30 +1133,33 @@ class SQLExecutorImpl implements SQLExecutor {
       return getResultSetInternal(null, null, null, true);
     }
     return new ResultSet(
-            new OfflineRecordSetIterator(result.getRecords()),
-            result.getSchema(),
-            result.getRecords().size());
+        new OfflineRecordSetIterator(result.getRecords()),
+        result.getSchema(),
+        result.getRecords().size());
   }
 
-  private ResultSet getSessionResultSetByInstanceTunnel(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
-          throws OdpsException, IOException  {
+  private ResultSet getSessionResultSetByInstanceTunnel(Long offset, Long countLimit,
+      Long sizeLimit, boolean limitEnabled)
+      throws OdpsException, IOException {
     Instance instance = queryInfo.getInstance();
     InstanceTunnel.DownloadSession downloadSession = null;
     TunnelRecordReader reader = null;
     try {
       downloadSession =
-              instanceTunnel.createDirectDownloadSession(
-                      instance.getProject(),
-                      instance.getId(),
-                      taskName,
-                      queryInfo.getId(),
-                      limitEnabled);
+          instanceTunnel.createDirectDownloadSession(
+              instance.getProject(),
+              instance.getId(),
+              taskName,
+              queryInfo.getId(),
+              limitEnabled);
       // remained for :
       // 1.TunnelException check
       // 2.Check size limit
       // 3.Get return result record count
-      reader = downloadSession.openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit, sizeLimit == null ? -1 : sizeLimit);
-      reader.close();
+      reader =
+          downloadSession
+              .openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit,
+                  sizeLimit == null ? -1 : sizeLimit);
     } catch (TunnelException e) {
       TunnelRetryInfo retryInfo = handleTunnelException(e.getErrorCode(), e.getMessage());
       if (retryInfo.status.equals(TunnelRetryStatus.NEED_RETRY)) {
@@ -951,43 +1173,57 @@ class SQLExecutorImpl implements SQLExecutor {
       }
     }
     return new ResultSet(
-            new SessionRecordSetIterator(downloadSession, downloadSession.getRecordCount(),
-                                         offset == null ? 0 : offset),
-            downloadSession.getSchema(),
-            downloadSession.getRecordCount());
+        new SessionRecordSetIterator(downloadSession, reader, downloadSession.getRecordCount(),
+            offset == null ? 0 : offset, sizeLimit == null ? -1 : sizeLimit),
+        downloadSession.getSchema(),
+        downloadSession.getRecordCount());
   }
 
 
   private ResultSet getOfflineResultSet()
-          throws OdpsException, IOException  {
+      throws OdpsException, IOException {
     queryInfo.getInstance().waitForSuccess();
     Map<String, String> results = queryInfo.getInstance().getTaskResults();
     String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
     if (!StringUtils.isNullOrEmpty(selectResult)) {
-      CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(selectResult);
-      List<Record> records = parseResult.getRecords();
-      return new ResultSet(
-              new OfflineRecordSetIterator(records),
-              parseResult.getSchema(),
-              records.size());
+      if (queryInfo.isSelect()) {
+        CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(selectResult);
+        List<Record> records = parseResult.getRecords();
+        return new ResultSet(
+            new OfflineRecordSetIterator(records),
+            parseResult.getSchema(),
+            records.size());
+      } else {
+        List<Record> records = CommandUtil.toRecord(selectResult, "Info");
+        TableSchema schema = new TableSchema();
+        schema.setColumns(Arrays.asList(records.get(0).getColumns()));
+        return new ResultSet(
+            new OfflineRecordSetIterator(records),
+            schema,
+            records.size());
+      }
     } else {
       return newEmptyResultSet();
     }
   }
 
   private ResultSet getOfflineResultSetByInstanceTunnel(Long limit)
-          throws OdpsException, IOException {
+      throws OdpsException, IOException {
     queryInfo.getInstance().waitForSuccess();
     // getResultSet will use instance tunnel, which do not support non-select query
     if (queryInfo.isSelect()) {
-      return SQLTask.getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME, limit);
+      return SQLTask
+          .getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
+              limit);
     } else {
       return newEmptyResultSet();
     }
   }
 
   private void runInSessionWithRetry(String rerunMsg) throws OdpsException {
-    Session.SubQueryInfo subQueryInfo = session.runSubQuery(queryInfo.getSql(), queryInfo.getHint());
+    Session.SubQueryInfo
+        subQueryInfo =
+        session.runSubQuery(queryInfo.getSql(), queryInfo.getHint());
     if (subQueryInfo.status.equals(Session.SubQueryInfo.kOKCode)) {
       if (subQueryInfo.queryId == -1) {
         ExecuteMode executeMode = handleSessionException(subQueryInfo.result);
@@ -997,9 +1233,9 @@ class SQLExecutorImpl implements SQLExecutor {
         // call getLogview() if it's needed
         queryInfo.setId(subQueryInfo.queryId);
         queryInfo.setInstance(session.getInstance(),
-                ExecuteMode.INTERACTIVE,
-                "",
-                rerunMsg);
+            ExecuteMode.INTERACTIVE,
+            "",
+            rerunMsg);
       }
     } else if (subQueryInfo.status.equals(Session.SubQueryInfo.kNotFoundCode)) {
       // odps worker cannot found instance, may stopped, reattach and retry
@@ -1016,14 +1252,15 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private void runInOffline(String rerunMsg) throws OdpsException {
     Instance instance = SQLTask.run(
-            odps,
-            odps.getDefaultProject(),
-            queryInfo.getSql(),
-            SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
-            queryInfo.getHint(),
-            null);
+        odps,
+        odps.getDefaultProject(),
+        queryInfo.getSql(),
+        SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
+        queryInfo.getHint(),
+        null);
 
-    queryInfo.setInstance(instance, ExecuteMode.OFFLINE, new LogView(odps).generateLogView(instance, 7 * 24), rerunMsg);
+    queryInfo.setInstance(instance, ExecuteMode.OFFLINE,
+        new LogView(odps).generateLogView(instance, 7 * 24), rerunMsg);
   }
 
   private void runQueryInternal(ExecuteMode executeMode, String rerunMsg, boolean isRerun) throws OdpsException {
@@ -1033,9 +1270,12 @@ class SQLExecutorImpl implements SQLExecutor {
         queryInfo.incRetry();
       }
       // INTERACTIVE mode and attach failed and always fallback, try to attach session
-      if (executeMode == ExecuteMode.INTERACTIVE && !attachSuccess && fallbackPolicy.isAlwaysFallBack()) {
+      if (executeMode == ExecuteMode.INTERACTIVE && !attachSuccess && fallbackPolicy
+          .isAlwaysFallBack()) {
         try {
-          session = Session.attach(odps, serviceName, properties, SQLExecutorConstants.DEFAULT_ATTACH_TIMEOUT, runningCluster, taskName);
+          session =
+              Session.attach(odps, serviceName, properties,
+                             attachTimeout, runningCluster, taskName);
           attachSuccess = true;
         } catch (OdpsException e) {
           // ignore if attach failed, run SQL in offline mode
@@ -1044,14 +1284,22 @@ class SQLExecutorImpl implements SQLExecutor {
       }
       if (executeMode == ExecuteMode.OFFLINE || fallbackForAttachFailed) {
         queryInfo.setExecuteMode(ExecuteMode.OFFLINE);
-        // disable sqa in offline mode
-        if (queryInfo != null && queryInfo.getInstance() != null) {
+        // attach success and query fallback, disable sqa in fallback offline mode
+        if (queryInfo != null) {
           if (queryInfo.getHint() == null) {
             queryInfo.setHint(new HashMap<>());
           }
+          if (!StringUtils.isNullOrEmpty(fallbackQuota)) {
+            queryInfo.getHint().put(SQLExecutorConstants.WLM_QUOTA_FLAG, fallbackQuota);
+          }
           queryInfo.getHint().put(SQLExecutorConstants.SQA_TASK_FLAG, "false");
-          queryInfo.getHint().put(SQLExecutorConstants.SESSION_FALLBACK_TRACER,
-              queryInfo.getInstance().getId() + "_" + queryInfo.getId());
+          if (queryInfo.getInstance() != null) {
+            queryInfo.getHint().put(SQLExecutorConstants.SESSION_FALLBACK_TRACER,
+                                    queryInfo.getInstance().getId() + "_" + queryInfo.getId());
+          } else {
+            queryInfo.getHint().put(SQLExecutorConstants.SESSION_FALLBACK_TRACER,
+                                    "fallback4AttachFailed");
+          }
         }
         runInOffline(rerunMsg);
       } else {
@@ -1061,13 +1309,26 @@ class SQLExecutorImpl implements SQLExecutor {
       throw new OdpsException(rerunMsg);
     }
   }
+
+  @Override
+  public boolean hasResultSet() {
+    if (parseSuccess) {
+      return true;
+    }
+    return SqlParserUtil.hasResultSet(queryInfo.getSql());
+  }
+
+  @Override
+  public boolean isRunningInInteractiveMode() {
+    return queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE);
+  }
 }
 
 /**
- * class: SessionRecordSetIterator
- * It is used in getSessionResultSetByInstanceTunnel
+ * class: SessionRecordSetIterator It is used in getSessionResultSetByInstanceTunnel
  */
 class SessionRecordSetIterator implements Iterator<Record> {
+
   private List<Record> buffer;
   private static final long FETCH_SIZE = 10000L;
   private long cursor = 0;
@@ -1075,14 +1336,21 @@ class SessionRecordSetIterator implements Iterator<Record> {
   private long fetchSize = 0;
   private long recordCount;
   private long offset;
+  private long sizeLimit;
+  private long currentReadSize = 0;
   private InstanceTunnel.DownloadSession session;
+  private TunnelRecordReader reader;
 
-  public SessionRecordSetIterator(InstanceTunnel.DownloadSession session,
-                                  long recordCount,
-                                  long offset) {
+  public SessionRecordSetIterator(InstanceTunnel.DownloadSession session
+      , TunnelRecordReader reader
+      , long recordCount
+      , long offset
+      , long sizeLimit) {
     this.session = session;
+    this.reader = reader;
     this.recordCount = recordCount;
     this.offset = offset;
+    this.sizeLimit = sizeLimit;
   }
 
   @Override
@@ -1106,13 +1374,24 @@ class SessionRecordSetIterator implements Iterator<Record> {
 
   private void fillBuffer() {
     idx = 0;
-    TunnelRecordReader reader = openNewReader();
+    // use original reader when fill buffer at first time if record count less than 10000
+    if (cursor == 0 && recordCount <= FETCH_SIZE) {
+      // reuse reader
+    } else {
+      reader = openNewReader();
+    }
     buffer = new ArrayList<Record>();
     Record r = null;
     try {
       while ((r = reader.read()) != null) {
         buffer.add(r);
+        if (sizeLimit > 0) {
+          if (currentReadSize + reader.getTotalBytes() > sizeLimit) {
+            throw new RuntimeException("InvalidArgument: sizeLimit, fetched data is larger than limit size");
+          }
+        }
       }
+      currentReadSize += reader.getTotalBytes();
     } catch (IOException e) {
       throw new RuntimeException("Read from reader failed:", e);
     }
@@ -1131,12 +1410,11 @@ class SessionRecordSetIterator implements Iterator<Record> {
 }
 
 /**
- * class: OfflineRecordSetIterator
- *  It is used in getOfflineResultSet
- *  It passes a List to fake a reader
- *  The record count in List is limited, so there is no memory problem
+ * class: OfflineRecordSetIterator It is used in getOfflineResultSet It passes a List to fake a
+ * reader The record count in List is limited, so there is no memory problem
  */
 class OfflineRecordSetIterator implements Iterator<Record> {
+
   private int cursor = 0;
   private List<Record> buffer;
 

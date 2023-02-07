@@ -20,6 +20,7 @@
 package com.aliyun.odps.security;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.Objects;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.rest.ErrorMessage;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.rest.SimpleXmlUtils;
@@ -42,9 +44,13 @@ import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.aliyun.odps.utils.OdpsConstants;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
 
 /**
  * ODPS安全管理类
@@ -58,7 +64,7 @@ public class SecurityManager {
   private SecurityConfiguration securityConfigration;
 
   @Root(name = "Authorization", strict = false)
-  private static class AuthorizationQueryRequest {
+  static class AuthorizationQueryRequest {
 
     @Element(name = "Query", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
@@ -66,6 +72,9 @@ public class SecurityManager {
 
     @Element(name = "ResponseInJsonFormat", required = false)
     private boolean responseInJsonFormat;
+
+    @Element(name = "Settings", required = false)
+    private String settings;
 
     @SuppressWarnings("unused")
     public AuthorizationQueryRequest() {
@@ -78,14 +87,36 @@ public class SecurityManager {
       this.responseInJsonFormat = jsonFormat;
     }
 
+    public AuthorizationQueryRequest(String query, boolean jsonFormat, String settings) {
+      this.query = query;
+      this.responseInJsonFormat = jsonFormat;
+      this.settings = settings;
+    }
+
   }
 
   @Root(name = "Authorization", strict = false)
-  private static class AuthorizationQueryResponse {
+  static class AuthorizationQueryResponse {
 
     @Element(name = "Result", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     private String result;
+
+    public static AuthorizationQueryResponse from(byte[] body) {
+      if (body == null) {
+        return null;
+      }
+
+      return fromXml(body);
+    }
+
+    private static AuthorizationQueryResponse fromXml(byte[] body) {
+      try {
+        return SimpleXmlUtils.unmarshal(body, AuthorizationQueryResponse.class);
+      } catch (Exception ignore) {
+        return null;
+      }
+    }
 
     public String getResult() {
       return result;
@@ -126,12 +157,12 @@ public class SecurityManager {
     }
   }
 
-  public class AuthorizationQueryInstance {
+  public static class AuthorizationQueryInstance {
 
     private String queryResult;
     private String instanceId;
     private String projectName;
-    private SecurityManager securityManager;
+    private RestClient client;
     private boolean isSync;
 
 
@@ -147,7 +178,7 @@ public class SecurityManager {
       }
       this.projectName = projectName;
       this.instanceId = instanceId;
-      this.securityManager = sm;
+      this.client = sm.client;
       this.isSync = false;
     }
 
@@ -189,14 +220,9 @@ public class SecurityManager {
     }
 
     private AuthorizationQueryStatusModel getModel() throws OdpsException {
-      StringBuilder resource = new StringBuilder();
-      resource.append("/projects/")
-          .append(ResourceBuilder.encodeObjectName(project))
-          .append("/authorization/")
-          .append(instanceId);
-      return securityManager.client
-          .request(AuthorizationQueryStatusModel.class, resource.toString(), "GET", null, null, null);
-
+      String resource =
+          ResourceBuilder.buildProjectAuthorizationInstanceResource(projectName, instanceId);
+      return client.request(AuthorizationQueryStatusModel.class, resource, "GET", null, null, null);
     }
 
     public boolean isTerminated() throws OdpsException {
@@ -360,6 +386,20 @@ public class SecurityManager {
     client.stringRequest(resource, "PUT", params, null, policy);
   }
 
+  public User getUserById(String id) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, id);
+    UserModel resp = client.request(UserModel.class, resource, "GET");
+    return new User(resp, project, client);
+  }
+
+  public User getUserByName(String name) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, name);
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("type", "displayname");
+    UserModel resp = client.request(UserModel.class, resource, "GET", params);
+    return new User(resp, project, client);
+  }
+
   public List<User> listUsers() throws OdpsException {
     String resource = ResourceBuilder.buildUsersResource(project);
     ListUsersResponse resp = client.request(ListUsersResponse.class,
@@ -466,6 +506,7 @@ public class SecurityManager {
 
   public static class PermissionDesc {
     private String projectName;
+    private String schemaName;
     private ObjectType objectType;
     private String objectName;
     private ActionType actionType;
@@ -475,7 +516,16 @@ public class SecurityManager {
                           ObjectType objectType,
                           String objectName,
                           ActionType actionType) {
+      this(projectName, null, objectType, objectName, actionType);
+    }
+
+    public PermissionDesc(String projectName,
+                          String schemaName,
+                          ObjectType objectType,
+                          String objectName,
+                          ActionType actionType) {
       this.projectName = Objects.requireNonNull(projectName);
+      this.schemaName = schemaName;
       this.objectType = Objects.requireNonNull(objectType);
       this.objectName = Objects.requireNonNull(objectName);
       this.actionType = Objects.requireNonNull(actionType);
@@ -484,6 +534,10 @@ public class SecurityManager {
 
     public String getProjectName() {
       return projectName;
+    }
+
+    public String getSchemaName() {
+      return schemaName;
     }
 
     public ObjectType getObjectType() {
@@ -535,7 +589,11 @@ public class SecurityManager {
       JsonArray jsonArray = new JsonArray();
       JsonObject jsonObject = new JsonObject();
       jsonObject.addProperty("Action", actionType.name());
-      jsonObject.addProperty("Resource", buildResourceString(objectType, objectName));
+      String resource = buildResourceString(objectType, objectName);
+      if (getSchemaName() != null) {
+        resource = resource.substring(1);
+      }
+      jsonObject.addProperty("Resource", resource);
 
       for (Map.Entry<String, String> param : params.entrySet()) {
         jsonObject.addProperty(param.getKey(), param.getValue());
@@ -558,11 +616,15 @@ public class SecurityManager {
     String resource = "/projects/" + ResourceBuilder.encodeObjectName(desc.projectName)
                       + "/auth/";
     Map<String, String> headers = new HashMap<>();
+    Map<String, String> params = new HashMap<>();
+    if (desc.getSchemaName() != null) {
+      params.put("curr_schema", desc.getSchemaName());
+    }
     headers.put(Headers.CONTENT_TYPE, "application/json");
     CheckPermissionResponse response = client.stringRequest(CheckPermissionResponse.class,
                                                             resource,
                                                             "POST",
-                                                            null,
+                                                            params,
                                                             headers,
                                                             desc.toJson());
     CheckPermissionResult result = CheckPermissionResult.valueOf(response.result);
@@ -694,16 +756,38 @@ public class SecurityManager {
    *
    * @param query
    * @param jsonOutput
+   * @return query 实例
+   * @throws OdpsException
+   */
+  public AuthorizationQueryInstance run(String query, Boolean jsonOutput, String supervisionToken) throws OdpsException {
+    return run(query, jsonOutput, supervisionToken, null);
+  }
+
+  /**
+   * 执行安全命令, 返回 query 实例
+   *
+   * @param query
+   * @param jsonOutput
    * @param supervisionToken
    * @return query 实例
    * @throws OdpsException
    */
-  public AuthorizationQueryInstance run(String query, Boolean jsonOutput, String supervisionToken)
+  public AuthorizationQueryInstance run(String query, Boolean jsonOutput, String supervisionToken, Map<String, String> settings)
       throws OdpsException {
-    StringBuilder resource = new StringBuilder();
-    resource.append("/projects/").append(ResourceBuilder.encodeObjectName(project))
-        .append("/authorization");
-    AuthorizationQueryRequest request = new AuthorizationQueryRequest(query, jsonOutput);
+    String resource = ResourceBuilder.buildProjectSecurityManagerResource(project);
+
+    AuthorizationQueryRequest request;
+    if (settings == null) {
+      request = new AuthorizationQueryRequest(query, jsonOutput);
+    } else {
+      // default schema priority: hints.get(ODPS_DEFAULT_SCHEMA) > odps.getCurrentSchema()
+      if (!settings.containsKey(OdpsConstants.ODPS_DEFAULT_SCHEMA)) {
+        settings.put(OdpsConstants.ODPS_DEFAULT_SCHEMA, client.getCurrentSchema());
+      }
+
+      String settingsString = new GsonBuilder().create().toJson(settings);
+      request = new AuthorizationQueryRequest(query, jsonOutput, settingsString);
+    }
 
     String xmlRequest;
     try {
@@ -718,10 +802,10 @@ public class SecurityManager {
     headers.put(Headers.CONTENT_TYPE, "application/xml");
 
     Response response =
-        client.stringRequest(resource.toString(), "POST", null, headers, xmlRequest);
+        client.stringRequest(resource, "POST", null, headers, xmlRequest);
     try {
       AuthorizationQueryResponse queryResponse =
-          SimpleXmlUtils.unmarshal(response, AuthorizationQueryResponse.class);
+          AuthorizationQueryResponse.from(response.getBody());
 
       if (response.getStatus() == 200) {
         return new AuthorizationQueryInstance(queryResponse.getResult());
@@ -759,18 +843,21 @@ public class SecurityManager {
     return run(query, jsonOutput, supervisionToken).waitForSuccess();
   }
 
+  public String runQuery(String query, Boolean jsonOutput, String supervisionToken, Map<String, String> settings)
+      throws OdpsException {
+    return run(query, jsonOutput, supervisionToken, settings).waitForSuccess();
+  }
+
   public String generateAuthorizationToken(String policy, String type)
       throws OdpsException {
-    if (type.equalsIgnoreCase("Bearer")) {
-      StringBuilder resource = new StringBuilder();
-      resource.append("/projects/").append(ResourceBuilder.encodeObjectName(project))
-          .append("/authorization");
+    if ("Bearer".equalsIgnoreCase(type)) {
+      String resource = ResourceBuilder.buildProjectSecurityManagerResource(project);
       HashMap<String, String> headers = new HashMap<String, String>();
       headers.put(Headers.CONTENT_TYPE, "application/json");
       Map<String, String> params = new HashMap<String, String>();
       params.put("sign_bearer_token", null);
       AuthorizationQueryResponse response = client.stringRequest(
-          AuthorizationQueryResponse.class, resource.toString(), "POST", params,
+          AuthorizationQueryResponse.class, resource, "POST", params,
           headers, policy
       );
       return response.getResult();

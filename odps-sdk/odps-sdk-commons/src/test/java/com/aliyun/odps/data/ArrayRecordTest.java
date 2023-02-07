@@ -21,13 +21,20 @@ package com.aliyun.odps.data;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Month;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.chrono.IsoEra;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -61,6 +68,12 @@ public class ArrayRecordTest {
       .setTimeZone(TimeZone.getTimeZone("GMT"))
       .build();
 
+  private static final Calendar
+      SHANGHAI_CALENDER =
+      new Calendar.Builder().setCalendarType("iso8601").setLenient(true)
+          .setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"))
+          .build();
+
   private static final List<LocalDate> LOCAL_DATES;
   private static final List<java.sql.Date> DATES;
   static {
@@ -81,6 +94,23 @@ public class ArrayRecordTest {
     }
     DATES = Collections.unmodifiableList(dates);
   }
+
+  private static final Collection<String[]>
+      notSameDateTimes = Arrays.asList(new String[]{"0001-01-01 00:00:00", "0001-01-01 00:05:43"},
+                                        new String[]{"0011-11-03 00:00:00", "0011-11-03 00:05:43"},
+                                        new String[]{"1900-01-01 00:00:00", "1900-01-01 00:05:43"});
+
+  private static final List<String> sameDateTimes =
+      Arrays.asList(
+                    "1927-12-31 23:54:07",
+                    "1928-01-01 00:00:00",
+                    "1939-08-01 22:22:22",
+                    "1986-05-04 00:00:00",
+                    "1992-01-01 00:00:30",
+                    "9988-09-27 09:09:09",
+                    "1970-01-01 00:00:00",
+                    "1970-01-01 08:00:00",
+                    "9999-12-31 23:59:59");
 
   @Test
   public void testTypeInfo() {
@@ -529,26 +559,75 @@ public class ArrayRecordTest {
     calendar2 = (Calendar) calendar2.clone();
     calendar2.clear();
     calendar2.setTime(date2);
+    boolean equal = true;
     if (calendar1.get(Calendar.ERA) != calendar2.get(Calendar.ERA)) {
-      return false;
+      equal = false;
     }
     if (calendar1.get(Calendar.YEAR) != calendar2.get(Calendar.YEAR)) {
-      return false;
+      equal = false;
     }
     if (calendar1.get(Calendar.MONTH) != calendar2.get(Calendar.MONTH)) {
-      return false;
+      equal = false;
     }
     if (calendar1.get(Calendar.DAY_OF_MONTH) != calendar2.get(Calendar.DAY_OF_MONTH)) {
-      return false;
+      equal = false;
     }
-    return true;
+    if (!equal) {
+      System.out.println("c1: " + calendar1.get(Calendar.ERA) + " " + calendar1.get(Calendar.YEAR) + " " + calendar1.get(Calendar.MONTH) + " " + calendar1.get(Calendar.DAY_OF_MONTH));
+      System.out.println("c1: " + calendar2.get(Calendar.ERA) + " " + calendar2.get(Calendar.YEAR) + " " + calendar2.get(Calendar.MONTH) + " " + calendar2.get(Calendar.DAY_OF_MONTH));
+    }
+    return equal;
+  }
+
+  @Test
+  public void testDateZonedDatetimeTransfer() throws Exception {
+//    testDateToZonedDateTime(GMT_CALENDER);
+    testDateToZonedDateTime(SHANGHAI_CALENDER);
+  }
+
+  public void testDateToZonedDateTime(Calendar cal) throws Exception {
+    Calendar calendar = (Calendar) cal.clone();
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(calendar.getTimeZone().toZoneId());
+
+    SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    dateFormatter.setCalendar(calendar);
+
+    for (String dateStr : sameDateTimes) {
+      java.util.Date date = dateFormatter.parse(dateStr);
+      ZonedDateTime dateTime = dateToZonedDateTime(date);
+      Assert.assertEquals(dateTime, ZonedDateTime.parse(dateStr, formatter));
+      if ("1986-05-04 00:00:00".equals(dateStr)) {
+        String formatStr = formatter.format(dateTime);
+        Assert.assertTrue(dateStr.equals(formatStr) || "1986-05-04 01:00:00".equals(formatStr));
+      } else {
+        Assert.assertEquals(dateStr, formatter.format(dateTime));
+      }
+      Assert.assertEquals(date, zonedDateTimeToDate(dateTime));
+    }
+
+    for (String[] pair : notSameDateTimes) {
+      java.util.Date date = dateFormatter.parse(pair[0]);
+      ZonedDateTime dateTime = dateToZonedDateTime(date);
+      dateTime.toEpochSecond();
+      Assert.assertNotEquals(dateTime, ZonedDateTime.parse(pair[0], formatter));
+      Assert.assertEquals(pair[1], formatter.format(dateTime));
+      Assert.assertEquals(date, zonedDateTimeToDate(dateTime));
+    }
+  }
+
+  private Date zonedDateTimeToDate(ZonedDateTime value) {
+    return Date.from(value.toInstant());
+  }
+
+  private ZonedDateTime dateToZonedDateTime(Date date) {
+    return Instant.ofEpochMilli(date.getTime()).atZone(ZoneId.systemDefault());
   }
 
   @Test
   public void testDateToLocalDate() {
     Calendar calendar = (Calendar) GMT_CALENDER.clone();
     for (java.sql.Date date : DATES) {
-      LocalDate localDate = ArrayRecord.dateToLocalDate(date, GMT_CALENDER);
+      LocalDate localDate = OdpsTypeTransformer.dateToLocalDate(date, GMT_CALENDER);
       calendar.clear();
       calendar.setTime(date);
 
@@ -565,7 +644,7 @@ public class ArrayRecordTest {
     Calendar calendar = (Calendar) GMT_CALENDER.clone();
     for (LocalDate localDate : LOCAL_DATES) {
       java.sql.Date date =
-          new java.sql.Date(ArrayRecord.localDateToDate(localDate, calendar).getTime());
+          new java.sql.Date(OdpsTypeTransformer.localDateToDate(localDate, calendar).getTime());
       calendar.clear();
       calendar.setTime(date);
 
@@ -708,4 +787,92 @@ public class ArrayRecordTest {
     Assert.assertEquals(expected.getFieldValue(3), actual.getFieldValue(3));
     Assert.assertNull(actual.getFieldValue(4));
   }
+
+  @Test
+  public void testNewDateTypeInArray() {
+    TypeInfo arrayType = TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.DATE);
+    ArrayRecord r = new ArrayRecord(new Column[]{new Column("D", arrayType)});
+
+    List<LocalDate> allLocalDate = new ArrayList<>();
+    allLocalDate.add(LocalDate.now());
+    r.set(0, allLocalDate);
+    List dates1 = r.getArray(LocalDate.class, 0);
+    Assert.assertEquals(LocalDate.class, dates1.get(0).getClass());
+
+    List<java.sql.Date> allDate = new ArrayList<>();
+    allDate.add(java.sql.Date.valueOf(LocalDate.now()));
+    r.set(0, allDate);
+    List dates2 = r.getArray(0);
+    Assert.assertEquals(java.sql.Date.class, dates2.get(0).getClass());
+
+    List mixDate = new ArrayList<>();
+    mixDate.add(LocalDate.now());
+    mixDate.add(java.sql.Date.valueOf(LocalDate.now()));
+    r.set(0, mixDate);
+    List dates3 = r.getArray(0);
+    Assert.assertEquals(java.sql.Date.class, dates3.get(0).getClass());
+    Assert.assertEquals(java.sql.Date.class, dates3.get(1).getClass());
+    try {
+      List dates4 = r.getArray(LocalDate.class, 0);
+      assert false;
+    } catch (ClassCastException ignore) {
+    }
+  }
+
+  @Test
+  public void testNewDateTypeInMap() {
+    TypeInfo arrayType = TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.TIMESTAMP, TypeInfoFactory.DATETIME);
+    ArrayRecord r = new ArrayRecord(new Column[]{new Column("D", arrayType)});
+
+    Map<Instant, ZonedDateTime> allNewType = new HashMap<>();
+    allNewType.put(Instant.now(), Instant.now().atZone(ZoneId.systemDefault()));
+    r.set(0, allNewType);
+    Map dates1 = r.getMap(Instant.class, ZonedDateTime.class, 0);
+    for (Object e: dates1.entrySet()) {
+      Map.Entry entry = (Map.Entry) e;
+      Assert.assertEquals(Instant.class, entry.getKey().getClass());
+      Assert.assertEquals(ZonedDateTime.class, entry.getValue().getClass());
+    }
+
+    Map<Timestamp, Date> allOldType = new HashMap<>();
+    allOldType.put(Timestamp.from(Instant.now()), Date.from(Instant.now()));
+    r.set(0, allOldType);
+    Map dates2 = r.getMap(0);
+    for (Object e: dates2.entrySet()) {
+      Map.Entry entry = (Map.Entry) e;
+      Assert.assertEquals(Timestamp.class, entry.getKey().getClass());
+      Assert.assertEquals(Date.class, entry.getValue().getClass());
+    }
+
+    Map mixType = new HashMap<>();
+    mixType.put(Timestamp.from(Instant.now()), Date.from(Instant.now()));
+    mixType.put(Instant.now(), Instant.now().atZone(ZoneId.systemDefault()));
+    r.set(0, mixType);
+    Map dates3 = r.getMap(0);
+    for (Object e: dates3.entrySet()) {
+      Map.Entry entry = (Map.Entry) e;
+      Assert.assertEquals(Timestamp.class, entry.getKey().getClass());
+      Assert.assertEquals(Date.class, entry.getValue().getClass());
+    }
+    try {
+      Map dates4 = r.getMap(Instant.class, ZonedDateTime.class, 0);
+      assert false;
+    } catch (ClassCastException ignore) {
+    }
+
+    try {
+      Map dates4 = r.getMap(Instant.class, Date.class, 0);
+      assert false;
+    } catch (IllegalArgumentException ignore) {
+    }
+
+    try {
+      Map dates4 = r.getMap(Timestamp.class, ZonedDateTime.class, 0);
+      assert false;
+    } catch (IllegalArgumentException ignore) {
+    }
+
+
+  }
+
 }

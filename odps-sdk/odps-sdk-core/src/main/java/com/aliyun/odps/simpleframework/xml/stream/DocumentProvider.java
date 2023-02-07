@@ -23,6 +23,7 @@ import java.io.Reader;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
@@ -54,6 +55,16 @@ class DocumentProvider implements Provider {
    public DocumentProvider() {
       this.factory = DocumentBuilderFactory.newInstance();
       this.factory.setNamespaceAware(true);
+      try {
+         this.factory.setFeature(
+             "http://apache.org/xml/features/disallow-doctype-decl", true);
+         this.factory.setFeature(
+             "http://xml.org/sax/features/external-parameter-entities", false);
+         this.factory.setFeature(
+             "http://xml.org/sax/features/external-general-entities", false);
+      } catch (ParserConfigurationException e) {
+         throw new RuntimeException(e);
+      }
    }
    
    /**
@@ -93,9 +104,9 @@ class DocumentProvider implements Provider {
     * @return this is used to return the event reader implementation
     */
    private EventReader provide(InputSource source) throws Exception {
-      DocumentBuilder builder = factory.newDocumentBuilder();       
+      DocumentBuilder builder = factory.newDocumentBuilder();
       Document document = builder.parse(source);
-      
+
       return new DocumentReader(document);   
    }
 }

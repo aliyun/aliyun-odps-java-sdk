@@ -12,7 +12,7 @@
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps</artifactId>
-    <version>0.38.4-public</version>
+    <version>0.41.1</version>
     <packaging>pom</packaging>
     <name>odps-sdk-java</name>
     <description>Aliyun ODPS SDK for Java Developers</description>
@@ -64,56 +64,62 @@
         <dependencies>
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
+                <artifactId>odps-compiler-hive-parser</artifactId>
+                <version>3.37.0.59</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-commons</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-core</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-mapred</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-lot-proto</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-lot</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-graph</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-common-local</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-udf</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-mapred-bridge</artifactId>
-                <version>0.38.4-public</version>
+                <version>0.41.1</version>
             </dependency>
 
             <dependency>
@@ -158,6 +164,12 @@
                 <groupId>com.google.code.gson</groupId>
                 <artifactId>gson</artifactId>
                 <version>2.2.4</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4</artifactId>
+                <version>4.9</version>
             </dependency>
 
             <dependency>
@@ -309,6 +321,11 @@
                 <artifactId>arrow-vector</artifactId>
                 <version>1.0.0</version>
                 <scope>compile</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>4.1.51.Final</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

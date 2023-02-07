@@ -19,17 +19,9 @@
 
 package com.aliyun.odps;
 
-import com.aliyun.odps.Partition.PartitionSpecModel;
-import com.aliyun.odps.commons.transport.Headers;
-import com.aliyun.odps.rest.SimpleXmlUtils;
-import com.aliyun.odps.simpleframework.xml.Attribute;
-import com.aliyun.odps.simpleframework.xml.Element;
-import com.aliyun.odps.simpleframework.xml.ElementList;
-import com.aliyun.odps.simpleframework.xml.Root;
-import com.aliyun.odps.simpleframework.xml.Text;
-import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,21 +29,44 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.aliyun.odps.Partition.PartitionModel;
+import com.aliyun.odps.Partition.PartitionSpecModel;
+import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.commons.transport.Params;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.DefaultRecordReader;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.simpleframework.xml.Attribute;
+import com.aliyun.odps.simpleframework.xml.Element;
+import com.aliyun.odps.simpleframework.xml.ElementList;
+import com.aliyun.odps.simpleframework.xml.Root;
+import com.aliyun.odps.simpleframework.xml.Text;
+import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.simpleframework.xml.convert.Converter;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.task.SQLTask;
-import com.aliyun.odps.type.TypeInfo;
-import com.aliyun.odps.type.TypeInfoParser;
+import com.aliyun.odps.utils.ColumnUtils;
+import com.aliyun.odps.utils.OdpsConstants;
 import com.aliyun.odps.utils.StringUtils;
-import com.google.gson.*;
+import com.aliyun.odps.utils.TagUtils;
+import com.aliyun.odps.utils.TagUtils.OBJECT_TYPE;
+import com.aliyun.odps.utils.TagUtils.OPERATION_TYPE;
+import com.aliyun.odps.utils.TagUtils.ObjectRef;
+import com.aliyun.odps.utils.TagUtils.ObjectTagInfo;
+import com.aliyun.odps.utils.TagUtils.SetObjectTagInput;
+import com.aliyun.odps.utils.TagUtils.SimpleTag;
+import com.aliyun.odps.utils.TagUtils.TagRef;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 /**
@@ -59,7 +74,7 @@ import com.google.gson.reflect.TypeToken;
  */
 public class Table extends LazyLoad {
 
-  enum TableType {
+  public enum TableType {
     /**
      * Regular table managed by ODPS
      */
@@ -140,6 +155,10 @@ public class Table extends LazyLoad {
     @Element(name = "Project", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String projectName;
+
+    @Element(name = "SchemaName", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String schemaName;
 
     @Element(name = "TableLabel", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
@@ -243,14 +262,16 @@ public class Table extends LazyLoad {
 
   private TableModel model;
   private TableSchema tableSchema;
+  private ObjectTagInfo tableTagInfo;
   private RestClient client;
   private boolean isExtendInfoLoaded;
   private boolean isShardInfoLoaded;
   private Odps odps;
 
-  Table(TableModel model, String project, Odps odps) {
+  Table(TableModel model, String project, String schemaName, Odps odps) {
     this.model = model;
     this.model.projectName = project;
+    this.model.schemaName = schemaName;
     this.odps = odps;
     this.client = odps.getRestClient();
     this.isExtendInfoLoaded = false;
@@ -260,7 +281,10 @@ public class Table extends LazyLoad {
   @Override
   public void reload() throws OdpsException {
     String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
-    reload(client.request(TableModel.class, resource, "GET"));
+    Map<String, String> params = new HashMap<>();
+    addSchemaToParams(params);
+
+    reload(client.request(TableModel.class, resource, "GET", params));
   }
 
   public void reload(TableModel model) throws OdpsException {
@@ -270,6 +294,37 @@ public class Table extends LazyLoad {
     }
     setLoaded(true);
   }
+
+  private void reloadTagInfo() {
+    String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+    // Convert the OdpsException to a ReloadException the keep the consistency of the getter's
+    // method signature.
+    try {
+      tableTagInfo = TagUtils.getObjectTagInfo(resource, null, client);
+    } catch (OdpsException e) {
+      throw new ReloadException(e);
+    }
+  }
+
+  private void lazyLoadExtendInfo() {
+    if (!this.isExtendInfoLoaded) {
+      Map<String, String> params = new LinkedHashMap<>();
+      params.put("extended", null);
+      addSchemaToParams(params);
+
+      String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+      TableModel response;
+      try {
+        response = client.request(TableModel.class, resource, "GET", params);
+      } catch (OdpsException e) {
+        throw new ReloadException(e.getMessage(), e);
+      }
+
+      loadSchemaFromJson(response.schema.content);
+      this.isExtendInfoLoaded = true;
+    }
+  }
+
   /**
    * 获取表名
    *
@@ -329,6 +384,199 @@ public class Table extends LazyLoad {
 
     return model.tableExtendedLabels;
   }
+
+  /**
+   * Get {@link Tag}(s) attached to this table.
+   * @return list of {@link Tag}
+   */
+  public List<Tag> getTags() {
+    reloadTagInfo();
+    return TagUtils.getTags(tableTagInfo, odps);
+  }
+
+  /**
+   * Get {@link Tag}(s) attached to a column of this table.
+   * @return list of {@link Tag}
+   */
+  public List<Tag> getTags(String columnName) {
+    reloadTagInfo();
+
+    // Make sure specified column exists
+    Objects.requireNonNull(columnName);
+    TagUtils.validateTaggingColumn(getSchema(), Collections.singletonList(columnName));
+
+    return TagUtils.getTags(tableTagInfo, columnName, odps);
+  }
+
+  /**
+   * Get simple tags attached to this table.
+   * @return a map from category to key value pairs
+   */
+  public Map<String, Map<String, String>> getSimpleTags() {
+    reloadTagInfo();
+    return TagUtils.getSimpleTags(tableTagInfo);
+  }
+
+  /**
+   * Get simple tags attached to a column of this table.
+   *
+   * @param columnName column name.
+   * @return a map from category to key value pairs.
+   */
+  public Map<String, Map<String, String>> getSimpleTags(String columnName) {
+    reloadTagInfo();
+
+    // Make sure specified column exists
+    Objects.requireNonNull(columnName);
+    TagUtils.validateTaggingColumn(getSchema(), Collections.singletonList(columnName));
+
+    return TagUtils.getSimpleTags(tableTagInfo, columnName);
+  }
+
+  /**
+   * Attach a {@link Tag} to this table. The table and tag should be in a same project.
+   *
+   * @param tag tag to attach
+   */
+  public void addTag(Tag tag) throws OdpsException {
+    addTag(tag, null);
+  }
+
+
+  /**
+   * Attach a {@link Tag} to this table. The table and tag should be in a same project.
+   *
+   * @param tag tag to attach
+   * @param columnNames column names, could be null.
+   */
+  public void addTag(Tag tag, List<String> columnNames) throws OdpsException {
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.TABLE,
+        model.projectName,
+        model.name,
+        columnNames);
+    TagRef tagRef = new TagRef(tag.getClassification(), tag.getName());
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.SET, objectRef, tagRef, null);
+
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
+  }
+
+  /**
+   * Attach a simple tag to this table. A simple tag is a triad consisted of category, tag
+   * key, and tag value.
+   *
+   * @param category simple tag category, could be nul.
+   * @param key simple tag key, cannot be null.
+   * @param value simple tag value, cannot be null.
+   */
+  public void addSimpleTag(String category, String key, String value) throws OdpsException {
+    addSimpleTag(category, key, value, null);
+  }
+
+  /**
+   * Attach a simple tag to this table or some of its columns. A simple tag is a triad consisted of
+   * category, tag key, and tag value.
+   * @param category simple tag category, could be nul.
+   * @param key simple tag key, cannot be null.
+   * @param value simple tag value, cannot be null.
+   * @param columnNames column names, should not include any partition column, could be null.
+   */
+  public void addSimpleTag(
+      String category,
+      String key,
+      String value,
+      List<String> columnNames) throws OdpsException {
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.TABLE,
+        model.projectName,
+        model.name,
+        columnNames);
+    SimpleTag simpleTag = new SimpleTag(category, Collections.singletonMap(key, value));
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.SET, objectRef, null, simpleTag);
+
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
+  }
+
+  /**
+   * Remove a {@link Tag}.
+   *
+   * @param tag tag to remove.
+   */
+  public void removeTag(Tag tag) throws OdpsException {
+    removeTag(tag, null);
+  }
+
+  /**
+   * Remove a {@link Tag} from columns.
+   *
+   * @param tag tag to remove.
+   * @param columnNames column names, should not include any partition column, could be null.
+   */
+  public void removeTag(Tag tag, List<String> columnNames) throws OdpsException {
+
+    Objects.requireNonNull(tag);
+
+    // Make sure column names are valid
+    TagUtils.validateTaggingColumn(getSchema(), columnNames);
+
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.TABLE,
+        model.projectName,
+        model.name,
+        columnNames);
+    TagRef tagRef = new TagRef(tag.getClassification(), tag.getName());
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.UNSET, objectRef, tagRef, null);
+
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
+  }
+
+  /**
+   * Remove a simple tag. A simple tag is a triad consisted of category, tag key, and tag value.
+   * @param category category.
+   * @param key key.
+   * @param value value.
+   * @throws OdpsException
+   */
+  public void removeSimpleTag(String category, String key, String value) throws OdpsException {
+    removeSimpleTag(category, key, value, null);
+  }
+
+  /**
+   * Remove a simple tag from columns. A simple tag is a triad consisted of category, tag key, and
+   * tag value.
+   * @param category category.
+   * @param key key.
+   * @param value value.
+   * @param columnNames column names, should not include any partition column, could be null.
+   * @throws OdpsException
+   */
+  public void removeSimpleTag(
+      String category,
+      String key,
+      String value,
+      List<String> columnNames) throws OdpsException {
+
+    Objects.requireNonNull(category);
+    Objects.requireNonNull(key);
+    Objects.requireNonNull(value);
+
+    // Make sure column names are valid
+    TagUtils.validateTaggingColumn(getSchema(), columnNames);
+
+    ObjectRef objectRef = new ObjectRef(
+        OBJECT_TYPE.TABLE,
+        model.projectName,
+        model.name,
+        columnNames);
+    SimpleTag simpleTag = new SimpleTag(category, Collections.singletonMap(key, value));
+    SetObjectTagInput setObjectTagInput =
+        new SetObjectTagInput(OPERATION_TYPE.UNSET, objectRef, null, simpleTag);
+    TagUtils.updateTagInternal(setObjectTagInput, null, client);
+  }
+
   /**
    * 获取表 ID
    *
@@ -462,6 +710,15 @@ public class Table extends LazyLoad {
    */
   public String getProject() {
     return model.projectName;
+  }
+
+  /**
+   * Get the schema name.
+   *
+   * @return Schema name.
+   */
+  public String getSchemaName() {
+    return model.schemaName;
   }
 
   /**
@@ -763,6 +1020,7 @@ public class Table extends LazyLoad {
    * @throws OdpsException
    */
   public RecordReader read(int limit) throws OdpsException {
+    //TODO FIX DATE
     return read(null, null, limit);
   }
 
@@ -783,6 +1041,7 @@ public class Table extends LazyLoad {
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit)
       throws OdpsException {
+    //TODO FIX DATE
     return read(partition, columns, limit, null);
   }
 
@@ -805,12 +1064,15 @@ public class Table extends LazyLoad {
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit, String timezone)
       throws OdpsException {
+    //TODO FIX DATE
     if (limit < 0) {
       // TODO: should throw IllegalArgumentException
       throw new OdpsException("limit number should >= 0.");
     }
     Map<String, String> params = new HashMap<String, String>();
     params.put("data", null);
+
+    addSchemaToParams(params);
 
     if (partition != null && partition.keys().size() > 0) {
       params.put("partition", partition.toString());
@@ -958,7 +1220,7 @@ public class Table extends LazyLoad {
         JsonArray columnsNode = tree.get("columns").getAsJsonArray();
         for (int i = 0; i < columnsNode.size(); ++i) {
           JsonObject n = columnsNode.get(i).getAsJsonObject();
-          s.addColumn(parseColumn(n));
+          s.addColumn(ColumnUtils.fromJson(n.toString()));
         }
       }
 
@@ -977,7 +1239,7 @@ public class Table extends LazyLoad {
         JsonArray columnsNode = tree.get("partitionKeys").getAsJsonArray();
         for (int i = 0; i < columnsNode.size(); ++i) {
           JsonObject n = columnsNode.get(i).getAsJsonObject();
-          s.addPartitionColumn(parseColumn(n));
+          s.addPartitionColumn(ColumnUtils.fromJson(n.toString()));
         }
       }
 
@@ -1061,7 +1323,7 @@ public class Table extends LazyLoad {
    */
   public void createPartition(PartitionSpec spec, boolean ifNotExists) throws OdpsException {
     StringBuilder sb = new StringBuilder();
-    sb.append("ALTER TABLE ").append(getProject()).append(".").append(getName());
+    sb.append("ALTER TABLE ").append(getCoordinate());
 
     sb.append(" ADD");
 
@@ -1108,7 +1370,7 @@ public class Table extends LazyLoad {
    */
   public void deletePartition(PartitionSpec spec, boolean ifExists) throws OdpsException {
     StringBuilder sb = new StringBuilder();
-    sb.append("ALTER TABLE ").append(getProject()).append(".").append(getName());
+    sb.append("ALTER TABLE ").append(getCoordinate());
     sb.append(" DROP");
 
     if (ifExists) {
@@ -1147,41 +1409,6 @@ public class Table extends LazyLoad {
     private Integer maxItems;
   }
 
-  private static class ListPartitionSpecsResponse {
-    @Element(name = "Marker", required = false)
-    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
-    private String marker;
-
-    @Element(name = "MaxItems", required = false)
-    private Integer maxItems;
-
-    @ElementList(entry = "Partition", inline = true, required = false)
-    private List<PartitionSpecModel> partitionSpecs = new LinkedList<>();
-  }
-
-  /**
-   * Get list of partition specs. The returned partition specs are ordered lexicographically.
-   *
-   * @return list of {@link PartitionSpec}
-   */
-  public List<PartitionSpec> getPartitionSpecs() throws OdpsException {
-    Map<String, String> params = new HashMap<>();
-    params.put("partitions", null);
-    params.put("name", null);
-
-    String resource = ResourceBuilder.buildTableResource(model.projectName, getName());
-    List<PartitionSpec> partitionSpecs = new ArrayList<>();
-
-    ListPartitionSpecsResponse resp = client.request(ListPartitionSpecsResponse.class,
-                                                 resource,
-                                                 "GET",
-                                                 params);
-    for (PartitionSpecModel partitionSpecModel : resp.partitionSpecs) {
-      partitionSpecs.add(new PartitionSpec(partitionSpecModel.partitionSpec));
-    }
-
-    return partitionSpecs;
-  }
 
   /**
    * 在Table上创建Shards
@@ -1191,7 +1418,8 @@ public class Table extends LazyLoad {
    */
   public void createShards(long shardCount) throws OdpsException {
     StringBuilder sb = new StringBuilder();
-    sb.append("ALTER TABLE ").append(getProject()).append(".").append(getName());
+    // TODO: not sure this sql support schema
+    sb.append("ALTER TABLE ").append(getCoordinate());
     sb.append(String.format(" INTO %d SHARDS;", shardCount));
     String taskName = "SQLCreateShardsTask";
     runSQL(taskName, sb.toString());
@@ -1214,18 +1442,64 @@ public class Table extends LazyLoad {
    * @return {@link Partition}迭代器
    */
   public Iterator<Partition> getPartitionIterator(final PartitionSpec spec) {
-    return new ListIterator<Partition>() {
+    return getPartitionIterator(spec, false, 1000L, Long.MAX_VALUE);
+  }
 
-      Map<String, String> params = new HashMap<String, String>();
+  /**
+   * Get a partition iterator.
+   *
+   * @param spec Specify the values of some of the partition columns. The specified columns'
+   * indices should be continuous and start from 0.
+   * @param reverse Reverse the result. The original
+   * @param batchSize Max number of partitions to get per request. In case of null, the batch size
+   * will be decided by the server.
+   * @param limit Limit the number of returned partitions. In case of null, {@link Long#MAX_VALUE}
+   * will be used.
+   * @return A partition iterator.
+   */
+  public Iterator<Partition> getPartitionIterator(
+      PartitionSpec spec,
+      boolean reverse,
+      Long batchSize,
+      Long limit) {
+    if (limit != null && limit <= 0) {
+      throw new IllegalArgumentException("Argument 'limit' should be greater than 0");
+    }
+    if (batchSize != null && batchSize <= 0) {
+      throw new IllegalArgumentException("Argument 'batchSize' should be greater than 0");
+    }
+
+    final long finalLimit = limit == null ? Long.MAX_VALUE : limit;
+    return new ListIterator<Partition>() {
+      long numPartitions = 0;
+      Map<String, String> params = new HashMap<>();
+
+      @Override
+      public boolean hasNext() {
+        return super.hasNext() && numPartitions < finalLimit;
+      }
+
+      @Override
+      public Partition next() {
+        Partition partition = super.next();
+        numPartitions += 1;
+        return partition;
+      }
 
       @Override
       protected List<Partition> list() {
-        ArrayList<Partition> partitions = new ArrayList<Partition>();
-
+        ArrayList<Partition> partitions = new ArrayList<>();
+        addSchemaToParams(params);
         params.put("partitions", null);
         params.put("expectmarker", "true"); // since sprint-11
         if (spec != null && !spec.isEmpty()) {
           params.put("partition", spec.toString());
+        }
+        if (reverse) {
+          params.put("reverse", null);
+        }
+        if (batchSize != null) {
+          params.put("maxitems", batchSize.toString());
         }
 
         String lastMarker = params.get("marker");
@@ -1241,7 +1515,12 @@ public class Table extends LazyLoad {
               client.request(ListPartitionsResponse.class, resource, "GET", params);
 
           for (PartitionModel partitionModel : resp.partitions) {
-            Partition t = new Partition(partitionModel, model.projectName, getName(), client);
+            Partition t = new Partition(
+                partitionModel,
+                model.projectName,
+                getSchemaName(),
+                getName(),
+                odps);
             partitions.add(t);
           }
 
@@ -1269,53 +1548,6 @@ public class Table extends LazyLoad {
     return parts;
   }
 
-  /**
-   * Get partitions by range. Partitions are ordered with their partition spec string
-   * lexicographically. If lowerBound == null and upperBound != null, partitions greater than the
-   * lowerBound would be returned.
-   *
-   * @param lowerBound
-   *     lower bound
-   *
-   * @param upperBound
-   *     upper bound
-   *
-   * @return list of {@link Partition}
-   *
-   * @throws IllegalArgumentException if the lowerBound argument is null
-   */
-  public List<Partition> getPartitions(final PartitionSpec lowerBound,
-                                       final PartitionSpec upperBound) throws OdpsException {
-    if (lowerBound == null) {
-      throw new IllegalArgumentException("Argument lowerBound cannot be null");
-    }
-
-    Map<String, String> params = new HashMap<>();
-    params.put("partitions", null);
-
-    // Single quotations marks are not allowed here and comma should be replaced with slash
-    String lowerBoundString = lowerBound.toString(false, true);
-
-    params.put("min_value", lowerBoundString);
-    if (upperBound != null) {
-      String upperBoundString = upperBound.toString(false, true);
-      params.put("max_value", upperBoundString);
-    }
-
-    String resource = ResourceBuilder.buildTableResource(model.projectName, getName());
-    List<Partition> partitions = new ArrayList<>();
-
-    ListPartitionsResponse resp = client.request(ListPartitionsResponse.class,
-                                                 resource,
-                                                 "GET",
-                                                 params);
-    for (PartitionModel partitionModel : resp.partitions) {
-      Partition t = new Partition(partitionModel, model.projectName, getName(), client);
-      partitions.add(t);
-    }
-
-    return partitions;
-  }
 
   /**
    * 获取指定分区信息
@@ -1325,7 +1557,7 @@ public class Table extends LazyLoad {
    * @return 分区信息 {@link Partition}
    */
   public Partition getPartition(PartitionSpec spec) {
-    return new Partition(spec, model.projectName, getName(), client);
+    return new Partition(spec, model.projectName, getSchemaName(), getName(), odps);
   }
 
   /**
@@ -1353,7 +1585,8 @@ public class Table extends LazyLoad {
    */
   public void truncate() throws OdpsException {
     StringBuilder sb = new StringBuilder();
-    sb.append("TRUNCATE TABLE ").append(getProject()).append(".").append(getName()).append(";");
+    sb.append("TRUNCATE TABLE ").append(getCoordinate()).append(";");
+
     String taskName = "SQLTruncateTask";
     runSQL(taskName, sb.toString());
   }
@@ -1372,64 +1605,27 @@ public class Table extends LazyLoad {
   }
 
   private void runSQL(String taskName, String query) throws OdpsException {
-    SQLTask task = new SQLTask();
-    task.setName(taskName);
-    task.setQuery(query);
-    Instances instances = odps.instances();
-    Instance instance = instances.create(task);
-
-    instance.waitForSuccess();
+    HashMap<String, String> hints = null;
+    if (getSchemaName() != null) {
+      hints = new HashMap<>();
+      hints.put(OdpsConstants.ODPS_NAMESPACE_SCHEMA, "true");
+      hints.put("odps.sql.allow.namespace.schema", "true");
+    }
+    Instance i = SQLTask.run(odps, odps.getDefaultProject(), query, taskName, hints, null);
+    i.waitForSuccess();
   }
 
-  /* private */
-  private Column parseColumn(JsonObject node) {
-    String name = node.has("name") ? node.get("name").getAsString() : null;
-    String typeString = node.has("type") ? node.get("type").getAsString().toUpperCase() : null;
-    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
-
-    String comment = node.has("comment") ? node.get("comment").getAsString() : null;
-    String label = null;
-    if (node.has("label") && (!node.get("label").getAsString().isEmpty())) {
-      label = node.get("label").getAsString();
+  private void addSchemaToParams(Map<String, String> params) {
+    if (!StringUtils.isNullOrEmpty(model.schemaName)) {
+      params.put(Params.ODPS_SCHEMA_NAME, model.schemaName);
     }
-
-    List<String> extendedLabels = null;
-    if (node.has("extendedLabels") && (node.get("extendedLabels").getAsJsonArray().size() != 0)) {
-      Iterator<JsonElement> it = node.get("extendedLabels").getAsJsonArray().iterator();
-      extendedLabels = new LinkedList<String>();
-      while (it.hasNext()) {
-        extendedLabels.add(it.next().getAsString());
-      }
-    }
-
-    Column column = new Column(name, typeInfo, comment, label, extendedLabels);
-
-    if (node.has("isNullable")) {
-      column.setNullable(node.get("isNullable").getAsBoolean());
-    }
-
-    if (node.has("defaultValue")) {
-      column.setDefaultValue(node.get("defaultValue").getAsString());
-    }
-
-    return column;
   }
 
-  private void lazyLoadExtendInfo() {
-    if (!this.isExtendInfoLoaded) {
-      Map<String, String> params = new LinkedHashMap<>();
-      params.put("extended", null);
-
-      String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
-      TableModel response;
-      try {
-        response = client.request(TableModel.class, resource, "GET", params);
-      } catch (OdpsException e) {
-        throw new ReloadException(e.getMessage(), e);
-      }
-
-      loadSchemaFromJson(response.schema.content);
-      this.isExtendInfoLoaded = true;
+  private String getCoordinate() {
+    if (getSchemaName() == null) {
+      return getProject() + "." + getName();
+    } else {
+      return getProject() + "." + getSchemaName() + "." + getName();
     }
   }
 }

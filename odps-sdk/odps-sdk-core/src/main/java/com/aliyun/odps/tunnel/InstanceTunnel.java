@@ -36,6 +36,7 @@ import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.impl.ConfigurationImpl;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.StringUtils;
@@ -45,7 +46,7 @@ import com.google.gson.JsonParser;
 
 public class InstanceTunnel {
 
-  private Configuration config;
+  private ConfigurationImpl config;
 
   /**
    * 构造此类对象
@@ -54,7 +55,7 @@ public class InstanceTunnel {
    *     {@link Odps}
    */
   public InstanceTunnel(Odps odps) {
-    this.config = new Configuration(odps);
+    this.config = new ConfigurationImpl(odps);
   }
 
   /**
@@ -206,13 +207,14 @@ public class InstanceTunnel {
     private boolean limitEnabled;
     private TableSchema schema = new TableSchema();
     private DownloadStatus status = DownloadStatus.UNKNOWN;
-    private Configuration conf;
+    private ConfigurationImpl conf;
     private boolean shouldTransform = false;
     private RestClient tunnelServiceClient;
 
     private String taskName;
     private int queryId = -1;
     private boolean isLongPolling = false;
+    private String quotaName = "";
     /**
      * 根据已有downloadId构造一个{@link DownloadSession}对象。
      *
@@ -481,7 +483,11 @@ public class InstanceTunnel {
       HashMap<String, String> headers = TableTunnel.getCommonHeader();
 
       params.put(TunnelConstants.DOWNLOADS, null);
-      
+
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
+
       if (limitEnabled) {
         params.put(TunnelConstants.INSTANCE_TUNNEL_LIMIT_ENABLED, null);
       }
@@ -668,9 +674,17 @@ public class InstanceTunnel {
           JsonObject tunnelTableSchema = tree.get("Schema").getAsJsonObject();
           schema = new TunnelTableSchema(tunnelTableSchema);
         }
+
+        if (tree.has("QuotaName")) {
+          quotaName = tree.get("QuotaName").getAsString();
+        }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
       }
+    }
+
+    public String getQuotaName() {
+      return quotaName;
     }
   }
 }

@@ -21,9 +21,8 @@ package com.aliyun.odps.mapred.bridge.sqlgen;
 
 import java.io.StringWriter;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
@@ -45,21 +44,11 @@ import com.aliyun.odps.pipeline.Pipeline;
 
 public class SqlGenerator {
 
-  private static Set<String> aliasSets = new HashSet<String>();
-
-  static {
-    aliasSets.add("odps-sdk-core.jar");
-    aliasSets.add("odps-sdk-mapred.jar");
-    aliasSets.add("odps-mapred-bridge.jar");
-    aliasSets.add("fastjson.jar");
-    aliasSets.add("jobconf.jar");
-  }
-
-  public static String generate(JobConf job, String id, MetaExplorer metaExplorer) {
+  public static String generate(JobConf job, String id, MetaExplorer metaExplorer, Map<String, String> aliasToTempResource) {
     if(!isSqlMode(job, metaExplorer)) {
       return null;
     }
-    createFunction((BridgeJobConf) job, id);
+    createFunction((BridgeJobConf) job, id, aliasToTempResource);
     Properties p = new Properties();
     p.setProperty("resource.loader", "class");
     p.setProperty("class.resource.loader.class",
@@ -107,7 +96,7 @@ public class SqlGenerator {
     return sw.toString();
   }
 
-  static void createFunction(BridgeJobConf job, String jobId) {
+  static void createFunction(BridgeJobConf job, String jobId, Map<String, String> aliasToTempResource) {
     StringBuilder resouceText = new StringBuilder();
     StringBuilder createText = new StringBuilder();
     for (String s :job.getFunctionResources()){
@@ -124,7 +113,7 @@ public class SqlGenerator {
       return;
     }
     for (String s : job.getResources()) {
-      if (!aliasSets.contains(s)) {
+      if (!aliasToTempResource.keySet().contains(s)) {
         resouceText.append(s).append(",");
       }
     }

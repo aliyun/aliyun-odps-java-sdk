@@ -31,6 +31,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.Assert;
@@ -38,12 +41,21 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.aliyun.odps.Classification.AttributeDefinition;
+import com.aliyun.odps.Classification.BooleanAttributeDefinition;
+import com.aliyun.odps.Classification.EnumAttributeDefinition;
+import com.aliyun.odps.Classification.IntegerAttributeDefinition;
+import com.aliyun.odps.Classification.StringAttributeDefinition;
 import com.aliyun.odps.Resource.Type;
+import com.aliyun.odps.Tags.TagBuilder;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.tunnel.VolumeTunnel;
 
 public class ResourceTest extends TestBase {
+
+  private static final String BASE_CLASSIFICATION_NAME_PREFIX = ResourceTest.class.getSimpleName();
+  private static final String BASE_TAG_NAME_PREFIX = ResourceTest.class.getSimpleName();
 
   private static final String VOLUME_ARCHIVE_NAME = ResourceTest.class.getSimpleName() + "_volume_archive_for_test";
   private static final String tableName = ResourceTest.class.getSimpleName() + "_table_for_test_abc";
@@ -72,7 +84,6 @@ public class ResourceTest extends TestBase {
 
   @Test
   public void testUTF8Header() throws OdpsException, FileNotFoundException {
-
     if (odps.resources().exists(CHINESE_COMMENT_FILE)) {
       odps.resources().delete(CHINESE_COMMENT_FILE);
     }
@@ -85,8 +96,31 @@ public class ResourceTest extends TestBase {
     odps.resources().create(rm, new FileInputStream(new File(filename)));
 
     Resource r = odps.resources().get(CHINESE_COMMENT_FILE);
-    assertEquals(r.getComment(), "中文哈哈哈123");
+    assertEquals("中文哈哈哈123", r.getComment());
+  }
 
+  @Test
+  public void testStaticConstructorFrom() {
+    Resource res = Resource.from(
+        "default_project",
+        "my_project/schemas/my_schema/resources/my_resource",
+        odps);
+    Assert.assertEquals("my_project", res.project);
+    Assert.assertEquals("my_schema", res.model.schemaName);
+    Assert.assertEquals("my_resource", res.model.name);
+
+    res = Resource.from(
+        "default_project",
+        "my_project/resources/my_resource",
+        odps);
+    Assert.assertEquals("my_project", res.project);
+    Assert.assertNull(res.model.schemaName);
+    Assert.assertEquals("my_resource", res.model.name);
+
+    res = Resource.from("default_project", "my_resource", odps);
+    Assert.assertEquals("default_project", res.project);
+    Assert.assertNull(res.model.schemaName);
+    Assert.assertEquals("my_resource", res.model.name);
   }
 
 
@@ -159,7 +193,7 @@ public class ResourceTest extends TestBase {
     odps.resources().create(resource);
   }
 
-  @Test(expected = NullPointerException.class)
+  @Test(expected = OdpsException.class)
   public void testResourceFileNameEmpty() throws OdpsException {
     FileResource resource = new FileResource();
     odps.resources().create(resource, null);
@@ -218,7 +252,6 @@ public class ResourceTest extends TestBase {
     Resource r = odps.resources().get("zhemin_res.file");
     assertEquals("type must be file", r.getType(), Type.FILE);
   }
-
 
   private void updateResourceFile() throws FileNotFoundException, OdpsException {
 
@@ -317,6 +350,8 @@ public class ResourceTest extends TestBase {
 
   private void deleteResourceJar() throws OdpsException {
     odps.resources().delete("zhemin_res.jar");
+    odps.resources().delete("testTag.jar");
+    odps.resources().delete("testSimpleTag.jar");
   }
 
   private void deleteResourcePy() throws OdpsException {
@@ -449,5 +484,112 @@ public class ResourceTest extends TestBase {
     } catch (Exception e) {
       // pass
     }
+  }
+
+  @Test
+  public void testTag() throws OdpsException, FileNotFoundException {
+    String filename = ResourceTest.class
+        .getClassLoader()
+        .getResource("resource.jar")
+        .getFile();
+    JarResource rm = new JarResource();
+    rm.setName("testTag.jar");
+    odps.getRestClient().setRetryTimes(0);
+
+    if (!odps.resources().exists(rm.getName())) {
+      odps.resources().create(rm, new FileInputStream(new File(filename)));
+    }
+
+    // Create classification
+    Map<String, AttributeDefinition> attributes = new HashMap<>();
+    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
+                                                                      .minLength(10)
+                                                                      .build());
+    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
+                                                                       .maximum(10)
+                                                                       .build());
+    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
+                                                                     .element("bar")
+                                                                     .build());
+    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
+
+    String classificationName = String.format(
+        "%s_%s_%s",
+        BASE_CLASSIFICATION_NAME_PREFIX,
+        "testResourceTag",
+        OdpsTestUtils.getRandomName());
+    odps.classifications().create(classificationName, attributes, true);
+
+    // Create tag
+    String tagName = String.format(
+        "%s_%s_%s",
+        BASE_TAG_NAME_PREFIX,
+        "testResourceTag",
+        OdpsTestUtils.getRandomName());
+    TagBuilder builder = new TagBuilder(odps.classifications().get(classificationName), tagName)
+        .attribute("str_attr", "1234567890")
+        .attribute("int_attr", "7")
+        .attribute("enum_attr", "foo")
+        .attribute("bool_attr", "true");
+    odps.classifications().get(classificationName).tags().create(builder, true);
+    Tag tag = odps.classifications().get(classificationName).tags().get(tagName);
+
+    Resource resource = odps.resources().get("testTag.jar");
+
+    // There shouldn't be any tag
+    Assert.assertEquals(0, resource.getTags().size());
+
+    // Add tag
+    resource.addTag(tag);
+    resource.reload();
+    List<Tag> tags = resource.getTags();
+    Assert.assertEquals(1, tags.size());
+    tag = tags.get(0);
+    Assert.assertEquals(4, tag.getAttributes().size());
+    Assert.assertEquals("1234567890", tag.getAttributes().get("str_attr"));
+    Assert.assertEquals("7", tag.getAttributes().get("int_attr"));
+    Assert.assertEquals("foo", tag.getAttributes().get("enum_attr"));
+    Assert.assertEquals("true", tag.getAttributes().get("bool_attr"));
+
+    // Remove tag
+    resource.removeTag(tag);
+    resource.reload();
+    tags = resource.getTags();
+    Assert.assertEquals(0, tags.size());
+  }
+
+  @Test
+  public void testSimpleTag() throws OdpsException, FileNotFoundException {
+    String filename = ResourceTest.class
+        .getClassLoader()
+        .getResource("resource.jar")
+        .getFile();
+    JarResource rm = new JarResource();
+    rm.setName("testSimpleTag.jar");
+    odps.resources().create(rm, new FileInputStream(new File(filename)));
+
+    Resource resource = odps.resources().get("testSimpleTag.jar");
+
+    // There shouldn't be any simple tag
+    Assert.assertEquals(0, resource.getSimpleTags().size());
+
+    // Create simple tags
+    resource.addSimpleTag("test_category", "simple_tag_key", "simple_tag_value");
+    resource.reload();
+    Map<String, Map<String, String>> categoryToKvs = resource.getSimpleTags();
+    assertEquals(1, categoryToKvs.size());
+    assertNotNull(categoryToKvs.get("test_category"));
+    assertTrue(categoryToKvs.get("test_category").containsKey("simple_tag_key"));
+    assertEquals("simple_tag_value",
+                 categoryToKvs.get("test_category").get("simple_tag_key"));
+
+    // Remove simple tags
+    resource.removeSimpleTag(
+        "test_category",
+        "simple_tag_key",
+        "simple_tag_value");
+    resource.reload();
+    categoryToKvs = resource.getSimpleTags();
+    assertEquals(0, categoryToKvs.size());
   }
 }

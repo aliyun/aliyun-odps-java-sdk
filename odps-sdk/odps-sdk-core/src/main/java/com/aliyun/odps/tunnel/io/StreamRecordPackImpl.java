@@ -1,7 +1,7 @@
 package com.aliyun.odps.tunnel.io;
 
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.tunnel.StreamUploadSessionImpl;
+import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 

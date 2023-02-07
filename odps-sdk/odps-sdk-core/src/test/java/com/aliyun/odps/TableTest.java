@@ -42,13 +42,22 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.aliyun.odps.Classification.AttributeDefinition;
+import com.aliyun.odps.Classification.BooleanAttributeDefinition;
+import com.aliyun.odps.Classification.EnumAttributeDefinition;
+import com.aliyun.odps.Classification.IntegerAttributeDefinition;
+import com.aliyun.odps.Classification.StringAttributeDefinition;
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.Table.TableType;
+import com.aliyun.odps.Tags.TagBuilder;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.MapTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -61,6 +70,10 @@ public class TableTest extends TestBase {
   private static String TABLE_NAME = TableTest.class.getSimpleName() + "_table_name_for_test";
   private static String TABLE_NAME_2 = TableTest.class.getSimpleName() + "_table_name_for_test2";
   private static String TABLE_NAME_3 = TableTest.class.getSimpleName() + "_table_name_for_test3";
+  private static String TABLE_NAME_4 = TableTest.class.getSimpleName() + "_table_name_for_test4";
+
+  private static final String BASE_CLASSIFICATION_NAME_PREFIX = TableTest.class.getSimpleName();
+  private static final String BASE_TAG_NAME_PREFIX = TableTest.class.getSimpleName();
 
   private static String
       HUB_TABLE_NAME =
@@ -88,30 +101,28 @@ public class TableTest extends TestBase {
     OdpsTestUtils.createTableForTest(SOURCE_TABLE_NAME);
 
     schema = new TableSchema();
-    schema.addColumn(new Column("c1", OdpsType.BIGINT));
-    schema.addColumn(new Column("c2", OdpsType.BOOLEAN));
-    schema.addColumn(new Column("c3", OdpsType.DATETIME));
-    schema.addColumn(new Column("c4", OdpsType.STRING));
-    schema.addColumn(new Column("c5", OdpsType.DECIMAL));
-    ArrayList<OdpsType> genericTypeList6 = new ArrayList<OdpsType>();
-    Column c6 = new Column("c6", OdpsType.ARRAY);
-    genericTypeList6.add(OdpsType.BIGINT);
-    c6.setGenericTypeList(genericTypeList6);
+    schema.addColumn(new Column("c1", TypeInfoFactory.BIGINT));
+    schema.addColumn(new Column("c2", TypeInfoFactory.BOOLEAN));
+    schema.addColumn(new Column("c3", TypeInfoFactory.DATETIME));
+    schema.addColumn(new Column("c4", TypeInfoFactory.STRING));
+    schema.addColumn(new Column("c5", TypeInfoFactory.DECIMAL));
+    Column c6 = new Column("c6", TypeInfoFactory.getArrayTypeInfo(TypeInfoFactory.BIGINT));
     schema.addColumn(c6);
 
-    ArrayList<OdpsType> genericTypeList7 = new ArrayList<OdpsType>();
-    Column c7 = new Column("c7", OdpsType.MAP);
-    genericTypeList7.add(OdpsType.STRING);
-    genericTypeList7.add(OdpsType.STRING);
-    c7.setGenericTypeList(genericTypeList7);
+    Column c7 = new Column(
+        "c7",
+        TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.STRING, TypeInfoFactory.STRING));
     schema.addColumn(c7);
 
-    schema.addPartitionColumn(new Column("p1", OdpsType.BIGINT));
-    schema.addPartitionColumn(new Column("p2", OdpsType.STRING));
+    schema.addPartitionColumn(new Column("p1", TypeInfoFactory.BIGINT));
+    schema.addPartitionColumn(new Column("p2", TypeInfoFactory.STRING));
 
     odps.tables().create(odps.getDefaultProject(), TABLE_NAME, schema, true);
     odps.tables().create(odps.getDefaultProject(), TABLE_NAME_2, schema, true);
     odps.tables().create(odps.getDefaultProject(), TABLE_NAME_3, schema, true);
+
+    odps.tables().create(odps.getDefaultProject(), TABLE_NAME_4, schema, true);
+
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_2, schema, true);
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_4, schema, true);
     odps.tables().create(odps.getDefaultProject(), PARTITIONED_TABLE_NAME, schema, true);
@@ -150,6 +161,7 @@ public class TableTest extends TestBase {
     odps.tables().delete(TABLE_NAME, true);
     odps.tables().delete(TABLE_NAME_2, true);
     odps.tables().delete(TABLE_NAME_3, true);
+    odps.tables().delete(TABLE_NAME_4, true);
     odps.tables().delete(HUB_TABLE_NAME, true);
     odps.tables().delete(HUB_TABLE_NAME_2, true);
     odps.tables().delete(TRUNCATE_TABLE_NAME, true);
@@ -161,18 +173,31 @@ public class TableTest extends TestBase {
   }
 
   @Test
-  public void testGetSchema() throws OdpsException {
+  public void testGetSchema() {
     Table a = odps.tables().get(TABLE_NAME);
-    a.getSchema().getColumn("c1").getType().equals(OdpsType.BIGINT);
-    a.getSchema().getColumn("c2").getType().equals(OdpsType.BOOLEAN);
-    a.getSchema().getColumn("c3").getType().equals(OdpsType.DATETIME);
-    a.getSchema().getColumn("c4").getType().equals(OdpsType.STRING);
-    a.getSchema().getColumn("c5").getType().equals(OdpsType.DECIMAL);
-    a.getSchema().getColumn("c6").getType().equals(OdpsType.ARRAY);
-    a.getSchema().getColumn("c7").getType().equals(OdpsType.MAP);
-    a.getSchema().getColumn("c6").getGenericTypeList().get(0).equals(OdpsType.BIGINT);
-    a.getSchema().getColumn("c7").getGenericTypeList().get(0).equals(OdpsType.STRING);
-    a.getSchema().getColumn("c7").getGenericTypeList().get(1).equals(OdpsType.STRING);
+    TableSchema schema = a.getSchema();
+
+    // Primitive types
+    assertEquals(OdpsType.BIGINT,
+                 schema.getColumn("c1").getTypeInfo().getOdpsType());
+    assertEquals(OdpsType.BOOLEAN,
+                 schema.getColumn("c2").getTypeInfo().getOdpsType());
+    assertEquals(OdpsType.DATETIME,
+                 schema.getColumn("c3").getTypeInfo().getOdpsType());
+    assertEquals(OdpsType.STRING,
+                 schema.getColumn("c4").getTypeInfo().getOdpsType());
+    assertEquals(OdpsType.DECIMAL,
+                 schema.getColumn("c5").getTypeInfo().getOdpsType());
+
+    // Complex types
+    TypeInfo arrayTypeInfo = schema.getColumn("c6").getTypeInfo();
+    assertEquals(OdpsType.ARRAY, arrayTypeInfo.getOdpsType());
+    assertEquals(OdpsType.BIGINT,
+                 ((ArrayTypeInfo) arrayTypeInfo).getElementTypeInfo().getOdpsType());
+    TypeInfo mapTypeInfo = schema.getColumn("c7").getTypeInfo();
+    assertEquals(OdpsType.MAP, mapTypeInfo.getOdpsType());
+    assertEquals(OdpsType.STRING, ((MapTypeInfo) mapTypeInfo).getKeyTypeInfo().getOdpsType());
+    assertEquals(OdpsType.STRING, ((MapTypeInfo) mapTypeInfo).getValueTypeInfo().getOdpsType());
   }
 
   @Test
@@ -503,4 +528,229 @@ public class TableTest extends TestBase {
   }
 
 
+  @Test
+  public void testTag() throws OdpsException {
+    // Create classification
+    Map<String, AttributeDefinition> attributes = new HashMap<>();
+    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
+                                                                      .minLength(10)
+                                                                      .build());
+    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
+                                                                       .maximum(10)
+                                                                       .build());
+    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
+                                                                     .element("bar")
+                                                                     .build());
+    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
+    String classificationName = String.format(
+        "%s_%s_%s",
+        BASE_CLASSIFICATION_NAME_PREFIX,
+        "testTableTag",
+        OdpsTestUtils.getRandomName());
+    odps.classifications().create(classificationName, attributes, true);
+
+    // Create tag
+    String tagName = String.format(
+        "%s_%s_%s",
+        BASE_TAG_NAME_PREFIX,
+        "testTableTag",
+        OdpsTestUtils.getRandomName());
+    TagBuilder builder = new TagBuilder(odps.classifications().get(classificationName), tagName)
+        .attribute("str_attr", "1234567890")
+        .attribute("int_attr", "7")
+        .attribute("enum_attr", "foo")
+        .attribute("bool_attr", "true");
+    odps.classifications().get(classificationName).tags().create(builder, true);
+
+    Tag tag = odps.classifications().get(classificationName).tags().get(tagName);
+
+    Table table = odps.tables().get(SOURCE_TABLE_NAME);
+
+    // There shouldn't be any table level tag
+    assertEquals(0, table.getTags().size());
+
+    // Create table level tags
+    odps.tables().get(SOURCE_TABLE_NAME).addTag(tag);
+    List<Tag> tags = odps.tables().get(SOURCE_TABLE_NAME).getTags();
+    Assert.assertEquals(1, tags.size());
+    tag = tags.get(0);
+    Assert.assertEquals(4, tag.getAttributes().size());
+    Assert.assertEquals("1234567890", tag.getAttributes().get("str_attr"));
+    Assert.assertEquals("7", tag.getAttributes().get("int_attr"));
+    Assert.assertEquals("foo", tag.getAttributes().get("enum_attr"));
+    Assert.assertEquals("true", tag.getAttributes().get("bool_attr"));
+
+    // Remove table level tags
+    odps.tables().get(SOURCE_TABLE_NAME).removeTag(tag);
+    tags = odps.tables().get(SOURCE_TABLE_NAME).getTags();
+    Assert.assertEquals(0, tags.size());
+
+    // There shouldn't be any column level tag
+    assertEquals(0, table.getSimpleTags().size());
+
+    // Create column level tag
+    List<String> columns = new LinkedList<>();
+    columns.add("c1");
+    odps.tables().get(SOURCE_TABLE_NAME).addTag(tag, columns);
+    tags = odps.tables().get(SOURCE_TABLE_NAME).getTags("c1");
+    Assert.assertEquals(1, tags.size());
+    tag = tags.get(0);
+    Assert.assertEquals(4, tag.getAttributes().size());
+    Assert.assertEquals("1234567890", tag.getAttributes().get("str_attr"));
+    Assert.assertEquals("7", tag.getAttributes().get("int_attr"));
+    Assert.assertEquals("foo", tag.getAttributes().get("enum_attr"));
+    Assert.assertEquals("true", tag.getAttributes().get("bool_attr"));
+
+    // Remove column level tag
+    odps.tables().get(SOURCE_TABLE_NAME).removeTag(tag, columns);
+    tags = odps.tables().get(SOURCE_TABLE_NAME).getTags("c1");
+    Assert.assertEquals(0, tags.size());
+  }
+
+  @Test
+  public void testSimpleTag() throws OdpsException {
+    Table table = odps.tables().get(SOURCE_TABLE_NAME);
+
+    // There shouldn't be any table level simple tag
+    assertEquals(0, table.getSimpleTags().size());
+
+    // Create table level simple tags
+    odps.tables()
+        .get(SOURCE_TABLE_NAME)
+        .addSimpleTag("test_category", "simple_tag_key", "simple_tag_value");
+    Map<String, Map<String, String>> categoryToKvs = odps.tables().get(SOURCE_TABLE_NAME).getSimpleTags();
+    assertEquals(1, categoryToKvs.size());
+    assertNotNull(categoryToKvs.get("test_category"));
+    assertTrue(categoryToKvs.get("test_category").containsKey("simple_tag_key"));
+    assertEquals("simple_tag_value",
+                 categoryToKvs.get("test_category").get("simple_tag_key"));
+
+    // Remove table level simple tags
+    odps.tables()
+        .get(SOURCE_TABLE_NAME)
+        .removeSimpleTag("test_category", "simple_tag_key", "simple_tag_value");
+    categoryToKvs = odps.tables().get(SOURCE_TABLE_NAME).getSimpleTags();
+    assertEquals(0, categoryToKvs.size());
+
+    // There shouldn't be any column level simple tag
+    assertEquals(0, table.getSimpleTags("c1").size());
+
+    // Create column level simple tags
+    List<String> columns = new LinkedList<>();
+    columns.add("c1");
+    odps.tables()
+        .get(SOURCE_TABLE_NAME)
+        .addSimpleTag(
+            "test_category",
+            "simple_tag_key",
+            "simple_tag_value",
+            columns);
+    categoryToKvs = odps.tables()
+                        .get(SOURCE_TABLE_NAME)
+                        .getSimpleTags("c1");
+    assertEquals(1, categoryToKvs.size());
+    assertNotNull(categoryToKvs.get("test_category"));
+    assertTrue(categoryToKvs.get("test_category").containsKey("simple_tag_key"));
+    assertEquals("simple_tag_value",
+                 categoryToKvs.get("test_category").get("simple_tag_key"));
+
+    // Remove column level simple tags
+    odps.tables()
+        .get(SOURCE_TABLE_NAME)
+        .removeSimpleTag(
+            "test_category",
+            "simple_tag_key",
+            "simple_tag_value",
+            columns);
+    categoryToKvs = odps.tables().get(SOURCE_TABLE_NAME).getSimpleTags();
+    assertEquals(0, categoryToKvs.size());
+  }
+
+  @Test
+  public void testGetPartitionIterator() {
+    Table table = odps.tables().get(PARTITIONED_TABLE_NAME);
+    Iterator<Partition> iter =
+        table.getPartitionIterator(null, false, 1L, null);
+    List<Partition> partitions = new ArrayList<>(3);
+    while (iter.hasNext()) {
+      partitions.add(iter.next());
+    }
+    Assert.assertEquals(3L, partitions.size());
+    assertEquals("p1='1',p2='bar'", partitions.get(0).getPartitionSpec().toString());
+    assertEquals("p1='1',p2='baz'", partitions.get(1).getPartitionSpec().toString());
+    assertEquals("p1='1',p2='foo'", partitions.get(2).getPartitionSpec().toString());
+  }
+
+  @Test
+  public void testGetReversedPartitionIterator() {
+    Table table = odps.tables().get(PARTITIONED_TABLE_NAME);
+    Iterator<Partition> iter =
+        table.getPartitionIterator(null, false, 1L, null);
+    List<Partition> partitions = new ArrayList<>(3);
+    while (iter.hasNext()) {
+      partitions.add(iter.next());
+    }
+    Assert.assertEquals(3L, partitions.size());
+    assertEquals("p1='1',p2='foo'", partitions.get(2).getPartitionSpec().toString());
+    assertEquals("p1='1',p2='baz'", partitions.get(1).getPartitionSpec().toString());
+    assertEquals("p1='1',p2='bar'", partitions.get(0).getPartitionSpec().toString());
+  }
+
+  @Test
+  public void testGetLimitedPartitionIterator() {
+    Table table = odps.tables().get(PARTITIONED_TABLE_NAME);
+    Iterator<Partition> iter =
+        table.getPartitionIterator(null, false, 1L, 1L);
+    long numPartitions = 0;
+    while (iter.hasNext()) {
+      numPartitions += 1;
+      Partition p = iter.next();
+      Assert.assertEquals("p1='1',p2='bar'", p.getPartitionSpec().toString());
+    }
+    Assert.assertEquals(1L, numPartitions);
+  }
+
+  @Test
+  public void testGetLimitedReversedPartitionIterator() {
+    Table table = odps.tables().get(PARTITIONED_TABLE_NAME);
+    Iterator<Partition> iter =
+        table.getPartitionIterator(null, true, 1L, 1L);
+    long numPartitions = 0;
+    while (iter.hasNext()) {
+      numPartitions += 1;
+      Partition p = iter.next();
+      Assert.assertEquals("p1='1',p2='foo'", p.getPartitionSpec().toString());
+    }
+    Assert.assertEquals(1L, numPartitions);
+  }
+
+  @Test
+  public void testGetObjectTags() throws OdpsException {
+    Table table = odps.tables().get(TABLE_NAME_4);
+
+    PartitionSpec spec = new PartitionSpec("p1=1,p2=foo");
+    table.createPartition(spec, true);
+
+    Assert.assertEquals(0, table.getPartition(spec).getSimpleTags().size());
+    Assert.assertEquals(0, table.getSimpleTags().size());
+
+
+    //schema Revolution
+    Map<String, String> hints = new HashMap<>();
+    hints.put("odps.sql.allow.schema.evolution", "true");
+    String sql = "alter table " + TABLE_NAME_4 + " drop column c1;";
+    SQLTask.run(odps, odps.getDefaultProject(), sql, hints, null).waitForSuccess();
+    Assert.assertEquals(0, table.getPartition(spec).getSimpleTags().size());
+    Assert.assertEquals(0, table.getSimpleTags().size());
+
+    // new type
+    sql = "alter table " + TABLE_NAME_4 + " add column(dd1 date);";
+    hints.clear();
+    hints.put("odps.sql.type.system.odps2", "true");
+    SQLTask.run(odps, odps.getDefaultProject(), sql, hints, null).waitForSuccess();
+    Assert.assertEquals(0, table.getPartition(spec).getSimpleTags().size());
+    Assert.assertEquals(0, table.getSimpleTags().size());
+
+
+  }
 }

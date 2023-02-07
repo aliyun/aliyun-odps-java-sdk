@@ -126,6 +126,14 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String projectGroupName;
 
+    @Element(name = "DefaultQuotaNickname", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultQuotaNickname;
+
+    @Element(name = "DefaultQuotaRegion", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultQuotaRegion;
+
     @Element(name = "Properties", required = false)
     @Convert(PropertyConverter.class)
     LinkedHashMap<String, String> properties;
@@ -440,6 +448,16 @@ public class Project extends LazyLoad {
     return model.projectGroupName;
   }
 
+  public String getDefaultQuotaNickname() {
+    lazyLoad();
+    return model.defaultQuotaNickname;
+  }
+
+  public String getDefaultQuotaRegion() {
+    lazyLoad();
+    return model.defaultQuotaRegion;
+  }
+
   /**
    * 获取Project当前状态
    *
@@ -554,6 +572,10 @@ public class Project extends LazyLoad {
   }
 
   public String getTunnelEndpoint() throws OdpsException {
+      return getTunnelEndpoint(null);
+  }
+
+  public String getTunnelEndpoint(String quotaName) throws OdpsException {
     String protocol;
     try {
       URI u = new URI(client.getEndpoint());
@@ -565,6 +587,9 @@ public class Project extends LazyLoad {
     String resource = ResourceBuilder.buildProjectResource(model.name).concat("/tunnel");
     HashMap<String, String> params = new HashMap<String, String>();
     params.put("service", null);
+    if (quotaName != null && quotaName.length() != 0) {
+      params.put("quotaName", quotaName);
+    }
     Response resp = client.request(resource, "GET", params, null, null);
 
     String tunnel;

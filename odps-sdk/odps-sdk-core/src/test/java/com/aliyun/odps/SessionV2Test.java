@@ -54,6 +54,8 @@ public class SessionV2Test extends TestBase {
     flags.put("odps.sql.session.worker.cpu", "33");
     flags.put("odps.sql.session.worker.cache.size", "64");
     flags.put("set odps.sql.session.max.slot.number", "5");
+    flags.put("odps.sql.session.slot.worker.ratio", "0.6");
+    flags.put("odps.sql.session.isolation.worker.ratio", "0.2");
 
     session = Session.create(odps, name, odps.getDefaultProject(), flags, 0L);
     System.out.println("Create session success: " + session.getInstance().getId());

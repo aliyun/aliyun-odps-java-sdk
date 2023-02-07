@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.commons.proto;
 
+import static com.aliyun.odps.data.ArrayRecord.DEFAULT_CALENDAR;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -26,6 +28,7 @@ import com.aliyun.odps.data.AbstractChar;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.IntervalDayTime;
 import com.aliyun.odps.data.IntervalYearMonth;
+import com.aliyun.odps.data.OdpsTypeTransformer;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
@@ -42,12 +45,16 @@ import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
 import org.apache.commons.io.output.CountingOutputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
+import net.jpountz.lz4.LZ4FrameOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -87,6 +94,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         tmpOut = new DeflaterOutputStream(out, def);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
         tmpOut = new SnappyFramedOutputStream(out);
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
+        tmpOut = new LZ4FrameOutputStream(out);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
         tmpOut = out;
       } else {
@@ -192,27 +201,43 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case DATETIME: {
-        Date value = (Date) v;
-
         long longValue;
-        if (!shouldTransform) {
-          longValue = ((Date) v).getTime();
+        if (v instanceof ZonedDateTime) {
+          longValue = ((ZonedDateTime) v).toInstant().toEpochMilli();
         } else {
-          longValue = DateUtils.date2ms(value, DateUtils.LOCAL_CAL);
+          longValue = ((Date) v).getTime();
+        }
+
+        if (shouldTransform) {
+          longValue = DateUtils.date2ms(new Date(longValue), DateUtils.LOCAL_CAL);
         }
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
       }
       case DATE: {
-        long longValue = ((LocalDate) v).toEpochDay();
+        long longValue;
+        LocalDate localDate;
+        if (v instanceof LocalDate) {
+          localDate = (LocalDate) v;
+        } else {
+          // to date in GMT, for compatible
+          localDate = OdpsTypeTransformer.dateToLocalDate((java.sql.Date)v, DEFAULT_CALENDAR);
+        }
+        longValue = localDate.toEpochDay();
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
       }
       case TIMESTAMP: {
-        int nano = ((Timestamp) v).getNanos();
-        long value = (((Timestamp) v).getTime() - (nano / 1000000)) / 1000;
+        Instant instant;
+        if (v instanceof Instant) {
+          instant = (Instant) v;
+        } else {
+          instant = ((Timestamp) v).toInstant();
+        }
+        int nano = instant.getNano();
+        long value = instant.getEpochSecond();
         crc.update(value);
         crc.update(nano);
         out.writeSInt64NoTag(value);

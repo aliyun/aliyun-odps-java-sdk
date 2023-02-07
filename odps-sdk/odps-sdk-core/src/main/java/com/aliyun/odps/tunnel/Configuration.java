@@ -25,8 +25,8 @@ import java.net.URISyntaxException;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.GeneralConfiguration;
-import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * ODPS Tunnel 配置项
@@ -37,9 +37,11 @@ import com.aliyun.odps.tunnel.io.CompressOption;
  *
  * @author <a href="mailto:chao.liu@alibaba-inc.com">chao.liu</a>
  */
-class Configuration extends GeneralConfiguration {
+public class Configuration extends GeneralConfiguration {
 
   private CompressOption option = new CompressOption();
+
+  private String quotaName = "";
 
   public Configuration(Odps odps) {
     super(odps);
@@ -67,7 +69,7 @@ class Configuration extends GeneralConfiguration {
 
     URI u = null;
     try {
-      u = new URI(odps.projects().get(projectName).getTunnelEndpoint());
+      u = new URI(odps.projects().get(projectName).getTunnelEndpoint(quotaName));
     } catch (URISyntaxException e) {
       throw new TunnelException(e.getMessage(), e);
     } catch (OdpsException e) {
@@ -76,34 +78,19 @@ class Configuration extends GeneralConfiguration {
     return u;
   }
 
-  /**
-   * 获得Stream upload数据的RESTful资源标识符
-   *
-   * @param projectName
-   * @param tableName
-   * @return
-   */
-  @Deprecated
-  public String getStreamUploadResource(String projectName, String tableName, String shardId) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("/projects/").append(projectName).append("/tables/")
-        .append(tableName)
-        .append("/shards/")
-        .append(shardId);
-
-    return sb.toString();
+  public Odps getOdps() {
+    return odps;
   }
 
-  RestClient newRestClient(String projectName) throws TunnelException {
-
-    RestClient odpsServiceClient = odps.clone().getRestClient();
-
-    odpsServiceClient.setReadTimeout(getSocketTimeout());
-    odpsServiceClient.setConnectTimeout(getSocketConnectTimeout());
-    odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
-
-    return odpsServiceClient;
+  public String getQuotaName() {
+    return quotaName;
   }
 
+  public void setQuotaName(String quotaName) {
+    this.quotaName = quotaName;
+  }
 
+  protected boolean availableQuotaName() {
+    return !StringUtils.isEmpty(this.quotaName);
+  }
 }

@@ -74,6 +74,29 @@ public class SecurityManagerTest extends TestBase {
   }
 
   @Test
+  public void testGetUserById() throws OdpsException {
+    String name = OdpsTestUtils.getCurrentUser(odps);
+    String id = sm.getUserByName(name).getID();
+    User user = sm.getUserById(id);
+    Assert.assertEquals(user.getLabel(), 0);
+    Assert.assertEquals(user.getDisplayname(), name);
+    Assert.assertEquals(user.getComment(), "");
+    Assert.assertEquals(user.getRoles().size(), 0);
+    Assert.assertEquals(user.getProperties().size(), 0);
+  }
+
+  @Test
+  public void testGetUserByName() throws OdpsException {
+    String name = OdpsTestUtils.getCurrentUser(odps);
+    User user = sm.getUserByName(name);
+    Assert.assertEquals(user.getLabel(), 0);
+    Assert.assertEquals(user.getDisplayname(), name);
+    Assert.assertEquals(user.getComment(), "");
+    Assert.assertEquals(user.getRoles().size(), 0);
+    Assert.assertEquals(user.getProperties().size(), 0);
+  }
+
+  @Test
   public void testListUsers() throws OdpsException {
     List<User> list = sm.listUsers();
     for (User user : list) {

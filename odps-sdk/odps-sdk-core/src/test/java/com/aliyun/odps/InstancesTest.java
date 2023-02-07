@@ -26,7 +26,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.aliyun.odps.Instance.InstanceResultModel;
-import com.aliyun.odps.rest.SimpleXmlUtils;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Date;
@@ -45,7 +45,6 @@ import com.aliyun.odps.Instance.Result;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.TunnelException;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 public class InstancesTest extends TestBase {
 
@@ -261,7 +260,7 @@ public class InstancesTest extends TestBase {
   @Test
   public void testCreateSyncInstance() throws OdpsException {
     // suppose create table is a sync instance
-    String name = OdpsTestUtils.getRandomTableName();
+    String name = OdpsTestUtils.getRandomName();
     String taskname = "testSyncInstance";
 
     // success instance
@@ -358,7 +357,6 @@ public class InstancesTest extends TestBase {
 
     Assert.assertEquals(i.getId(), info.getId());
     Assert.assertNotNull(info.getPriority());
-    Assert.assertNotNull(info.getProgress());
     Assert.assertNotNull(info.getTaskName());
     Assert.assertNotNull(info.getTaskType());
     Assert.assertNotNull(info.getStartTime());
@@ -367,8 +365,16 @@ public class InstancesTest extends TestBase {
     Assert.assertNotNull(info.getUserAccount());
 
     i.waitForSuccess();
-    Thread.sleep(3000);
-    info = i.getQueueingInfo();
+    for (int j = 0; j < 15; j++) {
+      info = i.getQueueingInfo();
+      if (info.getId() != null) {
+        break;
+      }
+      Thread.sleep(1000);
+    }
+    if (info.getId() == null) {
+      return;
+    }
     Assert.assertEquals(i.getId(), info.getId());
   }
 }

@@ -19,11 +19,15 @@
 
 package com.aliyun.odps.data;
 
+import static com.aliyun.odps.data.OdpsTypeTransformer.getCompatibleType;
+import static com.aliyun.odps.data.OdpsTypeTransformer.transformAndValidate;
+
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.chrono.IsoChronology;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -31,16 +35,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TimeZone;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.type.ArrayTypeInfo;
-import com.aliyun.odps.type.MapTypeInfo;
-import com.aliyun.odps.type.StructTypeInfo;
-import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
 
 /**
  * 基于数组的{@link Record}实现
@@ -51,7 +50,7 @@ public class ArrayRecord implements Record {
   private static final Long DEFAULT_FIELD_MAX_SIZE = 8 * 1024 * 1024L;
   private static final String DEFAULT_CHARSET = "utf-8";
 
-  static final Calendar DEFAULT_CALENDAR = new Calendar.Builder()
+  public static final Calendar DEFAULT_CALENDAR = new Calendar.Builder()
       .setCalendarType("iso8601")
       .setLenient(true)
       .setTimeZone(TimeZone.getTimeZone("GMT"))
@@ -131,17 +130,16 @@ public class ArrayRecord implements Record {
 
   @Override
   public void set(int idx, Object value) {
-    // allow byte [] to set on STRING column, ugly
-    if (columns[idx].getTypeInfo().getOdpsType() == OdpsType.STRING && (value instanceof byte[])) {
-      values[idx] = value;
-      return;
-    }
+    set(idx, value, null);
+  }
 
-    values[idx] = OdpsTypeTransformer.transform(
-        value,
-        columns[idx].getTypeInfo(),
-        strictTypeValidation,
-        fieldMaxSize);
+  private void set(int idx, Object value, Calendar calendar) {
+    values[idx] = transformAndValidate(
+            value,
+            columns[idx].getTypeInfo(),
+            calendar,
+            strictTypeValidation,
+            fieldMaxSize);
   }
 
   @Override
@@ -219,14 +217,21 @@ public class ArrayRecord implements Record {
     return getBoolean(getColumnIndex(columnName));
   }
 
-  @Override
   public void setDatetime(int idx, Date value) {
     set(idx, value);
   }
 
-  @Override
+  @Deprecated
   public Date getDatetime(int idx) {
+    return OdpsTypeTransformer.getCompatibleType(getInternal(idx), TypeInfoFactory.DATETIME);
+  }
+
+  public ZonedDateTime getDatetimeAsZonedDateTime(int idx) {
     return getInternal(idx);
+  }
+
+  public ZonedDateTime getDatetimeAsZonedDateTime(String columnName) {
+    return getInternal(getColumnIndex(columnName));
   }
 
   @Override
@@ -234,7 +239,15 @@ public class ArrayRecord implements Record {
     setDatetime(getColumnIndex(columnName), value);
   }
 
-  @Override
+  public void setDatetimeAsZonedDateTime(String columnName, ZonedDateTime value) {
+    set(getColumnIndex(columnName), value);
+  }
+
+  public void setDatetimeAsZonedDateTime(int idx, ZonedDateTime value) {
+    set(idx,  value);
+  }
+
+  @Deprecated
   public Date getDatetime(String columnName) {
     return getDatetime(getColumnIndex(columnName));
   }
@@ -420,7 +433,12 @@ public class ArrayRecord implements Record {
    * @return Array 类型的列值
    */
   public <T> List<T> getArray(Class<T> className, int idx) {
-    List list = getArray(idx);
+    List list;
+    if (isNewDatetimeType(className)) {
+      list = OdpsTypeTransformer.getOriginalType(getInternal(idx), columns[idx].getTypeInfo());
+    } else {
+      list = getArray(idx);
+    }
 
     if (list == null || list.isEmpty()) {
       return list;
@@ -428,11 +446,8 @@ public class ArrayRecord implements Record {
 
     List<T> newList = new ArrayList<T>(list.size());
     for (Object obj : list) {
-      if ((obj instanceof String) && (className == byte[].class)) {
-        newList.add((T) stringToBytes((String) obj));
-      } else {
-        newList.add(className.cast(obj));
-      }
+      obj = transformUserCustomType(className, obj);
+      newList.add(className.cast(obj));
     }
     return newList;
   }
@@ -442,43 +457,7 @@ public class ArrayRecord implements Record {
   }
 
   public List getArray(int idx) {
-    return toCompatibleArray((ArrayTypeInfo) columns[idx].getTypeInfo(), getInternal(idx));
-  }
-
-  private List toCompatibleArray(ArrayTypeInfo typeInfo, List list) {
-    if (list == null) {
-      return null;
-    }
-
-    // ArrayRecord used java.sql.Date as inner object type of DATE. But java.sql.Date is error-prone
-    // so it was replaced by LocalDate. However, the inner object type is actually exposed to users
-    // by this method. So, we do a conversion to keep the compatibility.
-    TypeInfo elementTypeInfo = typeInfo.getElementTypeInfo();
-    List<Object> ret = new ArrayList<>(list.size());
-    for (Object o : list) {
-      if (o == null) {
-        ret.add(null);
-        continue;
-      }
-      switch (elementTypeInfo.getOdpsType()) {
-        case DATE:
-          ret.add(new java.sql.Date(localDateToDate((LocalDate) o, DEFAULT_CALENDAR).getTime()));
-          break;
-        case ARRAY:
-          ret.add(toCompatibleArray((ArrayTypeInfo) elementTypeInfo, (List) o));
-          break;
-        case MAP:
-          ret.add(toCompatibleMap((MapTypeInfo) elementTypeInfo, (Map) o));
-          break;
-        case STRUCT:
-          ret.add(toCompatibleStruct((StructTypeInfo) elementTypeInfo, (Struct) o));
-          break;
-        default:
-          ret.add(o);
-      }
-    }
-
-    return ret;
+    return OdpsTypeTransformer.getCompatibleType(getInternal(idx), columns[idx].getTypeInfo());
   }
 
   public <k, v> Map<k, v> getMap(Class<k> keyClass, Class<v> valueClass, String columnName) {
@@ -500,9 +479,17 @@ public class ArrayRecord implements Record {
    *     列索引值
    * @return Map 类型的列值
    */
-
   public <k, v> Map<k, v> getMap(Class<k> keyClass, Class<v> valueClass, int idx) {
-    Map map = getMap(idx);
+    Map map;
+    if (isNewDatetimeType(keyClass) && isOldDatetimeType(valueClass)) {
+      throw new IllegalArgumentException("key type and value type conflict");
+    } else if (isOldDatetimeType(keyClass) && isNewDatetimeType(valueClass)) {
+      throw new IllegalArgumentException("key type and value type conflict");
+    } else if (isNewDatetimeType(keyClass) && isNewDatetimeType(valueClass)) {
+      map = OdpsTypeTransformer.getOriginalType(getInternal(idx), columns[idx].getTypeInfo());
+    } else {
+      map = getMap(idx);
+    }
 
     if (map == null || map.isEmpty()) {
       return map;
@@ -515,13 +502,8 @@ public class ArrayRecord implements Record {
       Object key = entry.getKey();
       Object value = entry.getValue();
 
-      if (keyClass == byte [].class && key != null && key instanceof String) {
-        key = stringToBytes((String) key);
-      }
-
-      if (valueClass == byte [].class && value != null && value instanceof String) {
-        value = stringToBytes((String) value);
-      }
+      key = transformUserCustomType(keyClass, key);
+      value = transformUserCustomType(valueClass, value);
 
       newMap.put(keyClass.cast(key), valueClass.cast(value));
     }
@@ -529,52 +511,28 @@ public class ArrayRecord implements Record {
     return newMap;
   }
 
+  private boolean isNewDatetimeType(Class c) {
+    return c == ZonedDateTime.class || c == LocalDate.class || c == Instant.class;
+  }
+
+  private boolean isOldDatetimeType(Class c) {
+    return c == Date.class || c == java.sql.Date.class || c == Timestamp.class;
+  }
+
+  private <T> Object transformUserCustomType(Class<T> className, Object o) {
+    if (className == byte[].class && o instanceof String) {
+      return stringToBytes((String) o);
+    } else {
+      return o;
+    }
+  }
+
   public Map getMap(String columnName) {
     return getMap(getColumnIndex(columnName));
   }
 
   public Map getMap(int idx) {
-    return toCompatibleMap((MapTypeInfo) columns[idx].getTypeInfo(), getInternal(idx));
-  }
-
-  private Map toCompatibleMap(MapTypeInfo typeInfo, Map map) {
-    if (map == null) {
-      return null;
-    }
-
-    // ArrayRecord used java.sql.Date as inner object type of DATE. But java.sql.Date is error-prone
-    // so it was replaced by LocalDate. However, the inner object type is actually exposed to users
-    // by this method. So, we do a conversion to keep the compatibility.
-    Map<Object, Object> ret = new HashMap<>(map.size());
-    for (Object key : map.keySet()) {
-      Object value = map.get(key);
-      if (value != null) {
-        TypeInfo valueTypeInfo = typeInfo.getValueTypeInfo();
-        switch (typeInfo.getValueTypeInfo().getOdpsType()) {
-          case DATE:
-            value =
-                new java.sql.Date(localDateToDate((LocalDate) value, DEFAULT_CALENDAR).getTime());
-            break;
-          case ARRAY:
-            value = toCompatibleArray((ArrayTypeInfo) valueTypeInfo, (List) value);
-            break;
-          case MAP:
-            value = toCompatibleMap((MapTypeInfo) valueTypeInfo, (Map) value);
-            break;
-          case STRUCT:
-            value = toCompatibleStruct((StructTypeInfo) valueTypeInfo, (Struct) value);
-          default:
-        }
-      }
-
-      if (key != null && OdpsType.DATE.equals(typeInfo.getKeyTypeInfo().getOdpsType())) {
-        key = new java.sql.Date(localDateToDate((LocalDate) key, DEFAULT_CALENDAR).getTime());
-      }
-
-      ret.put(key, value);
-    }
-
-    return ret;
+    return OdpsTypeTransformer.getCompatibleType(getInternal(idx), columns[idx].getTypeInfo());
   }
 
   public void setChar(int idx, Char value) {
@@ -754,6 +712,7 @@ public class ArrayRecord implements Record {
    * @param value Date.
    * @param calendar The calendar to use in constructing the final {@link java.sql.Date} object.
    */
+  @Deprecated
   public void setDate(String columnName, java.sql.Date value, Calendar calendar) {
     setDate(getColumnIndex(columnName), value, calendar);
   }
@@ -782,6 +741,7 @@ public class ArrayRecord implements Record {
    * @param calendar The calendar to use in constructing the return value.
    * @return
    */
+  @Deprecated
   public java.sql.Date getDate(String columnName, Calendar calendar) {
     return getDate(getColumnIndex(columnName), calendar);
   }
@@ -807,12 +767,9 @@ public class ArrayRecord implements Record {
    * @param value Date.
    * @param calendar The calendar to use in constructing the final {@link java.sql.Date} object.
    */
-  public void setDate(int idx, java.sql.Date value,  Calendar calendar) {
-    if (value != null) {
-      set(idx, dateToLocalDate(value, Optional.ofNullable(calendar).orElse(DEFAULT_CALENDAR)));
-    } else {
-      set(idx, null);
-    }
+  @Deprecated
+  public void setDate(int idx, java.sql.Date value, Calendar calendar) {
+    set(idx, value, calendar);
   }
 
   /**
@@ -839,15 +796,9 @@ public class ArrayRecord implements Record {
    * @param calendar The calendar to use in constructing the return value.
    * @return
    */
+  @Deprecated
   public java.sql.Date getDate(int idx, Calendar calendar) {
-    java.util.Date date = localDateToDate(
-        getInternal(idx), Optional.ofNullable(calendar).orElse(DEFAULT_CALENDAR));
-
-    if (date == null) {
-      return null;
-    }
-
-    return new java.sql.Date(date.getTime());
+    return getCompatibleType(getInternal(idx), TypeInfoFactory.DATE, calendar);
   }
 
   /**
@@ -860,8 +811,7 @@ public class ArrayRecord implements Record {
    * @param columnIdx Column index.
    * @param localDate A {@link LocalDate} object. Could be null.
    */
-  // TODO: make this method public
-  private void setDateAsLocalDate(int columnIdx, LocalDate localDate) {
+  public void setDateAsLocalDate(int columnIdx, LocalDate localDate) {
     set(columnIdx, localDate);
   }
 
@@ -875,8 +825,7 @@ public class ArrayRecord implements Record {
    * @param columnName Column name.
    * @param localDate A {@link LocalDate} object. Could be null.
    */
-  // TODO: make this method public
-  private void setDateAsLocalDate(String columnName, LocalDate localDate) {
+  public void setDateAsLocalDate(String columnName, LocalDate localDate) {
     setDateAsLocalDate(getColumnIndex(columnName), localDate);
   }
 
@@ -887,8 +836,7 @@ public class ArrayRecord implements Record {
    * @return A {@link LocalDate} object. If the value is SQL <code>NULL</code>, the value returned
    *         is <code>null</code>.
    */
-  // TODO: make this method public
-  private LocalDate getDateAsLocalDate(int columnIdx) {
+  public LocalDate getDateAsLocalDate(int columnIdx) {
     return getInternal(columnIdx);
   }
 
@@ -899,8 +847,7 @@ public class ArrayRecord implements Record {
    * @return A {@link LocalDate} object. If the value is SQL <code>NULL</code>, the value returned
    *         is <code>null</code>.
    */
-  // TODO: make this method public
-  private LocalDate getDateAsLocalDate(String columnName) {
+  public LocalDate getDateAsLocalDate(String columnName) {
     return getDateAsLocalDate(getColumnIndex(columnName));
   }
 
@@ -908,8 +855,24 @@ public class ArrayRecord implements Record {
     set(idx, value);
   }
 
-  public Timestamp getTimestamp(int idx) {
+  public void setTimestampAsInstant(int idx, Instant instant) {
+    set(idx, instant);
+  }
+
+  public void setTimestampAsInstant(String columnName, Instant instant) {
+    setTimestampAsInstant(getColumnIndex(columnName), instant);
+  }
+
+  public Instant getTimestampAsInstant(int idx) {
     return getInternal(idx);
+  }
+
+  public Instant getTimestampAsInstant(String columnName) {
+    return getInternal(getColumnIndex(columnName));
+  }
+
+  public Timestamp getTimestamp(int idx) {
+    return OdpsTypeTransformer.getCompatibleType(getInternal(idx), TypeInfoFactory.TIMESTAMP);
   }
 
   public void setTimestamp(String columnName, Timestamp value) {
@@ -993,48 +956,8 @@ public class ArrayRecord implements Record {
   }
 
   public Struct getStruct(int idx) {
-    return toCompatibleStruct((StructTypeInfo) columns[idx].getTypeInfo(), getInternal(idx));
+    return OdpsTypeTransformer.getCompatibleType(getInternal(idx), columns[idx].getTypeInfo());
   }
-
-  private Struct toCompatibleStruct(StructTypeInfo typeInfo, Struct struct) {
-    if (struct == null) {
-      return null;
-    }
-
-    // ArrayRecord used java.sql.Date as inner object type of DATE. But java.sql.Date is error-prone
-    // so it was replaced by LocalDate. However, the inner object type is actually exposed to users
-    // by this method. So, we do a conversion to keep the compatibility.
-    List<Object> values = new ArrayList<>(struct.getFieldCount());
-    List<TypeInfo> fieldTypeInfos = typeInfo.getFieldTypeInfos();
-    for (int i = 0; i < typeInfo.getFieldCount(); ++i) {
-      TypeInfo fieldTypeInfo = fieldTypeInfos.get(i);
-      Object o = struct.getFieldValue(i);
-
-      if (o == null) {
-        values.add(null);
-        continue;
-      }
-
-      switch (fieldTypeInfo.getOdpsType()) {
-        case DATE:
-          o = new java.sql.Date(localDateToDate((LocalDate) o, DEFAULT_CALENDAR).getTime());
-          break;
-        case ARRAY:
-          o = toCompatibleArray((ArrayTypeInfo) fieldTypeInfo, (List) o);
-          break;
-        case MAP:
-          o = toCompatibleMap((MapTypeInfo) fieldTypeInfo, (Map) o);
-          break;
-        case STRUCT:
-          o = toCompatibleStruct((StructTypeInfo) fieldTypeInfo, (Struct) o);
-          break;
-        default:
-      }
-      values.add(o);
-    }
-    return new SimpleStruct(typeInfo, values);
-  }
-
 
   public Struct getStruct(String columnName) {
     return getStruct(getColumnIndex(columnName));
@@ -1090,7 +1013,7 @@ public class ArrayRecord implements Record {
   }
 
   @SuppressWarnings({"unchecked"})
-  private <T> T getInternal(int idx) {
+  protected <T> T getInternal(int idx) {
     if (values[idx] == null) {
       return null;
     }
@@ -1135,57 +1058,5 @@ public class ArrayRecord implements Record {
     }
   }
 
-  /**
-   * Convert a {@link LocalDate} object to a {@link java.util.Date} object using GMT time.
-   *
-   * Since some users use the {@link java.util.Date} to represent the {@link OdpsType#DATE},
-   * we use {@link java.util.Date} here to keep compatibility.
-   *
-   * @param localDate A {@link LocalDate} object. Could be null.
-   * @param calendar A {@link Calendar} object. Cannot be null.
-   * @return A {@link java.util.Date} object, or null if the input is null.
-   */
-  static java.util.Date localDateToDate(LocalDate localDate, Calendar calendar) {
-    if (localDate != null) {
-      calendar = (Calendar) calendar.clone();
-      calendar.clear();
-      calendar.set(
-          localDate.getYear(),
-          // Starts from 0
-          localDate.getMonth().getValue() - 1,
-          localDate.getDayOfMonth());
-      return calendar.getTime();
-    }
-
-    return null;
-  }
-
-  /**
-   * Convert a {@link java.util.Date} object to a {@link LocalDate} object. The
-   * {@link java.util.Date} object must be constructed using the Greenwich Mean Time.
-   *
-   * Since some users use the {@link java.util.Date} to represent the {@link OdpsType#DATE},
-   * we use {@link java.util.Date} here to keep compatibility.
-   *
-   * @param date A {@link java.util.Date} object. Could be null.
-   * @param calendar A {@link Calendar} object. Cannot be null.
-   * @return A {@link LocalDate} object, or null if the input is null.
-   */
-  static LocalDate dateToLocalDate(java.util.Date date, Calendar calendar) {
-    if (date != null) {
-      calendar = (Calendar) calendar.clone();
-      calendar.clear();
-      calendar.setLenient(true);
-      calendar.setTime(date);
-      return IsoChronology.INSTANCE.date(
-          IsoChronology.INSTANCE.eraOf(calendar.get(Calendar.ERA)),
-          calendar.get(Calendar.YEAR),
-          // Starts from 1
-          calendar.get(Calendar.MONTH) + 1,
-          calendar.get(Calendar.DAY_OF_MONTH));
-    }
-
-    return null;
-  }
 }
 

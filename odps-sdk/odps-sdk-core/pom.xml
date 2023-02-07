@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.38.4-public</version>
+        <version>0.41.1</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -20,6 +20,11 @@
             <artifactId>odps-sdk-commons</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.aliyun.odps</groupId>
+            <artifactId>odps-compiler-hive-parser</artifactId>
+        </dependency>
+
         <!-- Base64 -->
         <dependency>
             <groupId>commons-codec</groupId>
@@ -29,6 +34,11 @@
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-mapper-asl</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4</artifactId>
         </dependency>
 
         <dependency>
@@ -47,6 +57,11 @@
         <dependency>
             <groupId>org.xerial.snappy</groupId>
             <artifactId>snappy-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lz4</groupId>
+            <artifactId>lz4-pure-java</artifactId>
+            <version>1.8.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
@@ -92,6 +107,15 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
         </dependency>
     </dependencies>
 

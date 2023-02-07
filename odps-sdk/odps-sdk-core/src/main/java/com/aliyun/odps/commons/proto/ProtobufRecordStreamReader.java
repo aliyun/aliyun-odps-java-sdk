@@ -24,7 +24,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -33,6 +37,7 @@ import java.util.Map;
 import java.util.zip.InflaterInputStream;
 
 import org.xerial.snappy.SnappyFramedInputStream;
+import net.jpountz.lz4.LZ4FrameInputStream;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
@@ -105,6 +110,8 @@ public class ProtobufRecordStreamReader implements RecordReader {
         this.in = CodedInputStream.newInstance(new InflaterInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
         this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
+        this.in = CodedInputStream.newInstance(new LZ4FrameInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
         this.in = CodedInputStream.newInstance((bin));
       } else {
@@ -143,7 +150,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
       int checkSum = 0;
 
       if (in.isAtEnd()) {
-        throw new IOException("No more record");
+        return null;
       }
 
       int i = getTagFieldNumber(in);
@@ -247,7 +254,8 @@ public class ProtobufRecordStreamReader implements RecordReader {
       case DATETIME:{
         long v = in.readSInt64();
         crc.update(v);
-        return shouldTransform ? DateUtils.ms2date(v, DateUtils.LOCAL_CAL) : new java.util.Date(v);
+        return shouldTransform ? DateUtils.ms2date(v, DateUtils.LOCAL_CAL).toInstant().atZone(ZoneId.systemDefault()) :
+               Instant.ofEpochMilli(v).atZone(ZoneId.systemDefault());
       }
       case DATE: {
         long v = in.readSInt64();
@@ -267,9 +275,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
         int nano = in.readSInt32();
         crc.update(time);
         crc.update(nano);
-        Timestamp t = new Timestamp(time * 1000);
-        t.setNanos(nano);
-        return t;
+        return Instant.ofEpochSecond(time, nano);
       }
       case DECIMAL: {
         int size = in.readRawVarint32();

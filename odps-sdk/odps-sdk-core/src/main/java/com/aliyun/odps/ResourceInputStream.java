@@ -11,6 +11,7 @@ import com.aliyun.odps.commons.transport.Params;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.utils.StringUtils;
 
 
 /**
@@ -23,6 +24,7 @@ public class ResourceInputStream extends InputStream {
   private InputStream inputStream;
   private long offset = 0;
   private final String resource;
+  private final String schemaName;
   private final RestClient client;
   private boolean hasRemainingContentToFetch;
 
@@ -32,11 +34,13 @@ public class ResourceInputStream extends InputStream {
   ResourceInputStream(
       RestClient client,
       String projectName,
+      String schemaName,
       String resourceName) throws OdpsException {
 
     this.client = client;
     this.hasRemainingContentToFetch = false;
     this.resource = String.format("/projects/%s/resources/%s", projectName, resourceName);
+    this.schemaName = schemaName;
     this.chunkSize = 64L << 20;  // default 64M
 
     try {
@@ -122,6 +126,9 @@ public class ResourceInputStream extends InputStream {
     Map<String, String> params = new HashMap<>();
     params.put(Params.ODPS_RESOURCE_FETCH_OFFSET, String.valueOf(offset));
     params.put(Params.ODPS_RESOURCE_FETCH_READ_SIZE, String.valueOf(chunkSize));
+    if (!StringUtils.isNullOrEmpty(schemaName)) {
+      params.put(Params.ODPS_SCHEMA_NAME, schemaName);
+    }
 
     try {
       conn = client.connect(resource, "GET", params, headers);

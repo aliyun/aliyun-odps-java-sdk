@@ -27,7 +27,7 @@ package com.aliyun.odps.tunnel;
  */
 public interface TunnelConstants {
 
-  public static int VERSION = 4;
+  public static int VERSION = 5;
   public static String RES_PARTITION = "partition";
   public static String RES_SHARD = "shard";
   public static String RES_COLUMNS = "columns";
@@ -66,4 +66,10 @@ public interface TunnelConstants {
   public static String CREATE_PARTITION = "create_partition";
   public static String ZORDER_COLUMNS = "zorder_columns";
   public static String PARAM_ARROW = "arrow";
+  public static String META_FIELD_VERSION = "__version";
+  public static String META_FIELD_APP_VERSION = "__app_version";
+  public static String META_FIELD_OPERATION = "__operation";
+  public static String META_FIELD_KEY_COLS = "__key_cols";
+  public static String META_FIELD_VALUE_COLS = "__value_cols";
+  public static String PARAM_QUOTA_NAME= "quotaName";
 }

@@ -51,6 +51,9 @@ public class TypeInfoFactory {
   public static final PrimitiveTypeInfo
       INTERVAL_YEAR_MONTH = new SimplePrimitiveTypeInfo(OdpsType.INTERVAL_YEAR_MONTH);
 
+  public static final PrimitiveTypeInfo
+      UNKNOWN = new SimplePrimitiveTypeInfo(OdpsType.UNKNOWN);
+
   public static final DecimalTypeInfo
       DECIMAL = new DecimalTypeInfo();
 
@@ -72,17 +75,18 @@ public class TypeInfoFactory {
     typeInfoMap.put(BINARY.getOdpsType(), BINARY);
     typeInfoMap.put(INTERVAL_DAY_TIME.getOdpsType(), INTERVAL_DAY_TIME);
     typeInfoMap.put(INTERVAL_YEAR_MONTH.getOdpsType(), INTERVAL_YEAR_MONTH);
+    typeInfoMap.put(UNKNOWN.getOdpsType(), UNKNOWN);
 
     typeInfoMap.put(DECIMAL.getOdpsType(), DECIMAL);
   }
 
-  public static PrimitiveTypeInfo getPrimitiveTypeInfo(OdpsType OdpsType) {
-    PrimitiveTypeInfo typeInfo = typeInfoMap.get(OdpsType);
+  public static PrimitiveTypeInfo getPrimitiveTypeInfo(OdpsType odpsType) {
+    PrimitiveTypeInfo typeInfo = typeInfoMap.get(odpsType);
     if (typeInfo != null) {
       return typeInfo;
     } else {
       // Not found in the cache. Must be parameterized types.
-      throw new IllegalArgumentException("Error get PrimitiveTypeInfo instance for: " + OdpsType);
+      throw new IllegalArgumentException("Error get PrimitiveTypeInfo instance for: " + odpsType);
     }
   }
 
