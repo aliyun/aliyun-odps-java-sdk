@@ -25,8 +25,8 @@ import java.net.URISyntaxException;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.GeneralConfiguration;
-import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * ODPS Tunnel 配置项
@@ -40,6 +40,8 @@ import com.aliyun.odps.tunnel.io.CompressOption;
 public class Configuration extends GeneralConfiguration {
 
   private CompressOption option = new CompressOption();
+
+  private String quotaName = "";
 
   public Configuration(Odps odps) {
     super(odps);
@@ -67,7 +69,7 @@ public class Configuration extends GeneralConfiguration {
 
     URI u = null;
     try {
-      u = new URI(odps.projects().get(projectName).getTunnelEndpoint());
+      u = new URI(odps.projects().get(projectName).getTunnelEndpoint(quotaName));
     } catch (URISyntaxException e) {
       throw new TunnelException(e.getMessage(), e);
     } catch (OdpsException e) {
@@ -78,5 +80,17 @@ public class Configuration extends GeneralConfiguration {
 
   public Odps getOdps() {
     return odps;
+  }
+
+  public String getQuotaName() {
+    return quotaName;
+  }
+
+  public void setQuotaName(String quotaName) {
+    this.quotaName = quotaName;
+  }
+
+  protected boolean availableQuotaName() {
+    return !StringUtils.isEmpty(this.quotaName);
   }
 }

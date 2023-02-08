@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.aliyun.odps.sqa.utils;
+package com.aliyun.odps.sqa.commandapi.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -30,14 +30,23 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.UUID;
 
+import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Job;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
+import com.aliyun.odps.sqa.commandapi.antlr.CommandLexer;
+import com.aliyun.odps.sqa.commandapi.antlr.CommandParser;
+import com.aliyun.odps.sqa.commandapi.exception.CommandErrorStrategy;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.sqa.commandapi.Command;
+import com.aliyun.odps.sqa.commandapi.CommandParserListener;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
 
@@ -58,6 +67,102 @@ public class CommandUtil {
     job.addTask(task);
 
     return odps.instances().create(job);
+  }
+
+  /**
+   * 解析command
+   * 在开启三层模型开关后，获得的并不一定是最后符合要求的command
+   *
+   * @param commandText command
+   * @return 解析失败则返回null
+   */
+  public static Command parseCommand(String commandText) {
+    Command command = null;
+
+    try {
+      CommandParserListener commandParserListener = getCommandParserListener(commandText);
+      // 增加三层模型开关后，解析语句获得的并非真正的Command，因为对应的project、schema不一定是对
+      command = commandParserListener.getCommand();
+    } catch (RuntimeException ignored) {
+      // 抛异常则说明解析失败，返回null
+    }
+    return command;
+  }
+
+  /**
+   * 开启三层模型后对schema进行赋值
+   *
+   * @param odps
+   * @param project 语法解析侧的project名称，并不一定对应真正的project
+   * @param schema  语法解析侧的schema名称，并不一定对应真正的schema
+   * @return 返回真正的schema
+   */
+  private static String getRealSchemaName(Odps odps, String project, String schema) {
+    if (null == schema) {
+      if (null == project) {
+        return odps.getCurrentSchema();
+      } else {
+        return project;
+      }
+    } else {
+      return schema;
+    }
+  }
+
+  /**
+   * 获取真正的schema name
+   *
+   * @param odps
+   * @param project
+   * @param schema
+   * @param useOdpsNamespaceSchema
+   * @return
+   */
+  public static String getRealSchemaName(Odps odps, String project, String schema,
+                                         boolean useOdpsNamespaceSchema) {
+    if (useOdpsNamespaceSchema) {
+      return getRealSchemaName(odps, project, schema);
+    }
+    return schema;
+  }
+
+  /**
+   * 获取真正的project name
+   *
+   * @param odps
+   * @param project
+   * @param schema
+   * @param useOdpsNamespaceSchema
+   * @return
+   */
+  public static String getRealProjectName(Odps odps, String project, String schema,
+                                          boolean useOdpsNamespaceSchema) {
+    if (useOdpsNamespaceSchema) {
+      return schema == null ? odps.getDefaultProject() : project;
+    }
+    return project == null ? odps.getDefaultProject() : project;
+
+  }
+
+  /**
+   * 采用的语法树是Command语法树
+   *
+   * @param commandText command
+   * @return
+   */
+  private static CommandParserListener getCommandParserListener(String commandText) {
+    ANTLRInputStream input = new ANTLRInputStream(commandText);
+    CommandLexer lexer = new CommandLexer(input);
+    CommonTokenStream tokens = new CommonTokenStream(lexer);
+    CommandParser
+        parser =
+        new CommandParser(tokens);
+    parser.setErrorHandler(new CommandErrorStrategy());
+
+    CommandParserListener checkCommandListener = new CommandParserListener();
+    ParseTreeWalker treeWalker = new ParseTreeWalker();
+    treeWalker.walk(checkCommandListener, parser.command());
+    return checkCommandListener;
   }
 
   /**
@@ -92,9 +197,16 @@ public class CommandUtil {
     return records;
   }
 
-  public static List<Record> toRecord(String data) {
+  /**
+   * 目前仅用于异步Command构造Record
+   *
+   * @param data 数据
+   * @param name 列名，默认列类型为String, 列数目为1
+   * @return
+   */
+  public static List<Record> toRecord(String data, String name) {
     Column[] columns = new Column[1];
-    columns[0] = new Column("Info", TypeInfoFactory.STRING);
+    columns[0] = new Column(name, TypeInfoFactory.STRING);
     Record record = new ArrayRecord(columns);
     record.set(0, data);
 
@@ -130,7 +242,7 @@ public class CommandUtil {
   }
 
   public static List<Record> toRecord(List<Map<String, Object>> data,
-      Map<String, TypeInfo> dataType) {
+                                      Map<String, TypeInfo> dataType) {
 
     if (dataType == null || dataType.size() == 0) {
       throw new IllegalArgumentException("dataType is empty!");

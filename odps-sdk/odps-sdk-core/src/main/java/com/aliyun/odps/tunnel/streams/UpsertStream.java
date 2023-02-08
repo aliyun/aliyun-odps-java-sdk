@@ -16,14 +16,6 @@ public interface UpsertStream {
   public void upsert(Record record) throws IOException, TunnelException;
 
   /**
-   * 按upsert操作，写入一条{@link Record}对象到缓冲区
-   *
-   * @param record       - record对象
-   * @param validColumns - 有效数据列
-   */
-  public void upsert(Record record, List<String> validColumns) throws IOException, TunnelException;
-
-  /**
    * 按delete操作，写入一条{@link Record}对象到缓冲区
    *
    * @param record - record对象

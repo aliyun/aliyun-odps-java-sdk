@@ -150,11 +150,6 @@ public class UpsertStreamImpl implements UpsertStream {
   }
 
   @Override
-  public void upsert(Record record, List<String> validColumns) throws IOException, TunnelException {
-    write(record, UpsertStreamImpl.Operation.UPSERT, validColumns);
-  }
-
-  @Override
   public void delete(Record record) throws IOException, TunnelException {
     write(record, UpsertStreamImpl.Operation.DELETE, null);
   }

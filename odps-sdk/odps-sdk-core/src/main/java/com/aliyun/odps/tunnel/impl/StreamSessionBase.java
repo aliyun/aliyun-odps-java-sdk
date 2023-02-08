@@ -31,6 +31,10 @@ public class StreamSessionBase extends SessionBase {
                 }
             }
 
+            if (tree.has("quota_name")) {
+                quotaName = tree.get("quota_name").getAsString();
+            }
+
             if (tree.has("slots") && tree.has("status")) {
                 String status = tree.get("status").getAsString();
                 if (status.equals("init")) {

@@ -182,6 +182,7 @@ public class VolumeTunnel {
     private String partitionSpec;
     private HashMap<String, Long> fileLists = new HashMap<String, Long>();
     private UploadStatus status = UploadStatus.UNKNOWN;
+    private String quotaName = "";
 
     private ConfigurationImpl conf;
 
@@ -244,6 +245,9 @@ public class VolumeTunnel {
       params.put(TunnelConstants.TYPE, "volumefile");
       params
           .put(TunnelConstants.TARGET, projectName + "/" + volumeName + "/" + partitionSpec + "/");
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
 
       Connection conn = null;
       try {
@@ -576,9 +580,17 @@ public class VolumeTunnel {
             fileLists.put(fileName, fileLength);
           }
         }
+
+        if (tree.has("QuotaName")) {
+          quotaName = tree.get("QuotaName").getAsString();
+        }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
       }
+    }
+
+    public String getQuotaName() {
+      return quotaName;
     }
   }
 
@@ -611,6 +623,7 @@ public class VolumeTunnel {
     private String fileName;
     private long fileLength = (long) -1;
     private DownloadStatus status = DownloadStatus.UNKNOWN;
+    private String quotaName;
     private ConfigurationImpl conf;
 
     private RestClient tunnelServiceClient;
@@ -687,6 +700,9 @@ public class VolumeTunnel {
       params.put(TunnelConstants.TYPE, "volumefile");
       params.put(TunnelConstants.TARGET,
                  projectName + "/" + volumeName + "/" + partitionSpec + "/" + fileName);
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
 
       Connection conn = null;
       try {
@@ -928,6 +944,10 @@ public class VolumeTunnel {
             partitionSpec = jsonObject.get("Partition").getAsString();
           }
         }
+
+        if (tree.has("QuotaName")) {
+          quotaName = tree.get("QuotaName").getAsString();
+        }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
       }
@@ -954,6 +974,10 @@ public class VolumeTunnel {
         pos++;
       }
       return sb.toString();
+    }
+
+    public String getQuotaName() {
+      return quotaName;
     }
   }
 }

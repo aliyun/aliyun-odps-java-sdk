@@ -17,12 +17,13 @@
  * under the License.
  */
 
-package com.aliyun.odps.sqa;
+package com.aliyun.odps.sqa.commandapi;
 
 import java.util.List;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.sqa.commandapi.CommandInfo;
 import com.aliyun.odps.type.TypeInfo;
 
 
@@ -44,6 +45,6 @@ public interface Command {
    */
   List<TypeInfo> getResultTypes();
 
-  RecordIter run(Odps odps, QueryInfo queryInfo) throws OdpsException;
+  RecordIter run(Odps odps, CommandInfo commandInfo) throws OdpsException;
 
 }

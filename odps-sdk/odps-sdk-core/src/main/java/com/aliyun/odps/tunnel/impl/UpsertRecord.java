@@ -6,6 +6,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.TunnelConstants;
 
 import java.math.BigDecimal;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -117,6 +118,12 @@ class UpsertRecord extends ArrayRecord {
     public void setBigint(int idx, Long value) {
         checkIndex(idx);
         record.setBigint(idx, value);
+    }
+
+    @Override
+    public void setDate(int idx, java.sql.Date value, Calendar calendar) {
+        checkIndex(idx);
+        record.setDate(idx, value, calendar);
     }
 
     @Override

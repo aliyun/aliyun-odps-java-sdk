@@ -379,6 +379,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     }
 
     @Override
+    public String getQuotaName() {
+        return quotaName;
+    }
+
+    @Override
     public TableTunnel.StreamRecordPack newRecordPack() throws IOException {
         return new StreamRecordPackImpl(this, new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
     }

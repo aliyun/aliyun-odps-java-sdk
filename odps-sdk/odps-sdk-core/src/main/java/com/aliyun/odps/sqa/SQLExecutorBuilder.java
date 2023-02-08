@@ -33,6 +33,7 @@ public class SQLExecutorBuilder {
   private Instance recoverInstance = null;
 
   private boolean useCommandApi = false;
+  private boolean odpsNamespaceSchema = false;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -43,7 +44,7 @@ public class SQLExecutorBuilder {
                                properties, executeMode, fallbackPolicy, enableReattach,
                                useInstanceTunnel, useOdpsWorker,
                                pool, recoverInstance, runningCluster, tunnelGetResultMaxRetryTime,
-                               useCommandApi, quotaName, attachTimeout);
+                               useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -84,6 +85,16 @@ public class SQLExecutorBuilder {
 
   public SQLExecutorBuilder attachTimeout(Long timeout) {
     this.attachTimeout = timeout;
+    return this;
+  }
+
+  public SQLExecutorBuilder enableCommandApi(boolean useCommandApi) {
+    this.useCommandApi = useCommandApi;
+    return this;
+  }
+
+  public SQLExecutorBuilder enableOdpsNamespaceSchema(boolean odpsNamespaceSchema) {
+    this.odpsNamespaceSchema = odpsNamespaceSchema;
     return this;
   }
 

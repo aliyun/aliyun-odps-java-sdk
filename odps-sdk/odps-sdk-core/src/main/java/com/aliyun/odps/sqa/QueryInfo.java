@@ -1,11 +1,13 @@
 package com.aliyun.odps.sqa;
 
 import com.aliyun.odps.Instance;
+import com.aliyun.odps.sqa.commandapi.CommandInfo;
 import com.aliyun.odps.utils.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
 
 /**
  * Created by dongxiao on 2020/3/16.
@@ -23,8 +25,7 @@ public class QueryInfo {
   private ExecuteMode executeMode = ExecuteMode.INTERACTIVE;
   private List<String> executionLog = new ArrayList<>();
 
-  private Command command;
-  private String taskName;
+  private CommandInfo commandInfo = null;
 
   QueryInfo(String sql, Map<String, String> hint, ExecuteMode executeMode) {
     this.sql = sql;
@@ -118,19 +119,11 @@ public class QueryInfo {
     }
   }
 
-  Command getCommand() {
-    return command;
+  public CommandInfo getCommandInfo() {
+    return commandInfo;
   }
 
-  void setCommand(Command command) {
-    this.command = command;
-  }
-
-  String getTaskName() {
-    return taskName;
-  }
-
-  void setTaskName(String taskName) {
-    this.taskName = taskName;
+  public void setCommandInfo(CommandInfo commandInfo) {
+    this.commandInfo = commandInfo;
   }
 }

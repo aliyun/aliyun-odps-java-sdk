@@ -596,6 +596,10 @@ public class Project extends LazyLoad {
   }
 
   public String getTunnelEndpoint() throws OdpsException {
+      return getTunnelEndpoint(null);
+  }
+
+  public String getTunnelEndpoint(String quotaName) throws OdpsException {
     String protocol;
     try {
       URI u = new URI(client.getEndpoint());
@@ -607,6 +611,9 @@ public class Project extends LazyLoad {
     String resource = ResourceBuilder.buildProjectResource(model.name).concat("/tunnel");
     HashMap<String, String> params = new HashMap<String, String>();
     params.put("service", null);
+    if (quotaName != null && quotaName.length() != 0) {
+      params.put("quotaName", quotaName);
+    }
     Response resp = client.request(resource, "GET", params, null, null);
 
     String tunnel;

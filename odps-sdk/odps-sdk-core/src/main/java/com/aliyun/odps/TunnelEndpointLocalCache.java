@@ -43,12 +43,12 @@ public class TunnelEndpointLocalCache {
                 build();
     }
 
-    public String getTunnelEndpointFromLocalCache(Odps odps) throws ExecutionException
+    public String getTunnelEndpointFromLocalCache(Odps odps, String tunnelQuotaName) throws ExecutionException
     {
         String key = odps.getEndpoint() + odps.getDefaultProject();
         return tunnelCache.get(key, new Callable<String>() {
             public String call() throws Exception {
-                String routerEndpoint = odps.projects().get(odps.getDefaultProject()).getTunnelEndpoint();
+                String routerEndpoint = odps.projects().get(odps.getDefaultProject()).getTunnelEndpoint(tunnelQuotaName);
                 return routerEndpoint;
             }
         });

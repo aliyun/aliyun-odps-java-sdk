@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.aliyun.odps.sqa;
+package com.aliyun.odps.sqa.commandapi;
 
 import java.util.Iterator;
 import java.util.List;
@@ -26,7 +26,7 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.type.TypeInfo;
 
-class RecordIter<T> implements Iterator<Record> {
+public class RecordIter<T> implements Iterator<Record> {
 
   Iterator<T> iter;
   Column[] columns;
@@ -55,11 +55,11 @@ class RecordIter<T> implements Iterator<Record> {
   }
 
 
-  void setCountLimit(long countLimit) {
+  public void setCountLimit(long countLimit) {
     this.countLimit = countLimit;
   }
 
-  void setOffset(long offset) {
+  public void setOffset(long offset) {
     if (offset < this.offset) {
       throw new IllegalArgumentException("The offset to set cannot be less than the current offset");
     } else if (offset == this.offset) {
@@ -74,7 +74,7 @@ class RecordIter<T> implements Iterator<Record> {
     this.offset = offset;
   }
 
-  Column[] getColumns() {
+  public Column[] getColumns() {
     return columns;
   }
 

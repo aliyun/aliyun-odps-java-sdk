@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.43.0-table-api-public</version>
+        <version>0.43.0-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -20,6 +20,11 @@
             <artifactId>odps-sdk-commons</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.aliyun.odps</groupId>
+            <artifactId>odps-compiler-hive-parser</artifactId>
+        </dependency>
+
         <!-- Base64 -->
         <dependency>
             <groupId>commons-codec</groupId>
@@ -29,6 +34,11 @@
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-mapper-asl</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4</artifactId>
         </dependency>
 
         <dependency>

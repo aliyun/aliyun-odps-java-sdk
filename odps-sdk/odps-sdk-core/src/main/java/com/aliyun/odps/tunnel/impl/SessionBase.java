@@ -22,6 +22,7 @@ public abstract class SessionBase {
     protected String schemaName;
     protected String tableName;
     protected String partitionSpec;
+    protected String quotaName;
     protected RestClient httpClient;
     protected TableSchema schema = new TableSchema();
 

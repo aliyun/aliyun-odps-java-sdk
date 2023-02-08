@@ -274,4 +274,11 @@ public interface SQLExecutor {
    * @return 是否具备结果集
    */
   public boolean hasResultSet();
+
+  /**
+   * 判断当前执行的sql是否在 Interactive Mode
+   *
+   * @return
+   */
+  public boolean isRunningInInteractiveMode();
 }
