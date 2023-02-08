@@ -28,6 +28,11 @@ jobs:
           echo pinentry-mode loopback >> ~/.gnupg/gpg.conf
           echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf
 
+      - name: install parser
+        run: |
+          mvn install:install-file -Dfile=odps-sdk/odps-sdk-core/src/main/resources/odps-compiler-hive-parser-3.37.0.59.jar -DgroupId=com.aliyun.odps -DartifactId=odps-compiler-hive-parser -Dversion=3.37.0.59 -Dpackaging=jar
+
+
       - name: Release Maven package
         uses: samuelmeuli/action-maven-publish@v1
         with:
