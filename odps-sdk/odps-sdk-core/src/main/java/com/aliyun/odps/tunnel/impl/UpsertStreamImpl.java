@@ -241,6 +241,9 @@ public class UpsertStreamImpl implements UpsertStream {
               Request request = session.buildRequest("PUT", k, buckets.get(k), pack.getTotalBytes(), pack.getSize(), compressOption);
               String host = request.getURI().getHost();
               int port = request.getURI().getPort();
+              if (port == -1) {
+                port = 80;
+              }
               FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry);
               Channel channel = bootstrap.connect(host, port).sync().channel();
               channel.pipeline().addLast(handler);
