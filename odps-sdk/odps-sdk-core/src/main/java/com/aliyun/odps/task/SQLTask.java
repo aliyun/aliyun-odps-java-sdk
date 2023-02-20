@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -49,7 +48,6 @@ import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.ColumnUtils;
-import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.aliyun.odps.utils.OdpsConstants;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
@@ -733,6 +731,17 @@ public class SQLTask extends Task {
                       String type) throws OdpsException {
     return run(odps, project, sql, taskName, hints, aliases, null, type);
   }
+
+
+  public static String getRawResult(Instance instance, String taskName) throws OdpsException {
+    Map<String, String> results = instance.getTaskResults();
+    return results.get(taskName);
+  }
+
+  public static String getRawResult(Instance instance) throws OdpsException {
+    return getRawResult(instance, AnonymousSQLTaskName);
+  }
+
 }
 
 

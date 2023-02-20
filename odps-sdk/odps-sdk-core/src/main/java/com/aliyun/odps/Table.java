@@ -174,6 +174,10 @@ public class Table extends LazyLoad {
     @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
 
+    @Element(name = "LastAccessTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
+    Date lastAccessTime;
+
     @Element(name = "Type", required = false)
     @Convert(TableTypeConverter.class)
     TableType type;
@@ -208,6 +212,9 @@ public class Table extends LazyLoad {
     ClusterInfo clusterInfo;
     // for table extended labels
     List<String> tableExtendedLabels;
+
+    List<String> primaryKey;
+    int acidDataRetainHours;
   }
 
 
@@ -825,6 +832,18 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * 获取数据最后访问时间
+   *
+   * @return 最后访问时间
+   */
+  public Date getLastDataAccessTime() {
+    if (model.lastAccessTime == null) {
+      lazyLoad();
+    }
+    return model.lastAccessTime;
+  }
+
+  /**
    * 获取内部存储大小，单位：Byte
    *
    * @return 存储大小
@@ -1132,6 +1151,11 @@ public class Table extends LazyLoad {
         model.lastMetaModifiedTime = new Date(tree.get("lastDDLTime").getAsLong() * 1000);
       }
 
+      if (tree.has("lastAccessTime")) {
+        long timestamp = tree.get("lastAccessTime").getAsLong() * 1000;
+        model.lastAccessTime = timestamp == 0 ? null : new Date(timestamp);
+      }
+
       if (tree.has("isVirtualView")) {
         model.isVirtualView = tree.get("isVirtualView").getAsBoolean();
       }
@@ -1265,6 +1289,14 @@ public class Table extends LazyLoad {
     // load cluster info
     model.clusterInfo = parseClusterInfo(reservedJson);
     model.isTransactional = parseTransactionalInfo(reservedJson);
+    if (reservedJson.has("PrimaryKey")) {
+      model.primaryKey = new ArrayList<>();
+      JsonArray element = reservedJson.get("PrimaryKey").getAsJsonArray();
+      for (JsonElement e: element) {
+        model.primaryKey.add(e.getAsString());
+      }
+    }
+    model.acidDataRetainHours = reservedJson.has("acid.data.retain.hours") ? Integer.parseInt(reservedJson.get("acid.data.retain.hours").getAsString()) : -1;
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {
@@ -1621,4 +1653,15 @@ public class Table extends LazyLoad {
   private String getCoordinate() throws OdpsException {
     return NameSpaceSchemaUtils.getFullName(model.projectName, model.schemaName, model.name);
   }
+
+  public List<String> getPrimaryKey() {
+    lazyLoadExtendInfo();
+    return model.primaryKey;
+  }
+
+  public int getAcidDataRetainHours() {
+    lazyLoadExtendInfo();
+    return model.acidDataRetainHours;
+  }
+
 }

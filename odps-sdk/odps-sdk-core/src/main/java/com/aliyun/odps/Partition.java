@@ -69,6 +69,10 @@ public class Partition extends LazyLoad {
     @Element(name = "LastModifiedTime", required = false)
     @Convert(SimpleXmlUtils.EpochConverter.class)
     Date lastDataModifiedTime;
+
+    @Element(name = "LastAccessTime", required = false)
+    @Convert(SimpleXmlUtils.EpochConverter.class)
+    Date lastAccessTime;
   }
 
   @Root(name = "Column", strict = false)
@@ -202,6 +206,18 @@ public class Partition extends LazyLoad {
       lazyLoad();
     }
     return model.lastDataModifiedTime;
+  }
+
+  /**
+   * 获取分区数据的最后访问时间
+   *
+   * @return 分区最后访问时间
+   */
+  public Date getLastDataAccessTime() {
+    if (model == null || model.lastAccessTime == null) {
+      lazyLoad();
+    }
+    return model.lastAccessTime;
   }
 
 
@@ -517,6 +533,11 @@ public class Partition extends LazyLoad {
       JsonObject tree = new JsonParser().parse(meta.schema).getAsJsonObject();
       if (tree.has("createTime")) {
         model.createdTime = new Date(tree.get("createTime").getAsLong() * 1000);
+      }
+
+      if (tree.has("lastAccessTime")) {
+        long timestamp = tree.get("lastAccessTime").getAsLong() * 1000;
+        model.lastAccessTime = timestamp == 0 ? null : new Date(timestamp);
       }
 
       if (tree.has("lastDDLTime")) {

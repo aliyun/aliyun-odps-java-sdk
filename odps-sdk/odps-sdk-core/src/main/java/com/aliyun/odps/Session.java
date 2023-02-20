@@ -2,6 +2,7 @@ package com.aliyun.odps;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.SessionQueryResult;
+import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 import com.aliyun.odps.task.SQLRTTask;
 import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
@@ -645,7 +646,7 @@ public class Session {
   }
 
   /**
-   * getInformation查询SubQuery结果
+   * getInformation查询SubQuery结果. 仅支持select query
    *
    * @param queryId
    *     sql 语句
@@ -658,6 +659,24 @@ public class Session {
     CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(resultString);
     result.setSchema(parseResult.getSchema());
     result.setRecords(parseResult.getRecords());
+    return result;
+  }
+
+  /**
+   * getInformation查询SubQuery的原始结果. 主要是用于non-select query，但是这类query是具备result的
+   *
+   * @param queryId
+   * @return
+   * @throws OdpsException
+   */
+  public SubQueryResult getRawSubQueryResult(int queryId) throws OdpsException {
+    String resultString = getSubQueryResultInternal(queryId);
+    SubQueryResult result = new SubQueryResult();
+    List<Record> records = CommandUtil.toRecord(resultString, "Info");
+    TableSchema schema = new TableSchema();
+    schema.setColumns(Arrays.asList(records.get(0).getColumns()));
+    result.setSchema(schema);
+    result.setRecords(records);
     return result;
   }
 
@@ -812,7 +831,7 @@ public class Session {
           startSessionMessage += response.result;
         }
         return;
-      } else if (response.status == OBJECT_STATUS_FAILED) {
+      } else if (response.status == OBJECT_STATUS_FAILED || response.status == OBJECT_STATUS_TERMINATED) {
         throw new OdpsException(
             String.format("Attach session[%s] failed: %s ", instance.getId(), response.result));
       }

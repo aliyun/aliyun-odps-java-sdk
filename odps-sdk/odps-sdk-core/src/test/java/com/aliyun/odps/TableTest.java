@@ -50,6 +50,8 @@ import com.aliyun.odps.Classification.StringAttributeDefinition;
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.Table.TableType;
 import com.aliyun.odps.Tags.TagBuilder;
+import com.aliyun.odps.account.Account;
+import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
@@ -752,5 +754,11 @@ public class TableTest extends TestBase {
     Assert.assertEquals(0, table.getSimpleTags().size());
 
 
+  }
+
+  @Test
+  public void testLastAccessTime() {
+    Table table = odps.tables().get(TABLE_NAME);
+    Assert.assertNotNull(table.getLastDataAccessTime());
   }
 }

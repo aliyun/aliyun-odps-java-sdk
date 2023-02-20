@@ -28,6 +28,11 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.*;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
+
+import javax.net.ssl.SSLEngine;
 
 public class UpsertStreamImpl implements UpsertStream {
   // required
@@ -160,8 +165,11 @@ public class UpsertStreamImpl implements UpsertStream {
   }
 
   @Override
-  public void close() {
-    status = Status.CLOSED;
+  public void close() throws IOException, TunnelException {
+    if (status == Status.NORMAL) {
+      flush();
+      status = Status.CLOSED;
+    }
   }
 
   private void write(Record record, UpsertStreamImpl.Operation op, List<String> validColumns)
@@ -242,8 +250,13 @@ public class UpsertStreamImpl implements UpsertStream {
               String host = request.getURI().getHost();
               int port = request.getURI().getPort();
               if (port == -1) {
-                port = 80;
+                if (request.getURI().getScheme().equalsIgnoreCase("https")) {
+                  port = 443;
+                } else {
+                  port = 80;
+                }
               }
+
               FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry);
               Channel channel = bootstrap.connect(host, port).sync().channel();
               channel.pipeline().addLast(handler);

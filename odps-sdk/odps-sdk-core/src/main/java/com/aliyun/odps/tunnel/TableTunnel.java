@@ -1050,6 +1050,11 @@ public class TableTunnel {
     String getId();
 
     /**
+     * 获取当前 Quota
+     */
+    public String getQuotaName();
+
+    /**
      * 获取Session状态
      * @return 状态码
      *  normal
@@ -1075,6 +1080,11 @@ public class TableTunnel {
      * 中止UpsertSession
      */
     void abort() throws TunnelException;
+
+    /**
+     * 清理客户端本地资源
+     */
+    void close();
 
     /**
      * 创建一个{@Link Record}对象

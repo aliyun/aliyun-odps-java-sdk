@@ -18,6 +18,9 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.*;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -77,6 +80,11 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     }
 
     @Override
+    public String getQuotaName() {
+        return quotaName;
+    }
+
+    @Override
     public String getStatus() throws TunnelException {
         if (timer == null) {
             reload();
@@ -132,6 +140,12 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         headers.put(HttpHeaders.HEADER_ODPS_ROUTED_SERVER, buckets.get(0).getServer());
 
         httpRequest(headers, params, "DELETE", "abort upsert session");
+    }
+
+    public void close() {
+        timer.cancel();
+        timer.purge();
+        group.shutdownGracefully();
     }
 
     private void reload() throws TunnelException {
@@ -201,6 +215,10 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 throw new TunnelException(requestId, "Incomplete session info: '" + tree.toString() + "'");
             }
 
+            if (tree.has("quota_name")) {
+                quotaName = tree.get("quota_name").getAsString();
+            }
+
             // slots
             Map<Integer, Slot> bucketMap = new HashMap<>();
             List<Slot> slotList = new ArrayList<>();
@@ -258,18 +276,21 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 .channel(NioSocketChannel.class)
                 .handler(new ChannelInitializer<Channel>() {
                     protected void initChannel(Channel channel) throws Exception {
+                        URI uri = new URI(config.getOdps().getEndpoint());
+                        if (uri.getScheme().equalsIgnoreCase("https")) {
+                            SslContextBuilder builder = SslContextBuilder.forClient();
+                            if (config.getOdps().getRestClient().isIgnoreCerts()) {
+                                builder = builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+                            }
+                            SslContext sc = builder.build();
+                            channel.pipeline().addLast(sc.newHandler(channel.alloc()));
+                        }
                         channel.pipeline()
                                 .addLast(new HttpClientCodec())
                                 .addLast(new HttpObjectAggregator(65536))
                                 .addLast(new HttpContentDecompressor());
                     }
                 });
-    }
-
-    private void close() {
-        timer.cancel();
-        timer.purge();
-        group.shutdownGracefully();
     }
 
     Request buildRequest(String method,

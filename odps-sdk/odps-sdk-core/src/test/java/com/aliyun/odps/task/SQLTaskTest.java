@@ -281,4 +281,33 @@ public class SQLTaskTest extends TestBase {
       odps.tables().delete("testGetResultSchemaFromDDL", true);
     }
   }
+
+  @Test
+  public void testGetRawResult() throws OdpsException {
+    String tableName = "SQLTask_GetRawResult_Test";
+    String dropTableSql = "drop table if exists " + tableName + ";";
+    String createTableSql =
+        "create table " + tableName + " (key string, value bigint);";
+    String sql = "show create table " + tableName + ";";
+
+    SQLTask.run(odps, dropTableSql).waitForSuccess();
+    SQLTask.run(odps, createTableSql).waitForSuccess();
+
+    Instance instance = SQLTask.run(odps, sql);
+    instance.waitForSuccess();
+
+    String res = SQLTask.getRawResult(instance);
+    System.out.println(res);
+    Assert.assertNotNull(res);
+
+    String taskName = "SQLTASK_GETRAWRESULT";
+    instance = SQLTask.run(odps, odps.getDefaultProject(), sql, taskName, null, null);
+    instance.waitForSuccess();
+
+    res = SQLTask.getRawResult(instance, taskName);
+    System.out.println(res);
+    Assert.assertNotNull(res);
+
+  }
+
 }

@@ -24,6 +24,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.ConnectException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
@@ -454,6 +457,15 @@ public class RestClient {
       throw new RuntimeException(e.getMessage(), e);
     } catch (UnknownHostException e) {
       throw new RuntimeException(e.getMessage(), e);
+    } catch (SocketTimeoutException | ConnectException e) {
+      throw new OdpsException(e.getMessage()
+                              + ", the possible reason is that the endpoint `" + endpoint
+                              + "` is wrong, please check your endpoint",
+                              e);
+    } catch (SocketException e) {
+      throw new OdpsException(e.getMessage()
+                              + ", the possible reason is that read/write after socket closed, please check your socket",
+                              e);
     } catch (IOException e) {
       throw new OdpsException(e.getMessage(), e);
     }

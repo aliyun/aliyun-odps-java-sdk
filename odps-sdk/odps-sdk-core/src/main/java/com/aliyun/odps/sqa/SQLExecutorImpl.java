@@ -60,7 +60,6 @@ class SQLExecutorImpl implements SQLExecutor {
   private FallbackPolicy fallbackPolicy = null;
   private boolean enableReattach = true;
   private boolean useInstanceTunnel = true;
-  private boolean useOdpsWorker = false;
   private boolean attachSuccess = false;
   private Map<String, String> properties = new HashMap<>();
   private String serviceName;
@@ -134,7 +133,6 @@ class SQLExecutorImpl implements SQLExecutor {
       FallbackPolicy fallbackPolicy,
       boolean enableReattach,
       boolean useInstanceTunnel,
-      boolean useOdpsWorker,
       SQLExecutorPool pool,
       Instance recoverInstance,
       String runningCluster,
@@ -151,7 +149,6 @@ class SQLExecutorImpl implements SQLExecutor {
     this.fallbackPolicy = fallbackPolicy;
     this.enableReattach = enableReattach;
     this.useInstanceTunnel = useInstanceTunnel;
-    this.useOdpsWorker = useOdpsWorker;
     this.pool = pool;
     this.runningCluster = runningCluster;
     this.tunnelGetResultMaxRetryTime = tunnelGetResultMaxRetryTime;
@@ -1032,10 +1029,10 @@ class SQLExecutorImpl implements SQLExecutor {
       throws OdpsException, IOException {
     Session.SubQueryResult result = null;
     try {
-      if (!useOdpsWorker) {
+      if (queryInfo.isSelect()) {
         result = session.getSubQueryResult(queryInfo.getId());
       } else {
-        result = session.getSubQueryResultFromWorker(queryInfo.getId());
+        result = session.getRawSubQueryResult(queryInfo.getId());
       }
     } catch (OdpsException e) {
       ExecuteMode executeMode = handleSessionException(e.getMessage());
@@ -1079,7 +1076,9 @@ class SQLExecutorImpl implements SQLExecutor {
       if (retryInfo.status.equals(TunnelRetryStatus.NEED_RETRY)) {
         return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
       } else if (retryInfo.status.equals(TunnelRetryStatus.NON_SELECT_QUERY)) {
-        return records;
+        // non-select may have result.
+        runQueryInternal(ExecuteMode.OFFLINE, retryInfo.errMsg, true);
+        return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
       } else {
         ExecuteMode executeMode = handleSessionException(retryInfo.errMsg);
         runQueryInternal(executeMode, retryInfo.errMsg, true);
@@ -1122,10 +1121,11 @@ class SQLExecutorImpl implements SQLExecutor {
       throws OdpsException, IOException {
     Session.SubQueryResult result = null;
     try {
-      if (!useOdpsWorker) {
+      // subquery -1 的时候，不区分不会报错。之后的subquery，非select的结果就是错的
+      if (queryInfo.isSelect()) {
         result = session.getSubQueryResult(queryInfo.getId());
       } else {
-        result = session.getSubQueryResultFromWorker(queryInfo.getId());
+        result = session.getRawSubQueryResult(queryInfo.getId());
       }
     } catch (OdpsException e) {
       ExecuteMode executeMode = handleSessionException(e.getMessage());
@@ -1165,7 +1165,9 @@ class SQLExecutorImpl implements SQLExecutor {
       if (retryInfo.status.equals(TunnelRetryStatus.NEED_RETRY)) {
         return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
       } else if (retryInfo.status.equals(TunnelRetryStatus.NON_SELECT_QUERY)) {
-        return newEmptyResultSet();
+        // non-select may have result.
+        runQueryInternal(ExecuteMode.OFFLINE, retryInfo.errMsg, true);
+        return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
       } else {
         ExecuteMode executeMode = handleSessionException(retryInfo.errMsg);
         runQueryInternal(executeMode, retryInfo.errMsg, true);

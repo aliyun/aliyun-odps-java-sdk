@@ -30,7 +30,7 @@ public interface UpsertStream {
   /**
    * 关闭UpsertStream, 调用后upsert/delete和flush接口均不可用
    */
-  public void close() throws IOException;
+  public void close() throws IOException, TunnelException;
 
   class FlushResult {
     public String traceId;
