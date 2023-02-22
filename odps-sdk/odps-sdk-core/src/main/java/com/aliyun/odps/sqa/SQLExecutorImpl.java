@@ -20,6 +20,7 @@
 package com.aliyun.odps.sqa;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -985,8 +986,8 @@ class SQLExecutorImpl implements SQLExecutor {
       return getCommandResult(offset, countLimit, sizeLimit, limitEnabled);
     }
 
-    queryInfo.setSelect(hasResultSet());
-    if (useInstanceTunnel && queryInfo.isSelect()) {
+    queryInfo.setSelect(isSelect(queryInfo.getSql()));
+    if (useInstanceTunnel) {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       } else {
@@ -1009,8 +1010,8 @@ class SQLExecutorImpl implements SQLExecutor {
       return getCommandResultSet(offset, countLimit, sizeLimit, limitEnabled);
     }
 
-    queryInfo.setSelect(hasResultSet());
-    if (useInstanceTunnel && queryInfo.isSelect()) {
+    queryInfo.setSelect(isSelect(queryInfo.getSql()));
+    if (useInstanceTunnel) {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       } else {
@@ -1102,7 +1103,7 @@ class SQLExecutorImpl implements SQLExecutor {
       }
     }
 
-    return null;
+    return new ArrayList<>();
   }
 
   private List<Record> getOfflineResultByInstanceTunnel(Long limit)
@@ -1112,8 +1113,12 @@ class SQLExecutorImpl implements SQLExecutor {
       return SQLTask.getResultByInstanceTunnel(queryInfo.getInstance(),
           SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME, limit);
     } else {
-      return SQLTask
-          .getResult(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+      Map<String, String> results = queryInfo.getInstance().getTaskResults();
+      String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+      if (StringUtils.isNullOrEmpty(selectResult)) {
+        return new ArrayList<>();
+      }
+      return CommandUtil.toRecord(selectResult, "Info");
     }
   }
 
@@ -1218,7 +1223,19 @@ class SQLExecutorImpl implements SQLExecutor {
           .getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
               limit);
     } else {
-      return newEmptyResultSet();
+      Map<String, String> results = queryInfo.getInstance().getTaskResults();
+      String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+      if (StringUtils.isNullOrEmpty(selectResult)) {
+        return newEmptyResultSet();
+      }
+      List<Record> records = CommandUtil.toRecord(selectResult, "Info");
+      TableSchema schema = new TableSchema();
+      schema.setColumns(Arrays.asList(records.get(0).getColumns()));
+      return new ResultSet(
+          new OfflineRecordSetIterator(records),
+          schema,
+          records.size());
+
     }
   }
 
@@ -1324,6 +1341,15 @@ class SQLExecutorImpl implements SQLExecutor {
   public boolean isRunningInInteractiveMode() {
     return queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE);
   }
+
+  public boolean isSelect(String sql) throws OdpsException {
+    try {
+      return SqlParserUtil.isSelect(sql);
+    } catch (SQLException e) {
+      throw new OdpsException("Sql isSelect failed", e);
+    }
+  }
+
 }
 
 /**

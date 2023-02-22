@@ -1,11 +1,13 @@
 package com.aliyun.odps.sqa.commandapi.utils;
 
+import java.sql.SQLException;
+
 import org.junit.Test;
 
 public class SqlParseUtilTest {
 
   @Test
-  public void hasResultSet() {
+  public void hasResultSet() throws SQLException {
     String[] strArray = {"create table sale_detail_insert like sale_detail;",
 
                          "alter table sale_detail_insert add partition(sale_date='2013', region='china');",
@@ -57,6 +59,15 @@ public class SqlParseUtilTest {
       System.out.print(s);
       System.out.print(" has resultSet? ");
       System.out.print(SqlParserUtil.hasResultSet(s));
+      System.out.println();
+    }
+
+    System.out.println();
+
+    for (String s : strArray) {
+      System.out.print(s);
+      System.out.print(" is select? ");
+      System.out.print(SqlParserUtil.isSelect(s));
       System.out.println();
     }
   }

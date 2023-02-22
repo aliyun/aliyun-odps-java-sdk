@@ -599,7 +599,6 @@ public class TablesTest extends TestBase {
     assertTrue(counter > 0);
   }
 
-
   private void batchAsserting(List<Table> expectedTables, List<Table> actualTables) {
     assertEquals(expectedTables.size(), actualTables.size());
 

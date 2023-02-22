@@ -93,7 +93,6 @@ public class Tables implements Iterable<Table> {
     private List<QueryTable> tables = new ArrayList<QueryTable>();
   }
 
-
   private RestClient client;
   private Odps odps;
 
@@ -190,7 +189,6 @@ public class Tables implements Iterable<Table> {
       return false;
     }
   }
-
 
   /**
    * 获取默认{@link Project}的所有表信息迭代器

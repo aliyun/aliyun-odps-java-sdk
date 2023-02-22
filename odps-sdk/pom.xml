@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps</artifactId>
-        <version>0.43.1-public-upsert-SNAPSHOT</version>
+        <version>0.43.1-public</version>
     </parent>
 
     <artifactId>odps-sdk</artifactId>
@@ -16,7 +16,7 @@
     <modules>
         <!-- ODPS SDK -->
         <module>odps-sdk-core</module>
-        <!--<module>odps-sdk-table-api</module>-->
+        <!-- <module>odps-sdk-table-api</module> -->
 
         <!-- Tunnel SDK UT -->
 

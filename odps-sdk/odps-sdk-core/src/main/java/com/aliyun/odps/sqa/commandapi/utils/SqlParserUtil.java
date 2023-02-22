@@ -1,5 +1,7 @@
 package com.aliyun.odps.sqa.commandapi.utils;
 
+import java.sql.SQLException;
+
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
@@ -28,6 +30,7 @@ public class SqlParserUtil {
     private boolean selectQueryStatement;
     private boolean fromStatement;
     private boolean insertStatement;
+    private boolean explainStatement;
 
     /**
      * fromStatement的分支
@@ -72,6 +75,21 @@ public class SqlParserUtil {
     }
 
     @Override
+    public void enterWithClause(WithClauseContext ctx) {
+      withClause = true;
+    }
+
+    @Override
+    public void enterExplainStatement(OdpsParser.ExplainStatementContext ctx) {
+      explainStatement = true;
+    }
+
+    @Override
+    public void exitExplainStatement(OdpsParser.ExplainStatementContext ctx) {
+      explainStatement = true;
+    }
+
+    @Override
     public void exitMultiInsertBranch(MultiInsertBranchContext ctx) {
       multiInsertBranch = true;
     }
@@ -107,6 +125,10 @@ public class SqlParserUtil {
     public boolean isMultiInsertBranch() {
       return multiInsertBranch;
     }
+
+    public boolean isExplainStatement() {
+      return explainStatement;
+    }
   }
 
   /**
@@ -134,6 +156,41 @@ public class SqlParserUtil {
           return false;
         } else {
           return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 判断sql是否是select
+   * 非select:
+   * 1. explain select
+   * 2. from xxx insert
+   * select:
+   * 1. from xxx select
+   * 2. with xxx as xxx select
+   */
+  public static boolean isSelect(String sql) throws SQLException {
+    SqlParserListener parserListener = getSqlParserListener(sql);
+
+    if (parserListener.isQueryStatement()) {
+      if (parserListener.isSelectQueryStatement()) {
+        if (parserListener.isExplainStatement()) {
+          return false;
+        }
+        return true;
+      }
+
+      if (parserListener.isInsertStatement()) {
+        return false;
+      }
+
+      if (parserListener.isFromStatement()) {
+        if (parserListener.isFromRest()) {
+          return true;
+        } else {
+          return !parserListener.isMultiInsertBranch();
         }
       }
     }

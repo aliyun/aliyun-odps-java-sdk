@@ -269,7 +269,8 @@ public interface SQLExecutor {
   public void run(String sql, Map<String, String> hint) throws OdpsException;
 
   /**
-   * 判断run中执行的sql是否具备结果集
+   * 从语法结构上判断执行的sql是否具备结果集
+   * 不判断也不保证是否有数据
    *
    * @return 是否具备结果集
    */
@@ -281,4 +282,5 @@ public interface SQLExecutor {
    * @return
    */
   public boolean isRunningInInteractiveMode();
+
 }
