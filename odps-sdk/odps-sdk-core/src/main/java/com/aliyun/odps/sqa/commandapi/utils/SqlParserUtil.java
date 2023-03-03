@@ -6,17 +6,17 @@ import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
-import com.aliyun.odps.compiler.parser.OdpsLexer;
-import com.aliyun.odps.compiler.parser.OdpsParser;
-import com.aliyun.odps.compiler.parser.OdpsParser.FromClauseContext;
-import com.aliyun.odps.compiler.parser.OdpsParser.FromRestContext;
-import com.aliyun.odps.compiler.parser.OdpsParser.FromStatementContext;
-import com.aliyun.odps.compiler.parser.OdpsParser.InsertStatementContext;
-import com.aliyun.odps.compiler.parser.OdpsParser.MultiInsertBranchContext;
-import com.aliyun.odps.compiler.parser.OdpsParser.QueryStatementContext;
-import com.aliyun.odps.compiler.parser.OdpsParser.SelectQueryStatementContext;
-import com.aliyun.odps.compiler.parser.OdpsParser.WithClauseContext;
-import com.aliyun.odps.compiler.parser.OdpsParserBaseListener;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsLexer;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.FromClauseContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.FromRestContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.FromStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.InsertStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.MultiInsertBranchContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.QueryStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.SelectQueryStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParser.WithClauseContext;
+import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsParserBaseListener;
 
 public class SqlParserUtil {
 

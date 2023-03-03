@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps</artifactId>
-        <version>0.43.1-public</version>
+        <version>0.43.1-public-upsert-SNAPSHOT</version>
     </parent>
 
     <artifactId>odps-sdk</artifactId>
@@ -28,6 +28,7 @@
         <module>odps-lot-proto</module>
         <module>odps-sdk-lot</module>
         <module>odps-sdk-volumefs</module>
+        <module>odps-sdk-table-api</module>
     </modules>
 
     <name>SDK</name>

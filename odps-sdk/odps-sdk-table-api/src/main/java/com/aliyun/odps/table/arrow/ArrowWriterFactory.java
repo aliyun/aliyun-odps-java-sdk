@@ -21,6 +21,7 @@ package com.aliyun.odps.table.arrow;
 
 import com.aliyun.odps.table.arrow.writers.ArrowBatchWriter;
 import com.aliyun.odps.table.configuration.WriterOptions;
+import org.apache.arrow.vector.compression.CompressionUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -32,6 +33,16 @@ public class ArrowWriterFactory {
 
     public static ArrowWriter getRecordBatchWriter(OutputStream os,
                                                    WriterOptions writerOptions) throws IOException {
-        return new ArrowBatchWriter(os);
+        switch (writerOptions.getCompressionCodec()) {
+            case NO_COMPRESSION:
+                return new ArrowBatchWriter(os);
+            case ZSTD:
+                return new ArrowBatchWriter(os, CompressionUtil.CodecType.ZSTD);
+            case LZ4_FRAME:
+                return new ArrowBatchWriter(os, CompressionUtil.CodecType.LZ4_FRAME);
+            default:
+                throw new IllegalArgumentException("Unsupported compression codec: " +
+                        writerOptions.getCompressionCodec());
+        }
     }
 }

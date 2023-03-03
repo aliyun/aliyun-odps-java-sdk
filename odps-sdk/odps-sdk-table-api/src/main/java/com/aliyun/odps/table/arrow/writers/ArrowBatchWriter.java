@@ -20,8 +20,10 @@
 package com.aliyun.odps.table.arrow.writers;
 
 import com.aliyun.odps.table.arrow.ArrowWriter;
+import org.apache.arrow.compression.CommonsCompressionFactory;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
+import org.apache.arrow.vector.compression.CompressionUtil;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
@@ -38,21 +40,39 @@ public class ArrowBatchWriter implements ArrowWriter {
     private final IpcOption option;
     private boolean started;
     private boolean ended;
+    private final CompressionUtil.CodecType codecType;
 
     public ArrowBatchWriter(OutputStream out) {
         this(out, new IpcOption());
     }
 
     public ArrowBatchWriter(OutputStream out, IpcOption option) {
+        this(out, option, CompressionUtil.CodecType.NO_COMPRESSION);
+    }
+
+    public ArrowBatchWriter(OutputStream out, CompressionUtil.CodecType codecType) {
+        this(out, new IpcOption(), codecType);
+    }
+
+    public ArrowBatchWriter(OutputStream out, IpcOption option, CompressionUtil.CodecType codecType) {
         this.out = new WriteChannel(Channels.newChannel(out));
         this.option = option;
         this.started = false;
         this.ended = false;
+        this.codecType = codecType;
     }
 
     @Override
     public void writeBatch(VectorSchemaRoot root) throws IOException {
-        VectorUnloader unloader = new VectorUnloader(root);
+        VectorUnloader unloader;
+        if (codecType.equals(CompressionUtil.CodecType.NO_COMPRESSION)) {
+            unloader = new VectorUnloader(root);
+        } else {
+            // TODO: arrow 12.0 support compress unloader, remove it
+            // See: https://github.com/apache/arrow/pull/15223
+            unloader = new ArrowCompressVectorUnloader(root, true,
+                    CommonsCompressionFactory.INSTANCE.createCodec(codecType), true);
+        }
         ensureStarted(root);
         // TODO: validate root schema
         try (ArrowRecordBatch batch = unloader.getRecordBatch()) {

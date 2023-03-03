@@ -26,6 +26,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.compression.CompressionCodec;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
 import org.apache.arrow.vector.dictionary.Dictionary;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.message.*;
@@ -46,6 +48,8 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
 
     private final BufferAllocator allocator;
     private final MessageChannelReader messageReader;
+    private final CompressionCodec.Factory compressionFactory;
+
     private boolean initialized = false;
     private int loadedDictionaryCount;
     private Map<Long, Dictionary> dictionaries;
@@ -55,7 +59,14 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
 
     public ArrowBatchNonReusedReader(InputStream is,
                                      BufferAllocator allocator) {
+        this(is, allocator, NoCompressionCodec.Factory.INSTANCE);
+    }
+
+    public ArrowBatchNonReusedReader(InputStream is,
+                                     BufferAllocator allocator,
+                                     CompressionCodec.Factory compressionFactory) {
         this.allocator = allocator;
+        this.compressionFactory = compressionFactory;
         this.messageReader = new MessageChannelReader(new ReadChannel(Channels.newChannel(is)),
                 this.allocator);
         this.currentBatch = null;
@@ -114,8 +125,7 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
                 bodyBuffer = allocator.getEmpty();
             }
 
-            // TODO: support compress
-            VectorLoader loader = new VectorLoader(currentBatch);
+            VectorLoader loader = new VectorLoader(currentBatch, compressionFactory);
             ArrowRecordBatch batch = MessageSerializer.deserializeRecordBatch(result.getMessage(), bodyBuffer);
             try {
                 loader.load(batch);

@@ -23,22 +23,22 @@ package com.aliyun.odps.sqa.commandapi;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.Interval;
 
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.AlterStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.AlterTableStatementSuffixContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.AuthorizationStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.DescInstanceStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.DescProjectStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.DescTableExtendedStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.DescTableStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.PartitionSpecContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.ShowInstanceStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.ShowPartitionStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.ShowTableStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.SqlCostStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.TableNameContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParser.WhoamiStatementContext;
-import com.aliyun.odps.sqa.commandapi.antlr.CommandParserBaseListener;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.AlterStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.AlterTableStatementSuffixContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.AuthorizationStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.DescInstanceStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.DescProjectStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.DescTableExtendedStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.DescTableStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.PartitionSpecContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.ShowInstanceStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.ShowPartitionStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.ShowTableStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.SqlCostStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.TableNameContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.WhoamiStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParserBaseListener;
 
 
 public class CommandParserListener extends CommandParserBaseListener {
