@@ -21,6 +21,7 @@ package com.aliyun.odps;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -46,6 +47,7 @@ import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * ODPS项目空间
@@ -624,6 +626,68 @@ public class Project extends LazyLoad {
     }
 
     return protocol + "://" + tunnel;
+  }
+
+  private String getAutoMvMeta() throws Exception {
+    String resource = ResourceBuilder.buildProjectResource(model.name).concat("/automvmeta");
+    HashMap<String, String> paras = new HashMap<>();
+    Response response = client.request(resource, "GET", paras, null, null);
+
+    String autoMvMeta;
+    if (response.isOK()) {
+      autoMvMeta = new String(response.getBody());
+    } else {
+      throw new OdpsException("Can't get autoMvMeta: " + response.getStatus());
+    }
+
+    return SimpleXmlUtils.unmarshal(autoMvMeta.getBytes(StandardCharsets.UTF_8), String.class);
+  }
+
+  public boolean triggerAutoMvCreation() throws OdpsException {
+    String resource = ResourceBuilder.buildProjectResource(model.name).concat("/automvcreation");
+    HashMap<String, String> paras = new HashMap<>();
+    Response response = client.request(resource, "POST", paras, null, null);
+
+    if (response.isOK()) {
+      return true;
+    } else {
+      throw new OdpsException("Can't trigger autoMv: " + response.getStatus());
+    }
+  }
+
+  public Map<String, String> showAutoMvMeta() {
+    Map<String, String> autoMvMeta = new HashMap<>();
+
+    try {
+      JsonObject tree = new JsonParser().parse(getAutoMvMeta()).getAsJsonObject();
+
+      if (tree.has("fileSize")) {
+        autoMvMeta.put("fileSize", tree.get("fileSize").getAsString());
+      }
+
+      if (tree.has("tableNum")) {
+        autoMvMeta.put("tableNum", tree.get("tableNum").getAsString());
+      }
+
+      if (tree.has("updateTime")) {
+        autoMvMeta.put("updateTime", tree.get("updateTime").getAsString());
+      }
+
+      if (tree.has("lastAutoMvCreationStartTime")) {
+        autoMvMeta.put("lastAutoMvCreationStartTime",
+                       tree.get("lastAutoMvCreationStartTime").getAsString());
+      }
+
+      if (tree.has("lastAutoMvCreationFinishTime")) {
+        autoMvMeta.put("lastAutoMvCreationFinishTime",
+                       tree.get("lastAutoMvCreationFinishTime").getAsString());
+      }
+
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+
+    return autoMvMeta;
   }
 
 }
