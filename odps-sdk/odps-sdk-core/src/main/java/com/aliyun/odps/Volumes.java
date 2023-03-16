@@ -431,7 +431,14 @@ public class Volumes implements Iterable<Volume> {
     HashMap<String, String> headers = new HashMap<String, String>();
     headers.put(Headers.CONTENT_TYPE, "application/xml");
 
-    client.stringRequest(resource, "POST", null, headers, xml);
+    HashMap<String, String> params = null;
+
+    if (builder.autoMkdir != null && builder.autoMkdir) {
+      params = new HashMap<>();
+      params.put("autoMkDir", null);
+    }
+
+    client.stringRequest(resource, "POST", params, headers, xml);
   }
 
   public static class VolumeBuilder {
@@ -440,6 +447,8 @@ public class Volumes implements Iterable<Volume> {
     String projectName;
     Volume.Type type;
     String extLocation;
+
+    Boolean autoMkdir;
 
 
     public VolumeBuilder() {
@@ -485,6 +494,11 @@ public class Volumes implements Iterable<Volume> {
       return this;
     }
 
+    public VolumeBuilder autoMkDir(boolean autoMkdir) {
+      this.autoMkdir = autoMkdir;
+
+      return this;
+    }
     /**
      * volume properties
      *
