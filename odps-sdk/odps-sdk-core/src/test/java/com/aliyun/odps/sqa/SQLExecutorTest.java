@@ -66,6 +66,7 @@ public class SQLExecutorTest extends TestBase {
   private static String sqlLocalModeDisableTunnel = "select * from " + tableName + ";";
   private static String sqlStreamUpload = "select * from " + streamTableName + " where c1!='NotExist';";
   private static String sqlStreamUploadLocalMode = "select * from " + streamTableName + ";";
+  private static String sqlSelectInternalDayType = "select INTERVAL '1' DAY;";
   private static String createComplexTypeSql = "create table if not exists " + complexTableName +
                                                " (c0 BIGINT, c1 struct< field1:bigint, field2:array< int>, field3:map< int, int>>);";
   private static String insertComplexTypeSql = "insert overwrite table " + complexTableName +
@@ -85,6 +86,7 @@ public class SQLExecutorTest extends TestBase {
     odps.tables().delete(tableName, true);
     odps.tables().delete(bigTableName, true);
     odps.tables().delete(streamTableName, true);
+    odps.tables().delete(complexTableName, true);
   }
 
   @BeforeClass
@@ -374,6 +376,41 @@ public class SQLExecutorTest extends TestBase {
         records.add(resultSet.next());
       }
       Assert.assertEquals(records.size(), 3);
+      printRecords(records);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testExecutorResultSetTunnelInternalDayType() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.type.system.odps2", "true");
+    sqlExecutor.run(sqlSelectInternalDayType, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      List<Record> records = new ArrayList<>();
+      while(resultSet.hasNext()) {
+        records.add(resultSet.next());
+      }
+      Assert.assertEquals(records.size(), 1);
       printRecords(records);
     } catch (IOException e) {
       e.printStackTrace();
