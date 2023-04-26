@@ -761,4 +761,34 @@ public class TableTest extends TestBase {
     Table table = odps.tables().get(TABLE_NAME);
     table.getLastDataAccessTime();
   }
+
+  @Test
+  public void testMvProperties() {
+    Table table = odps.tables().get(TABLE_NAME);
+
+    if (!table.isMaterializedView()) {
+      Assert.assertFalse(table.isAutoRefreshEnabled());
+      Assert.assertNull(table.isAutoSubstituteEnabled());
+      Assert.assertNull(table.getRefreshInterval());
+      Assert.assertNull(table.getRefreshCron());
+    }
+
+    table.isAutoRefreshEnabled();
+    table.isAutoSubstituteEnabled();
+    table.getRefreshInterval();
+    table.getRefreshCron();
+  }
+
+
+  @Test
+  public void testMvGetHistroy() {
+    Table table = odps.tables().get(TABLE_NAME);
+
+    if (!table.isMaterializedView()) {
+      Assert.assertNull(table.getRefreshHistory());
+    }
+
+    table.getRefreshHistory();
+  }
+
 }

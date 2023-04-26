@@ -2316,7 +2316,7 @@ public class TableTunnel {
       return this;
     }
 
-    DownloadSession build() throws TunnelException {
+    public DownloadSession build() throws TunnelException {
       return new TableTunnel.DownloadSession(projectName,
                                              schemaName,
                                              tableName,

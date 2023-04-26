@@ -212,6 +212,10 @@ public class Table extends LazyLoad {
     ClusterInfo clusterInfo;
     // for table extended labels
     List<String> tableExtendedLabels;
+
+    Map<String, String> mvProperties;
+
+    List<Map<String, String>> refreshHistory;
   }
 
 
@@ -1273,6 +1277,51 @@ public class Table extends LazyLoad {
         loadReservedJson(model.reserved);
       }
 
+      if (tree.has("props") && tree.get("props") != null) {
+        JsonObject props = tree.get("props").getAsJsonObject();
+        model.mvProperties = new HashMap<>();
+        model.mvProperties.put("enable_auto_refresh",
+                               props.has("enable_auto_refresh") ? props.get("enable_auto_refresh")
+                                   .getAsString() : "false");
+
+        if (props.has("refresh_interval_minutes")) {
+          model.mvProperties.put("refresh_interval_minutes",
+                                 props.get("refresh_interval_minutes").getAsString());
+        }
+
+        if (props.has("refresh_cron")) {
+          model.mvProperties.put("refresh_cron", props.get("refresh_cron").getAsString());
+        }
+
+        if (props.has("enable_auto_substitute")) {
+          model.mvProperties.put("enable_auto_substitute",
+                                 props.get("enable_auto_substitute").getAsString());
+        }
+      }
+
+      if (tree.has("RefreshHistory")) {
+        String refreshHistoryStr = tree.get("RefreshHistory").getAsString();
+        JsonArray refreshHistoryList = new JsonParser().parse(refreshHistoryStr).getAsJsonArray();
+        model.refreshHistory = new LinkedList<>();
+        for (int i = 0; i < refreshHistoryList.size(); i++) {
+
+          JsonObject info = refreshHistoryList.get(i).getAsJsonObject();
+          Map<String, String> infoMap = new HashMap<>();
+          infoMap.put("InstanceId",
+                      info.has("InstanceId") ? info.get("InstanceId").getAsString() : null);
+          infoMap.put("Status", info.has("Status") ? info.get("Status").getAsString() : null);
+          infoMap.put("StartTime",
+                      info.has("StartTime") ? info.get("StartTime").getAsString() : null);
+          infoMap.put("EndTime", info.has("EndTime") ? info.get("EndTime").getAsString() : null);
+
+          model.refreshHistory.add(infoMap);
+
+          if (model.refreshHistory.size() >= 10) {
+            break;
+          }
+        }
+      }
+
     } catch (Exception e) {
       throw new RuntimeException(e.getMessage(), e);
     }
@@ -1642,4 +1691,38 @@ public class Table extends LazyLoad {
   private String getCoordinate() throws OdpsException {
     return NameSpaceSchemaUtils.getFullName(model.projectName, model.schemaName, model.name);
   }
+
+  private Map<String, String> getMvProperties() {
+    lazyLoad();
+    if (model.mvProperties == null) {
+      model.mvProperties = new HashMap<>();
+    }
+    return model.mvProperties;
+  }
+
+  public boolean isAutoRefreshEnabled() {
+    return Boolean.parseBoolean(getMvProperties().getOrDefault("enable_auto_refresh", "false"));
+  }
+
+  public Boolean isAutoSubstituteEnabled() {
+    String
+        autoSubstituteEnabledStr =
+        getMvProperties().getOrDefault("enable_auto_substitute", null);
+    return autoSubstituteEnabledStr == null ? null : Boolean.valueOf(autoSubstituteEnabledStr);
+  }
+
+  public Integer getRefreshInterval() {
+    String refreshIntervalStr = getMvProperties().getOrDefault("refresh_interval_minutes", null);
+    return refreshIntervalStr == null ? null : Integer.valueOf(refreshIntervalStr);
+  }
+
+  public String getRefreshCron() {
+    return getMvProperties().getOrDefault("refresh_cron", null);
+  }
+
+  public List<Map<String, String>> getRefreshHistory() {
+    lazyLoadExtendInfo();
+    return model.refreshHistory;
+  }
+
 }
