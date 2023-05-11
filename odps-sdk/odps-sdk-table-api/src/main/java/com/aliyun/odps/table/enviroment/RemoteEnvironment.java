@@ -38,9 +38,8 @@ public class RemoteEnvironment extends ExecutionEnvironment {
         return settings.getTunnelEndpoint().orElseGet(() -> {
             try {
                 Odps odps = createOdpsClient();
-                return odps.projects().get(targetProject).getTunnelEndpoint();
-                        // TODO: support tunnel quota name
-                        // .getTunnelEndpoint(settings.getQuotaName().orElse(null));
+                return odps.projects().get(targetProject)
+                        .getTunnelEndpoint(settings.getQuotaName().orElse(null));
             } catch (OdpsException e) {
                 throw new IllegalStateException(e);
             }

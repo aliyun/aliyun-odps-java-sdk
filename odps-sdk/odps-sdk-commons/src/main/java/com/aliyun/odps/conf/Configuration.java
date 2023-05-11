@@ -45,6 +45,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -1020,6 +1021,10 @@ public class Configuration implements Iterable<Map.Entry<String, String>>, Writa
   private void loadResource(Properties properties, Object name, boolean quiet) {
     try {
       DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
+      docBuilderFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      docBuilderFactory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      docBuilderFactory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+
       // ignore all comments inside the xml file
       docBuilderFactory.setIgnoringComments(true);
 
@@ -1148,7 +1153,12 @@ public class Configuration implements Iterable<Map.Entry<String, String>>, Writa
   public void writeXml(OutputStream out) throws IOException {
     Properties properties = getProps();
     try {
-      Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+      DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+      dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+
+      Document doc = dbf.newDocumentBuilder().newDocument();
       Element conf = doc.createElement("configuration");
       doc.appendChild(conf);
       conf.appendChild(doc.createTextNode("\n"));
@@ -1178,7 +1188,11 @@ public class Configuration implements Iterable<Map.Entry<String, String>>, Writa
       DOMSource source = new DOMSource(doc);
       StreamResult result = new StreamResult(out);
       TransformerFactory transFactory = TransformerFactory.newInstance();
+      transFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+      transFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+      transFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
       Transformer transformer = transFactory.newTransformer();
+
       transformer.transform(source, result);
     } catch (Exception e) {
       throw new RuntimeException(e);
