@@ -20,6 +20,8 @@
 package com.aliyun.odps.sqa;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -90,6 +92,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   // 三层模型开关
   private boolean odpsNamespaceSchema = false;
+  private String tunnelEndpoint;
 
   enum TunnelRetryStatus {
     NEED_RETRY,
@@ -141,7 +144,9 @@ class SQLExecutorImpl implements SQLExecutor {
       boolean useCommandApi,
       String quotaName,
       Long timeout,
-      boolean odpsNamespaceSchema) throws OdpsException {
+      boolean odpsNamespaceSchema,
+      int tunnelSocketTimeout,
+      int tunnelReadTimeout) throws OdpsException {
     this.properties.putAll(properties);
     this.serviceName = serviceName;
     this.taskName = taskName;
@@ -195,6 +200,12 @@ class SQLExecutorImpl implements SQLExecutor {
     this.id = UUID.randomUUID().toString();
     if (useInstanceTunnel) {
       instanceTunnel = new InstanceTunnel(odps);
+      if (tunnelSocketTimeout >= 0) {
+        instanceTunnel.getConfig().setSocketConnectTimeout(tunnelSocketTimeout);
+      }
+      if (tunnelReadTimeout >= 0) {
+        instanceTunnel.getConfig().setSocketTimeout(tunnelReadTimeout);
+      }
       if (StringUtils.isNullOrEmpty(tunnelEndpoint)) {
         //try to get tunnelEndpoint from local cache
         try {
@@ -205,8 +216,10 @@ class SQLExecutorImpl implements SQLExecutor {
               "Get tunnel endpoint from localCache exception:" + e.getMessage());
         }
         instanceTunnel.setEndpoint(tunnelEndpoint);
+        this.tunnelEndpoint = tunnelEndpoint;
       } else {
         instanceTunnel.setEndpoint(tunnelEndpoint);
+        this.tunnelEndpoint = tunnelEndpoint;
       }
     }
   }
@@ -1219,9 +1232,17 @@ class SQLExecutorImpl implements SQLExecutor {
     queryInfo.getInstance().waitForSuccess();
     // getResultSet will use instance tunnel, which do not support non-select query
     if (queryInfo.isSelect()) {
+      URI tunnelEndpoint = null;
+      if (!StringUtils.isNullOrEmpty(this.tunnelEndpoint)) {
+        try {
+          tunnelEndpoint = new URI(this.tunnelEndpoint);
+        } catch (URISyntaxException e) {
+          throw new RuntimeException("tunnel endpoint syntax error, please check again.");
+        }
+      }
       return SQLTask
           .getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
-              limit);
+              limit, false, tunnelEndpoint);
     } else {
       Map<String, String> results = queryInfo.getInstance().getTaskResults();
       String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);

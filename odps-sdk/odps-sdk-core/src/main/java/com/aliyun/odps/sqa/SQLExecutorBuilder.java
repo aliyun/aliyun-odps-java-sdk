@@ -34,6 +34,9 @@ public class SQLExecutorBuilder {
   private boolean useCommandApi = false;
   private boolean odpsNamespaceSchema = false;
 
+  private int tunnelSocketTimeout = -1;
+  private int tunnelReadTimeout = -1;
+
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
   }
@@ -43,7 +46,8 @@ public class SQLExecutorBuilder {
                                properties, executeMode, fallbackPolicy, enableReattach,
                                useInstanceTunnel, pool, recoverInstance, runningCluster,
                                tunnelGetResultMaxRetryTime,
-                               useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema);
+                               useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema,
+                               tunnelSocketTimeout, tunnelReadTimeout);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -129,6 +133,16 @@ public class SQLExecutorBuilder {
 
   SQLExecutorBuilder setPool(SQLExecutorPool pool) {
     this.pool = pool;
+    return this;
+  }
+
+  public SQLExecutorBuilder tunnelSocketTimeout(int tunnelSocketTimeout) {
+    this.tunnelSocketTimeout = tunnelSocketTimeout;
+    return this;
+  }
+
+  public SQLExecutorBuilder tunnelReadTimeout(int tunnelReadTimeout) {
+    this.tunnelReadTimeout = tunnelReadTimeout;
     return this;
   }
 }

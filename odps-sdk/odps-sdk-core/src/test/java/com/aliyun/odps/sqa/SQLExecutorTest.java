@@ -1954,6 +1954,65 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
+  @Test
+  public void testExecutorWithTunnelEndpoint() throws OdpsException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName)
+        .tunnelEndpoint("http://wrong");
+    try {
+      SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    } catch (IllegalArgumentException e) {
+        Assert.assertEquals("Invalid endpoint.", e.getMessage());
+    }
+}
+
+  @Test
+  public void testExecutorResultSetWithTunnelTimeout() throws OdpsException,IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .serviceName(sessionName)
+        .tunnelSocketTimeout(5)
+        .tunnelReadTimeout(1)
+        .fallbackPolicy(FallbackPolicy.alwaysFallbackExceptAttachPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.runtime.flag.executionengine_SessionHybridFdcResultMaxSizeMB", "1");
+    hint.put("odps.sql.session.result.mode", "hybrid");
+    sqlExecutor.run(bigSql, hint);
+    try {
+      String queryId = sqlExecutor.getQueryId();
+      Assert.assertNotNull(queryId);
+      Assert.assertTrue(sqlExecutor.isActive());
+
+      ResultSet resultSet = sqlExecutor.getResultSet();
+      List<Record> records = new ArrayList<>();
+      while(resultSet.hasNext()) {
+        records.add(resultSet.next());
+      }
+      Assert.assertEquals(records.size(), bigRecordCount);
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw e;
+    } catch (OdpsException e) {
+      if (e.getCause() == null) {
+        Assert.assertEquals("ErrorCode=Local Error, ErrorMessage=Read timed out", e.getLocalizedMessage());
+      } else {
+        Assert.assertEquals("Read timed out", e.getCause().getLocalizedMessage());
+      }
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
   private static void printRecords(List<Record> records) {
     for (Record record : records) {
       for (int k = 0; k < record.getColumnCount(); k++) {

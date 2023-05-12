@@ -30,6 +30,7 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.commons.GeneralConfiguration;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
@@ -56,6 +57,10 @@ public class InstanceTunnel {
    */
   public InstanceTunnel(Odps odps) {
     this.config = new ConfigurationImpl(odps);
+  }
+
+  public GeneralConfiguration getConfig() {
+    return config;
   }
 
   /**

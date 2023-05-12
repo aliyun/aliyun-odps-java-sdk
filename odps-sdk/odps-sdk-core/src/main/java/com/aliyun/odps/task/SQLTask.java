@@ -205,7 +205,7 @@ public class SQLTask extends Task {
     InstanceTunnel tunnel = new InstanceTunnel(instance.getOdps());
     InstanceTunnel.DownloadSession session =
         tunnel.createDownloadSession(instance.getProject(), instance.getId(), limitEnabled);
-    
+
     long recordCount = session.getRecordCount();
     List<Record> records = new ArrayList<Record>();
 
@@ -226,7 +226,6 @@ public class SQLTask extends Task {
 
     return records;
   }
-  
 
   /**
    * 使用 instance tunnel 的方式获取 Anonymous task 的结果
@@ -445,6 +444,29 @@ public class SQLTask extends Task {
     }
 
     return new ResultSet(new RecordSetIterator(session, recordCount), session.getSchema(), recordCount);
+  }
+
+  public static ResultSet getResultSet(Instance instance, String taskName,
+                                       InstanceTunnel instanceTunnel, Long limit, boolean limitHint)
+      throws OdpsException {
+
+    checkTaskName(instance, taskName);
+
+    InstanceTunnel.DownloadSession session =
+        instanceTunnel.createDownloadSession(instance.getProject(), instance.getId(), limitHint);
+
+    long recordCount = session.getRecordCount();
+
+    if (recordCount == 0) {
+      return new ResultSet(EmptyIterator.emptyIterator(), session.getSchema(), recordCount);
+    }
+
+    if (limit != null && limit < recordCount) {
+      recordCount = limit;
+    }
+
+    return new ResultSet(new RecordSetIterator(session, recordCount), session.getSchema(),
+                         recordCount);
   }
 
 
