@@ -26,16 +26,13 @@ public class SplitOptions {
     private static final long DEFAULT_SPLIT_SIZE = 256 * 1024L * 1024L;
     private static final boolean DEFAULT_CROSS_PARTITION = true;
     private static final SplitMode DEFAULT_SPLIT_MODE = SplitMode.SIZE;
-    private static final SplitUnit DEFAULT_SPLIT_SIZE_MODE = SplitUnit.BYTE_SIZE;
 
     private SplitMode splitMode;
-    private SplitUnit splitUnit;
     private long splitNumber;
     private boolean crossPartition;
 
     private SplitOptions() {
         this.splitMode = DEFAULT_SPLIT_MODE;
-        this.splitUnit = DEFAULT_SPLIT_SIZE_MODE;
         this.splitNumber = DEFAULT_SPLIT_SIZE;
         this.crossPartition = DEFAULT_CROSS_PARTITION;
     }
@@ -56,10 +53,6 @@ public class SplitOptions {
         return splitNumber;
     }
 
-    public SplitUnit getSplitUnit() {
-        return splitUnit;
-    }
-
     public SplitMode getSplitMode() {
         return splitMode;
     }
@@ -69,32 +62,17 @@ public class SplitOptions {
         private SplitOptions splitOptions;
 
         public SplitOptions.Builder SplitByByteSize(long splitByteSize) {
-            Preconditions.checkLong(splitByteSize, 1024L, "splitByteSize");
+            Preconditions.checkLong(splitByteSize, 10 * 1024L * 1024L, "splitByteSize");
             this.splitOptions = new SplitOptions();
             this.splitOptions.splitNumber = splitByteSize;
-            this.splitOptions.splitUnit = SplitUnit.BYTE_SIZE;
-            this.splitOptions.splitMode = SplitMode.SIZE;
-            return this;
-        }
-
-        public SplitOptions.Builder SplitByRowCount(long rowCount) {
-            Preconditions.checkLong(rowCount, 1, "rowCount");
-            this.splitOptions = new SplitOptions();
-            this.splitOptions.splitNumber = rowCount;
-            this.splitOptions.splitUnit = SplitUnit.ROW_COUNT;
             this.splitOptions.splitMode = SplitMode.SIZE;
             return this;
         }
 
         public SplitOptions.Builder SplitByParallelism(long splitParallelism) {
-            return SplitByParallelism(splitParallelism, SplitUnit.BYTE_SIZE);
-        }
-
-        public SplitOptions.Builder SplitByParallelism(long splitParallelism, SplitUnit mode) {
             Preconditions.checkLong(splitParallelism, 1, "splitParallelism");
             this.splitOptions = new SplitOptions();
             this.splitOptions.splitNumber = splitParallelism;
-            this.splitOptions.splitUnit = mode;
             this.splitOptions.splitMode = SplitMode.PARALLELISM;
             return this;
         }
@@ -141,23 +119,6 @@ public class SplitOptions {
                     return "Bucket";
                 default:
                     throw new IllegalArgumentException("Unexpected split mode");
-            }
-        }
-    }
-
-    public enum SplitUnit {
-        BYTE_SIZE,
-        ROW_COUNT;
-
-        @Override
-        public String toString() {
-            switch (this) {
-                case BYTE_SIZE:
-                    return "ByteSize";
-                case ROW_COUNT:
-                    return "RowCount";
-                default:
-                    throw new IllegalArgumentException("Unexpected split unit");
             }
         }
     }

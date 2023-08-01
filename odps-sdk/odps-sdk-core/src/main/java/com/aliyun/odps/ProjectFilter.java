@@ -63,6 +63,10 @@ public class ProjectFilter {
   private String quotaNickname = null;
 
   private String name = null;
+
+  private String quotaType = null;
+
+  private String quotaName = null;
   /**
    * 获得表所有者
    *
@@ -181,6 +185,29 @@ public class ProjectFilter {
     this.name = name;
   }
 
+  public String getQuotaType() {
+    return quotaType;
+  }
+
+  /**
+   * 设置quota类型
+   * @param quotaType
+   */
+  public void setQuotaType(String quotaType) {
+    this.quotaType = quotaType;
+  }
+
+  /**
+   * 设置quota 名称
+   * @return
+   */
+  public String getQuotaName() {
+    return quotaName;
+  }
+
+  public void setQuotaName(String quotaName) {
+    this.quotaName = quotaName;
+  }
 
   /**
    * Put this to @params as key-value. Replace value if key exists and value not empty.
@@ -203,6 +230,12 @@ public class ProjectFilter {
     }
     if (!StringUtils.isNullOrEmpty(quotaNickname)) {
       params.put("quotanickname", quotaNickname);
+    }
+    if (!StringUtils.isNullOrEmpty(quotaType)) {
+      params.put("quota_type", quotaType);
+    }
+    if (!StringUtils.isNullOrEmpty(quotaName)) {
+      params.put("quota_name", quotaName);
     }
     if (!StringUtils.isNullOrEmpty(name)) {
       params.put("name", name);

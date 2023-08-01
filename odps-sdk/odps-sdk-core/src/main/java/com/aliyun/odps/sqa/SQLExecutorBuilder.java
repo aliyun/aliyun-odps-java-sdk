@@ -37,6 +37,8 @@ public class SQLExecutorBuilder {
   private int tunnelSocketTimeout = -1;
   private int tunnelReadTimeout = -1;
 
+  private boolean sessionSupportNonSelect = false;
+
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
   }
@@ -47,7 +49,7 @@ public class SQLExecutorBuilder {
                                useInstanceTunnel, pool, recoverInstance, runningCluster,
                                tunnelGetResultMaxRetryTime,
                                useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema,
-                               tunnelSocketTimeout, tunnelReadTimeout);
+                               tunnelSocketTimeout, tunnelReadTimeout, sessionSupportNonSelect);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -143,6 +145,11 @@ public class SQLExecutorBuilder {
 
   public SQLExecutorBuilder tunnelReadTimeout(int tunnelReadTimeout) {
     this.tunnelReadTimeout = tunnelReadTimeout;
+    return this;
+  }
+
+  public SQLExecutorBuilder sessionSupportNonSelect(boolean sessionSupportNonSelect) {
+    this.sessionSupportNonSelect = sessionSupportNonSelect;
     return this;
   }
 }

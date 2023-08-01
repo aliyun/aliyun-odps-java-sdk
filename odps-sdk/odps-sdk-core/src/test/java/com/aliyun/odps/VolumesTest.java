@@ -44,7 +44,12 @@ public class VolumesTest extends TestBase {
   @AfterClass
   public static void tearDownAfterClass() throws Exception {
     odps.volumes().delete(volumeName);
-//    odps.volumes().delete(extVolumeName);
+    try {
+      odps.volumes().delete(extVolumeName);
+    } catch (Exception e) {
+      e.printStackTrace();
+      //ignore
+    }
   }
 
   @Test
@@ -89,7 +94,7 @@ public class VolumesTest extends TestBase {
     //Already Test in method tearDown() ,please don't delete again
   }
 
-  @Test
+  @Test(expected = OdpsException.class)
   public void testExternalVolume() throws OdpsException {
     try {
       odps.volumes().delete(extVolumeName);
@@ -102,6 +107,12 @@ public class VolumesTest extends TestBase {
     String location = "oss://id:key@oss-cn-hangzhou-zmf.aliyuncs.com/12345/test_dir";
     builder.volumeName(extVolumeName).type(Volume.Type.EXTERNAL).extLocation(location);
 
-    odps.volumes().create(builder);
+    try {
+      odps.volumes().create(builder);
+    } catch (OdpsException e) {
+      // id key not specified
+      Assert.assertTrue(e.getMessage().contains("Status: 403"));
+      throw e;
+    }
   }
 }

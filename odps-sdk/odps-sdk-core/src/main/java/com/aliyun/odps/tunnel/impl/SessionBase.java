@@ -8,6 +8,7 @@ import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.utils.StringUtils;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -80,6 +81,11 @@ public abstract class SessionBase {
         if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
             params.put(TunnelConstants.RES_PARTITION, partitionSpec);
         }
+
+        if (!StringUtils.isNullOrEmpty(config.getQuotaName())) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, config.getQuotaName());
+        }
+
         return params;
     }
 }

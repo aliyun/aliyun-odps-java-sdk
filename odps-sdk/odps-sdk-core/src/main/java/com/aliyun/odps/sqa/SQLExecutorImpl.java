@@ -89,6 +89,7 @@ class SQLExecutorImpl implements SQLExecutor {
   private CommandApi commandApi = null;
   private boolean useCommandApi = false;
   private boolean parseSuccess = false;
+  private boolean sessionSupportNonSelect = false;
 
   // 三层模型开关
   private boolean odpsNamespaceSchema = false;
@@ -146,7 +147,8 @@ class SQLExecutorImpl implements SQLExecutor {
       Long timeout,
       boolean odpsNamespaceSchema,
       int tunnelSocketTimeout,
-      int tunnelReadTimeout) throws OdpsException {
+      int tunnelReadTimeout,
+      boolean sessionSupportNonSelect) throws OdpsException {
     this.properties.putAll(properties);
     this.serviceName = serviceName;
     this.taskName = taskName;
@@ -162,6 +164,7 @@ class SQLExecutorImpl implements SQLExecutor {
     this.odpsNamespaceSchema = odpsNamespaceSchema;
     this.fallbackQuota = quotaName;
     this.commandApi = new CommandApi(odps);
+    this.sessionSupportNonSelect = sessionSupportNonSelect;
     if (timeout != null) {
       this.attachTimeout = timeout;
     }
@@ -785,6 +788,9 @@ class SQLExecutorImpl implements SQLExecutor {
       }
     }
 
+    // 通过odpsSql语法树判断是否是select query
+    queryInfo.setSelect(isSelect(sql));
+
     parseSuccess = false;
     //reset tunnelGetResultRetryCount before query run
     tunnelGetResultRetryCount = 0;
@@ -999,7 +1005,6 @@ class SQLExecutorImpl implements SQLExecutor {
       return getCommandResult(offset, countLimit, sizeLimit, limitEnabled);
     }
 
-    queryInfo.setSelect(isSelect(queryInfo.getSql()));
     if (useInstanceTunnel) {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
@@ -1023,7 +1028,6 @@ class SQLExecutorImpl implements SQLExecutor {
       return getCommandResultSet(offset, countLimit, sizeLimit, limitEnabled);
     }
 
-    queryInfo.setSelect(isSelect(queryInfo.getSql()));
     if (useInstanceTunnel) {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
@@ -1305,13 +1309,14 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private void runQueryInternal(ExecuteMode executeMode, String rerunMsg, boolean isRerun) throws OdpsException {
     boolean fallbackForAttachFailed = false;
+    boolean forceRunInOffline = !queryInfo.isSelect() && !sessionSupportNonSelect;
     if (queryInfo.getRetry() < SQLExecutorConstants.MaxRetryTimes) {
       if (isRerun) {
         queryInfo.incRetry();
       }
       // INTERACTIVE mode and attach failed and always fallback, try to attach session
       if (executeMode == ExecuteMode.INTERACTIVE && !attachSuccess && fallbackPolicy
-          .isAlwaysFallBack()) {
+          .isAlwaysFallBack() && !forceRunInOffline) {
         try {
           session =
               Session.attach(odps, serviceName, properties,
@@ -1322,7 +1327,7 @@ class SQLExecutorImpl implements SQLExecutor {
           fallbackForAttachFailed = true;
         }
       }
-      if (executeMode == ExecuteMode.OFFLINE || fallbackForAttachFailed) {
+      if (executeMode == ExecuteMode.OFFLINE || fallbackForAttachFailed || forceRunInOffline) {
         queryInfo.setExecuteMode(ExecuteMode.OFFLINE);
         // attach success and query fallback, disable sqa in fallback offline mode
         if (queryInfo != null) {

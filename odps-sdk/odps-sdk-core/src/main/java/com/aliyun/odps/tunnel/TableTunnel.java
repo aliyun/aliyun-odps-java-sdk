@@ -152,6 +152,10 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 public class TableTunnel {
 
+  public interface BlockVersionProvider {
+    long generateVersion(long blockId);
+  }
+
   private ConfigurationImpl config;
   private Random random = new Random();
 
@@ -1113,6 +1117,10 @@ public class TableTunnel {
 
       UpsertSession.Builder setSlotNum(long slotNum);
 
+      long getCommitTimeout();
+
+      UpsertSession.Builder setCommitTimeout(long commitTimeoutMs);
+
       UpsertSession build() throws TunnelException, IOException;
     }
   }
@@ -1340,11 +1348,22 @@ public class TableTunnel {
      */
     public void writeBlock(long blockId, RecordPack pack, long timeout)
             throws IOException {
+        writeBlockInternal(blockId, pack, timeout, 0);
+    }
+
+    public void writeBlock(long blockId, RecordPack pack, long timeout, long blockVersion)
+        throws IOException, TunnelException {
+        checkBlockVersion(blockVersion);
+        writeBlockInternal(blockId, pack, timeout, blockVersion);
+    }
+
+    private void writeBlockInternal(long blockId, RecordPack pack, long timeout, long blockVersion)
+        throws IOException {
       Connection conn = null;
       try {
         if (pack instanceof ProtobufRecordPack) {
           ProtobufRecordPack protoPack = (ProtobufRecordPack) pack;
-          conn = getConnection(blockId, protoPack.getCompressOption());
+          conn = getConnection(blockId, protoPack.getCompressOption(), blockVersion);
           sendBlock(protoPack, conn, timeout);
         } else {
           RecordWriter writer = openRecordWriter(blockId);
@@ -1442,11 +1461,24 @@ public class TableTunnel {
     public RecordWriter openRecordWriter(long blockId, CompressOption compress)
         throws TunnelException,
                IOException {
+      return openRecordWriterInternal(blockId, compress, 0);
+    }
+
+    public RecordWriter openRecordWriter(long blockId, CompressOption compress, long blockVersion)
+        throws TunnelException,
+        IOException {
+      checkBlockVersion(blockVersion);
+      return openRecordWriterInternal(blockId, compress, blockVersion);
+    }
+
+    private RecordWriter openRecordWriterInternal(long blockId, CompressOption compress, long blockVersion)
+        throws TunnelException,
+        IOException {
 
       TunnelRecordWriter writer = null;
       Connection conn = null;
       try {
-        conn = getConnection(blockId, compress);
+        conn = getConnection(blockId, compress, blockVersion);
         writer =
             new TunnelRecordWriter(schema, conn, compress);
         writer.setTransform(shouldTransform);
@@ -1502,8 +1534,22 @@ public class TableTunnel {
      *     超时时间 单位 ms <=0 代表无超时. 推荐值: (BufferSizeInMB / UploadBandwidthInMB) * 1000 * 120%
      */
     public RecordWriter openBufferedWriter(CompressOption compressOption, long timeout) throws TunnelException {
+      return openBufferedWriter(compressOption, timeout, null);
+    }
+
+    /**
+     * 打开 {@link TunnelBufferedWriter} 用来写入数据
+     *
+     * @param compressOption
+     *     数据传输压缩选项
+     * @param timeout
+     *     超时时间 单位 ms <=0 代表无超时. 推荐值: (BufferSizeInMB / UploadBandwidthInMB) * 1000 * 120%
+     * @param versionProvider
+     *     BlockVersion 提供者，为内部产生的 blockId 分别指定 block version, null 代表不使用此功能
+     */
+    public RecordWriter openBufferedWriter(CompressOption compressOption, long timeout, BlockVersionProvider versionProvider) throws TunnelException {
       try {
-        return new TunnelBufferedWriter(this, compressOption, timeout);
+        return new TunnelBufferedWriter(this, compressOption, timeout, versionProvider);
       } catch (IOException e) {
         throw new TunnelException(e.getMessage(), e.getCause());
       }
@@ -1527,10 +1573,23 @@ public class TableTunnel {
     public ArrowRecordWriter openArrowRecordWriter(long blockId, CompressOption option)
         throws TunnelException,
         IOException{
+        return openArrowRecordWriterInternal(blockId, option, 0);
+    }
+
+    public ArrowRecordWriter openArrowRecordWriter(long blockId, CompressOption option, long blockVersion)
+        throws TunnelException,
+        IOException{
+      checkBlockVersion(blockVersion);
+      return openArrowRecordWriterInternal(blockId, option, blockVersion);
+    }
+
+    private ArrowRecordWriter openArrowRecordWriterInternal(long blockId, CompressOption option, long blockVersion)
+        throws TunnelException,
+        IOException{
       ArrowTunnelRecordWriter arrowTunnelRecordWriter = null;
       Connection conn = null;
       try {
-        conn = getConnection(blockId,true, option);
+        conn = getConnection(blockId,true, option, blockVersion);
         arrowTunnelRecordWriter = new ArrowTunnelRecordWriter(this, conn, option);
       } catch (IOException e) {
         if (conn != null) {
@@ -1545,12 +1604,12 @@ public class TableTunnel {
       return arrowTunnelRecordWriter;
     }
 
-    private Connection getConnection(long blockId, CompressOption compress)
+    private Connection getConnection(long blockId, CompressOption compress, long blockVersion)
             throws OdpsException, IOException {
-      return getConnection(blockId, false, compress);
+      return getConnection(blockId, false, compress, blockVersion);
     }
 
-    private Connection getConnection(long blockId, boolean isArrow, CompressOption compress)
+    private Connection getConnection(long blockId, boolean isArrow, CompressOption compress, long blockVersion)
         throws OdpsException, IOException {
       HashMap<String, String> headers = new HashMap<>();
       headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
@@ -1583,6 +1642,9 @@ public class TableTunnel {
       }
 
       HashMap<String, String> params = new HashMap<>();
+      if (blockVersion > 0) {
+        params.put(TunnelConstants.PARAM_BLOCK_VERSION, Long.toString(blockVersion));
+      }
       params.put(TunnelConstants.UPLOADID, id);
       params.put(TunnelConstants.BLOCKID, Long.toString(blockId));
       if (isArrow) {
@@ -1590,6 +1652,9 @@ public class TableTunnel {
       }
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
+      }
+      if (conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
       }
 
       return tunnelServiceClient.connect(getResource(), "PUT", params, headers);
@@ -1742,6 +1807,10 @@ public class TableTunnel {
     public UploadStatus getStatus() throws TunnelException, IOException {
       reload();
       return this.status;
+    }
+
+    public Configuration getConfig() {
+      return conf;
     }
 
     /**
@@ -2206,6 +2275,10 @@ public class TableTunnel {
       return status;
     }
 
+    public Configuration getConfig() {
+      return conf;
+    }
+
     /**
      * 获取 partition
      */
@@ -2370,5 +2443,11 @@ public class TableTunnel {
     headers.put(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM, TUNNEL_DATE_TRANSFORM_VERSION);
     headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
     return headers;
+  }
+
+  public static void checkBlockVersion(long blockVersion) throws TunnelException {
+    if (blockVersion <= 0) {
+      throw new TunnelException("Block version should be a positive integer.");
+    }
   }
 }

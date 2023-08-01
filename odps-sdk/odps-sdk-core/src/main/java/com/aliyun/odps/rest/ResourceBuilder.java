@@ -60,6 +60,7 @@ public class ResourceBuilder {
   private static final String USERS = "/users";
   private static final String ROLES = "/roles";
   private static final String SESSIONS = "/session";
+  private static final String CLUSTERS = "/clusters";
 
   private static final String API = "/api";
   private static final String STORAGE = "/storage";
@@ -479,6 +480,10 @@ public class ResourceBuilder {
 
   public static String buildQuotaResource(String name) {
     return QUOTAS + "/" + encodeObjectName(name);
+  }
+
+  public static String buildClustersResource() {
+    return CLUSTERS;
   }
 
   public static String buildStoragePrefix(String version) {

@@ -229,6 +229,13 @@ public class OdpsTypeTransformer {
     Object transformedResult = value;
     Map<OdpsType, Class> transformMapper = ODPS_TYPE_MAPPER;
     switch (typeInfo.getOdpsType()) {
+      case JSON:
+        if (setData) {
+          if (strict) {
+            validateString(transformedResult.toString(), fieldMaxSize);
+          }
+        }
+        break;
       case STRING:
         if (setData) {
           if (value instanceof byte[]) {
@@ -366,7 +373,6 @@ public class OdpsTypeTransformer {
       default:
 
     }
-
     return (T) odpsTypeToJavaType(transformMapper, typeInfo.getOdpsType()).cast(transformedResult);
   }
 

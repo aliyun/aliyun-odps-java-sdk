@@ -90,6 +90,12 @@ public class InstancesTest extends TestBase {
     assertTrue("contains stage", details.contains("Instance"));
   }
 
+  @Ignore // 公共云后付费项目才有此字段
+  @Test
+  public void testGetTaskCost() throws OdpsException{
+    Instance.TaskCost cost = gi.getTaskCost("testsqlcase");
+    Assert.assertTrue(cost.getCPUCost() >= 0);
+  }
 
 
   @Test

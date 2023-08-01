@@ -190,6 +190,7 @@ public class Table extends LazyLoad {
     long life = -1L;
     long hubLifecycle = -1L;
     String viewText;
+    String viewExpandedText;
     long size;
     long recordNum = -1L;
 
@@ -216,6 +217,10 @@ public class Table extends LazyLoad {
     Map<String, String> mvProperties;
 
     List<Map<String, String>> refreshHistory;
+
+    boolean hasRowAccessPolicy;
+    List<String> primaryKey;
+    int acidDataRetainHours;
   }
 
 
@@ -363,11 +368,13 @@ public class Table extends LazyLoad {
   }
 
   /**
-   * table接口目前不能获取table类型，现在只有Tables接口返回的table list中的table有类型
    *
    * @return 表类型
    */
   public TableType getType() {
+    if (model.type == null) {
+      lazyLoad();
+    }
     return model.type;
   }
 
@@ -820,6 +827,13 @@ public class Table extends LazyLoad {
     return model.viewText;
   }
 
+  public String getViewExpandedText() {
+    if (model.viewExpandedText == null) {
+      lazyLoad();
+    }
+    return model.viewExpandedText;
+  }
+
   /**
    * 获取数据最后修改时间
    *
@@ -1161,7 +1175,7 @@ public class Table extends LazyLoad {
         model.isVirtualView = tree.get("isVirtualView").getAsBoolean();
       }
 
-      if (tree.has("isMaterializedView") && tree.get("isVirtualView").getAsBoolean()) {
+      if (tree.has("isMaterializedView") && tree.get("isMaterializedView").getAsBoolean()) {
         model.type = TableType.MATERIALIZED_VIEW;
       }
 
@@ -1188,6 +1202,10 @@ public class Table extends LazyLoad {
 
       if (tree.has("viewText")) {
         model.viewText = tree.get("viewText").getAsString();
+      }
+
+      if (tree.has("viewExpandedText")) {
+        model.viewExpandedText = tree.get("viewExpandedText").getAsString();
       }
 
       if (tree.has("size")) {
@@ -1335,6 +1353,17 @@ public class Table extends LazyLoad {
     // load cluster info
     model.clusterInfo = parseClusterInfo(reservedJson);
     model.isTransactional = parseTransactionalInfo(reservedJson);
+    model.hasRowAccessPolicy =
+        reservedJson.has("HasRowAccessPolicy") ? reservedJson.get("HasRowAccessPolicy")
+            .getAsBoolean() : false;
+    if (reservedJson.has("PrimaryKey")) {
+      model.primaryKey = new ArrayList<>();
+      JsonArray element = reservedJson.get("PrimaryKey").getAsJsonArray();
+      for (JsonElement e: element) {
+        model.primaryKey.add(e.getAsString());
+      }
+    } 
+    model.acidDataRetainHours = reservedJson.has("acid.data.retain.hours") ? Integer.parseInt(reservedJson.get("acid.data.retain.hours").getAsString()) : -1;
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {
@@ -1723,6 +1752,21 @@ public class Table extends LazyLoad {
   public List<Map<String, String>> getRefreshHistory() {
     lazyLoadExtendInfo();
     return model.refreshHistory;
+  }
+
+  public boolean hasRowAccessPolicy() {
+    lazyLoadExtendInfo();
+    return model.hasRowAccessPolicy;
+  }
+
+  public List<String> getPrimaryKey() {
+    lazyLoadExtendInfo();
+    return model.primaryKey;
+  }
+
+  public int getAcidDataRetainHours() {
+    lazyLoadExtendInfo();
+    return model.acidDataRetainHours;
   }
 
 }

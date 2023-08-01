@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.43.4-public</version>
+        <version>0.45.0-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -111,6 +111,10 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
         </dependency>
     </dependencies>
 

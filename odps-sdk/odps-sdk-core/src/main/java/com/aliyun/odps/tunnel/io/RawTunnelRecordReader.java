@@ -13,12 +13,7 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.InstanceTunnel;
-import com.aliyun.odps.tunnel.TableTunnel;
-import com.aliyun.odps.tunnel.TunnelConstants;
-import com.aliyun.odps.tunnel.TunnelException;
-import com.aliyun.odps.tunnel.TunnelTableSchema;
+import com.aliyun.odps.tunnel.*;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -107,6 +102,11 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
 
     if (session.getEnableLimit()) {
       params.put(TunnelConstants.INSTANCE_TUNNEL_LIMIT_ENABLED, null);
+    }
+
+    Configuration conf = session.getConfig();
+    if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
+      params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
     }
 
     params.put("data", null);
@@ -284,6 +284,11 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
     String partitionSpec = session.getPartitionSpec();
     if (partitionSpec != null && partitionSpec.length() > 0) {
       params.put(TunnelConstants.RES_PARTITION, partitionSpec);
+    }
+
+    Configuration conf = session.getConfig();
+    if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
+      params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
     }
 
     Connection conn = null;

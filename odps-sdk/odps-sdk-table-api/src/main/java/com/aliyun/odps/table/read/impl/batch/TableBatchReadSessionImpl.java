@@ -255,7 +255,6 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
         JsonObject jsonSplitOptions = new JsonObject();
         jsonSplitOptions.addProperty("SplitMode", splitOptions.getSplitMode().toString());
-        jsonSplitOptions.addProperty("SplitUnit", splitOptions.getSplitUnit().toString());
         jsonSplitOptions.addProperty("SplitNumber", splitOptions.getSplitNumber());
         jsonSplitOptions.addProperty("CrossPartition", splitOptions.isCrossPartition());
         request.add("SplitOptions", jsonSplitOptions);

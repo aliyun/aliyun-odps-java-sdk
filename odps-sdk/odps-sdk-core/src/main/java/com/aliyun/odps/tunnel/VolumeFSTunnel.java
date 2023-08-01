@@ -86,6 +86,9 @@ public class VolumeFSTunnel {
         throw new TunnelException("Not Support compress option:" + compressOption.algorithm.name());
       }
     }
+    if (conf.availableQuotaName()) {
+      params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
+    }
 
     VolumeInputStream in = null;
     Connection conn = null;
@@ -157,6 +160,10 @@ public class VolumeFSTunnel {
       } else {
         throw new TunnelException("Not Support compress option:" + compressOption.algorithm.name());
       }
+    }
+
+    if (conf.availableQuotaName()) {
+      params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
     }
 
     VolumeOutputStream out = null;

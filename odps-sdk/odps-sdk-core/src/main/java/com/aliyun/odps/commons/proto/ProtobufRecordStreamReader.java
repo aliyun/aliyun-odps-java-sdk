@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.InflaterInputStream;
 
+import com.aliyun.odps.data.*;
 import org.xerial.snappy.SnappyFramedInputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
 
@@ -44,16 +45,6 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.data.ArrayRecord;
-import com.aliyun.odps.data.Binary;
-import com.aliyun.odps.data.Char;
-import com.aliyun.odps.data.IntervalDayTime;
-import com.aliyun.odps.data.IntervalYearMonth;
-import com.aliyun.odps.data.Record;
-import com.aliyun.odps.data.RecordReader;
-import com.aliyun.odps.data.SimpleStruct;
-import com.aliyun.odps.data.Struct;
-import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
@@ -321,6 +312,9 @@ public class ProtobufRecordStreamReader implements RecordReader {
         long v = in.readSInt64();
         crc.update(v);
         return (byte) v;
+      }
+      case JSON: {
+        return new SimpleJsonValue(readString());
       }
       case STRING: {
         return readBytes();

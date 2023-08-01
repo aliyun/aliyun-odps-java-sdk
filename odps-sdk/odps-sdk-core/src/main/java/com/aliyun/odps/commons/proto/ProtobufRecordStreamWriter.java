@@ -24,16 +24,7 @@ import static com.aliyun.odps.data.ArrayRecord.DEFAULT_CALENDAR;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.data.AbstractChar;
-import com.aliyun.odps.data.Binary;
-import com.aliyun.odps.data.IntervalDayTime;
-import com.aliyun.odps.data.IntervalYearMonth;
-import com.aliyun.odps.data.OdpsTypeTransformer;
-import com.aliyun.odps.data.Record;
-import com.aliyun.odps.data.RecordPack;
-import com.aliyun.odps.data.RecordReader;
-import com.aliyun.odps.data.RecordWriter;
-import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.data.*;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
@@ -174,6 +165,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         out.writeTag(pbIdx, WireFormat.WIRETYPE_FIXED32);
         break;
       }
+      case JSON:
       case INTERVAL_DAY_TIME:
       case TIMESTAMP:
       case STRING:
@@ -257,6 +249,13 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       case CHAR: {
         byte [] bytes;
         bytes = ((AbstractChar) v).getValue().getBytes("UTF-8");
+        crc.update(bytes, 0, bytes.length);
+        writeRawBytes(bytes, out);
+        break;
+      }
+      case JSON: {
+        String value = ((SimpleJsonValue) v).toString();
+        byte[] bytes = value.getBytes("UTF-8");
         crc.update(bytes, 0, bytes.length);
         writeRawBytes(bytes, out);
         break;

@@ -48,7 +48,7 @@ import java.util.Map;
 
 public class SQLExecutorTest extends TestBase {
   private static Session session = null;
-  private static String sessionName = "test_sdk_session" + System.currentTimeMillis();
+  private static String sessionName = "public.default";
   private static String tableName = "test_session_table" + System.currentTimeMillis();
   private static String complexTableName = "test_session_complex_table" + System.currentTimeMillis();
   private static String emptyTableName = "test_session_empty_table" + System.currentTimeMillis();
@@ -79,9 +79,6 @@ public class SQLExecutorTest extends TestBase {
 
   @AfterClass
   public static void after() throws OdpsException {
-    if (session != null) {
-      session.stop();
-    }
     odps.tables().delete(emptyTableName, true);
     odps.tables().delete(tableName, true);
     odps.tables().delete(bigTableName, true);
@@ -148,26 +145,6 @@ public class SQLExecutorTest extends TestBase {
       }
       System.out.println(pack.flush());
     }
-
-    Map<String, String> flags = new HashMap<String, String>();
-    flags.put("odps.sql.session.idle.timeout", "30");
-    flags.put("odps.sql.session.worker.count", "6");
-    flags.put("odps.sql.session.worker.sparespan", "0-0");
-    flags.put("odps.sql.jobconf.odps2", "true");
-    flags.put("odps.sql.session.worker.memory", "1024");
-    flags.put("odps.sql.session.version2", "true");
-    flags.put("odps.sql.session.worker.cpu", "33");
-    flags.put("odps.sql.session.worker.cache.size", "64");
-    flags.put("odps.sql.session.max.slot.number", "5");
-    flags.put("odps.sql.session.slot.worker.ratio", "0.5");
-    flags.put("odps.sql.session.wait.percentage", "50");
-    flags.put("odps.sql.session.start.timeout", "900000");
-
-    session = Session.create(odps, sessionName, odps.getDefaultProject(), flags, 0L);
-    System.out.println("Create session success: " + session.getInstance().getId());
-    Instance i = session.getInstance();
-    System.out.println(odps.logview().generateLogView(i, 7*24));
-    session.waitForStart(0);
   }
 
   @Test
@@ -206,7 +183,7 @@ public class SQLExecutorTest extends TestBase {
     builder.odps(odps)
         .executeMode(ExecuteMode.INTERACTIVE)
         .properties(properties)
-        .serviceName("public.default")
+        .serviceName(sessionName)
         .useInstanceTunnel(true)
         .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
     SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();

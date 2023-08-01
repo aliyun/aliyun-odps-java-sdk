@@ -15,6 +15,8 @@
 package com.aliyun.odps.volume;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -23,6 +25,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.StringUtils;
 
+import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.ReloadException;
 import com.aliyun.odps.VolumeException;
 import com.aliyun.odps.VolumeFSFile;
 import com.aliyun.odps.Volumes;
@@ -116,7 +120,16 @@ public class VolumeFSUtil {
       return null;
     }
 
-    String symlinkPath = org.apache.commons.lang.StringUtils.isBlank(file.getSymlink()) ? getExternalLocation(file) : file.getSymlink();
+    String symlinkPath;
+    try {
+      symlinkPath = org.apache.commons.lang.StringUtils.isBlank(file.getSymlink()) ? getExternalLocation(file) : file.getSymlink();
+    } catch (ReloadException e) {
+      OdpsException exception = (OdpsException) e.getCause();
+      System.err.println(file.getPath() + ": ls error: RequestId=" + exception.getRequestId() + ", ErrorCode="
+                         + exception.getErrorCode() + ", ErrorMessage=" + exception.getMessage());
+      return null;
+    }
+
     Path symlink =
         (symlinkPath == null) ? null : new Path(symlinkPath);
 
@@ -181,11 +194,15 @@ public class VolumeFSUtil {
   public static FileStatus[] transferFiles(VolumeFSFile[] files) {
     if (files == null)
       return null;
-    FileStatus[] fileStatusArray = new FileStatus[files.length];
-    for (int i = 0; i < files.length; i++) {
-      fileStatusArray[i] = transferFile(files[i]);
+    List<FileStatus> fileStatusList = new ArrayList<>();
+    for (VolumeFSFile file : files) {
+      FileStatus fileStatus = transferFile(file);
+      if (fileStatus != null) {
+        fileStatusList.add(fileStatus);
+      }
     }
-    return fileStatusArray;
+
+    return fileStatusList.toArray(new FileStatus[0]);
   }
 
   /**

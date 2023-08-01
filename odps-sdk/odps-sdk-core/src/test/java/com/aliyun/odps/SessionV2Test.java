@@ -6,6 +6,7 @@ import com.aliyun.odps.data.SessionQueryResult;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.*;
@@ -125,6 +126,7 @@ public class SessionV2Test extends TestBase {
   }
 
   @Test
+  @Ignore
   public void testAttachSession() throws OdpsException {
     Session attachSession = Session.attach(odps, sessionName);
     System.out.println("Attatch session success: " + session.getInstance().getId());

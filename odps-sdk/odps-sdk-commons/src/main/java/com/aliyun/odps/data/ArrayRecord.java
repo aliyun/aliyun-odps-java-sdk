@@ -1015,6 +1015,22 @@ public class ArrayRecord implements Record {
     return getStruct(getColumnIndex(columnName));
   }
 
+  public void setJsonValue(int idx, JsonValue value) {
+    set(idx, value);
+  }
+
+  public void setJsonValue(String columnName, JsonValue value) {
+    setJsonValue(getColumnIndex(columnName), value);
+  }
+
+  public JsonValue getJsonValue(int idx) {
+    return OdpsTypeTransformer.getCompatibleType(getInternal(idx), columns[idx].getTypeInfo());
+  }
+
+  public JsonValue getJsonValue(String columnName) {
+    return getJsonValue(getColumnIndex(columnName));
+  }
+
   public IntervalYearMonth getIntervalYearMonth(int idx) {
     return getInternal(idx);
   }

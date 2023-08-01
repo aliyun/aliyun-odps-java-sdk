@@ -166,6 +166,10 @@ public class Project extends LazyLoad {
     @Element(name = "Region", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String regionId;
+
+    @Element(name = "TenantId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String tenantId;
   }
 
   public static class ExternalProjectProperties {
@@ -246,6 +250,14 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String quotaID;
 
+    @Element(name = "RegionId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String regionId;
+
+    @Element(name = "IsDefaultInRegion", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultInRegion;
+
     @ElementList(name = "Quotas", entry = "Quota", required = false)
     List<OptionalQuota> optionalQuotas;
 
@@ -255,6 +267,14 @@ public class Project extends LazyLoad {
 
     public String getQuotaID() {
       return quotaID;
+    }
+
+    public String getRegionId() {
+      return regionId;
+    }
+
+    public boolean isDefaultInRegion() {
+      return Boolean.parseBoolean(defaultInRegion);
     }
 
     public List<OptionalQuota> getOptionalQuotas() {
@@ -578,11 +598,15 @@ public class Project extends LazyLoad {
    * @return 以 key, value 保存的配置信息
    */
   public Map<String, String> getExtendedProperties() throws OdpsException {
-    Map<String, String> param = new LinkedHashMap<String, String>();
-    param.put("extended", null);
-    String resource = ResourceBuilder.buildProjectResource(model.name);
-    ProjectModel extendedModel = client.request(ProjectModel.class, resource, "GET", param);
-    return extendedModel.extendedProperties;
+    if (model.extendedProperties == null) {
+      Map<String, String> param = new LinkedHashMap<String, String>();
+      param.put("extended", null);
+      String resource = ResourceBuilder.buildProjectResource(model.name);
+      ProjectModel extendedModel = client.request(ProjectModel.class, resource, "GET", param);
+      return extendedModel.extendedProperties;
+    }
+
+    return model.extendedProperties;
   }
 
   /**
@@ -626,6 +650,11 @@ public class Project extends LazyLoad {
     }
 
     return protocol + "://" + tunnel;
+  }
+
+  public String getTenantId() {
+    lazyLoad();
+    return model.tenantId;
   }
 
   private String getAutoMvMeta() throws Exception {

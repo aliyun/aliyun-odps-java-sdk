@@ -336,6 +336,10 @@ public class VolumeTunnel {
         params.put(TunnelConstants.RESUME_MODE, null);
       }
 
+      if (conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
+      }
+
       VolumeOutputStream vout = null;
       Connection conn = null;
       try {
@@ -834,6 +838,10 @@ public class VolumeTunnel {
       params.put("data", null);
 
       params.put(TunnelConstants.RANGE, "(" + start + "," + length + ")");
+
+      if (conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
+      }
 
       VolumeInputStream vin = null;
       Connection conn = null;

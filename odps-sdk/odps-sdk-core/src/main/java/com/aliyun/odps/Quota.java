@@ -276,10 +276,33 @@ public class Quota extends LazyLoad {
   }
 
   public static class AffinityRuleItem {
+    public enum RuleMode {
+      // Jobs matching the rule should run in the quota
+      NORMAL("NORMAL"),
+      // Only the jobs matching the rule should run in the quota
+      EXCLUSIVE("EXCLUSIVE"),
+      // Jobs matching the rule cannot run in the quota
+      ANTI("ANTI");
+
+      private String val;
+      private RuleMode(String val) {
+          this.val = val;
+      }
+      @Override
+      public String toString() {
+        return this.val;
+      }
+    }
+    @SerializedName("RuleMode")
+    public RuleMode ruleMode;
     @SerializedName("UserList")
     public List<String> userList;
     @SerializedName("ProjectList")
     public List<String> projectList;
+    @SerializedName("TaskTypeList")
+    public List<String> taskTypeList;
+    @SerializedName("ProductIdList")
+    public List<String> productIdList;
     @SerializedName("PriorityRange")
     public List<Integer> priorityRange;
     @SerializedName("Settings")
@@ -309,6 +332,34 @@ public class Quota extends LazyLoad {
     public boolean removeProject(String project) {
       if (projectList != null) {
         return projectList.remove(project);
+      }
+      return false;
+    }
+
+    public void addTaskType(String taskType) {
+      if (taskTypeList == null) {
+        taskTypeList = new ArrayList<>();
+      }
+      taskTypeList.add(taskType);
+    }
+
+    public boolean removeTaskType(String taskType) {
+      if (taskTypeList != null) {
+        return taskTypeList.remove(taskType);
+      }
+      return false;
+    }
+
+    public void addProductId(String prodId) {
+      if (productIdList == null) {
+        productIdList = new ArrayList<>();
+      }
+      productIdList.add(prodId);
+    }
+
+    public boolean removeProductId(String prodId) {
+      if (productIdList != null) {
+        return productIdList.remove(prodId);
       }
       return false;
     }

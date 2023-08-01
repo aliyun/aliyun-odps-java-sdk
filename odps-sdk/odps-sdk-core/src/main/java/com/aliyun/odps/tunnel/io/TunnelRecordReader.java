@@ -28,6 +28,7 @@ import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.proto.ProtobufRecordStreamReader;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;

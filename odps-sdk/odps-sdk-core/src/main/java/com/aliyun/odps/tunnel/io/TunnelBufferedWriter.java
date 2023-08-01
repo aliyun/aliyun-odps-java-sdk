@@ -26,6 +26,7 @@ import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.tunnel.TunnelException;
 
 /**
  * <p>TunnelBufferedWriter 是一个<b>使用缓冲区</b>的、<b>容错</b>的 Tunnel 上传接口。</p>
@@ -103,6 +104,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   private long bytesWritten;
   private boolean isClosed;
   private long timeout;
+  private TableTunnel.BlockVersionProvider versionProvider;
 
 
   private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
@@ -147,10 +149,11 @@ public class TunnelBufferedWriter implements RecordWriter {
    * @throws IOException
    *    Signals that an I/O exception has occurred.
    */
-  public TunnelBufferedWriter(TableTunnel.UploadSession session, CompressOption option, long timeout)
+  public TunnelBufferedWriter(TableTunnel.UploadSession session, CompressOption option, long timeout, TableTunnel.BlockVersionProvider versionProvider)
           throws IOException {
     this(session, option);
     this.timeout = timeout;
+    this.versionProvider = versionProvider;
   }
 
   /**
@@ -256,9 +259,21 @@ public class TunnelBufferedWriter implements RecordWriter {
     long delta = bufferedPack.getTotalBytesWritten();
     if (delta > 0) {
       Long blockId = session.getAvailBlockId();
+      long version = 0;
+      if (versionProvider != null) {
+        version = versionProvider.generateVersion(blockId);
+      }
       while (true) {
         try {
-          session.writeBlock(blockId, bufferedPack, timeout);
+          if (versionProvider != null) {
+            try {
+              session.writeBlock(blockId, bufferedPack, timeout, version);
+            } catch (TunnelException e) {
+              throw new IOException("Generate block version invalid", e);
+            }
+          } else {
+            session.writeBlock(blockId, bufferedPack, timeout);
+          }
           bufferedPack.reset();
           bytesWritten += delta;
           return;

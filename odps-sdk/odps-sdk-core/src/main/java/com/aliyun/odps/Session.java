@@ -838,7 +838,7 @@ public class Session {
     }
 
     instance.stop();
-    throw new OdpsException("Attach session[%s] timeout.", instance.getId());
+    throw new OdpsException(String.format("Attach session[%s] timeout.", instance.getId()));
   }
 
   /**

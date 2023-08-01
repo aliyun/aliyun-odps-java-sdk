@@ -199,7 +199,7 @@ public class SQLTask extends Task {
   private static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
                                                        Long limit, boolean limitEnabled)
       throws OdpsException, IOException {
-    
+
     checkTaskName(instance, taskName);
 
     InstanceTunnel tunnel = new InstanceTunnel(instance.getOdps());

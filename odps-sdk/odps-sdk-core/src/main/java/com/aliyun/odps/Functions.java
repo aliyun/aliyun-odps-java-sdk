@@ -293,8 +293,7 @@ public class Functions implements Iterable<Function> {
    *     删除函数失败
    */
   public void delete(String projectName, String name) throws OdpsException {
-    String resource = ResourceBuilder.buildFunctionResource(projectName, name);
-    client.request(resource, "DELETE", null, null, null);
+    delete(projectName, odps.getCurrentSchema(), name);
   }
 
   /**

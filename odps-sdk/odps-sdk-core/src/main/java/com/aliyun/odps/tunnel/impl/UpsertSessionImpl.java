@@ -34,6 +34,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     private String hasher;
     private List<String> hashKeys = new ArrayList<>();
     private TunnelTableSchema recordSchema;
+    private long commitTimeout;
 
     // netty
     private final EventLoopGroup group = new NioEventLoopGroup();
@@ -54,11 +55,12 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         this.config = builder.getConfig();
         this.httpClient = config.newRestClient(projectName);
         this.slotNum = builder.getSlotNum();
+        this.commitTimeout = builder.getCommitTimeout();
         this.id = builder.getUpsertId();
         if (id == null) {
             initiate();
         } else {
-            reload();
+            reload(true);
         }
         initTimer();
         initNetty();
@@ -87,9 +89,14 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     @Override
     public String getStatus() throws TunnelException {
         if (timer == null) {
-            reload();
+            reload(false);
         }
-        return status;
+        try {
+            readLock.lock();
+            return status;
+        } finally {
+            readLock.unlock();
+        }
     }
 
     @Override
@@ -98,7 +105,6 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     }
 
     public void commit(boolean async) throws TunnelException {
-        close();
         HashMap<String, String> params = getCommonParams();
         params.put(TunnelConstants.UPSERT_ID, id);
 
@@ -110,11 +116,20 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         load(result, false);
 
         if (!async) {
+            int i = 1;
+            long start = System.currentTimeMillis();
             while (status.equalsIgnoreCase(TunnelConstants.SESSION_STATUS_COMMITTING) ||
                    status.equalsIgnoreCase(TunnelConstants.SESSION_STATUS_NORMAL)) {
                 try {
-                    reload();
-                    Thread.sleep(random.nextInt(10 * 1000) + 5 * 1000);
+                    if (System.currentTimeMillis() - start > commitTimeout) {
+                        throw new TunnelException("Commit session timeout");
+                    }
+                    Thread.sleep(i * 1000);
+                    result = httpRequest(headers, params, "POST", "commit upsert session");
+                    load(result, false);
+                    if (i < 16) {
+                        i = i * 2;
+                    }
                 } catch (InterruptedException e) {
                     throw new TunnelException(e.getMessage(), e);
                 } catch (TunnelException e) {
@@ -132,7 +147,6 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     }
 
     public void abort() throws TunnelException {
-        close();
         HashMap<String, String> params = getCommonParams();
         params.put(TunnelConstants.UPSERT_ID, id);
 
@@ -148,7 +162,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         group.shutdownGracefully();
     }
 
-    private void reload() throws TunnelException {
+    private void reload(boolean init) throws TunnelException {
         HashMap<String, String> params = getCommonParams();
         params.put(TunnelConstants.UPSERT_ID, id);
 
@@ -156,7 +170,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
         HttpResult result = httpRequest(headers, params, "GET", "get upsert session");
 
-        load(result, false);
+        load(result, init);
     }
 
     private void initiate() throws TunnelException, IOException {
@@ -210,13 +224,13 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                     tree.get("hash_key").getAsJsonArray().forEach(v -> this.hashKeys.add(v.getAsString()));
                     // has function
                     this.hasher = tree.get("hasher").getAsString();
+
+                    if (tree.has("quota_name")) {
+                        quotaName = tree.get("quota_name").getAsString();
+                    }
                 }
             } else {
                 throw new TunnelException(requestId, "Incomplete session info: '" + tree.toString() + "'");
-            }
-
-            if (tree.has("quota_name")) {
-                quotaName = tree.get("quota_name").getAsString();
             }
 
             // slots
@@ -260,7 +274,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
             @Override
             public void run() {
                 try {
-                    reload();
+                    reload(false);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -376,6 +390,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         private String tableName;
         private PartitionSpec partitionSpec;
         private long slotNum = 1;
+        private long commitTimeout = 120 * 1000;
         ConfigurationImpl config;
 
         public String getUpsertId() {
@@ -443,6 +458,18 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
         public UpsertSessionImpl.Builder setConfig(ConfigurationImpl config) {
             this.config = config;
+            return this;
+        }
+
+        public long getCommitTimeout() {
+            return commitTimeout;
+        }
+
+        public TableTunnel.UpsertSession.Builder setCommitTimeout(long commitTimeout) {
+            if (commitTimeout <= 0) {
+                throw new IllegalArgumentException("timeout value must be positive");
+            }
+            this.commitTimeout = commitTimeout;
             return this;
         }
 

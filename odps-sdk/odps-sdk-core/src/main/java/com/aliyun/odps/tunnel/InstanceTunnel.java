@@ -631,6 +631,10 @@ public class InstanceTunnel {
       return this.isLongPolling;
     }
 
+    public Configuration getConfig() {
+      return conf;
+    }
+
     /**
      * 获取会话ID
      */

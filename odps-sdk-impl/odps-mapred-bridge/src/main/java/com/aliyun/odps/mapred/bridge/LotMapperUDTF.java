@@ -472,7 +472,7 @@ public class LotMapperUDTF extends LotTaskUDTF {
         } else if (keyComparatorClass != null) {
           keyGroupingComparator = keyComparator;
         } else {
-          keyGroupingComparator = new ColumnBasedRecordComparator(keyGrpColumns, keyRS, keySortOrder);
+          keyGroupingComparator = new ColumnBasedRecordComparator(keyGrpColumns, keyRS);
         }
       }
 

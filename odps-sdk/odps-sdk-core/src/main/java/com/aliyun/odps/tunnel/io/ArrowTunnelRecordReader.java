@@ -28,10 +28,8 @@ import com.aliyun.odps.commons.util.ArrowUtils;
 import com.aliyun.odps.data.ArrowRecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.TableTunnel;
-import com.aliyun.odps.tunnel.TunnelConstants;
-import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.*;
+import com.aliyun.odps.utils.StringUtils;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
@@ -190,6 +188,11 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
         }
 
         params.put(TunnelConstants.PARAM_ARROW, "");
+
+        Configuration conf = tableSession.getConfig();
+        if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
+        }
 
         Connection conn = null;
         try {
