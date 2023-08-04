@@ -21,12 +21,9 @@ package com.aliyun.odps;
 
 import java.util.ArrayList;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import org.codehaus.jackson.JsonNode;
 
 /**
  * Created by yinyue on 15-3-17.
