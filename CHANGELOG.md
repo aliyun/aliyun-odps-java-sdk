@@ -1,3 +1,11 @@
+# 0.41.0
+- ArrayRecord support ZonedDateTime/LocalDate/Instant API
+
+# 0.40.x
+- fix DateTime using java.time
+Fixes
+- fix incorrect value of schemaName value in two-tier project
+
 # 0.36.4-public
 ## Enhencements:
   - [Core] Support iterate over projects with filter. See Projects#iteratorByFilter(ProjectFilter filter)
