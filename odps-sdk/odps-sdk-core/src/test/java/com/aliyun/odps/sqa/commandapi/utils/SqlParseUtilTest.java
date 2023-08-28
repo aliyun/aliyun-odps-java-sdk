@@ -1,7 +1,9 @@
 package com.aliyun.odps.sqa.commandapi.utils;
 
 import java.sql.SQLException;
+import java.util.List;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public class SqlParseUtilTest {
@@ -69,6 +71,35 @@ public class SqlParseUtilTest {
       System.out.print(" is select? ");
       System.out.print(SqlParserUtil.isSelect(s));
       System.out.println();
+    }
+  }
+
+  @Test
+  public void getPreparedStatementIndex() {
+    String[] queryArray = {"select a, '?' from table_name where c = ? AND d like '%?' AND e = ?;",
+                           "insert into table_name values(?, ?, '?');",
+                           "update table_name set key1 = ?, key2 = '?';",
+                           "delete from table_name where key = '?' AND key2 = ?;",
+                           "",
+                           "select * from table_name where key = '?';",
+                           "select * from table_name;"
+    };
+    int[] num = {2, 2, 1, 1, 0, 0, 0};
+    int[][] index = {{40, 66},
+                     {30, 33},
+                     {29},
+                     {50},
+                     {},
+                     {},
+                     {}};
+
+    for (int i = 0; i < queryArray.length; i++) {
+      List<Integer> res = SqlParserUtil.getPlaceholderIndexList(queryArray[i]);
+      Assert.assertEquals(num[i], res.size());
+      for (int j = 0; j < res.size(); j++) {
+        Assert.assertEquals('?', queryArray[i].charAt(res.get(j)));
+        Assert.assertEquals((Integer) index[i][j], res.get(j));
+      }
     }
   }
 }

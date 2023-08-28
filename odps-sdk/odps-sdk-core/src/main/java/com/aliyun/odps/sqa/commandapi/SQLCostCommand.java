@@ -23,7 +23,6 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
@@ -33,6 +32,7 @@ import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 import com.aliyun.odps.task.SQLCostTask;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
+import com.google.gson.GsonBuilder;
 
 class SQLCostCommand implements Command {
 
@@ -67,8 +67,13 @@ class SQLCostCommand implements Command {
     task.setQuery(query + ";");
 
     Map<String, String> settings = commandInfo.getHint();
-    for (Entry<String, String> property : settings.entrySet()) {
-      task.setProperty(property.getKey(), property.getValue());
+    if (settings != null) {
+      try {
+        String json = (new GsonBuilder()).disableHtmlEscaping().create().toJson(settings);
+        task.setProperty("settings", json);
+      } catch (Exception e) {
+        throw new OdpsException(e.getMessage(), e);
+      }
     }
 
     instanceId = CommandUtil.runJob(task, odps);

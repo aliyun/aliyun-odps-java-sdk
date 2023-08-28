@@ -762,7 +762,7 @@ public class SQLExecutorTest extends TestBase {
     try {
       String queryId = sqlExecutor.getQueryId();
       System.out.println(sqlExecutor.getLogView());
-      Assert.assertNotNull(queryId);
+      Assert.assertNull(queryId);
       Assert.assertTrue(sqlExecutor.isActive());
 
       List<Record> records = sqlExecutor.getResult();
@@ -791,7 +791,7 @@ public class SQLExecutorTest extends TestBase {
     try {
       String queryId = sqlExecutor.getQueryId();
       System.out.println(sqlExecutor.getLogView());
-      Assert.assertNotNull(queryId);
+      Assert.assertNull(queryId);
       Assert.assertTrue(sqlExecutor.isActive());
 
       ResultSet resultSet = sqlExecutor.getResultSet();

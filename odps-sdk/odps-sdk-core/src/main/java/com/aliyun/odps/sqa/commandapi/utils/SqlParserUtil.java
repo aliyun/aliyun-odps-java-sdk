@@ -1,9 +1,12 @@
 package com.aliyun.odps.sqa.commandapi.utils;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 import com.aliyun.odps.sqa.commandapi.antlr.sql.OdpsLexer;
@@ -195,6 +198,24 @@ public class SqlParserUtil {
       }
     }
     return false;
+  }
+
+  /**
+   * 获取query里占位符'?'的位置，忽略常量字符'?'。主要用于preparedStatement
+   *
+   * @param query sql
+   * @return
+   */
+  public static List<Integer> getPlaceholderIndexList(String query) {
+    List<Integer> res = new ArrayList<>();
+    ANTLRInputStream input = new ANTLRInputStream(query);
+    OdpsLexer lexer = new OdpsLexer(input);
+    for (Token token : lexer.getAllTokens()) {
+      if (token != null && token.getType() == OdpsLexer.QUESTION) {
+        res.add(token.getStartIndex());
+      }
+    }
+    return res;
   }
 
   /**

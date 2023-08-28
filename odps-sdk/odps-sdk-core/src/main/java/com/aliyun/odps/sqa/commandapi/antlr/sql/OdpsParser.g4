@@ -365,6 +365,7 @@ atomExpression
     | newExp = newExpression    // new xxxclass()
     | exists = existsExpression
     | subQuery = scalarSubQueryExpression
+    | question = QUESTION
     ;
 
 variableRef
