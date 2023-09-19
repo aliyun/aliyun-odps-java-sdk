@@ -19,6 +19,12 @@
 
 package com.aliyun.odps.table.read.impl.batch;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.arrow.vector.VectorSchemaRoot;
+
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -40,12 +46,8 @@ import com.aliyun.odps.table.read.split.InputSplitWithRowRange;
 import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.table.utils.HttpUtils;
 import com.aliyun.odps.tunnel.HttpHeaders;
+import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
-import org.apache.arrow.vector.VectorSchemaRoot;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
 
@@ -119,6 +121,9 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
 
         Map<String, String> params = new HashMap<String, String>();
         params.put(ConfigConstants.SESSION_ID, split.getSessionId());
+        if (options.getSettings() != null && options.getSettings().getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, options.getSettings().getQuotaName().get());
+        }
 
         if (split instanceof InputSplitWithRowRange) {
             InputSplitWithRowRange rowRangeInputSplit = (InputSplitWithRowRange) split;
@@ -140,7 +145,6 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                 options.getDataFormat().getType().toString());
         params.put(ConfigConstants.DATA_FORMAT_VERSION,
                 options.getDataFormat().getVersion().toString());
-
         Connection conn;
         try {
             String resource = ResourceBuilder.buildTableDataResource(

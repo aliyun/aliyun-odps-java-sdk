@@ -221,10 +221,12 @@ public class Table extends LazyLoad {
     boolean hasRowAccessPolicy;
     List<String> primaryKey;
     int acidDataRetainHours;
+    StorageTierInfo storageTierInfo;
   }
 
 
   public static class ClusterInfo {
+
     long bucketNum = -1;
 
     String clusterType;
@@ -249,8 +251,9 @@ public class Table extends LazyLoad {
   }
 
   public static class SortColumn {
+
     private String name;
-    private  String order;
+    private String order;
 
     SortColumn(String name, String order) {
       this.name = name;
@@ -316,20 +319,23 @@ public class Table extends LazyLoad {
     }
   }
 
+  public void reloadExtendInfo() {
+    TableModel response;
+    try {
+      Map<String, String> params = initParamsWithSchema();
+      params.put("extended", null);
+
+      String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+      response = client.request(TableModel.class, resource, "GET", params);
+    } catch (OdpsException e) {
+      throw new ReloadException(e.getMessage(), e);
+    }
+    loadSchemaFromJson(response.schema.content);
+  }
+
   private void lazyLoadExtendInfo() {
     if (!this.isExtendInfoLoaded) {
-      TableModel response;
-      try {
-        Map<String, String> params = initParamsWithSchema();
-        params.put("extended", null);
-
-        String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
-        response = client.request(TableModel.class, resource, "GET", params);
-      } catch (OdpsException e) {
-        throw new ReloadException(e.getMessage(), e);
-      }
-
-      loadSchemaFromJson(response.schema.content);
+      reloadExtendInfo();
       this.isExtendInfoLoaded = true;
     }
   }
@@ -368,7 +374,6 @@ public class Table extends LazyLoad {
   }
 
   /**
-   *
    * @return 表类型
    */
   public TableType getType() {
@@ -406,7 +411,22 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * 获取分层存储的相关信息，包括类型，大小，修改时间等等
+   *
+   * @return StorageTierInfo 分层存储信息
+   */
+  public StorageTierInfo getStorageTierInfo() {
+    if (model.storageTierInfo == null) {
+      reloadExtendInfo();
+      isExtendInfoLoaded = true;
+    }
+    return model.storageTierInfo;
+  }
+
+
+  /**
    * Get {@link Tag}(s) attached to this table.
+   *
    * @return list of {@link Tag}
    */
   public List<Tag> getTags() {
@@ -416,6 +436,7 @@ public class Table extends LazyLoad {
 
   /**
    * Get {@link Tag}(s) attached to a column of this table.
+   *
    * @return list of {@link Tag}
    */
   public List<Tag> getTags(String columnName) {
@@ -430,6 +451,7 @@ public class Table extends LazyLoad {
 
   /**
    * Get simple tags attached to this table.
+   *
    * @return a map from category to key value pairs
    */
   public Map<String, Map<String, String>> getSimpleTags() {
@@ -466,7 +488,7 @@ public class Table extends LazyLoad {
   /**
    * Attach a {@link Tag} to this table. The table and tag should be in a same project.
    *
-   * @param tag tag to attach
+   * @param tag         tag to attach
    * @param columnNames column names, could be null.
    */
   public void addTag(Tag tag, List<String> columnNames) throws OdpsException {
@@ -487,8 +509,8 @@ public class Table extends LazyLoad {
    * key, and tag value.
    *
    * @param category simple tag category, could be nul.
-   * @param key simple tag key, cannot be null.
-   * @param value simple tag value, cannot be null.
+   * @param key      simple tag key, cannot be null.
+   * @param value    simple tag value, cannot be null.
    */
   public void addSimpleTag(String category, String key, String value) throws OdpsException {
     addSimpleTag(category, key, value, null);
@@ -497,9 +519,10 @@ public class Table extends LazyLoad {
   /**
    * Attach a simple tag to this table or some of its columns. A simple tag is a triad consisted of
    * category, tag key, and tag value.
-   * @param category simple tag category, could be nul.
-   * @param key simple tag key, cannot be null.
-   * @param value simple tag value, cannot be null.
+   *
+   * @param category    simple tag category, could be nul.
+   * @param key         simple tag key, cannot be null.
+   * @param value       simple tag value, cannot be null.
    * @param columnNames column names, should not include any partition column, could be null.
    */
   public void addSimpleTag(
@@ -531,7 +554,7 @@ public class Table extends LazyLoad {
   /**
    * Remove a {@link Tag} from columns.
    *
-   * @param tag tag to remove.
+   * @param tag         tag to remove.
    * @param columnNames column names, should not include any partition column, could be null.
    */
   public void removeTag(Tag tag, List<String> columnNames) throws OdpsException {
@@ -555,9 +578,10 @@ public class Table extends LazyLoad {
 
   /**
    * Remove a simple tag. A simple tag is a triad consisted of category, tag key, and tag value.
+   *
    * @param category category.
-   * @param key key.
-   * @param value value.
+   * @param key      key.
+   * @param value    value.
    * @throws OdpsException
    */
   public void removeSimpleTag(String category, String key, String value) throws OdpsException {
@@ -567,9 +591,10 @@ public class Table extends LazyLoad {
   /**
    * Remove a simple tag from columns. A simple tag is a triad consisted of category, tag key, and
    * tag value.
-   * @param category category.
-   * @param key key.
-   * @param value value.
+   *
+   * @param category    category.
+   * @param key         key.
+   * @param value       value.
    * @param columnNames column names, should not include any partition column, could be null.
    * @throws OdpsException
    */
@@ -603,7 +628,7 @@ public class Table extends LazyLoad {
    * @return tableId
    */
   public String getTableID() {
-    if(model.ID == null) {
+    if (model.ID == null) {
       lazyLoad();
     }
 
@@ -616,7 +641,7 @@ public class Table extends LazyLoad {
    * @return 算法名称
    */
   public String getCryptoAlgoName() {
-    if(model.cryptoAlgoName == null) {
+    if (model.cryptoAlgoName == null) {
       lazyLoad();
     }
 
@@ -638,14 +663,15 @@ public class Table extends LazyLoad {
 
     return calculateMaxLabel(extendedLabels);
   }
+
   /**
    * 获取最高的label级别
    * Label的定义分两部分：
    * 1. 业务分类：C，S，B
    * 2. 数据等级：1，2，3，4
-   *
+   * <p>
    * 二者是正交关系，即C1,C2,C3,C4,S1,S2,S3,S4,B1,B2,B3,B4。
-   *
+   * <p>
    * MaxLabel的语意：
    * 1. MaxLabel=max(TableLabel, ColumnLabel), max(...)函数的语意由Label中的数据等级决定：4>3>2>1
    * 2. MaxLabel显示：
@@ -1053,8 +1079,7 @@ public class Table extends LazyLoad {
   /**
    * 读取表内的数据
    *
-   * @param limit
-   *     最多读取的记录行数
+   * @param limit 最多读取的记录行数
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
@@ -1068,13 +1093,9 @@ public class Table extends LazyLoad {
    * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
    * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
    *
-   * @param partition
-   *     表的分区{@link PartitionSpec}。如不指定分区可传入null。
-   * @param columns
-   *     所要读取的列名的列表。如果读取全表可传入null
-   * @param limit
-   *     最多读取的记录行数。
-   *
+   * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
+   * @param columns   所要读取的列名的列表。如果读取全表可传入null
+   * @param limit     最多读取的记录行数。
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
@@ -1089,19 +1110,15 @@ public class Table extends LazyLoad {
    * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
    * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
    *
-   * @param partition
-   *     表的分区{@link PartitionSpec}。如不指定分区可传入null。
-   * @param columns
-   *     所要读取的列名的列表。如果读取全表可传入null
-   * @param limit
-   *     最多读取的记录行数。
-   * @param timezone
-   *     设置 datetime 类型数据的时区
-   *
+   * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
+   * @param columns   所要读取的列名的列表。如果读取全表可传入null
+   * @param limit     最多读取的记录行数。
+   * @param timezone  设置 datetime 类型数据的时区
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
-  public RecordReader read(PartitionSpec partition, List<String> columns, int limit, String timezone)
+  public RecordReader read(PartitionSpec partition, List<String> columns, int limit,
+                           String timezone)
       throws OdpsException {
     //TODO FIX DATE
     if (limit < 0) {
@@ -1110,7 +1127,6 @@ public class Table extends LazyLoad {
     }
     Map<String, String> params = initParamsWithSchema();
     params.put("data", null);
-
 
     if (partition != null && partition.keys().size() > 0) {
       params.put("partition", partition.toString());
@@ -1242,8 +1258,9 @@ public class Table extends LazyLoad {
 
       if (tree.has("serDeProperties")) {
         model.serDeProperties = new GsonBuilder().disableHtmlEscaping().create()
-                .fromJson(tree.get("serDeProperties").getAsString(),
-                new TypeToken<Map<String, String>>() {}.getType());
+            .fromJson(tree.get("serDeProperties").getAsString(),
+                      new TypeToken<Map<String, String>>() {
+                      }.getType());
       }
 
       if (tree.has("shardExist")) {
@@ -1359,11 +1376,16 @@ public class Table extends LazyLoad {
     if (reservedJson.has("PrimaryKey")) {
       model.primaryKey = new ArrayList<>();
       JsonArray element = reservedJson.get("PrimaryKey").getAsJsonArray();
-      for (JsonElement e: element) {
+      for (JsonElement e : element) {
         model.primaryKey.add(e.getAsString());
       }
-    } 
-    model.acidDataRetainHours = reservedJson.has("acid.data.retain.hours") ? Integer.parseInt(reservedJson.get("acid.data.retain.hours").getAsString()) : -1;
+    }
+    model.acidDataRetainHours =
+        reservedJson.has("acid.data.retain.hours") ? Integer.parseInt(
+            reservedJson.get("acid.data.retain.hours").getAsString()) : -1;
+
+    // load storageTier info
+    model.storageTierInfo = StorageTierInfo.getStorageTierInfo(reservedJson);
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {
@@ -1380,9 +1402,13 @@ public class Table extends LazyLoad {
     }
 
     ClusterInfo clusterInfo = new ClusterInfo();
-    clusterInfo.clusterType = jsonObject.has("ClusterType") ? jsonObject.get("ClusterType").getAsString() : null;
-    clusterInfo.bucketNum = jsonObject.has("BucketNum") ? jsonObject.get("BucketNum").getAsLong() : 0L;
-    JsonArray array = jsonObject.has("ClusterCols") ? jsonObject.get("ClusterCols").getAsJsonArray() : null;
+    clusterInfo.clusterType =
+        jsonObject.has("ClusterType") ? jsonObject.get("ClusterType").getAsString() : null;
+    clusterInfo.bucketNum =
+        jsonObject.has("BucketNum") ? jsonObject.get("BucketNum").getAsLong() : 0L;
+    JsonArray
+        array =
+        jsonObject.has("ClusterCols") ? jsonObject.get("ClusterCols").getAsJsonArray() : null;
     if (array != null) {
       clusterInfo.clusterCols = new ArrayList<String>();
       for (int i = 0; i < array.size(); ++i) {
@@ -1396,7 +1422,8 @@ public class Table extends LazyLoad {
       for (int i = 0; i < array.size(); ++i) {
         JsonObject obj = array.get(i).getAsJsonObject();
         if (obj != null) {
-          clusterInfo.sortCols.add(new SortColumn(obj.get("col").getAsString(), obj.get("order").getAsString()));
+          clusterInfo.sortCols.add(
+              new SortColumn(obj.get("col").getAsString(), obj.get("order").getAsString()));
         }
       }
     }
@@ -1407,8 +1434,7 @@ public class Table extends LazyLoad {
   /**
    * 增加分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @throws OdpsException
    */
   public void createPartition(PartitionSpec spec) throws OdpsException {
@@ -1418,10 +1444,8 @@ public class Table extends LazyLoad {
   /**
    * 增加分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
-   * @param ifNotExists
-   *     在创建分区时，如果为 false 而存在同名分区，则返回出错；若为 true，则无论是否存在同名分区，即使分区结构与要创建的目标分区结构不一致，均返回成功。已存在的同名分区的元信息不会被改动。
+   * @param spec        分区定义 {@link PartitionSpec}
+   * @param ifNotExists 在创建分区时，如果为 false 而存在同名分区，则返回出错；若为 true，则无论是否存在同名分区，即使分区结构与要创建的目标分区结构不一致，均返回成功。已存在的同名分区的元信息不会被改动。
    * @throws OdpsException
    */
   public void createPartition(PartitionSpec spec, boolean ifNotExists) throws OdpsException {
@@ -1454,8 +1478,7 @@ public class Table extends LazyLoad {
   /**
    * 删除指定分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @throws OdpsException
    */
   public void deletePartition(PartitionSpec spec) throws OdpsException {
@@ -1465,10 +1488,8 @@ public class Table extends LazyLoad {
   /**
    * 删除指定分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
-   * @param ifExists
-   *     如果 false 而分区不存在，则返回异常；若为 true，无论分区是否存在，皆返回成功。
+   * @param spec     分区定义 {@link PartitionSpec}
+   * @param ifExists 如果 false 而分区不存在，则返回异常；若为 true，无论分区是否存在，皆返回成功。
    * @throws OdpsException
    */
   public void deletePartition(PartitionSpec spec, boolean ifExists) throws OdpsException {
@@ -1516,8 +1537,7 @@ public class Table extends LazyLoad {
   /**
    * 在Table上创建Shards
    *
-   * @param shardCount
-   *     创建Shard的个数
+   * @param shardCount 创建Shard的个数
    */
   public void createShards(long shardCount) throws OdpsException {
     StringBuilder sb = new StringBuilder();
@@ -1540,8 +1560,7 @@ public class Table extends LazyLoad {
   /**
    * 获取分区迭代器
    *
-   * @param spec
-   *     指定的上级分区 {@link PartitionSpec}
+   * @param spec 指定的上级分区 {@link PartitionSpec}
    * @return {@link Partition}迭代器
    */
   public Iterator<Partition> getPartitionIterator(final PartitionSpec spec) {
@@ -1551,13 +1570,13 @@ public class Table extends LazyLoad {
   /**
    * Get a partition iterator.
    *
-   * @param spec Specify the values of some of the partition columns. The specified columns'
-   * indices should be continuous and start from 0.
-   * @param reverse Reverse the result. The original
+   * @param spec      Specify the values of some of the partition columns. The specified columns'
+   *                  indices should be continuous and start from 0.
+   * @param reverse   Reverse the result. The original
    * @param batchSize Max number of partitions to get per request. In case of null, the batch size
-   * will be decided by the server.
-   * @param limit Limit the number of returned partitions. In case of null, {@link Long#MAX_VALUE}
-   * will be used.
+   *                  will be decided by the server.
+   * @param limit     Limit the number of returned partitions. In case of null, {@link Long#MAX_VALUE}
+   *                  will be used.
    * @return A partition iterator.
    */
   public Iterator<Partition> getPartitionIterator(
@@ -1655,8 +1674,7 @@ public class Table extends LazyLoad {
   /**
    * 获取指定分区信息
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @return 分区信息 {@link Partition}
    */
   public Partition getPartition(PartitionSpec spec) {
@@ -1666,8 +1684,7 @@ public class Table extends LazyLoad {
   /**
    * 判断指定分区是否存在
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @return 如果指定分区存在，则返回true，否则返回false
    * @throws OdpsException
    */

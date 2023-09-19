@@ -19,6 +19,21 @@
 
 package com.aliyun.odps.table.write.impl.batch;
 
+import static com.aliyun.odps.table.utils.ConfigConstants.VERSION_1;
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
@@ -28,7 +43,10 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.table.*;
+import com.aliyun.odps.table.DataFormat;
+import com.aliyun.odps.table.DataSchema;
+import com.aliyun.odps.table.SessionStatus;
+import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.table.configuration.DynamicPartitionOptions;
 import com.aliyun.odps.table.configuration.WriterOptions;
@@ -39,24 +57,23 @@ import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
 import com.aliyun.odps.table.order.NullOrdering;
 import com.aliyun.odps.table.order.SortDirection;
 import com.aliyun.odps.table.order.SortOrder;
-import com.aliyun.odps.table.utils.*;
+import com.aliyun.odps.table.utils.ConfigConstants;
+import com.aliyun.odps.table.utils.HttpUtils;
+import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.table.utils.SchemaUtils;
+import com.aliyun.odps.table.utils.SessionUtils;
 import com.aliyun.odps.table.write.BatchWriter;
 import com.aliyun.odps.table.write.TableWriteCapabilities;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
+import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
-import com.google.gson.*;
-import org.apache.arrow.vector.VectorSchemaRoot;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.*;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static com.aliyun.odps.table.utils.ConfigConstants.VERSION_1;
-import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
 public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
@@ -92,6 +109,9 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
         Map<String, String> params = new HashMap<>();
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
+        if (settings != null && settings.getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
+        }
 
         try {
             String req = generateWriteSessionRequest();
@@ -136,6 +156,9 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
         Map<String, String> params = new HashMap<>();
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
+        if (settings != null && settings.getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
+        }
 
         Connection conn = null;
         try {
@@ -211,6 +234,9 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
         Map<String, String> params = new HashMap<String, String>();
         params.put(ConfigConstants.SESSION_ID, sessionId);
+        if (settings != null && settings.getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
+        }
 
         try {
             String commitRequest = generateCommitRequest(messages);

@@ -41,6 +41,7 @@ import com.aliyun.odps.table.utils.SchemaUtils;
 import com.aliyun.odps.table.write.BatchWriter;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
+import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -190,7 +191,9 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
                 writerOptions.getDataFormat().getType().toString());
         params.put(ConfigConstants.DATA_FORMAT_VERSION,
                 writerOptions.getDataFormat().getVersion().toString());
-
+        if (writerOptions.getSettings() != null && writerOptions.getSettings().getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, writerOptions.getSettings().getQuotaName().get());
+        }
         String resource = ResourceBuilder.buildTableSessionDataResource(
                 VERSION_1,
                 identifier.getProject(),

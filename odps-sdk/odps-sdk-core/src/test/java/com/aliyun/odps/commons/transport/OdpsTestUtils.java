@@ -180,6 +180,17 @@ public class OdpsTestUtils {
     return odps;
   }
 
+  /**
+   * 根据test.properties的设置创建一个新的Odps对象
+   *
+   * @return
+   */
+  public static Odps newStorageTierOdps() {
+    Odps odps = newDefaultOdps();
+    odps.setDefaultProject(props.getProperty("storagetier.project"));
+    return odps;
+  }
+
   public static Odps newSchemaOdps() {
     Odps odps;
 

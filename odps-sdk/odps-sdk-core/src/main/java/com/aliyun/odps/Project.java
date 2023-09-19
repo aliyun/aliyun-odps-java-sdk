@@ -170,9 +170,15 @@ public class Project extends LazyLoad {
     @Element(name = "TenantId", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String tenantId;
+    /**
+     * 分层存储信息
+     */
+    StorageTierInfo storageTierInfo;
+
   }
 
   public static class ExternalProjectProperties {
+
     private JsonObject rootObj;
     private JsonObject networkObj;
 
@@ -191,11 +197,13 @@ public class Project extends LazyLoad {
       rootObj.addProperty(name, value);
     }
 
-    public void addProperty(String name, JsonObject object) { rootObj.add(name, object);}
+    public void addProperty(String name, JsonObject object) {
+      rootObj.add(name, object);
+    }
 
     public String toJson() {
       Gson gson = new Gson();
-      return  gson.toJson(rootObj);
+      return gson.toJson(rootObj);
     }
   }
 
@@ -204,6 +212,7 @@ public class Project extends LazyLoad {
 
     @Root(name = "OptionalQuota", strict = false)
     public static class OptionalQuota {
+
       // Required by SimpleXML
       OptionalQuota() {
       }
@@ -288,12 +297,14 @@ public class Project extends LazyLoad {
 
   @Root(name = "Clusters", strict = false)
   static class Clusters {
+
     @ElementList(entry = "Cluster", inline = true, required = false)
     List<Cluster> entries = new ArrayList<Cluster>();
   }
 
   @Root(name = "Property", strict = false)
   static class Property {
+
     Property() {
     }
 
@@ -313,11 +324,13 @@ public class Project extends LazyLoad {
 
   @Root(name = "Properties", strict = false)
   static class Properties {
+
     @ElementList(entry = "Property", inline = true, required = false)
     List<Property> entries = new ArrayList<Property>();
   }
 
   static class PropertyConverter implements Converter<LinkedHashMap<String, String>> {
+
     @Override
     public void write(OutputNode outputNode, LinkedHashMap<String, String> properties)
         throws Exception {
@@ -455,6 +468,7 @@ public class Project extends LazyLoad {
 
   /**
    * 获取 project 所属 region
+   *
    * @return region id
    */
   public String getRegionId() {
@@ -561,8 +575,7 @@ public class Project extends LazyLoad {
   /**
    * 查询Project指定配置信息
    *
-   * @param key
-   *     配置项
+   * @param key 配置项
    * @return 配置项对应的值
    */
   public String getProperty(String key) {
@@ -599,14 +612,34 @@ public class Project extends LazyLoad {
    */
   public Map<String, String> getExtendedProperties() throws OdpsException {
     if (model.extendedProperties == null) {
-      Map<String, String> param = new LinkedHashMap<String, String>();
-      param.put("extended", null);
-      String resource = ResourceBuilder.buildProjectResource(model.name);
-      ProjectModel extendedModel = client.request(ProjectModel.class, resource, "GET", param);
-      return extendedModel.extendedProperties;
+      reloadExtendInfo();
+      return this.model.extendedProperties;
     }
-
     return model.extendedProperties;
+  }
+
+  /**
+   * 获取分层存储相关信息
+   * @return 分层存储信息的对象
+   * @throws OdpsException
+   */
+
+  public StorageTierInfo getStorageTierInfo() throws OdpsException {
+    if (model.extendedProperties == null) {
+      reloadExtendInfo();
+    }
+    model.storageTierInfo = StorageTierInfo.getStorageTierInfo(model.extendedProperties);
+    return model.storageTierInfo;
+  }
+
+  /**
+   * 更新项目的 extend 信息
+   */
+  public void reloadExtendInfo() throws OdpsException {
+    Map<String, String> param = new HashMap<>();
+    param.put("extended", null);
+    String resource = ResourceBuilder.buildProjectResource(model.name);
+    this.model = client.request(ProjectModel.class, resource, "GET", param);
   }
 
   /**
@@ -622,7 +655,7 @@ public class Project extends LazyLoad {
   }
 
   public String getTunnelEndpoint() throws OdpsException {
-      return getTunnelEndpoint(null);
+    return getTunnelEndpoint(null);
   }
 
   public String getTunnelEndpoint(String quotaName) throws OdpsException {

@@ -19,6 +19,20 @@
 
 package com.aliyun.odps.table.read.impl.batch;
 
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
@@ -41,19 +55,19 @@ import com.aliyun.odps.table.read.SplitReader;
 import com.aliyun.odps.table.read.split.InputSplit;
 import com.aliyun.odps.table.read.split.impl.IndexedInputSplitAssigner;
 import com.aliyun.odps.table.read.split.impl.RowRangeInputSplitAssigner;
-import com.aliyun.odps.table.utils.*;
+import com.aliyun.odps.table.utils.ConfigConstants;
+import com.aliyun.odps.table.utils.HttpUtils;
+import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.table.utils.SchemaUtils;
+import com.aliyun.odps.table.utils.SessionUtils;
+import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
-import com.google.gson.*;
-import org.apache.arrow.vector.VectorSchemaRoot;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.*;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
 public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
@@ -104,6 +118,9 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
         Map<String, String> params = new HashMap<>();
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
+        if (settings != null && settings.getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
+        }
 
         try {
             String request = generateReadSessionRequest();
@@ -191,6 +208,9 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
         Map<String, String> params = new HashMap<>();
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
+        if (settings != null && settings.getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
+        }
 
         Connection conn = null;
         try {

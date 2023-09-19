@@ -73,6 +73,11 @@ public class Partition extends LazyLoad {
     @Element(name = "LastAccessTime", required = false)
     @Convert(SimpleXmlUtils.EpochConverter.class)
     Date lastAccessTime;
+
+    /**
+     * 分层存储相关
+     */
+    StorageTierInfo storageTierInfo;
   }
 
   @Root(name = "Column", strict = false)
@@ -87,6 +92,7 @@ public class Partition extends LazyLoad {
 
   @Root(name = "Partition", strict = false)
   static class PartitionSpecModel {
+
     @Element(name = "Name", required = false)
     String partitionSpec;
   }
@@ -287,6 +293,19 @@ public class Partition extends LazyLoad {
   }
 
   /**
+   * 得到分区的存储类型
+   *
+   * @return StorageTierType
+   */
+  public StorageTierInfo getStorageTierInfo() {
+    if (model.storageTierInfo == null) {
+      reloadExtendInfo();
+      isExtendInfoLoaded = true;
+    }
+    return model.storageTierInfo;
+  }
+
+  /**
    * 返回扩展信息的保留字段
    * json 字符串
    *
@@ -314,6 +333,7 @@ public class Partition extends LazyLoad {
 
   /**
    * Get {@link Tag}(s) attached to this partition.
+   *
    * @return list of {@link Tag}
    */
   public List<Tag> getTags() {
@@ -323,6 +343,7 @@ public class Partition extends LazyLoad {
 
   /**
    * Get {@link Tag}(s) attached to a column of this partition.
+   *
    * @return list of {@link Tag}
    */
   public List<Tag> getTags(String columnName) {
@@ -339,6 +360,7 @@ public class Partition extends LazyLoad {
 
   /**
    * Get simple tags attached to this partition.
+   *
    * @return a map from category to key value pairs
    */
   public Map<String, Map<String, String>> getSimpleTags() {
@@ -376,7 +398,7 @@ public class Partition extends LazyLoad {
   /**
    * Attach a {@link Tag} to a partition. The partition and tag should be in a same project.
    *
-   * @param tag tag to attach
+   * @param tag         tag to attach
    * @param columnNames column names, could be null.
    */
   public void addTag(Tag tag, List<String> columnNames) throws OdpsException {
@@ -397,8 +419,8 @@ public class Partition extends LazyLoad {
    * key, and tag value.
    *
    * @param category simple tag category, could be nul.
-   * @param key simple tag key, cannot be null.
-   * @param value simple tag value, cannot be null.
+   * @param key      simple tag key, cannot be null.
+   * @param value    simple tag value, cannot be null.
    */
   public void addSimpleTag(String category, String key, String value) throws OdpsException {
     addSimpleTag(category, key, value, null);
@@ -407,9 +429,10 @@ public class Partition extends LazyLoad {
   /**
    * Attach a simple tag to a partition or some of its columns. A simple tag is a triad consisted of
    * category, tag key, and tag value.
-   * @param category simple tag category, could be nul.
-   * @param key simple tag key, cannot be null.
-   * @param value simple tag value, cannot be null.
+   *
+   * @param category    simple tag category, could be nul.
+   * @param key         simple tag key, cannot be null.
+   * @param value       simple tag value, cannot be null.
    * @param columnNames column names, should not include any partition column, could be null.
    */
   public void addSimpleTag(
@@ -441,7 +464,7 @@ public class Partition extends LazyLoad {
   /**
    * Remove a {@link Tag} from columns.
    *
-   * @param tag tag to remove.
+   * @param tag         tag to remove.
    * @param columnNames column names, should not include any partition column, could be null.
    */
   public void removeTag(Tag tag, List<String> columnNames) throws OdpsException {
@@ -469,8 +492,8 @@ public class Partition extends LazyLoad {
    * Remove a simple tag. A simple tag is a triad consisted of category, tag key, and tag value.
    *
    * @param category category.
-   * @param key key.
-   * @param value value.
+   * @param key      key.
+   * @param value    value.
    * @throws OdpsException
    */
   public void removeSimpleTag(String category, String key, String value) throws OdpsException {
@@ -481,9 +504,9 @@ public class Partition extends LazyLoad {
    * Remove a simple tag from columns. A simple tag is a triad consisted of category, tag key, and
    * tag value.
    *
-   * @param category category.
-   * @param key key.
-   * @param value value.
+   * @param category    category.
+   * @param key         key.
+   * @param value       value.
    * @param columnNames column names, should not include any partition column, could be null.
    * @throws OdpsException
    */
@@ -573,47 +596,50 @@ public class Partition extends LazyLoad {
     }
   }
 
+  public void reloadExtendInfo() {
+    String resource = ResourceBuilder.buildTableResource(projectName, table);
+    try {
+      Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+      params.put("extended", null);
+      params.put("partition", getPartitionSpec().toString());
+
+      PartitionMeta meta =
+          client.request(PartitionMeta.class, resource.toString(), "GET", params);
+
+      JsonObject tree = new JsonParser().parse(meta.schema).getAsJsonObject();
+
+      if (tree.has("IsArchived")) {
+        isArchived = tree.get("IsArchived").getAsBoolean();
+      }
+
+      if (tree.has("IsExstore")) {
+        isExstore = tree.get("IsExstore").getAsBoolean();
+      }
+
+      if (tree.has("LifeCycle")) {
+        lifeCycle = tree.get("LifeCycle").getAsLong();
+      }
+
+      if (tree.has("PhysicalSize")) {
+        physicalSize = tree.get("PhysicalSize").getAsLong();
+      }
+
+      if (tree.has("FileNum")) {
+        fileNum = tree.get("FileNum").getAsLong();
+      }
+
+      if (tree.has("Reserved")) {
+        reserved = tree.get("Reserved").getAsString();
+        loadReservedJson(reserved);
+      }
+    } catch (Exception e) {
+      throw new ReloadException(e.getMessage(), e);
+    }
+  }
+
   private void lazyLoadExtendInfo() {
     if (!this.isExtendInfoLoaded) {
-
-      String resource = ResourceBuilder.buildTableResource(projectName, table);
-      try {
-        Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
-        params.put("extended", null);
-        params.put("partition", getPartitionSpec().toString());
-
-        PartitionMeta meta =
-                client.request(PartitionMeta.class, resource.toString(), "GET", params);
-
-        JsonObject tree = new JsonParser().parse(meta.schema).getAsJsonObject();
-
-        if (tree.has("IsArchived")) {
-          isArchived = tree.get("IsArchived").getAsBoolean();
-        }
-
-        if (tree.has("IsExstore")) {
-          isExstore = tree.get("IsExstore").getAsBoolean();
-        }
-
-        if (tree.has("LifeCycle")) {
-          lifeCycle = tree.get("LifeCycle").getAsLong();
-        }
-
-        if (tree.has("PhysicalSize")) {
-          physicalSize = tree.get("PhysicalSize").getAsLong();
-        }
-
-        if (tree.has("FileNum")) {
-          fileNum = tree.get("FileNum").getAsLong();
-        }
-
-        if (tree.has("Reserved")) {
-          reserved = tree.get("Reserved").getAsString();
-          loadReservedJson(reserved);
-        }
-      } catch (Exception e) {
-        throw new ReloadException(e.getMessage(), e);
-      }
+      reloadExtendInfo();
       isExtendInfoLoaded = true;
     }
   }
@@ -623,5 +649,7 @@ public class Partition extends LazyLoad {
 
     // load cluster info
     clusterInfo = Table.parseClusterInfo(reservedJson);
+    // 分层存储的相关信息
+    model.storageTierInfo = StorageTierInfo.getStorageTierInfo(reservedJson);
   }
 }
