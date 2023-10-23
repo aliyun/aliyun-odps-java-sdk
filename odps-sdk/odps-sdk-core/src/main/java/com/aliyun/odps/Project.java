@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -639,7 +640,11 @@ public class Project extends LazyLoad {
     Map<String, String> param = new HashMap<>();
     param.put("extended", null);
     String resource = ResourceBuilder.buildProjectResource(model.name);
-    this.model = client.request(ProjectModel.class, resource, "GET", param);
+    ProjectModel extendedModel = client.request(ProjectModel.class, resource, "GET", param);
+
+    this.model.extendedProperties =
+        (extendedModel == null) ? new LinkedHashMap<String, String>()
+                                : extendedModel.extendedProperties;
   }
 
   /**

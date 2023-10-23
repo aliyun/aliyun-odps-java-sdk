@@ -26,6 +26,8 @@ import com.aliyun.odps.table.utils.ArrowUtils;
 import com.aliyun.odps.table.utils.Preconditions;
 import org.apache.arrow.memory.BufferAllocator;
 
+import java.util.Optional;
+
 import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_BUFFERED_ROW_COUNT;
 import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_CHUNK_SIZE;
 
@@ -38,6 +40,7 @@ public class WriterOptions {
     private int chunkSize;
     private CompressionCodec compressionCodec;
     private DataFormat dataFormat;
+    private long maxBlockNumber;
 
     public WriterOptions() {
         this.retryStrategy = new RetryStrategy();
@@ -46,6 +49,7 @@ public class WriterOptions {
         this.chunkSize = DEFAULT_CHUNK_SIZE;
         this.compressionCodec = CompressionCodec.NO_COMPRESSION;
         this.dataFormat = ArrowUtils.getDefaultDataFormat();
+        this.maxBlockNumber = -1L;
     }
 
     public int getBufferedRowCount() {
@@ -74,6 +78,11 @@ public class WriterOptions {
 
     public CompressionCodec getCompressionCodec() {
         return compressionCodec;
+    }
+
+    public Optional<Long> maxBlockNumber() {
+        return maxBlockNumber > 0 ?
+                Optional.of(maxBlockNumber) : Optional.empty();
     }
 
     public static WriterOptions.Builder newBuilder() {
@@ -121,6 +130,12 @@ public class WriterOptions {
 
         public WriterOptions.Builder withCompressionCodec(CompressionCodec codec) {
             this.writerOptions.compressionCodec = codec;
+            return this;
+        }
+
+        public WriterOptions.Builder withMaxBlockNumber(long maxBlockNumber) {
+            Preconditions.checkLong(maxBlockNumber, 1, "MaxBlockNumber");
+            this.writerOptions.maxBlockNumber = maxBlockNumber;
             return this;
         }
 

@@ -204,8 +204,12 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         Preconditions.checkNotNull(attemptId, "Attempt id");
         Preconditions.checkNotNull(options, "Writer options");
 
-        if (maxBlockNumber().isPresent() && blockNumber >= maxBlockNumber().get()) {
-            throw new IOException("Max block writer number:" + maxBlockNumber().get());
+        if (options.maxBlockNumber().isPresent()
+                && blockNumber >= options.maxBlockNumber().get()) {
+            throw new IOException("User defined max block writer number: " + options.maxBlockNumber().get());
+        } else if (maxBlockNumber().isPresent()
+                && blockNumber >= maxBlockNumber().get()) {
+            throw new IOException("Server max block writer number: " + maxBlockNumber().get());
         }
 
         return new ArrowWriterImpl(
