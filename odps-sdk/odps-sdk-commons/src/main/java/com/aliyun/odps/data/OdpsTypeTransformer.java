@@ -234,6 +234,7 @@ public class OdpsTypeTransformer {
           if (strict) {
             validateString(transformedResult.toString(), fieldMaxSize);
           }
+          return (T) transformedResult;
         }
         break;
       case STRING:

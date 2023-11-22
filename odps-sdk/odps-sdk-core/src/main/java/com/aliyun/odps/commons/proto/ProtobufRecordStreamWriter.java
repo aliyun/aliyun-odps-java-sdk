@@ -254,7 +254,12 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case JSON: {
-        String value = ((SimpleJsonValue) v).toString();
+        String value;
+        if (v instanceof String) {
+          value = (String) v;
+        } else {
+          value = ((SimpleJsonValue) v).toString();
+        }
         byte[] bytes = value.getBytes("UTF-8");
         crc.update(bytes, 0, bytes.length);
         writeRawBytes(bytes, out);
