@@ -80,12 +80,12 @@ public class ProjectTest extends TestBase {
 
   @Test
   public void testGetTunnelEndpoint() throws Exception {
-    String server = odps.projects().get().getTunnelEndpoint();
+    String server = odps.projects().get().getTunnelEndpoint(null);
     assertNotNull(server);
     System.out.println(server);
 
     try {
-      odps.projects().get("not_exists").getTunnelEndpoint();
+      odps.projects().get("not_exists").getTunnelEndpoint(null);
       assertNotNull("Expect exception when project not found", null);
     } catch (OdpsException e) {
       assertTrue(e.getMessage().contains("not found"));

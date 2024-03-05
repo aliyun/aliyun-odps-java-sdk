@@ -30,6 +30,7 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.commons.GeneralConfiguration;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
@@ -56,6 +57,10 @@ public class InstanceTunnel {
    */
   public InstanceTunnel(Odps odps) {
     this.config = new ConfigurationImpl(odps);
+  }
+
+  public GeneralConfiguration getConfig() {
+    return config;
   }
 
   /**
@@ -214,6 +219,7 @@ public class InstanceTunnel {
     private String taskName;
     private int queryId = -1;
     private boolean isLongPolling = false;
+    private String quotaName = "";
     /**
      * 根据已有downloadId构造一个{@link DownloadSession}对象。
      *
@@ -482,7 +488,11 @@ public class InstanceTunnel {
       HashMap<String, String> headers = TableTunnel.getCommonHeader();
 
       params.put(TunnelConstants.DOWNLOADS, null);
-      
+
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
+
       if (limitEnabled) {
         params.put(TunnelConstants.INSTANCE_TUNNEL_LIMIT_ENABLED, null);
       }
@@ -621,6 +631,10 @@ public class InstanceTunnel {
       return this.isLongPolling;
     }
 
+    public Configuration getConfig() {
+      return conf;
+    }
+
     /**
      * 获取会话ID
      */
@@ -669,9 +683,17 @@ public class InstanceTunnel {
           JsonObject tunnelTableSchema = tree.get("Schema").getAsJsonObject();
           schema = new TunnelTableSchema(tunnelTableSchema);
         }
+
+        if (tree.has("QuotaName")) {
+          quotaName = tree.get("QuotaName").getAsString();
+        }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
       }
+    }
+
+    public String getQuotaName() {
+      return quotaName;
     }
   }
 }

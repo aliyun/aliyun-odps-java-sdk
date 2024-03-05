@@ -65,7 +65,7 @@ public class TunnelEndpointLocalCacheTest  extends TestBase {
 
         cache.putTunnelEndpointIntoLocalCache(odps,tunnelEndpoint);
         try {
-            assertEquals(cache.getTunnelEndpointFromLocalCache(odps), tunnelEndpoint);
+            assertEquals(cache.getTunnelEndpointFromLocalCache(odps, null), tunnelEndpoint);
         }
         catch (ExecutionException e)
         {

@@ -20,7 +20,6 @@
 package com.aliyun.odps.security;
 
 import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +29,6 @@ import java.util.Objects;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.rest.ErrorMessage;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.rest.SimpleXmlUtils;
@@ -49,8 +47,6 @@ import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.annotations.Expose;
-import com.google.gson.annotations.SerializedName;
 
 /**
  * ODPS安全管理类
@@ -384,6 +380,20 @@ public class SecurityManager {
     Map<String, String> params = new HashMap<String, String>();
     params.put("policy", null);
     client.stringRequest(resource, "PUT", params, null, policy);
+  }
+
+  public User getUserById(String id) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, id);
+    UserModel resp = client.request(UserModel.class, resource, "GET");
+    return new User(resp, project, client);
+  }
+
+  public User getUserByName(String name) throws OdpsException {
+    String resource = ResourceBuilder.buildUserResource(project, name);
+    Map<String, String> params = new HashMap<String, String>();
+    params.put("type", "displayname");
+    UserModel resp = client.request(UserModel.class, resource, "GET", params);
+    return new User(resp, project, client);
   }
 
   public List<User> listUsers() throws OdpsException {
@@ -853,5 +863,4 @@ public class SecurityManager {
     }
 
   }
-
 }

@@ -23,12 +23,17 @@ import com.aliyun.odps.commons.transport.Connection;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class ConnectionWatcher {
   public class Timeout {
     private long startTime;
     private long expectLasts;
     private boolean timedAlready;
+
+    private int retriedTimes;
+    private static final int MAX_RETRY_TIMES = 5;
+
     public Timeout() { this(0, 0); }
     public Timeout(long expectLs) {
       this(System.currentTimeMillis(), expectLs);
@@ -37,6 +42,7 @@ public class ConnectionWatcher {
       startTime = startTm;
       expectLasts = expectLs;
       timedAlready = false;
+      retriedTimes = 0;
     }
     public boolean timedOut() {
       long current = System.currentTimeMillis();
@@ -77,9 +83,23 @@ public class ConnectionWatcher {
     public void setTimedAlready(boolean timedAlready) {
       this.timedAlready = timedAlready;
     }
+
+    public boolean startRetry() {
+      if (retriedTimes >= MAX_RETRY_TIMES) {
+        return false;
+      }
+      retriedTimes++;
+      return true;
+    }
+
+    public int getRetriedTimes() {
+      return retriedTimes;
+    }
   }
   private static ConnectionWatcher INSTANCE = null;
   private final HashMap<Connection, Timeout> writerTimestamp;
+
+  private static final Logger LOG = Logger.getLogger(ConnectionWatcher.class.getCanonicalName());
 
   private ConnectionWatcher() {
     writerTimestamp = new HashMap<>();
@@ -98,10 +118,12 @@ public class ConnectionWatcher {
             if (!v.isTimedAlready() && v.timedOut()) {
               try {
                 conn.disconnect();
-              } catch (IOException e) {
-                e.printStackTrace();
-              } finally {
                 v.setTimedAlready(true);
+              } catch (IOException e) {
+                LOG.warning("Disconnecting timed out connection failed: retried " + v.getRetriedTimes() + " exception " + e.getMessage());
+                if (!v.startRetry()) {
+                  v.setTimedAlready(true);
+                }
               }
             }
           }

@@ -61,6 +61,7 @@ public interface TunnelConstants {
   public static String CACHED = "cached";
   public static String TASK_NAME = "taskname";
   public static String QUERY_ID = "queryid";
+  public static String SCHEMA_IN_STREAM = "schema_in_stream";
   public static String STREAMS = "streams";
   public static String SLOT_ID = "slotid";
   public static String CREATE_PARTITION = "create_partition";
@@ -71,4 +72,16 @@ public interface TunnelConstants {
   public static String META_FIELD_OPERATION = "__operation";
   public static String META_FIELD_KEY_COLS = "__key_cols";
   public static String META_FIELD_VALUE_COLS = "__value_cols";
+  public static String UPSERTS = "upserts";
+  public static String SLOT_NUM = "slotnum";
+  public static String UPSERT_ID = "upsertid";
+  public static String BUCKET_ID = "bucketid";
+  public static String SESSION_STATUS_NORMAL = "normal";
+  public static String SESSION_STATUS_COMMITTING = "committing";
+  public static String SESSION_STATUS_COMMITTED = "committed";
+  public static String SESSION_STATUS_EXPIRED = "expired";
+  public static String SESSION_STATUS_CRITICAL = "critical";
+  public static String SESSION_STATUS_ABORTED = "aborted";
+  public static String PARAM_QUOTA_NAME= "quotaName";
+  public static String PARAM_BLOCK_VERSION = "block_version";
 }

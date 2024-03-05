@@ -630,12 +630,12 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       if (setInformationResult == null) {
         // invalid response
         throw new OdpsException("Parse response json failed:"
-            + String.valueOf(result.getBody()));
+            + new String(result.getBody()));
       }
       return setInformationResult;
     } catch (JsonParseException e) {
       throw new OdpsException("Parse response json failed, body:"
-          + String.valueOf(result.getBody()) + " Error:" + e.getMessage(), e);
+          + new String(result.getBody()) + " Error:" + e.getMessage(), e);
     } catch(Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }

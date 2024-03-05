@@ -132,6 +132,10 @@ public class Tags implements Iterable<Tag> {
       this.policy = Objects.requireNonNull(policy);
       return this;
     }
+
+    public Tag build() {
+      return new Tag(this);
+    }
   }
 
   private Odps odps;
@@ -144,28 +148,26 @@ public class Tags implements Iterable<Tag> {
     this.client = odps.getRestClient();
   }
 
-  public void create(TagBuilder tagBuilder, boolean ifNotExists) throws OdpsException {
-    Objects.requireNonNull(tagBuilder);
-
-    TagModel model = new TagModel();
-    model.project = classification.getProject();
-    model.classification = classification.getName();
-    model.name = tagBuilder.name;
-    model.attributes = new HashMap<>(tagBuilder.attributes);
-    model.policy = tagBuilder.policy;
-
+  public void create(Tag tag, boolean ifNotExists) throws OdpsException {
     JsonObject root = new JsonObject();
-    root.add("TagInput", GSON.toJsonTree(model));
+    root.add("TagInput", GSON.toJsonTree(tag.model));
     root.addProperty("IfNotExists", ifNotExists);
 
     String resource = ResourceBuilder.buildTagsResource(
-        classification.getProject(),
-        classification.getName());
+            classification.getProject(),
+            classification.getName());
     Map<String, String> headers = new HashMap<>();
     headers.put(Headers.CONTENT_TYPE, "application/json");
     String body = GSON.toJson(root);
 
     client.request(resource, "POST", null, headers, body.getBytes());
+  }
+
+  public void create(TagBuilder tagBuilder, boolean ifNotExists) throws OdpsException {
+    Objects.requireNonNull(tagBuilder);
+
+    Tag tag = tagBuilder.build();
+    create(tag, ifNotExists);
   }
 
   public void update(Tag tag) throws OdpsException {

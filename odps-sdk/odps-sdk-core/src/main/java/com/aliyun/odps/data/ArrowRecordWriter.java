@@ -32,4 +32,9 @@ public interface ArrowRecordWriter extends Closeable {
      * @throws IOException 写入过程发生异常，不可重试
      */
     public void write(VectorSchemaRoot root) throws IOException;
+
+    /**
+     * 返回读写入的字节数
+     */
+    public long bytesWritten();
 }

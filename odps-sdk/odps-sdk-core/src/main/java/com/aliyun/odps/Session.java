@@ -2,6 +2,7 @@ package com.aliyun.odps;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.SessionQueryResult;
+import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 import com.aliyun.odps.task.SQLRTTask;
 import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
@@ -74,6 +75,9 @@ public class Session {
   private static final Long SESSION_TIMEOUT = 60L;
 
   private String taskName = DEFAULT_TASK_NAME;
+  // attach session reuse token
+  private String token;
+  private long tokenExpiredHours = 7 * 24;
 
   public Session(Odps odps, Instance instance) {
     this(odps, instance, null, DEFAULT_TASK_NAME);
@@ -101,7 +105,7 @@ public class Session {
   public static int OBJECT_STATUS_TERMINATED = 5;
   public static int OBJECT_STATUS_CANCELLED = 6;
 
-  public String getLogView() throws OdpsException{
+  public String getLogView() throws OdpsException {
     if (logView == null && odps != null) {
       logView = new LogView(odps).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
     }
@@ -642,7 +646,7 @@ public class Session {
   }
 
   /**
-   * getInformation查询SubQuery结果
+   * getInformation查询SubQuery结果. 仅支持select query
    *
    * @param queryId
    *     sql 语句
@@ -655,6 +659,24 @@ public class Session {
     CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(resultString);
     result.setSchema(parseResult.getSchema());
     result.setRecords(parseResult.getRecords());
+    return result;
+  }
+
+  /**
+   * getInformation查询SubQuery的原始结果. 主要是用于non-select query，但是这类query是具备result的
+   *
+   * @param queryId
+   * @return
+   * @throws OdpsException
+   */
+  public SubQueryResult getRawSubQueryResult(int queryId) throws OdpsException {
+    String resultString = getSubQueryResultInternal(queryId);
+    SubQueryResult result = new SubQueryResult();
+    List<Record> records = CommandUtil.toRecord(resultString, "Info");
+    TableSchema schema = new TableSchema();
+    schema.setColumns(Arrays.asList(records.get(0).getColumns()));
+    result.setSchema(schema);
+    result.setRecords(records);
     return result;
   }
 
@@ -809,14 +831,29 @@ public class Session {
           startSessionMessage += response.result;
         }
         return;
-      } else if (response.status == OBJECT_STATUS_FAILED) {
+      } else if (response.status == OBJECT_STATUS_FAILED || response.status == OBJECT_STATUS_TERMINATED) {
         throw new OdpsException(
             String.format("Attach session[%s] failed: %s ", instance.getId(), response.result));
       }
     }
 
-    throw new OdpsException("Attach session timeout.");
+    instance.stop();
+    throw new OdpsException(String.format("Attach session[%s] timeout.", instance.getId()));
   }
+
+  /**
+   * 返回当前 attach session 可复用的 token
+   *
+   * @return token
+   */
+
+  public String getToken() throws OdpsException {
+    if (token == null && odps != null) {
+      token = new LogView(odps).generateInstanceToken(instance, tokenExpiredHours);
+    }
+    return token;
+  }
+
 
   /**
    * get sqlstats of subqyery
@@ -903,7 +940,7 @@ public class Session {
       }
       sleep();
     }
-    throw new OdpsException("Start session timeout.");
+    throw new OdpsException("Start session[%s] timeout.", instance.getId());
   }
 
   private SubQueryResponse getResponse(String result) throws OdpsException {

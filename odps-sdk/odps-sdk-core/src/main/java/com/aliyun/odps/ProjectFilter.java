@@ -22,6 +22,11 @@
  */
 package com.aliyun.odps;
 
+import com.aliyun.odps.utils.StringUtils;
+
+import java.util.Map;
+import java.util.TreeMap;
+
 /**
  * ProjectFilter用于查询所有项目时根据条件过滤表
  *
@@ -50,6 +55,18 @@ public class ProjectFilter {
   private String user = null;
 
   private String groupName = null;
+
+  private String tenantId = null;
+
+  private String regionId = null;
+
+  private String quotaNickname = null;
+
+  private String name = null;
+
+  private String quotaType = null;
+
+  private String quotaName = null;
   /**
    * 获得表所有者
    *
@@ -109,4 +126,119 @@ public class ProjectFilter {
   }
 
 
+  /**
+   * 获取租户 ID
+   * @return 租户 ID
+   */
+  public String getTenantId() {
+    return tenantId;
+  }
+
+  /**
+   * 设置租户 ID
+   * @param tenantId
+   */
+  public void setTenantId(String tenantId) {
+    this.tenantId = tenantId;
+  }
+
+  /**
+   * 获取 region id
+   * @return region id
+   */
+  public String getRegionId() {
+    return regionId;
+  }
+
+  /**
+   * 设置 region id
+   * @param regionId
+   */
+  public void setRegionId(String regionId) {
+    this.regionId = regionId;
+  }
+
+  public String getQuotaNickname() {
+    return quotaNickname;
+  }
+
+  public void setQuotaNickname(String quotaNickname) {
+    this.quotaNickname = quotaNickname;
+  }
+
+  /**
+   * 获得表前缀
+   *
+   * @return 表前缀
+   */
+  public String getName() {
+    return name;
+  }
+
+  /**
+   * 设置表前缀
+   *
+   * @param name
+   *     表前缀
+   */
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public String getQuotaType() {
+    return quotaType;
+  }
+
+  /**
+   * 设置quota类型
+   * @param quotaType
+   */
+  public void setQuotaType(String quotaType) {
+    this.quotaType = quotaType;
+  }
+
+  /**
+   * 设置quota 名称
+   * @return
+   */
+  public String getQuotaName() {
+    return quotaName;
+  }
+
+  public void setQuotaName(String quotaName) {
+    this.quotaName = quotaName;
+  }
+
+  /**
+   * Put this to @params as key-value. Replace value if key exists and value not empty.
+   */
+  public void addTo(Map<String, String> params) {
+    if (!StringUtils.isNullOrEmpty(owner)) {
+      params.put("owner", owner);
+    }
+    if (!StringUtils.isNullOrEmpty(user)) {
+      params.put("user", user);
+    }
+    if (!StringUtils.isNullOrEmpty(groupName)) {
+      params.put("group", groupName);
+    }
+    if (!StringUtils.isNullOrEmpty(tenantId)) {
+      params.put("tenant", tenantId);
+    }
+    if (!StringUtils.isNullOrEmpty(regionId)) {
+      params.put("region", regionId);
+    }
+    if (!StringUtils.isNullOrEmpty(quotaNickname)) {
+      params.put("quotanickname", quotaNickname);
+    }
+    if (!StringUtils.isNullOrEmpty(quotaType)) {
+      params.put("quota_type", quotaType);
+    }
+    if (!StringUtils.isNullOrEmpty(quotaName)) {
+      params.put("quota_name", quotaName);
+    }
+    if (!StringUtils.isNullOrEmpty(name)) {
+      params.put("name", name);
+    }
+  }
 }

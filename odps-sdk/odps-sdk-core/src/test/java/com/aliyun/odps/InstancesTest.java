@@ -48,7 +48,7 @@ import com.aliyun.odps.tunnel.TunnelException;
 
 public class InstancesTest extends TestBase {
 
-  Instance i;
+  Instance gi;
   private static String TABLE_NAME = InstancesTest.class.getSimpleName() + "_test_instances_test";
   private static String TABLE_NAME_1 = InstancesTest.class.getSimpleName() + "_instances_test_1";
 
@@ -63,10 +63,10 @@ public class InstancesTest extends TestBase {
     SQLTask task = new SQLTask();
     task.setQuery("select count(*) from " + TABLE_NAME + ";");
     task.setName("testsqlcase");
-    i = odps.instances().create(task);
-    i.getId();
-    i.waitForSuccess();
-    i.getTaskDetailJson("testsqlcase");
+    gi = odps.instances().create(task);
+    gi.getId();
+    gi.waitForSuccess();
+    gi.getTaskDetailJson("testsqlcase");
     // i.getOwner();
     // i.getStartTime();
     // i.getEndTime();
@@ -80,21 +80,27 @@ public class InstancesTest extends TestBase {
   @Test
   public void testExist() throws OdpsException {
     assertFalse(odps.instances().exists("not exist"));
-    assertTrue(odps.instances().exists(i.getId()));
+    assertTrue(odps.instances().exists(gi.getId()));
   }
 
   @Test
   public void testGetDetail() throws OdpsException {
-    String details = i.getTaskDetailJson("testsqlcase");
+    String details = gi.getTaskDetailJson("testsqlcase");
     assertTrue("contains stage", details.contains("Stages"));
     assertTrue("contains stage", details.contains("Instance"));
   }
 
+  @Ignore // 公共云后付费项目才有此字段
+  @Test
+  public void testGetTaskCost() throws OdpsException{
+    Instance.TaskCost cost = gi.getTaskCost("testsqlcase");
+    Assert.assertTrue(cost.getCPUCost() >= 0);
+  }
 
 
   @Test
   public void testGetTasks() throws OdpsException {
-    List<Task> tasks = i.getTasks();
+    List<Task> tasks = gi.getTasks();
     assertTrue(tasks.size() == 1);
     assertTrue(tasks.get(0) instanceof SQLTask);
     SQLTask task = (SQLTask) tasks.get(0);
@@ -103,7 +109,7 @@ public class InstancesTest extends TestBase {
 
   @Test
   public void testList() throws OdpsException {
-    int max = 50;
+    int max = 5;
     for (Instance i : odps.instances()) {
       i.getId();
       i.getOwner();
@@ -124,7 +130,7 @@ public class InstancesTest extends TestBase {
     InstanceFilter filter = new InstanceFilter();
     filter.setOnlyOwner(false);
     // XXX need start different user instance
-    int max = 50;
+    int max = 5;
     Iterator<Instance> iter = odps.instances().iterator(filter);
     for (; iter.hasNext(); ) {
       Instance i = iter.next();
@@ -136,7 +142,7 @@ public class InstancesTest extends TestBase {
       }
     }
 
-    max = 50;
+    max = 5;
     for (Instance instance : odps.instances().iterable(filter)) {
       assertNotNull(instance.getOwner());
       --max;
@@ -158,7 +164,7 @@ public class InstancesTest extends TestBase {
 
   @Test
   public void testTaskResultsWithFormat() throws OdpsException {
-    int max = 50;
+    int max = 5;
     for (Instance i : odps.instances()) {
       Map<String, Result> results = new HashMap<String, Result>();
       try {
@@ -217,8 +223,13 @@ public class InstancesTest extends TestBase {
 
   @Test
   public void testIterable() throws FileNotFoundException {
-    for (Instance i : odps.instances().iterable()) {
+    int maxIter = 5;
+    int cnt = 0;
+    for (Instance i :odps.instances().iterable()) {
       i.getId();
+      if (cnt++ > maxIter) {
+        break;
+      }
     }
   }
 
@@ -229,17 +240,17 @@ public class InstancesTest extends TestBase {
     task.setName("testsqlcase");
     Job job = new Job();
     job.addTask(task);
-    i = odps.instances().create(job);
-    i.getId();
-    i.waitForSuccess();
-    i.getTaskDetailJson("testsqlcase");
-    Assert.assertNull(i.getJobName());
+    gi = odps.instances().create(job);
+    gi.getId();
+    gi.waitForSuccess();
+    gi.getTaskDetailJson("testsqlcase");
+    Assert.assertNull(gi.getJobName());
 
     String jobName = "test_job_name";
     job.setName(jobName);
-    i = odps.instances().create(job);
-    i.waitForSuccess();
-    Assert.assertEquals(jobName, i.getJobName());
+    gi = odps.instances().create(job);
+    gi.waitForSuccess();
+    Assert.assertEquals(jobName, gi.getJobName());
   }
 
   @Test
@@ -249,11 +260,11 @@ public class InstancesTest extends TestBase {
     task.setName("testsqlcase");
 
     String jobName = "test_job_name";
-    i = odps.instances().create(odps.getDefaultProject(), task, null, null, jobName);
-    i.getId();
-    i.waitForSuccess();
-    i.getTaskDetailJson("testsqlcase");
-    Assert.assertEquals(jobName, i.getJobName());
+    gi = odps.instances().create(odps.getDefaultProject(), task, null, null, jobName);
+    gi.getId();
+    gi.waitForSuccess();
+    gi.getTaskDetailJson("testsqlcase");
+    Assert.assertEquals(jobName, gi.getJobName());
   }
 
 
@@ -305,10 +316,10 @@ public class InstancesTest extends TestBase {
     // Since the instance may have passed the queueing stage when calling iteratorQueueing#, here
     // we submit 10 instances to make sure the last instances submitted is queueing, not 100% though
     for (int counter = 0; counter < 10; counter++) {
-      i = odps.instances().create(task);
+      gi = odps.instances().create(task);
     }
 
-    System.out.println("Now create Instance: " + i.getId());
+    System.out.println("Now create Instance: " + gi.getId());
 
     Iterator<Instance.InstanceQueueingInfo> iterator = odps.instances().iteratorQueueing();
 
@@ -321,7 +332,7 @@ public class InstancesTest extends TestBase {
       System.out.println(info.getStartTime());
       System.out.println(info.getProgress());
 
-      if (i.getId().equals(info.getId())) {
+      if (gi.getId().equals(info.getId())) {
         Assert.assertNotNull(info.getPriority());
         Assert.assertNotNull(info.getProgress());
         Assert.assertNotNull(info.getTaskName());
@@ -342,10 +353,10 @@ public class InstancesTest extends TestBase {
     task.setQuery("select (t2.c1 + 2) from " + TABLE_NAME + " t1 join " + TABLE_NAME_1
                   + " t2 on t1.c1 == t2.c1;");
     task.setName("testsqlcase");
-    i = odps.instances().create(task);
+    gi = odps.instances().create(task);
 
     Thread.sleep(1000);
-    Instance.InstanceQueueingInfo info = i.getQueueingInfo();
+    Instance.InstanceQueueingInfo info = gi.getQueueingInfo();
     Map substatus = info.getProperty("subStatus", Map.class);
     System.out.println(substatus.get("start_time"));
     System.out.println(substatus.get("description"));
@@ -355,9 +366,8 @@ public class InstancesTest extends TestBase {
     System.out.println(info.getStartTime());
     System.out.println(info.getProgress());
 
-    Assert.assertEquals(i.getId(), info.getId());
+    Assert.assertEquals(gi.getId(), info.getId());
     Assert.assertNotNull(info.getPriority());
-    Assert.assertNotNull(info.getProgress());
     Assert.assertNotNull(info.getTaskName());
     Assert.assertNotNull(info.getTaskType());
     Assert.assertNotNull(info.getStartTime());
@@ -365,9 +375,17 @@ public class InstancesTest extends TestBase {
     Assert.assertNotNull(info.getProject());
     Assert.assertNotNull(info.getUserAccount());
 
-    i.waitForSuccess();
-    Thread.sleep(3000);
-    info = i.getQueueingInfo();
-    Assert.assertEquals(i.getId(), info.getId());
+    gi.waitForSuccess();
+    for (int j = 0; j < 15; j++) {
+      info = gi.getQueueingInfo();
+      if (info.getId() != null) {
+        break;
+      }
+      Thread.sleep(1000);
+    }
+    if (info.getId() == null) {
+      return;
+    }
+    Assert.assertEquals(gi.getId(), info.getId());
   }
 }

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.InflaterInputStream;
 
+import com.aliyun.odps.data.*;
 import org.xerial.snappy.SnappyFramedInputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
 
@@ -44,22 +45,16 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.data.ArrayRecord;
-import com.aliyun.odps.data.Binary;
-import com.aliyun.odps.data.Char;
-import com.aliyun.odps.data.IntervalDayTime;
-import com.aliyun.odps.data.IntervalYearMonth;
-import com.aliyun.odps.data.Record;
-import com.aliyun.odps.data.RecordReader;
-import com.aliyun.odps.data.SimpleStruct;
-import com.aliyun.odps.data.Struct;
-import com.aliyun.odps.data.Varchar;
+import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 
@@ -71,6 +66,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
   private BufferedInputStream bin;
   private CodedInputStream in;
   private Column[] columns;
+  private TableSchema schema;
   private long count;
   private long bytesReaded = 0;
   private Checksum crc = new Checksum();
@@ -89,6 +85,45 @@ public class ProtobufRecordStreamReader implements RecordReader {
   public ProtobufRecordStreamReader(TableSchema schema, InputStream in, CompressOption option)
       throws IOException {
     this(schema, null, in, option);
+  }
+
+  public ProtobufRecordStreamReader(List<Column> columns, InputStream in,
+                                    CompressOption option) throws IOException {
+    bin = new BufferedInputStream(in);
+
+    if (option != null) {
+      if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZLIB)) {
+        this.in = CodedInputStream.newInstance(new InflaterInputStream(bin));
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
+        this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
+        this.in = CodedInputStream.newInstance(new LZ4FrameInputStream(bin));
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
+        this.in = CodedInputStream.newInstance((bin));
+      } else {
+        throw new IOException("invalid compression option.");
+      }
+    } else {
+      this.in = CodedInputStream.newInstance(bin);
+    }
+    this.in.setSizeLimit(Integer.MAX_VALUE);
+
+    String schemaStr = readSchema();
+    if (StringUtils.isNullOrEmpty(schemaStr)) {
+      throw new IOException("Invalid response schema in header:" + schemaStr);
+    }
+    JsonObject tree = new JsonParser().parse(schemaStr).getAsJsonObject();
+    this.schema = new TunnelTableSchema(tree);
+
+    if (columns == null) {
+      this.columns = schema.getColumns().toArray(new Column[0]);
+    } else {
+      Column[] tmpColumns = new Column[columns.size()];
+      for (int i = 0; i < columns.size(); ++i) {
+        tmpColumns[i] = schema.getColumn(columns.get(i).getName());
+      }
+      this.columns = tmpColumns;
+    }
   }
 
   public ProtobufRecordStreamReader(TableSchema schema, List<Column> columns, InputStream in,
@@ -197,6 +232,45 @@ public class ProtobufRecordStreamReader implements RecordReader {
     return reuseRecord;
   }
 
+  /**
+   * MCQA direct download专用接口
+   * 从 stream 开头读取 schema 对象
+   *
+   * @return
+   * @throws IOException
+   */
+  public String readSchema() throws IOException {
+    String schemaJson = "";
+    while (true) {
+      int checkSum = 0;
+      if (in.isAtEnd()) {
+        throw new IOException("Read schema failed, empty stream.");
+      }
+
+      int i = getTagFieldNumber(in);
+      if (i == ProtoWireConstant.SCHEMA_END_TAG) {
+        checkSum = (int) crc.getValue();
+        if (in.readUInt32() != checkSum) {
+          throw new IOException("Checksum invalid.");
+        }
+        crc.reset();
+        bytesReaded += in.getTotalBytesRead();
+        in.resetSizeCounter();
+        return schemaJson;
+      }
+
+      // tag:1  schema
+      if (i > 1) {
+        throw new IOException(
+            "Invalid protobuf tag. Perhaps the datastream from server is crushed.");
+      }
+
+      crc.update(i);
+
+      schemaJson = readString();
+    }
+  }
+
   private Object readField(TypeInfo type) throws IOException {
     switch (type.getOdpsType()) {
       case DOUBLE: {
@@ -238,6 +312,9 @@ public class ProtobufRecordStreamReader implements RecordReader {
         long v = in.readSInt64();
         crc.update(v);
         return (byte) v;
+      }
+      case JSON: {
+        return new SimpleJsonValue(readString());
       }
       case STRING: {
         return readBytes();
@@ -332,6 +409,10 @@ public class ProtobufRecordStreamReader implements RecordReader {
     if (bin != null) {
       bin.close();
     }
+  }
+
+  public TableSchema getTableSchema() {
+    return schema;
   }
 
   public long getTotalBytes() {

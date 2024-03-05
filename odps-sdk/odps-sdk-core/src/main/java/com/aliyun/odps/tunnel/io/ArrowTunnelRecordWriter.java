@@ -24,6 +24,7 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.ArrowRecordWriter;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
+import net.jpountz.lz4.LZ4FrameOutputStream;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.ipc.WriteChannel;
@@ -45,12 +46,14 @@ public class ArrowTunnelRecordWriter implements ArrowRecordWriter {
     private Connection connection;
     private boolean isClosed;
     private CompressOption compress;
+    private long bytesWritten;
 
     public ArrowTunnelRecordWriter(TableTunnel.UploadSession tableSession, Connection connection, CompressOption option) {
         this.tableSession = tableSession;
         this.connection = connection;
         this.isClosed = false;
         this.compress = option;
+        this.bytesWritten = 0L;
     }
 
     @Override
@@ -68,6 +71,8 @@ public class ArrowTunnelRecordWriter implements ArrowRecordWriter {
                     wr = new DeflaterOutputStream(wr, def);
                 } else if (compress.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
                     wr = new SnappyFramedOutputStream(wr);
+                } else if (compress.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ARROW_LZ4_FRAME)) {
+                    wr = new LZ4FrameOutputStream(wr);
                 } else {
                     throw new IOException("invalid compression option.");
                 }
@@ -81,6 +86,7 @@ public class ArrowTunnelRecordWriter implements ArrowRecordWriter {
         VectorUnloader loader = new VectorUnloader(root);
         try (ArrowRecordBatch recordBatch = loader.getRecordBatch()) {
             MessageSerializer.serialize(writeChannel, recordBatch);
+            bytesWritten += writeChannel.getCurrentPosition();
         } catch (IOException e) {
             Response response = connection.getResponse();
             if (response != null && !response.isOK()) {
@@ -91,6 +97,11 @@ public class ArrowTunnelRecordWriter implements ArrowRecordWriter {
                 throw new IOException("ArrowHttpOutputStream Serialize Exception", e);
             }
         }
+    }
+
+    @Override
+    public long bytesWritten() {
+        return bytesWritten;
     }
 
     @Override

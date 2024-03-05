@@ -93,6 +93,7 @@ public class PartitionTest extends TestBase {
     partition.getCreatedTime();
     partition.getLastMetaModifiedTime();
     partition.getLastDataModifiedTime();
+    partition.getLastDataAccessTime();
   }
 
   @Test

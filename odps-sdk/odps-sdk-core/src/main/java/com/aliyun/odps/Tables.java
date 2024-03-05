@@ -93,7 +93,6 @@ public class Tables implements Iterable<Table> {
     private List<QueryTable> tables = new ArrayList<QueryTable>();
   }
 
-
   private RestClient client;
   private Odps odps;
 
@@ -179,6 +178,9 @@ public class Tables implements Iterable<Table> {
       String projectName,
       String schemaName,
       String tableName) throws OdpsException {
+    if (StringUtils.isNullOrEmpty(tableName)) {
+      return false;
+    }
     try {
       Table t = get(projectName, schemaName, tableName);
       t.reload();
@@ -187,7 +189,6 @@ public class Tables implements Iterable<Table> {
       return false;
     }
   }
-
 
   /**
    * 获取默认{@link Project}的所有表信息迭代器
@@ -370,6 +371,22 @@ public class Tables implements Iterable<Table> {
     }
 
     @Override
+    public List<Table> list(String marker, long maxItems) {
+      if (marker != null) {
+        params.put("marker", marker);
+      }
+      if (maxItems >= 0) {
+        params.put("maxitems", String.valueOf(maxItems));
+      }
+      return list();
+    }
+
+    @Override
+    public String getMarker() {
+      return params.get("marker");
+    }
+
+    @Override
     protected List<Table> list() {
       ArrayList<Table> tables = new ArrayList<Table>();
       params.put("expectmarker", "true"); // since sprint-11
@@ -386,6 +403,10 @@ public class Tables implements Iterable<Table> {
 
         if (filter.getOwner() != null) {
           params.put("owner", filter.getOwner());
+        }
+
+        if (filter.getType() != null) {
+          params.put("type", filter.getType().toString());
         }
       }
 

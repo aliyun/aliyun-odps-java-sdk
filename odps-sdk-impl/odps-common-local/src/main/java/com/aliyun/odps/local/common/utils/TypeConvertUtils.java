@@ -22,6 +22,7 @@ import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 public class TypeConvertUtils {
@@ -219,6 +220,9 @@ public class TypeConvertUtils {
           throw new RuntimeException(" to readable string failed!", e);
         }
       case DATETIME:
+        if (value instanceof ZonedDateTime) {
+          value = Date.from(((ZonedDateTime)value).toInstant());
+        }
         return DATE_FORMAT.format((Date) value);
       case INTERVAL_DAY_TIME:
         return transIntervalDayTimeToJavaMap((IntervalDayTime)value);

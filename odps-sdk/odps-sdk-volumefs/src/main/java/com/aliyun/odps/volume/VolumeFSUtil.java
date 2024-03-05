@@ -15,14 +15,21 @@
 package com.aliyun.odps.volume;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.StringUtils;
 
+import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.ReloadException;
 import com.aliyun.odps.VolumeException;
 import com.aliyun.odps.VolumeFSFile;
+import com.aliyun.odps.Volumes;
 import com.aliyun.odps.fs.VolumeFileSystemConfigKeys;
 import com.aliyun.odps.tunnel.VolumeFSErrorCode;
 import com.aliyun.odps.volume.protocol.VolumeFSConstants;
@@ -94,6 +101,15 @@ public class VolumeFSUtil {
     return getVolumeFromPath(path);
   }
 
+
+  public static String getExternalLocation(VolumeFSFile file) {
+    if (file.getProperties() != null) {
+      return
+          file.getProperties().getOrDefault(Volumes.EXTERNAL_VOLUME_LOCATION_KEY, null);
+    }
+    return null;
+  }
+
   /**
    * Transfer {@link VolumeFSFile} to {@link FileStatus}
    * 
@@ -103,16 +119,35 @@ public class VolumeFSUtil {
     if (file == null) {
       return null;
     }
+
+    String symlinkPath;
+    try {
+      symlinkPath = org.apache.commons.lang.StringUtils.isBlank(file.getSymlink()) ? getExternalLocation(file) : file.getSymlink();
+    } catch (ReloadException e) {
+      OdpsException exception = (OdpsException) e.getCause();
+      System.err.println(file.getPath() + ": ls error: RequestId=" + exception.getRequestId() + ", ErrorCode="
+                         + exception.getErrorCode() + ", ErrorMessage=" + exception.getMessage());
+      return null;
+    }
+
     Path symlink =
-        org.apache.commons.lang.StringUtils.isBlank(file.getSymlink()) ? null : new Path(
-            file.getSymlink());
+        (symlinkPath == null) ? null : new Path(symlinkPath);
+
+
     FileStatus fileStatus =
-        new FileStatus(file.getLength(), file.getIsdir(), file.getBlockReplications(),
-            file.getBlockSize(), file.getModificationTime().getTime(), file.getAccessTime()
-                .getTime(), new FsPermission(Short.valueOf(file.getPermission(), 8)),
-            file.getOwner(), file.getGroup(), symlink, new Path(
-                VolumeFileSystemConfigKeys.VOLUME_URI_SCHEME + "://" + file.getProject(),
-                file.getPath()));
+        new FileStatus(file.getLength(), file.getIsdir(),
+                       Objects.isNull(file.getBlockReplications()) ? 1
+                                                                   : file.getBlockReplications(),
+                       Objects.isNull(file.getBlockSize())
+                       ? VolumeFSConstants.DEFAULT_VOLUME_BLOCK_SIZE : file.getBlockSize(),
+                       Objects.isNull(file.getModificationTime()) ? 0 : file.getModificationTime().getTime(),
+                       Objects.isNull(file.getAccessTime()) ? 0 : file.getAccessTime().getTime(),
+                       com.aliyun.odps.utils.StringUtils.isNullOrEmpty(file.getPermission()) ? null
+                                                                                             :
+                       new FsPermission(Short.valueOf(file.getPermission(), 8)),
+                       file.getOwner(), file.getGroup(), symlink, new Path(
+            VolumeFileSystemConfigKeys.VOLUME_URI_SCHEME + "://" + file.getProject(),
+            file.getPath()));
     return fileStatus;
   }
 
@@ -159,11 +194,15 @@ public class VolumeFSUtil {
   public static FileStatus[] transferFiles(VolumeFSFile[] files) {
     if (files == null)
       return null;
-    FileStatus[] fileStatusArray = new FileStatus[files.length];
-    for (int i = 0; i < files.length; i++) {
-      fileStatusArray[i] = transferFile(files[i]);
+    List<FileStatus> fileStatusList = new ArrayList<>();
+    for (VolumeFSFile file : files) {
+      FileStatus fileStatus = transferFile(file);
+      if (fileStatus != null) {
+        fileStatusList.add(fileStatus);
+      }
     }
-    return fileStatusArray;
+
+    return fileStatusList.toArray(new FileStatus[0]);
   }
 
   /**

@@ -21,6 +21,7 @@ package com.aliyun.odps;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -46,6 +48,7 @@ import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * ODPS项目空间
@@ -114,6 +117,10 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String owner;
 
+    @Element(name = "SuperAdministrator", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String superAdministrator;
+
     @Element(name = "CreationTime", required = false)
     @Convert(SimpleXmlUtils.DateConverter.class)
     Date creationTime;
@@ -138,6 +145,10 @@ public class Project extends LazyLoad {
     @Convert(PropertyConverter.class)
     LinkedHashMap<String, String> properties;
 
+    @Element(name = "Property", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String propertyJsonString;
+
     @Element(name = "ExtendedProperties", required = false)
     @Convert(PropertyConverter.class)
     LinkedHashMap<String, String> extendedProperties;
@@ -152,9 +163,23 @@ public class Project extends LazyLoad {
 
     @Element(name = "Clusters", required = false)
     Clusters clusters;
+
+    @Element(name = "Region", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String regionId;
+
+    @Element(name = "TenantId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String tenantId;
+    /**
+     * 分层存储信息
+     */
+    StorageTierInfo storageTierInfo;
+
   }
 
   public static class ExternalProjectProperties {
+
     private JsonObject rootObj;
     private JsonObject networkObj;
 
@@ -173,11 +198,13 @@ public class Project extends LazyLoad {
       rootObj.addProperty(name, value);
     }
 
-    public void addProperty(String name, JsonObject object) { rootObj.add(name, object);}
+    public void addProperty(String name, JsonObject object) {
+      rootObj.add(name, object);
+    }
 
     public String toJson() {
       Gson gson = new Gson();
-      return  gson.toJson(rootObj);
+      return gson.toJson(rootObj);
     }
   }
 
@@ -186,6 +213,7 @@ public class Project extends LazyLoad {
 
     @Root(name = "OptionalQuota", strict = false)
     public static class OptionalQuota {
+
       // Required by SimpleXML
       OptionalQuota() {
       }
@@ -232,6 +260,14 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String quotaID;
 
+    @Element(name = "RegionId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String regionId;
+
+    @Element(name = "IsDefaultInRegion", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultInRegion;
+
     @ElementList(name = "Quotas", entry = "Quota", required = false)
     List<OptionalQuota> optionalQuotas;
 
@@ -241,6 +277,14 @@ public class Project extends LazyLoad {
 
     public String getQuotaID() {
       return quotaID;
+    }
+
+    public String getRegionId() {
+      return regionId;
+    }
+
+    public boolean isDefaultInRegion() {
+      return Boolean.parseBoolean(defaultInRegion);
     }
 
     public List<OptionalQuota> getOptionalQuotas() {
@@ -254,12 +298,14 @@ public class Project extends LazyLoad {
 
   @Root(name = "Clusters", strict = false)
   static class Clusters {
+
     @ElementList(entry = "Cluster", inline = true, required = false)
     List<Cluster> entries = new ArrayList<Cluster>();
   }
 
   @Root(name = "Property", strict = false)
   static class Property {
+
     Property() {
     }
 
@@ -279,11 +325,13 @@ public class Project extends LazyLoad {
 
   @Root(name = "Properties", strict = false)
   static class Properties {
+
     @ElementList(entry = "Property", inline = true, required = false)
     List<Property> entries = new ArrayList<Property>();
   }
 
   static class PropertyConverter implements Converter<LinkedHashMap<String, String>> {
+
     @Override
     public void write(OutputNode outputNode, LinkedHashMap<String, String> properties)
         throws Exception {
@@ -420,6 +468,19 @@ public class Project extends LazyLoad {
   }
 
   /**
+   * 获取 project 所属 region
+   *
+   * @return region id
+   */
+  public String getRegionId() {
+    if (model.regionId == null) {
+      lazyLoad();
+    }
+
+    return model.regionId;
+  }
+
+  /**
    * 获取Project创建时间
    *
    * @return Project创建时间
@@ -515,8 +576,7 @@ public class Project extends LazyLoad {
   /**
    * 查询Project指定配置信息
    *
-   * @param key
-   *     配置项
+   * @param key 配置项
    * @return 配置项对应的值
    */
   public String getProperty(String key) {
@@ -552,11 +612,39 @@ public class Project extends LazyLoad {
    * @return 以 key, value 保存的配置信息
    */
   public Map<String, String> getExtendedProperties() throws OdpsException {
-    Map<String, String> param = new LinkedHashMap<String, String>();
+    if (model.extendedProperties == null) {
+      reloadExtendInfo();
+      return this.model.extendedProperties;
+    }
+    return model.extendedProperties;
+  }
+
+  /**
+   * 获取分层存储相关信息
+   * @return 分层存储信息的对象
+   * @throws OdpsException
+   */
+
+  public StorageTierInfo getStorageTierInfo() throws OdpsException {
+    if (model.extendedProperties == null) {
+      reloadExtendInfo();
+    }
+    model.storageTierInfo = StorageTierInfo.getStorageTierInfo(model.extendedProperties);
+    return model.storageTierInfo;
+  }
+
+  /**
+   * 更新项目的 extend 信息
+   */
+  public void reloadExtendInfo() throws OdpsException {
+    Map<String, String> param = new HashMap<>();
     param.put("extended", null);
     String resource = ResourceBuilder.buildProjectResource(model.name);
     ProjectModel extendedModel = client.request(ProjectModel.class, resource, "GET", param);
-    return extendedModel.extendedProperties;
+
+    this.model.extendedProperties =
+        (extendedModel == null) ? new LinkedHashMap<String, String>()
+                                : extendedModel.extendedProperties;
   }
 
   /**
@@ -572,6 +660,10 @@ public class Project extends LazyLoad {
   }
 
   public String getTunnelEndpoint() throws OdpsException {
+    return getTunnelEndpoint(null);
+  }
+
+  public String getTunnelEndpoint(String quotaName) throws OdpsException {
     String protocol;
     try {
       URI u = new URI(client.getEndpoint());
@@ -583,6 +675,9 @@ public class Project extends LazyLoad {
     String resource = ResourceBuilder.buildProjectResource(model.name).concat("/tunnel");
     HashMap<String, String> params = new HashMap<String, String>();
     params.put("service", null);
+    if (quotaName != null && quotaName.length() != 0) {
+      params.put("quotaName", quotaName);
+    }
     Response resp = client.request(resource, "GET", params, null, null);
 
     String tunnel;
@@ -593,6 +688,73 @@ public class Project extends LazyLoad {
     }
 
     return protocol + "://" + tunnel;
+  }
+
+  public String getTenantId() {
+    lazyLoad();
+    return model.tenantId;
+  }
+
+  private String getAutoMvMeta() throws Exception {
+    String resource = ResourceBuilder.buildProjectResource(model.name).concat("/automvmeta");
+    HashMap<String, String> paras = new HashMap<>();
+    Response response = client.request(resource, "GET", paras, null, null);
+
+    String autoMvMeta;
+    if (response.isOK()) {
+      autoMvMeta = new String(response.getBody());
+    } else {
+      throw new OdpsException("Can't get autoMvMeta: " + response.getStatus());
+    }
+
+    return SimpleXmlUtils.unmarshal(autoMvMeta.getBytes(StandardCharsets.UTF_8), String.class);
+  }
+
+  public boolean triggerAutoMvCreation() throws OdpsException {
+    String resource = ResourceBuilder.buildProjectResource(model.name).concat("/automvcreation");
+    HashMap<String, String> paras = new HashMap<>();
+    Response response = client.request(resource, "POST", paras, null, null);
+
+    if (response.isOK()) {
+      return true;
+    } else {
+      throw new OdpsException("Can't trigger autoMv: " + response.getStatus());
+    }
+  }
+
+  public Map<String, String> showAutoMvMeta() {
+    Map<String, String> autoMvMeta = new HashMap<>();
+
+    try {
+      JsonObject tree = new JsonParser().parse(getAutoMvMeta()).getAsJsonObject();
+
+      if (tree.has("fileSize")) {
+        autoMvMeta.put("fileSize", tree.get("fileSize").getAsString());
+      }
+
+      if (tree.has("tableNum")) {
+        autoMvMeta.put("tableNum", tree.get("tableNum").getAsString());
+      }
+
+      if (tree.has("updateTime")) {
+        autoMvMeta.put("updateTime", tree.get("updateTime").getAsString());
+      }
+
+      if (tree.has("lastAutoMvCreationStartTime")) {
+        autoMvMeta.put("lastAutoMvCreationStartTime",
+                       tree.get("lastAutoMvCreationStartTime").getAsString());
+      }
+
+      if (tree.has("lastAutoMvCreationFinishTime")) {
+        autoMvMeta.put("lastAutoMvCreationFinishTime",
+                       tree.get("lastAutoMvCreationFinishTime").getAsString());
+      }
+
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+
+    return autoMvMeta;
   }
 
 }

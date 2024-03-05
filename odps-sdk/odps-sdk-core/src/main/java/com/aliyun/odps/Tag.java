@@ -121,7 +121,7 @@ public class Tag extends LazyLoad {
     }
   }
 
-  static class TagModel {
+  public static class TagModel {
     String project;
     String classification;
     String name;
@@ -137,7 +137,7 @@ public class Tag extends LazyLoad {
   Odps odps;
   RestClient client;
 
-  Tag(TagBuilder builder) {
+  public Tag(TagBuilder builder) {
     TagModel model = new TagModel();
     model.project = builder.classification.getProject();
     model.classification = builder.classification.getName();

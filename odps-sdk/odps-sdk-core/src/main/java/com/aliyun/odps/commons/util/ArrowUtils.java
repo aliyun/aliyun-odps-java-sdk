@@ -104,6 +104,7 @@ public class ArrowUtils {
     private static ArrowType getArrowType(TypeInfo typeInfo) {
         ArrowType arrowType = null;
         switch (typeInfo.getOdpsType()) {
+            case JSON:
             case CHAR:
             case VARCHAR:
             case STRING:

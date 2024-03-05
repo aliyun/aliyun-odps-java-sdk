@@ -182,6 +182,40 @@ public class OdpsTestUtils {
 
   /**
    * 根据test.properties的设置创建一个新的Odps对象
+   *
+   * @return
+   */
+  public static Odps newStorageTierOdps() {
+    Odps odps = newDefaultOdps();
+    odps.setDefaultProject(props.getProperty("storagetier.project"));
+    return odps;
+  }
+
+  public static Odps newSchemaOdps() {
+    Odps odps;
+
+    String accessId = props.getProperty("default.access.id");
+    String accessKey = props.getProperty("default.access.key");
+    String endpoint = props.getProperty("default.endpoint");
+    String project = props.getProperty("default.schema.project");
+    String appAccessId = props.getProperty("default.app.access.id");
+    String appAccessKey = props.getProperty("default.app.access.key");
+    Account account = new AliyunAccount(accessId, accessKey);
+    if (appAccessId != null && appAccessKey != null) {
+      AppAccount appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+      odps = new Odps(account, appAccount);
+    } else {
+      odps = new Odps(account);
+    }
+    odps.setDefaultProject(project);
+    odps.setEndpoint(endpoint);
+    odps.getRestClient().setRetryTimes(0);
+
+    return odps;
+  }
+
+  /**
+   * 根据test.properties的设置创建一个新的Odps对象
    * 运营商账号
    *
    * @return

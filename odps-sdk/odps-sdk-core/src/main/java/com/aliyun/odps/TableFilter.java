@@ -51,6 +51,8 @@ public class TableFilter {
 
   private String owner;
 
+  private Table.TableType type;
+
   /**
    * 设置表名前缀
    *
@@ -87,5 +89,24 @@ public class TableFilter {
    */
   public void setOwner(String owner) {
     this.owner = owner;
+  }
+
+  /**
+   * 获取表的类型
+   *
+   * @return 表类型
+   */
+  public Table.TableType getType() {
+    return type;
+  }
+
+  /**
+   * 设置表的类型
+   *
+   * @param type
+   *    表类型
+   */
+  public void setType(Table.TableType type) {
+    this.type = type;
   }
 }

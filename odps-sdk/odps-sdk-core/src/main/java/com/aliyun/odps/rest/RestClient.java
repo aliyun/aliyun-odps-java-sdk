@@ -24,10 +24,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.ConnectException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -119,6 +121,11 @@ public class RestClient {
    * 是否忽略HTTPS证书验证
    */
   public static final boolean DEFAULT_IGNORE_CERTS = false;
+
+  /**
+   * 上传数据时HTTP使用的块大小(单位字节)
+   */
+  public static final int DEFAULT_CHUNK_SIZE = 1500 - 4;
 
   private final Transport transport;
 
@@ -450,6 +457,15 @@ public class RestClient {
       throw new RuntimeException(e.getMessage(), e);
     } catch (UnknownHostException e) {
       throw new RuntimeException(e.getMessage(), e);
+    } catch (SocketTimeoutException | ConnectException e) {
+      throw new OdpsException(e.getMessage()
+                              + ", the possible reason is that the endpoint `" + endpoint
+                              + "` is wrong, please check your endpoint",
+                              e);
+    } catch (SocketException e) {
+      throw new OdpsException(e.getMessage()
+                              + ", the possible reason is that read/write after socket closed, please check your socket",
+                              e);
     } catch (IOException e) {
       throw new OdpsException(e.getMessage(), e);
     }
@@ -623,9 +639,16 @@ public class RestClient {
       req.setURI(new URI(url.toString()));
       req.setMethod(Method.valueOf(method));
 
-      if (headers != null) {
-        req.setHeaders(headers);
+      Map<String, String> reqHeaders =  req.getHeaders();
+
+      if (!userDefinedHeaders.isEmpty()) {
+        reqHeaders.putAll(userDefinedHeaders);
       }
+      if (headers != null) {
+        reqHeaders.putAll(headers);
+      }
+
+      req.setHeaders(reqHeaders);
 
       // set User-Agent
       if (req.getHeaders().get(Headers.USER_AGENT) == null && userAgent != null) {
@@ -750,6 +773,16 @@ public class RestClient {
     this.ignoreCerts = ignoreCerts;
   }
 
+  int chunkSize = DEFAULT_CHUNK_SIZE;
+
+  public void setChunkSize(int chunkSize) {
+    this.chunkSize = chunkSize;
+  }
+
+  public int getChunkSize() {
+    return chunkSize;
+  }
+
   public void enableDeprecatedLogger() {
     this.deprecatedLoggerEnabled = true;
   }
@@ -757,5 +790,16 @@ public class RestClient {
   public void disableDeprecatedLogger() {
     this.deprecatedLoggerEnabled = false;
   }
+
+
+  public Map<String, String> getUserDefinedHeaders() {
+    return userDefinedHeaders;
+  }
+
+  public void addUserDefinedHeader(String key, String value) {
+    this.userDefinedHeaders.put(key, value);
+  }
+
+  private Map<String, String> userDefinedHeaders = new HashMap<>();
 
 }

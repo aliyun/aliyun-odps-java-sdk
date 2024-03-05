@@ -39,6 +39,10 @@ public class Role extends LazyLoad {
     @Element(name = "Comment", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String comment;
+
+    @Element(name = "Type", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String type;
   }
 
   private RoleModel model;
@@ -62,6 +66,12 @@ public class Role extends LazyLoad {
 
   public String getName() {
     return model.name;
+  }
+
+  public String getType() {
+    lazyLoad();
+
+    return model.type;
   }
 
   public String getComment() {

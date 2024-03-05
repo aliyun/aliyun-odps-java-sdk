@@ -49,8 +49,7 @@ import com.aliyun.odps.simpleframework.xml.convert.Converter;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.task.SQLTask;
-import com.aliyun.odps.type.TypeInfo;
-import com.aliyun.odps.type.TypeInfoParser;
+import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.utils.TagUtils;
@@ -73,7 +72,7 @@ import com.google.gson.reflect.TypeToken;
  */
 public class Table extends LazyLoad {
 
-  enum TableType {
+  public enum TableType {
     /**
      * Regular table managed by ODPS
      */
@@ -175,6 +174,10 @@ public class Table extends LazyLoad {
     @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
 
+    @Element(name = "LastAccessTime", required = false)
+    @Convert(SimpleXmlUtils.DateConverter.class)
+    Date lastAccessTime;
+
     @Element(name = "Type", required = false)
     @Convert(TableTypeConverter.class)
     TableType type;
@@ -187,6 +190,7 @@ public class Table extends LazyLoad {
     long life = -1L;
     long hubLifecycle = -1L;
     String viewText;
+    String viewExpandedText;
     long size;
     long recordNum = -1L;
 
@@ -209,10 +213,20 @@ public class Table extends LazyLoad {
     ClusterInfo clusterInfo;
     // for table extended labels
     List<String> tableExtendedLabels;
+
+    Map<String, String> mvProperties;
+
+    List<Map<String, String>> refreshHistory;
+
+    boolean hasRowAccessPolicy;
+    List<String> primaryKey;
+    int acidDataRetainHours;
+    StorageTierInfo storageTierInfo;
   }
 
 
   public static class ClusterInfo {
+
     long bucketNum = -1;
 
     String clusterType;
@@ -237,8 +251,9 @@ public class Table extends LazyLoad {
   }
 
   public static class SortColumn {
+
     private String name;
-    private  String order;
+    private String order;
 
     SortColumn(String name, String order) {
       this.name = name;
@@ -304,20 +319,23 @@ public class Table extends LazyLoad {
     }
   }
 
+  public void reloadExtendInfo() {
+    TableModel response;
+    try {
+      Map<String, String> params = initParamsWithSchema();
+      params.put("extended", null);
+
+      String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+      response = client.request(TableModel.class, resource, "GET", params);
+    } catch (OdpsException e) {
+      throw new ReloadException(e.getMessage(), e);
+    }
+    loadSchemaFromJson(response.schema.content);
+  }
+
   private void lazyLoadExtendInfo() {
     if (!this.isExtendInfoLoaded) {
-      TableModel response;
-      try {
-        Map<String, String> params = initParamsWithSchema();
-        params.put("extended", null);
-
-        String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
-        response = client.request(TableModel.class, resource, "GET", params);
-      } catch (OdpsException e) {
-        throw new ReloadException(e.getMessage(), e);
-      }
-
-      loadSchemaFromJson(response.schema.content);
+      reloadExtendInfo();
       this.isExtendInfoLoaded = true;
     }
   }
@@ -356,6 +374,16 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * @return 表类型
+   */
+  public TableType getType() {
+    if (model.type == null) {
+      lazyLoad();
+    }
+    return model.type;
+  }
+
+  /**
    * 获取创建时间
    *
    * @return 创建时间
@@ -383,7 +411,22 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * 获取分层存储的相关信息，包括类型，大小，修改时间等等
+   *
+   * @return StorageTierInfo 分层存储信息
+   */
+  public StorageTierInfo getStorageTierInfo() {
+    if (model.storageTierInfo == null) {
+      reloadExtendInfo();
+      isExtendInfoLoaded = true;
+    }
+    return model.storageTierInfo;
+  }
+
+
+  /**
    * Get {@link Tag}(s) attached to this table.
+   *
    * @return list of {@link Tag}
    */
   public List<Tag> getTags() {
@@ -393,6 +436,7 @@ public class Table extends LazyLoad {
 
   /**
    * Get {@link Tag}(s) attached to a column of this table.
+   *
    * @return list of {@link Tag}
    */
   public List<Tag> getTags(String columnName) {
@@ -407,6 +451,7 @@ public class Table extends LazyLoad {
 
   /**
    * Get simple tags attached to this table.
+   *
    * @return a map from category to key value pairs
    */
   public Map<String, Map<String, String>> getSimpleTags() {
@@ -443,7 +488,7 @@ public class Table extends LazyLoad {
   /**
    * Attach a {@link Tag} to this table. The table and tag should be in a same project.
    *
-   * @param tag tag to attach
+   * @param tag         tag to attach
    * @param columnNames column names, could be null.
    */
   public void addTag(Tag tag, List<String> columnNames) throws OdpsException {
@@ -464,8 +509,8 @@ public class Table extends LazyLoad {
    * key, and tag value.
    *
    * @param category simple tag category, could be nul.
-   * @param key simple tag key, cannot be null.
-   * @param value simple tag value, cannot be null.
+   * @param key      simple tag key, cannot be null.
+   * @param value    simple tag value, cannot be null.
    */
   public void addSimpleTag(String category, String key, String value) throws OdpsException {
     addSimpleTag(category, key, value, null);
@@ -474,9 +519,10 @@ public class Table extends LazyLoad {
   /**
    * Attach a simple tag to this table or some of its columns. A simple tag is a triad consisted of
    * category, tag key, and tag value.
-   * @param category simple tag category, could be nul.
-   * @param key simple tag key, cannot be null.
-   * @param value simple tag value, cannot be null.
+   *
+   * @param category    simple tag category, could be nul.
+   * @param key         simple tag key, cannot be null.
+   * @param value       simple tag value, cannot be null.
    * @param columnNames column names, should not include any partition column, could be null.
    */
   public void addSimpleTag(
@@ -508,7 +554,7 @@ public class Table extends LazyLoad {
   /**
    * Remove a {@link Tag} from columns.
    *
-   * @param tag tag to remove.
+   * @param tag         tag to remove.
    * @param columnNames column names, should not include any partition column, could be null.
    */
   public void removeTag(Tag tag, List<String> columnNames) throws OdpsException {
@@ -532,9 +578,10 @@ public class Table extends LazyLoad {
 
   /**
    * Remove a simple tag. A simple tag is a triad consisted of category, tag key, and tag value.
+   *
    * @param category category.
-   * @param key key.
-   * @param value value.
+   * @param key      key.
+   * @param value    value.
    * @throws OdpsException
    */
   public void removeSimpleTag(String category, String key, String value) throws OdpsException {
@@ -544,9 +591,10 @@ public class Table extends LazyLoad {
   /**
    * Remove a simple tag from columns. A simple tag is a triad consisted of category, tag key, and
    * tag value.
-   * @param category category.
-   * @param key key.
-   * @param value value.
+   *
+   * @param category    category.
+   * @param key         key.
+   * @param value       value.
    * @param columnNames column names, should not include any partition column, could be null.
    * @throws OdpsException
    */
@@ -580,7 +628,7 @@ public class Table extends LazyLoad {
    * @return tableId
    */
   public String getTableID() {
-    if(model.ID == null) {
+    if (model.ID == null) {
       lazyLoad();
     }
 
@@ -593,7 +641,7 @@ public class Table extends LazyLoad {
    * @return 算法名称
    */
   public String getCryptoAlgoName() {
-    if(model.cryptoAlgoName == null) {
+    if (model.cryptoAlgoName == null) {
       lazyLoad();
     }
 
@@ -615,14 +663,15 @@ public class Table extends LazyLoad {
 
     return calculateMaxLabel(extendedLabels);
   }
+
   /**
    * 获取最高的label级别
    * Label的定义分两部分：
    * 1. 业务分类：C，S，B
    * 2. 数据等级：1，2，3，4
-   *
+   * <p>
    * 二者是正交关系，即C1,C2,C3,C4,S1,S2,S3,S4,B1,B2,B3,B4。
-   *
+   * <p>
    * MaxLabel的语意：
    * 1. MaxLabel=max(TableLabel, ColumnLabel), max(...)函数的语意由Label中的数据等级决定：4>3>2>1
    * 2. MaxLabel显示：
@@ -804,6 +853,13 @@ public class Table extends LazyLoad {
     return model.viewText;
   }
 
+  public String getViewExpandedText() {
+    if (model.viewExpandedText == null) {
+      lazyLoad();
+    }
+    return model.viewExpandedText;
+  }
+
   /**
    * 获取数据最后修改时间
    *
@@ -814,6 +870,18 @@ public class Table extends LazyLoad {
       lazyLoad();
     }
     return model.lastModifiedTime;
+  }
+
+  /**
+   * 获取数据最后访问时间
+   *
+   * @return 最后访问时间
+   */
+  public Date getLastDataAccessTime() {
+    if (model.lastAccessTime == null) {
+      lazyLoad();
+    }
+    return model.lastAccessTime;
   }
 
   /**
@@ -1011,12 +1079,12 @@ public class Table extends LazyLoad {
   /**
    * 读取表内的数据
    *
-   * @param limit
-   *     最多读取的记录行数
+   * @param limit 最多读取的记录行数
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
   public RecordReader read(int limit) throws OdpsException {
+    //TODO FIX DATE
     return read(null, null, limit);
   }
 
@@ -1025,18 +1093,15 @@ public class Table extends LazyLoad {
    * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
    * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
    *
-   * @param partition
-   *     表的分区{@link PartitionSpec}。如不指定分区可传入null。
-   * @param columns
-   *     所要读取的列名的列表。如果读取全表可传入null
-   * @param limit
-   *     最多读取的记录行数。
-   *
+   * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
+   * @param columns   所要读取的列名的列表。如果读取全表可传入null
+   * @param limit     最多读取的记录行数。
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit)
       throws OdpsException {
+    //TODO FIX DATE
     return read(partition, columns, limit, null);
   }
 
@@ -1045,27 +1110,23 @@ public class Table extends LazyLoad {
    * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
    * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
    *
-   * @param partition
-   *     表的分区{@link PartitionSpec}。如不指定分区可传入null。
-   * @param columns
-   *     所要读取的列名的列表。如果读取全表可传入null
-   * @param limit
-   *     最多读取的记录行数。
-   * @param timezone
-   *     设置 datetime 类型数据的时区
-   *
+   * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
+   * @param columns   所要读取的列名的列表。如果读取全表可传入null
+   * @param limit     最多读取的记录行数。
+   * @param timezone  设置 datetime 类型数据的时区
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
-  public RecordReader read(PartitionSpec partition, List<String> columns, int limit, String timezone)
+  public RecordReader read(PartitionSpec partition, List<String> columns, int limit,
+                           String timezone)
       throws OdpsException {
+    //TODO FIX DATE
     if (limit < 0) {
       // TODO: should throw IllegalArgumentException
       throw new OdpsException("limit number should >= 0.");
     }
     Map<String, String> params = initParamsWithSchema();
     params.put("data", null);
-
 
     if (partition != null && partition.keys().size() > 0) {
       params.put("partition", partition.toString());
@@ -1121,11 +1182,16 @@ public class Table extends LazyLoad {
         model.lastMetaModifiedTime = new Date(tree.get("lastDDLTime").getAsLong() * 1000);
       }
 
+      if (tree.has("lastAccessTime")) {
+        long timestamp = tree.get("lastAccessTime").getAsLong() * 1000;
+        model.lastAccessTime = timestamp == 0 ? null : new Date(timestamp);
+      }
+
       if (tree.has("isVirtualView")) {
         model.isVirtualView = tree.get("isVirtualView").getAsBoolean();
       }
 
-      if (tree.has("isMaterializedView") && tree.get("isVirtualView").getAsBoolean()) {
+      if (tree.has("isMaterializedView") && tree.get("isMaterializedView").getAsBoolean()) {
         model.type = TableType.MATERIALIZED_VIEW;
       }
 
@@ -1152,6 +1218,10 @@ public class Table extends LazyLoad {
 
       if (tree.has("viewText")) {
         model.viewText = tree.get("viewText").getAsString();
+      }
+
+      if (tree.has("viewExpandedText")) {
+        model.viewExpandedText = tree.get("viewExpandedText").getAsString();
       }
 
       if (tree.has("size")) {
@@ -1188,8 +1258,9 @@ public class Table extends LazyLoad {
 
       if (tree.has("serDeProperties")) {
         model.serDeProperties = new GsonBuilder().disableHtmlEscaping().create()
-                .fromJson(tree.get("serDeProperties").getAsString(),
-                new TypeToken<Map<String, String>>() {}.getType());
+            .fromJson(tree.get("serDeProperties").getAsString(),
+                      new TypeToken<Map<String, String>>() {
+                      }.getType());
       }
 
       if (tree.has("shardExist")) {
@@ -1213,7 +1284,7 @@ public class Table extends LazyLoad {
         JsonArray columnsNode = tree.get("columns").getAsJsonArray();
         for (int i = 0; i < columnsNode.size(); ++i) {
           JsonObject n = columnsNode.get(i).getAsJsonObject();
-          s.addColumn(parseColumn(n));
+          s.addColumn(ColumnUtils.fromJson(n.toString()));
         }
       }
 
@@ -1232,13 +1303,58 @@ public class Table extends LazyLoad {
         JsonArray columnsNode = tree.get("partitionKeys").getAsJsonArray();
         for (int i = 0; i < columnsNode.size(); ++i) {
           JsonObject n = columnsNode.get(i).getAsJsonObject();
-          s.addPartitionColumn(parseColumn(n));
+          s.addPartitionColumn(ColumnUtils.fromJson(n.toString()));
         }
       }
 
       if (tree.has("Reserved")) {
         model.reserved = tree.get("Reserved").getAsString();
         loadReservedJson(model.reserved);
+      }
+
+      if (tree.has("props") && tree.get("props") != null) {
+        JsonObject props = tree.get("props").getAsJsonObject();
+        model.mvProperties = new HashMap<>();
+        model.mvProperties.put("enable_auto_refresh",
+                               props.has("enable_auto_refresh") ? props.get("enable_auto_refresh")
+                                   .getAsString() : "false");
+
+        if (props.has("refresh_interval_minutes")) {
+          model.mvProperties.put("refresh_interval_minutes",
+                                 props.get("refresh_interval_minutes").getAsString());
+        }
+
+        if (props.has("refresh_cron")) {
+          model.mvProperties.put("refresh_cron", props.get("refresh_cron").getAsString());
+        }
+
+        if (props.has("enable_auto_substitute")) {
+          model.mvProperties.put("enable_auto_substitute",
+                                 props.get("enable_auto_substitute").getAsString());
+        }
+      }
+
+      if (tree.has("RefreshHistory")) {
+        String refreshHistoryStr = tree.get("RefreshHistory").getAsString();
+        JsonArray refreshHistoryList = new JsonParser().parse(refreshHistoryStr).getAsJsonArray();
+        model.refreshHistory = new LinkedList<>();
+        for (int i = 0; i < refreshHistoryList.size(); i++) {
+
+          JsonObject info = refreshHistoryList.get(i).getAsJsonObject();
+          Map<String, String> infoMap = new HashMap<>();
+          infoMap.put("InstanceId",
+                      info.has("InstanceId") ? info.get("InstanceId").getAsString() : null);
+          infoMap.put("Status", info.has("Status") ? info.get("Status").getAsString() : null);
+          infoMap.put("StartTime",
+                      info.has("StartTime") ? info.get("StartTime").getAsString() : null);
+          infoMap.put("EndTime", info.has("EndTime") ? info.get("EndTime").getAsString() : null);
+
+          model.refreshHistory.add(infoMap);
+
+          if (model.refreshHistory.size() >= 10) {
+            break;
+          }
+        }
       }
 
     } catch (Exception e) {
@@ -1254,6 +1370,22 @@ public class Table extends LazyLoad {
     // load cluster info
     model.clusterInfo = parseClusterInfo(reservedJson);
     model.isTransactional = parseTransactionalInfo(reservedJson);
+    model.hasRowAccessPolicy =
+        reservedJson.has("HasRowAccessPolicy") ? reservedJson.get("HasRowAccessPolicy")
+            .getAsBoolean() : false;
+    if (reservedJson.has("PrimaryKey")) {
+      model.primaryKey = new ArrayList<>();
+      JsonArray element = reservedJson.get("PrimaryKey").getAsJsonArray();
+      for (JsonElement e : element) {
+        model.primaryKey.add(e.getAsString());
+      }
+    }
+    model.acidDataRetainHours =
+        reservedJson.has("acid.data.retain.hours") ? Integer.parseInt(
+            reservedJson.get("acid.data.retain.hours").getAsString()) : -1;
+
+    // load storageTier info
+    model.storageTierInfo = StorageTierInfo.getStorageTierInfo(reservedJson);
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {
@@ -1270,9 +1402,13 @@ public class Table extends LazyLoad {
     }
 
     ClusterInfo clusterInfo = new ClusterInfo();
-    clusterInfo.clusterType = jsonObject.has("ClusterType") ? jsonObject.get("ClusterType").getAsString() : null;
-    clusterInfo.bucketNum = jsonObject.has("BucketNum") ? jsonObject.get("BucketNum").getAsLong() : 0L;
-    JsonArray array = jsonObject.has("ClusterCols") ? jsonObject.get("ClusterCols").getAsJsonArray() : null;
+    clusterInfo.clusterType =
+        jsonObject.has("ClusterType") ? jsonObject.get("ClusterType").getAsString() : null;
+    clusterInfo.bucketNum =
+        jsonObject.has("BucketNum") ? jsonObject.get("BucketNum").getAsLong() : 0L;
+    JsonArray
+        array =
+        jsonObject.has("ClusterCols") ? jsonObject.get("ClusterCols").getAsJsonArray() : null;
     if (array != null) {
       clusterInfo.clusterCols = new ArrayList<String>();
       for (int i = 0; i < array.size(); ++i) {
@@ -1286,7 +1422,8 @@ public class Table extends LazyLoad {
       for (int i = 0; i < array.size(); ++i) {
         JsonObject obj = array.get(i).getAsJsonObject();
         if (obj != null) {
-          clusterInfo.sortCols.add(new SortColumn(obj.get("col").getAsString(), obj.get("order").getAsString()));
+          clusterInfo.sortCols.add(
+              new SortColumn(obj.get("col").getAsString(), obj.get("order").getAsString()));
         }
       }
     }
@@ -1297,8 +1434,7 @@ public class Table extends LazyLoad {
   /**
    * 增加分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @throws OdpsException
    */
   public void createPartition(PartitionSpec spec) throws OdpsException {
@@ -1308,10 +1444,8 @@ public class Table extends LazyLoad {
   /**
    * 增加分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
-   * @param ifNotExists
-   *     在创建分区时，如果为 false 而存在同名分区，则返回出错；若为 true，则无论是否存在同名分区，即使分区结构与要创建的目标分区结构不一致，均返回成功。已存在的同名分区的元信息不会被改动。
+   * @param spec        分区定义 {@link PartitionSpec}
+   * @param ifNotExists 在创建分区时，如果为 false 而存在同名分区，则返回出错；若为 true，则无论是否存在同名分区，即使分区结构与要创建的目标分区结构不一致，均返回成功。已存在的同名分区的元信息不会被改动。
    * @throws OdpsException
    */
   public void createPartition(PartitionSpec spec, boolean ifNotExists) throws OdpsException {
@@ -1344,8 +1478,7 @@ public class Table extends LazyLoad {
   /**
    * 删除指定分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @throws OdpsException
    */
   public void deletePartition(PartitionSpec spec) throws OdpsException {
@@ -1355,10 +1488,8 @@ public class Table extends LazyLoad {
   /**
    * 删除指定分区
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
-   * @param ifExists
-   *     如果 false 而分区不存在，则返回异常；若为 true，无论分区是否存在，皆返回成功。
+   * @param spec     分区定义 {@link PartitionSpec}
+   * @param ifExists 如果 false 而分区不存在，则返回异常；若为 true，无论分区是否存在，皆返回成功。
    * @throws OdpsException
    */
   public void deletePartition(PartitionSpec spec, boolean ifExists) throws OdpsException {
@@ -1406,8 +1537,7 @@ public class Table extends LazyLoad {
   /**
    * 在Table上创建Shards
    *
-   * @param shardCount
-   *     创建Shard的个数
+   * @param shardCount 创建Shard的个数
    */
   public void createShards(long shardCount) throws OdpsException {
     StringBuilder sb = new StringBuilder();
@@ -1430,8 +1560,7 @@ public class Table extends LazyLoad {
   /**
    * 获取分区迭代器
    *
-   * @param spec
-   *     指定的上级分区 {@link PartitionSpec}
+   * @param spec 指定的上级分区 {@link PartitionSpec}
    * @return {@link Partition}迭代器
    */
   public Iterator<Partition> getPartitionIterator(final PartitionSpec spec) {
@@ -1441,13 +1570,13 @@ public class Table extends LazyLoad {
   /**
    * Get a partition iterator.
    *
-   * @param spec Specify the values of some of the partition columns. The specified columns'
-   * indices should be continuous and start from 0.
-   * @param reverse Reverse the result. The original
+   * @param spec      Specify the values of some of the partition columns. The specified columns'
+   *                  indices should be continuous and start from 0.
+   * @param reverse   Reverse the result. The original
    * @param batchSize Max number of partitions to get per request. In case of null, the batch size
-   * will be decided by the server.
-   * @param limit Limit the number of returned partitions. In case of null, {@link Long#MAX_VALUE}
-   * will be used.
+   *                  will be decided by the server.
+   * @param limit     Limit the number of returned partitions. In case of null, {@link Long#MAX_VALUE}
+   *                  will be used.
    * @return A partition iterator.
    */
   public Iterator<Partition> getPartitionIterator(
@@ -1545,8 +1674,7 @@ public class Table extends LazyLoad {
   /**
    * 获取指定分区信息
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @return 分区信息 {@link Partition}
    */
   public Partition getPartition(PartitionSpec spec) {
@@ -1556,8 +1684,7 @@ public class Table extends LazyLoad {
   /**
    * 判断指定分区是否存在
    *
-   * @param spec
-   *     分区定义 {@link PartitionSpec}
+   * @param spec 分区定义 {@link PartitionSpec}
    * @return 如果指定分区存在，则返回true，否则返回false
    * @throws OdpsException
    */
@@ -1603,41 +1730,6 @@ public class Table extends LazyLoad {
     i.waitForSuccess();
   }
 
-  /* private */
-  private Column parseColumn(JsonObject node) {
-    String name = node.has("name") ? node.get("name").getAsString() : null;
-    String typeString = node.has("type") ? node.get("type").getAsString().toUpperCase() : null;
-    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
-
-    String comment = node.has("comment") ? node.get("comment").getAsString() : null;
-    String label = null;
-    if (node.has("label") && (!node.get("label").getAsString().isEmpty())) {
-      label = node.get("label").getAsString();
-    }
-
-    List<String> extendedLabels = null;
-    if (node.has("extendedLabels") && (node.get("extendedLabels").getAsJsonArray().size() != 0)) {
-      Iterator<JsonElement> it = node.get("extendedLabels").getAsJsonArray().iterator();
-      extendedLabels = new LinkedList<String>();
-      while (it.hasNext()) {
-        extendedLabels.add(it.next().getAsString());
-      }
-    }
-
-    Column column = new Column(name, typeInfo, comment, label, extendedLabels);
-
-    if (node.has("isNullable")) {
-      column.setNullable(node.get("isNullable").getAsBoolean());
-    }
-
-    if (node.has("defaultValue")) {
-      column.setDefaultValue(node.get("defaultValue").getAsString());
-    }
-
-    return column;
-  }
-
-
   private HashMap<String, String> initParamsWithSchema() throws OdpsException {
     return NameSpaceSchemaUtils.initParamsWithSchema(model.schemaName);
   }
@@ -1645,4 +1737,53 @@ public class Table extends LazyLoad {
   private String getCoordinate() throws OdpsException {
     return NameSpaceSchemaUtils.getFullName(model.projectName, model.schemaName, model.name);
   }
+
+  private Map<String, String> getMvProperties() {
+    lazyLoad();
+    if (model.mvProperties == null) {
+      model.mvProperties = new HashMap<>();
+    }
+    return model.mvProperties;
+  }
+
+  public boolean isAutoRefreshEnabled() {
+    return Boolean.parseBoolean(getMvProperties().getOrDefault("enable_auto_refresh", "false"));
+  }
+
+  public Boolean isAutoSubstituteEnabled() {
+    String
+        autoSubstituteEnabledStr =
+        getMvProperties().getOrDefault("enable_auto_substitute", null);
+    return autoSubstituteEnabledStr == null ? null : Boolean.valueOf(autoSubstituteEnabledStr);
+  }
+
+  public Integer getRefreshInterval() {
+    String refreshIntervalStr = getMvProperties().getOrDefault("refresh_interval_minutes", null);
+    return refreshIntervalStr == null ? null : Integer.valueOf(refreshIntervalStr);
+  }
+
+  public String getRefreshCron() {
+    return getMvProperties().getOrDefault("refresh_cron", null);
+  }
+
+  public List<Map<String, String>> getRefreshHistory() {
+    lazyLoadExtendInfo();
+    return model.refreshHistory;
+  }
+
+  public boolean hasRowAccessPolicy() {
+    lazyLoadExtendInfo();
+    return model.hasRowAccessPolicy;
+  }
+
+  public List<String> getPrimaryKey() {
+    lazyLoadExtendInfo();
+    return model.primaryKey;
+  }
+
+  public int getAcidDataRetainHours() {
+    lazyLoadExtendInfo();
+    return model.acidDataRetainHours;
+  }
+
 }

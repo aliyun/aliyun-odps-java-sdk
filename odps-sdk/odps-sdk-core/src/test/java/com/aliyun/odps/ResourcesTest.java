@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public class ResourcesTest extends TestBase {
@@ -37,6 +38,16 @@ public class ResourcesTest extends TestBase {
     Iterator<Resource> iterator = odps.resources().iterator();
     if (iterator.hasNext()) {
       iterator.next().getName();
+    }
+  }
+
+  @Test
+  public void testIteratorWithPrefix() {
+    String prefix = "resource";
+    Iterator<Resource> iterator = odps.resources().iterator(odps.getDefaultProject(), null, prefix);
+    if (iterator.hasNext()) {
+      System.out.println(iterator.next().getName());
+      Assert.assertTrue(iterator.next().getName().contains(prefix));
     }
   }
 

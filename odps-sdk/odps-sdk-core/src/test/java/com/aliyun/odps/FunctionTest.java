@@ -217,6 +217,21 @@ public class FunctionTest extends TestBase {
     assertTrue("function nums > 0 ", count > 0);
   }
 
+
+  @Test
+  public void iteratorWithName() {
+    int count = 0;
+    String prefix = FUNCTION_TEST.substring(0, FUNCTION_TEST.length() - 2);
+    for (Function f : odps.functions().iterable(odps.getDefaultProject(), null, prefix)) {
+      ++count;
+      Assert.assertNotNull(f.getOwner());
+      Assert.assertTrue(f.getName().startsWith(prefix));
+      System.out.println(f.getName());
+    }
+    assertTrue("function nums > 0 ", count > 0);
+  }
+
+
   @Test
   public void testTag() throws OdpsException {
     // Create classification

@@ -16,59 +16,7 @@ import java.util.Map;
 
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
-public class StreamSessionBase {
-    protected String id;
-    protected ConfigurationImpl config;
-    protected TableSchema schema = new TableSchema();
-    protected String projectName;
-    protected String schemaName;
-    protected String tableName;
-    protected String partitionSpec;
-    protected RestClient httpClient;
-
-
-    public class HttpResult {
-        public String requestId;
-        public Integer status;
-        public String body;
-        HttpResult (String requestId, Integer status, String body) {
-            this.requestId = requestId;
-            this.status = status;
-            this.body = body;
-        }
-    }
-
-    protected HttpResult httpRequest(HashMap<String, String> headers, Map<String, String> params, String method, String action) throws TunnelException {
-        String requestId = null;
-        Connection conn = null;
-        try {
-            conn = httpClient.connect(getResource(), method, params, headers);
-            Response resp = conn.getResponse();
-            requestId = resp.getHeader(HEADER_ODPS_REQUEST_ID);
-
-            if (resp.isOK()) {
-                return new HttpResult(requestId, resp.getStatus(), IOUtils.readStreamAsString(conn.getInputStream()));
-            } else {
-                throw new TunnelException(requestId, conn.getInputStream(), resp.getStatus());
-            }
-        } catch (IOException e) {
-            throw new TunnelException(requestId, "Failed to " + action + " with tunnel endpoint "
-                    + httpClient.getEndpoint(), e);
-        } catch (TunnelException e) {
-            // Do not delete here! TunnelException extends from OdpsException.
-            throw e;
-        } catch (OdpsException e) {
-            throw new TunnelException(requestId, e.getMessage(), e);
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.disconnect();
-                } catch (IOException e) {
-                }
-            }
-        }
-    }
-
+public class StreamSessionBase extends SessionBase {
     protected List<Slot> loadFromJson(String requestId, JsonObject tree, boolean reload) throws TunnelException {
         try {
             if (!reload) {
@@ -83,13 +31,17 @@ public class StreamSessionBase {
                 }
             }
 
+            if (tree.has("quota_name")) {
+                quotaName = tree.get("quota_name").getAsString();
+            }
+
             if (tree.has("slots") && tree.has("status")) {
                 String status = tree.get("status").getAsString();
                 if (status.equals("init")) {
                     throw new TunnelException(requestId, "Session is initiating. Session name: " + id);
                 }
                 // slots
-                return Util.parseSlots(tree.getAsJsonArray("slots"), reload);
+                return Util.parseSlots(tree.getAsJsonArray("slots"));
             } else {
                 throw new TunnelException(requestId, "Incomplete session info: '" + tree.toString() + "'");
             }
@@ -103,18 +55,5 @@ public class StreamSessionBase {
 
     protected String getResource() {
         return config.getResource(projectName, schemaName, tableName)+ "/" + TunnelConstants.STREAMS;
-    }
-
-    protected HashMap<String, String> getCommonHeaders() {
-        return Util.getCommonHeader();
-    }
-
-    protected HashMap<String, String> getCommonParams() {
-        HashMap<String, String> params = new HashMap<String, String>();
-
-        if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
-            params.put(TunnelConstants.RES_PARTITION, partitionSpec);
-        }
-        return params;
     }
 }

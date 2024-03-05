@@ -37,6 +37,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.text.TabExpander;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -50,6 +52,8 @@ import com.aliyun.odps.Classification.StringAttributeDefinition;
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.Table.TableType;
 import com.aliyun.odps.Tags.TagBuilder;
+import com.aliyun.odps.account.Account;
+import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
@@ -752,5 +756,47 @@ public class TableTest extends TestBase {
     Assert.assertEquals(0, table.getSimpleTags().size());
 
 
+  }
+
+  @Test
+  public void testMvProperties() {
+    Table table = odps.tables().get(TABLE_NAME);
+
+    if (!table.isMaterializedView()) {
+      Assert.assertFalse(table.isAutoRefreshEnabled());
+      Assert.assertNull(table.isAutoSubstituteEnabled());
+      Assert.assertNull(table.getRefreshInterval());
+      Assert.assertNull(table.getRefreshCron());
+    }
+
+    table.isAutoRefreshEnabled();
+    table.isAutoSubstituteEnabled();
+    table.getRefreshInterval();
+    table.getRefreshCron();
+  }
+
+
+  @Test
+  public void testMvGetHistroy() {
+    Table table = odps.tables().get(TABLE_NAME);
+
+    if (!table.isMaterializedView()) {
+      Assert.assertNull(table.getRefreshHistory());
+    }
+
+    table.getRefreshHistory();
+  }
+
+  @Test
+  public void test() {
+    Table table = odps.tables().get(TABLE_NAME);
+    Assert.assertFalse(table.hasRowAccessPolicy());
+  }
+
+
+  @Test
+  public void testLastAccessTime() {
+    Table table = odps.tables().get(TABLE_NAME);
+    table.getLastDataAccessTime();
   }
 }

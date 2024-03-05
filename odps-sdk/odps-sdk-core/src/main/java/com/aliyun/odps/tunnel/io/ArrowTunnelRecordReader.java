@@ -28,10 +28,8 @@ import com.aliyun.odps.commons.util.ArrowUtils;
 import com.aliyun.odps.data.ArrowRecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.TableTunnel;
-import com.aliyun.odps.tunnel.TunnelConstants;
-import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.*;
+import com.aliyun.odps.utils.StringUtils;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
@@ -121,6 +119,14 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
     }
 
     @Override
+    public long bytesRead() {
+        if (messageReader != null) {
+            return messageReader.bytesRead();
+        }
+        return 0L;
+    }
+
+    @Override
     public void close() throws IOException {
         if (!isClosed) {
             if (inputStream != null) {
@@ -152,6 +158,10 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
                 headers.put(Headers.ACCEPT_ENCODING, "x-snappy-framed");
                 break;
             }
+            case ODPS_ARROW_LZ4_FRAME: {
+                headers.put(Headers.ACCEPT_ENCODING, "x-odps-lz4-frame");
+                break;
+            }
             default: {
                 throw new TunnelException("invalid compression option.");
             }
@@ -179,6 +189,11 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
 
         params.put(TunnelConstants.PARAM_ARROW, "");
 
+        Configuration conf = tableSession.getConfig();
+        if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
+        }
+
         Connection conn = null;
         try {
             String resource = ResourceBuilder.buildTableResource(
@@ -199,6 +214,9 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
                         -1, 0);
                 } else if (content_encoding.equals("x-snappy-framed")) {
                     reply_compression = new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY,
+                        -1, 0);
+                } else if (content_encoding.equals("x-odps-lz4-frame")) {
+                    reply_compression = new CompressOption(CompressOption.CompressAlgorithm.ODPS_ARROW_LZ4_FRAME,
                         -1, 0);
                 } else {
                     throw new TunnelException("invalid content encoding");

@@ -522,6 +522,28 @@ public class TablesTest extends TestBase {
   }
 
   @Test
+  public void testIteratorGetMarker() throws OdpsException {
+    int maxItems = 10;
+    String marker = null;
+
+    ListIterator<Table> it = (ListIterator<Table>) odps.tables().iterator(odps.getDefaultProject(), null);
+    List<Table> page1 = it.list(marker, maxItems);
+    assertEquals(10, page1.size());
+    marker = it.getMarker();
+    assertNotNull(marker);
+    System.out.println(marker);
+
+    List<Table> page2 = it.list(marker, maxItems);
+    assertEquals(10, page2.size());
+    assertNotEquals(marker, it.getMarker());
+    marker = it.getMarker();
+    assertNotNull(marker);
+    System.out.println(marker);
+    assertNotEquals(page1.get(0).getName(), page2.get(0).getName());
+  }
+
+
+  @Test
   public void testIteratorExtended() throws OdpsException {
     // Make sure there are at least one table
     String tableName = String.format(
@@ -549,6 +571,33 @@ public class TablesTest extends TestBase {
     assertTrue(counter > 0);
   }
 
+  @Test
+  public void testIteratorWithFilter() throws OdpsException {
+    // Make sure there are at least one table
+    String tableName = String.format(
+            "%s_%s_%s",
+            BASE_TABLE_NAME_PREFIX,
+            "testBatchLoadingExceedsNumTablesLimit",
+            OdpsTestUtils.getRandomName());
+    tablesToDrop.add(tableName);
+    odps.tables().create(tableName, SCHEMA);
+
+    TableFilter filter = new TableFilter();
+    filter.setType(Table.TableType.MANAGED_TABLE);
+    Iterator<Table> it = odps.tables().iterator(odps.getDefaultProject(), filter, true);
+
+    int counter = 0;
+    while (it.hasNext() && counter < 10) {
+      Table t = it.next();
+
+      assertEquals(Table.TableType.MANAGED_TABLE, t.getType());
+
+      // The above method calls should not trigger reloading
+      assertFalse(t.isLoaded());
+      counter += 1;
+    }
+    assertTrue(counter > 0);
+  }
 
   private void batchAsserting(List<Table> expectedTables, List<Table> actualTables) {
     assertEquals(expectedTables.size(), actualTables.size());

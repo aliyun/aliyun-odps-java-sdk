@@ -29,4 +29,5 @@ class ProtoWireConstant {
   public static final int TUNNEL_META_COUNT = 33554430; // magic num 2^25-2
   public static final int TUNNEL_META_CHECKSUM = 33554431; // magic num 2^25-1
   public static final int TUNNEL_END_RECORD = 33553408; // maigc num 2^25-1024
+  public static final int SCHEMA_END_TAG = 33553920; //maigc num 2^25-512
 }

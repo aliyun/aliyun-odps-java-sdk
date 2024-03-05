@@ -44,7 +44,7 @@ import com.aliyun.odps.rest.RestClient;
 public class Volume extends LazyLoad {
 
   public static enum Type {
-    NEW, OLD
+    NEW, OLD, EXTERNAL
   }
 
   @Root(name = "Meta", strict = false)
@@ -82,6 +82,10 @@ public class Volume extends LazyLoad {
     @Element(name = "LastModifiedTime", required = false)
     @Convert(SimpleXmlUtils.DateConverter.class)
     Date lastModifiedTime;
+
+    @Element(name = "Properties", required = false)
+    @Convert(SimpleXmlUtils.JsonMapConverter.class)
+    Map<String, String> properties;
   }
 
   private VolumeModel model;
@@ -94,6 +98,27 @@ public class Volume extends LazyLoad {
     this.name = model.name;
     this.project = project;
     this.client = client;
+  }
+
+  /**
+   * 获取 volume 的属性
+   *
+   * @return 属性 map
+   */
+  public Map<String, String> getProperties() {
+    if (model.properties == null) {
+      lazyLoad();
+    }
+
+    return model.properties;
+  }
+
+  /**
+   * 设置 volume 属性
+   * @param properties
+   */
+  public void setProperties(Map<String, String> properties) {
+    this.model.properties = properties;
   }
 
   /**

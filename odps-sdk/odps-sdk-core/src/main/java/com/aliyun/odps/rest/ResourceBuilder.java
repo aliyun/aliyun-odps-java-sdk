@@ -60,6 +60,13 @@ public class ResourceBuilder {
   private static final String USERS = "/users";
   private static final String ROLES = "/roles";
   private static final String SESSIONS = "/session";
+  private static final String CLUSTERS = "/clusters";
+
+  private static final String API = "/api";
+  private static final String STORAGE = "/storage";
+  private static final String TABLE_SESSIONS = "/sessions";
+  private static final String DATA = "/data";
+  private static final String COMMIT = "/commit";
 
   public static String buildProjectsResource() {
     return PROJECTS;
@@ -473,5 +480,74 @@ public class ResourceBuilder {
 
   public static String buildQuotaResource(String name) {
     return QUOTAS + "/" + encodeObjectName(name);
+  }
+
+  public static String buildClustersResource() {
+    return CLUSTERS;
+  }
+
+  public static String buildStoragePrefix(String version) {
+    StringBuilder sb = new StringBuilder();
+
+    sb.append(API).append(STORAGE);
+    if (!StringUtils.isNullOrEmpty(version)) {
+      sb.append("/").append(version);
+    }
+    return sb.toString();
+  }
+
+  public static String buildTableSessionResource(String version,
+                                                 String projectName,
+                                                 String schemaName,
+                                                 String tableName,
+                                                 String sessionId) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(buildStoragePrefix(version));
+    sb.append(buildTableResource(projectName, schemaName, tableName));
+    if (StringUtils.isNullOrEmpty(sessionId)) {
+      sb.append(TABLE_SESSIONS);
+    } else {
+      sb.append(TABLE_SESSIONS)
+              .append('/')
+              .append(encodeObjectName(sessionId));
+    }
+    return sb.toString();
+  }
+
+  public static String buildTableDataResource(String version,
+                                                String projectName,
+                                                String schemaName,
+                                                String tableName) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(buildStoragePrefix(version));
+    sb.append(buildTableResource(projectName, schemaName, tableName));
+    sb.append(DATA);
+    return sb.toString();
+  }
+
+  public static String buildTableSessionDataResource(String version,
+                                                     String projectName,
+                                                     String schemaName,
+                                                     String tableName,
+                                                     String sessionId) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(buildStoragePrefix(version));
+    sb.append(buildTableResource(projectName, schemaName, tableName));
+    sb.append(TABLE_SESSIONS)
+            .append('/')
+            .append(encodeObjectName(sessionId));
+    sb.append(DATA);
+    return sb.toString();
+  }
+
+  public static String buildTableCommitResource(String version,
+                                                String projectName,
+                                                String schemaName,
+                                                String tableName) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(buildStoragePrefix(version));
+    sb.append(buildTableResource(projectName, schemaName, tableName));
+    sb.append(COMMIT);
+    return sb.toString();
   }
 }

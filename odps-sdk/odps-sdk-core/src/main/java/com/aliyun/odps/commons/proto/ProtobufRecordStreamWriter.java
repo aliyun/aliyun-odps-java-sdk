@@ -24,16 +24,7 @@ import static com.aliyun.odps.data.ArrayRecord.DEFAULT_CALENDAR;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.data.AbstractChar;
-import com.aliyun.odps.data.ArrayRecord;
-import com.aliyun.odps.data.Binary;
-import com.aliyun.odps.data.IntervalDayTime;
-import com.aliyun.odps.data.IntervalYearMonth;
-import com.aliyun.odps.data.Record;
-import com.aliyun.odps.data.RecordPack;
-import com.aliyun.odps.data.RecordReader;
-import com.aliyun.odps.data.RecordWriter;
-import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.data.*;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
@@ -53,8 +44,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -175,6 +165,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         out.writeTag(pbIdx, WireFormat.WIRETYPE_FIXED32);
         break;
       }
+      case JSON:
       case INTERVAL_DAY_TIME:
       case TIMESTAMP:
       case STRING:
@@ -202,26 +193,41 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         break;
       }
       case DATETIME: {
-        ZonedDateTime value = (ZonedDateTime) v;
-
         long longValue;
-        if (!shouldTransform) {
-          longValue = value.toInstant().toEpochMilli();
+        if (v instanceof ZonedDateTime) {
+          longValue = ((ZonedDateTime) v).toInstant().toEpochMilli();
         } else {
-          longValue = DateUtils.date2ms(Date.from(value.toInstant()), DateUtils.LOCAL_CAL);
+          longValue = ((Date) v).getTime();
+        }
+
+        if (shouldTransform) {
+          longValue = DateUtils.date2ms(new Date(longValue), DateUtils.LOCAL_CAL);
         }
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
       }
       case DATE: {
-        long longValue = ((LocalDate) v).toEpochDay();
+        long longValue;
+        LocalDate localDate;
+        if (v instanceof LocalDate) {
+          localDate = (LocalDate) v;
+        } else {
+          // to date in GMT, for compatible
+          localDate = OdpsTypeTransformer.dateToLocalDate((java.sql.Date)v, DEFAULT_CALENDAR);
+        }
+        longValue = localDate.toEpochDay();
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
         break;
       }
       case TIMESTAMP: {
-        Instant instant = (Instant) v;
+        Instant instant;
+        if (v instanceof Instant) {
+          instant = (Instant) v;
+        } else {
+          instant = ((Timestamp) v).toInstant();
+        }
         int nano = instant.getNano();
         long value = instant.getEpochSecond();
         crc.update(value);
@@ -243,6 +249,18 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       case CHAR: {
         byte [] bytes;
         bytes = ((AbstractChar) v).getValue().getBytes("UTF-8");
+        crc.update(bytes, 0, bytes.length);
+        writeRawBytes(bytes, out);
+        break;
+      }
+      case JSON: {
+        String value;
+        if (v instanceof String) {
+          value = (String) v;
+        } else {
+          value = ((SimpleJsonValue) v).toString();
+        }
+        byte[] bytes = value.getBytes("UTF-8");
         crc.update(bytes, 0, bytes.length);
         writeRawBytes(bytes, out);
         break;

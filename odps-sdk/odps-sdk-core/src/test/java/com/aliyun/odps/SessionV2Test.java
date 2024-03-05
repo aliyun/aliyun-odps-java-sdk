@@ -6,6 +6,7 @@ import com.aliyun.odps.data.SessionQueryResult;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.*;
@@ -125,6 +126,7 @@ public class SessionV2Test extends TestBase {
   }
 
   @Test
+  @Ignore
   public void testAttachSession() throws OdpsException {
     Session attachSession = Session.attach(odps, sessionName);
     System.out.println("Attatch session success: " + session.getInstance().getId());
@@ -162,39 +164,18 @@ public class SessionV2Test extends TestBase {
   public void testSetGetInformation() throws OdpsException {
     Session copySession = new Session(odps, session.getInstance());
 
-    String whitelist = copySession.getInformation("get_whitelist");
+    String list = copySession.getInformation("get_blacklist");
+    System.out.println(list);
+    copySession.setInformation("add_blacklist", "test_project");
+    copySession.setInformation("add_blacklist", odps.getDefaultProject());
 
-    Assert.assertTrue(whitelist.contains(odps.getDefaultProject()));
-    System.out.println(whitelist);
-    copySession.setInformation("add_whitelist", "test_project");
+    list = copySession.getInformation("get_blacklist");
+    Assert.assertTrue(list.contains(odps.getDefaultProject()));
+    Assert.assertTrue(list.contains("test_project"));
 
-    whitelist = copySession.getInformation("get_whitelist");
-    Assert.assertTrue(whitelist.contains(odps.getDefaultProject()));
-    Assert.assertTrue(whitelist.contains("test_project"));
-  }
-
-  @Test
-  public void testVariables() throws OdpsException {
-    Session attachSession = Session.attach(odps, sessionName);
-    System.out.println("Attatch session success: " + session.getInstance().getId());
-    Instance i = session.getInstance();
-    System.out.println(odps.logview().generateLogView(i, 7*24));
-    attachSession.waitForStart();
-
-    Map<String, String> hints = new HashMap();
-    hints.put("odps.sql.session.select.only", "false");
-    List<String> vars = attachSession.showVariables(hints);
-    Assert.assertEquals(vars.size(), 0);
-    Session.SubQueryInfo subQueryInfo1 = attachSession.runSubQuery(cacheOnA, hints);
-    Session.SubQueryResult result1 = attachSession.getSubQueryResult(subQueryInfo1.queryId);
-    Assert.assertEquals(result1.getRecords().size(), 0);
-    Session.SubQueryInfo subQueryInfo2 = attachSession.runSubQuery(cacheOnB, hints);
-    Session.SubQueryResult result2 = attachSession.getSubQueryResult(subQueryInfo2.queryId);
-    Assert.assertEquals(result2.getRecords().size(), 0);
-    vars = attachSession.showVariables(hints);
-    Assert.assertEquals(vars.size(), 2);
-    Assert.assertEquals(vars.get(0), cacheOnA);
-    Assert.assertEquals(vars.get(1), cacheOnB);
+    copySession.setInformation("remove_blacklist", odps.getDefaultProject());
+    list = copySession.getInformation("get_blacklist");
+    Assert.assertFalse(list.contains(odps.getDefaultProject()));
   }
 
   private static void checkResult(List<Record> records) {

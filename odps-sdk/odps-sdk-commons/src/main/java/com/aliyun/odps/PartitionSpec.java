@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,7 +29,7 @@ import java.util.Set;
 /**
  * PartitionSpec类表示一个特定分区的定义
  */
-public class PartitionSpec {
+public class PartitionSpec implements Serializable {
 
   private static final String COMMA = ",";
   private static final String SLASH = "/";

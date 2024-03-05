@@ -113,6 +113,10 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String symlink;
 
+    @Element(name = "Properties", required = false)
+    @Convert(SimpleXmlUtils.JsonMapConverter.class)
+    Map<String, String> properties;
+
     public String getPath() {
       return path;
     }
@@ -191,9 +195,6 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     this.project = project;
     this.path = path;
     this.client = client;
-    if (model != null) {
-      setLoaded(true);
-    }
   }
 
   /**
@@ -219,6 +220,9 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     model.modificationTime = new Date(0);
     model.symlink = "";
     VolumeFSFile rootPath = new VolumeFSFile(model, project, "/", client);
+
+    rootPath.setLoaded(true);
+
     return rootPath;
   }
 
@@ -235,6 +239,7 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + VolumeFSFileModel.class, e);
     }
+
     setLoaded(true);
   }
 
@@ -411,6 +416,13 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     return this.model.isdir;
   }
 
+  public Map<String, String> getProperties() {
+    if (this.model == null || this.model.properties == null) {
+      lazyLoad();
+    }
+    return this.model.properties;
+  }
+
   public String getPermission() {
     if (this.model == null || this.model.permission == null) {
       lazyLoad();
@@ -485,6 +497,7 @@ public class VolumeFSFile extends LazyLoad implements Iterable<VolumeFSFile> {
     if (this.model == null || this.model.symlink == null) {
       lazyLoad();
     }
+
     return this.model.symlink;
   }
 

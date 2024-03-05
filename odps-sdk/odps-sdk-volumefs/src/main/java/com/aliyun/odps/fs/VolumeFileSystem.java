@@ -38,6 +38,7 @@ import com.aliyun.odps.VolumeFSFile;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.tunnel.VolumeFSErrorCode;
+import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.volume.VolumeFSClient;
 import com.aliyun.odps.volume.VolumeFSInputStream;
 import com.aliyun.odps.volume.VolumeFSOutputStream;
@@ -144,6 +145,12 @@ public class VolumeFileSystem extends FileSystem {
     }
     Account account = new AliyunAccount(accessId, accessKey);
     Odps odps = new Odps(account);
+
+    String restClientRetryTime = conf.get(VolumeFileSystemConfigKeys.ODPS_RESTCLIENT_RETRYTIME);
+    if (!StringUtils.isNullOrEmpty(restClientRetryTime)) {
+      odps.getRestClient().setRetryTimes(Integer.parseInt(restClientRetryTime));
+    }
+
     odps.setEndpoint(serviceEndpoint);
     return new VolumeFSClient(odps, project, serviceEndpoint, tunnelEndpoint, conf);
   }

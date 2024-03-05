@@ -11,6 +11,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.*;
 import com.aliyun.odps.tunnel.io.*;
 import com.aliyun.odps.utils.ConnectionWatcher;
+import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.*;
 
 import java.io.ByteArrayOutputStream;
@@ -20,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 
+import static com.aliyun.odps.commons.transport.Headers.TUNNEL_RECORD_COUNT;
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
 public class StreamUploadSessionImpl extends StreamSessionBase implements TableTunnel.StreamUploadSession {
@@ -163,7 +165,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         } else {
             // reset routed server slot rescheduled
             if (!slot.getServer().equals(server)) {
-                slot.setServer(server, false);
+                slot.setServer(server);
             }
         }
     }
@@ -245,6 +247,10 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
 
         headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slots.getSlotNum()));
+
+        if (!StringUtils.isNullOrEmpty(config.getQuotaName())) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, config.getQuotaName());
+        }
 
         switch (compress.algorithm) {
             case ODPS_RAW: {
@@ -376,6 +382,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     @Override
     public TableSchema getSchema() {
         return schema;
+    }
+
+    @Override
+    public String getQuotaName() {
+        return quotaName;
     }
 
     @Override

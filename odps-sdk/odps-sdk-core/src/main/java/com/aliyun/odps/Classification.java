@@ -74,7 +74,7 @@ public class Classification extends LazyLoad {
     Integer minimum;
     Set<String> elements;
 
-    abstract static class Builder<T extends Builder<T>> {
+    abstract public static class Builder<T extends Builder<T>> {
 
       boolean isRequired = false;
       boolean isUnique = true;
@@ -113,12 +113,12 @@ public class Classification extends LazyLoad {
 //        return self();
 //      }
 
-      Builder maxLength(int maxLength) {
+      public Builder maxLength(int maxLength) {
         this.maxLength = maxLength;
         return self();
       }
 
-      Builder minLength(int minLength) {
+      public Builder minLength(int minLength) {
         this.minLength = minLength;
         return self();
       }
@@ -174,12 +174,12 @@ public class Classification extends LazyLoad {
         return new IntegerAttributeDefinition(this);
       }
 
-      Builder maximum(int maximum) {
+      public Builder maximum(int maximum) {
         this.maximum = maximum;
         return self();
       }
 
-      Builder minimum(int minimum) {
+      public Builder minimum(int minimum) {
         this.minimum = minimum;
         return self();
       }
@@ -216,7 +216,7 @@ public class Classification extends LazyLoad {
 
       Set<String> elements;
 
-      Builder element(String element) {
+      public Builder element(String element) {
         if (this.elements == null) {
           this.elements = new HashSet<>();
         }
