@@ -23,15 +23,16 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+
 
 import com.aliyun.odps.utils.ReflectionUtils;
 
 /**
- * 可以用于序列化的{@link Map}，使用方法相同，可以在{@link com.aliyun.odps.mapreduce.Mapper} 中调用
- * {@link com.aliyun.odps.mapreduce.MapContext#write(Object, Object)}写出。
+ * 可以用于序列化的{@link Map}，使用方法相同，可以在{@link com.aliyun.odps.mapred.Mapper} 中调用
+ * {@link com.aliyun.odps.mapred.MapContext#write(Object, Object)}写出。
  */
 public class MapWritable extends AbstractMapWritable implements
                                                      Map<Writable, Writable> {
@@ -43,13 +44,13 @@ public class MapWritable extends AbstractMapWritable implements
    */
   public MapWritable() {
     super();
-    this.instance = new HashMap<Writable, Writable>();
+    this.instance = new LinkedHashMap<>();
   }
 
   /**
    * 拷贝构造函数
    *
-   * @param 另一个待拷贝的
+   * @param other 另一个待拷贝的
    */
   public MapWritable(MapWritable other) {
     this();
@@ -83,7 +84,7 @@ public class MapWritable extends AbstractMapWritable implements
     }
 
     if (obj instanceof MapWritable) {
-      Map map = (Map) obj;
+      MapWritable map = (MapWritable) obj;
       if (size() != map.size()) {
         return false;
       }
@@ -215,7 +216,7 @@ public class MapWritable extends AbstractMapWritable implements
 
   @Override
   public String toString() {
-    StringBuffer sb = new StringBuffer("[");
+    StringBuilder sb = new StringBuilder("[");
     for (Map.Entry<Writable, Writable> entry : entrySet()) {
       sb.append("{");
       sb.append(entry.getKey().toString());

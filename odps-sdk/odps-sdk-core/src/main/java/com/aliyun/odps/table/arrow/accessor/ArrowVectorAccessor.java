@@ -19,23 +19,30 @@
 
 package com.aliyun.odps.table.arrow.accessor;
 
-import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.ValueVector;
 
-import java.math.BigDecimal;
+import com.aliyun.odps.table.utils.Preconditions;
 
 /**
- * Arrow column vector accessor for decimal.
+ * Access arrow column vector through specific subclasses.
  */
-public class ArrowDecimalAccessor extends ArrowVectorAccessor {
+public abstract class ArrowVectorAccessor {
 
-    protected final DecimalVector decimalVector;
+    private final ValueVector vector;
 
-    public ArrowDecimalAccessor(DecimalVector decimalVector) {
-        super(decimalVector);
-        this.decimalVector = decimalVector;
+    public ArrowVectorAccessor(ValueVector vector) {
+        this.vector = Preconditions.checkNotNull(vector, "Value vector");
     }
 
-    public BigDecimal getDecimal(int rowId) {
-        return decimalVector.getObject(rowId);
+    public boolean isNullAt(int rowId) {
+        return vector.isNull(rowId);
+    }
+
+    public final int getNullCount() {
+        return vector.getNullCount();
+    }
+
+    public final void close() {
+        vector.close();
     }
 }

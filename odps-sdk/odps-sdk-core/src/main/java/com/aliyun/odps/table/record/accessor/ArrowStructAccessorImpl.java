@@ -19,34 +19,37 @@
 
 package com.aliyun.odps.table.record.accessor;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.arrow.vector.complex.StructVector;
+
 import com.aliyun.odps.data.SimpleStruct;
 import com.aliyun.odps.data.Struct;
 import com.aliyun.odps.table.arrow.accessor.ArrowStructAccessor;
 import com.aliyun.odps.table.arrow.accessor.ArrowVectorAccessor;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
-import org.apache.arrow.vector.complex.StructVector;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class ArrowStructAccessorImpl {
 
     public static class ArrowStructAccessorForRecord extends ArrowStructAccessor<Struct> {
 
+        private final boolean isExtension;
         private final ArrowVectorAccessor[] childAccessors;
         private final TypeInfo structTypeInfo;
         private final List<TypeInfo> childTypeInfos;
 
         public ArrowStructAccessorForRecord(StructVector structVector,
-                                            TypeInfo typeInfo) {
+                                            TypeInfo typeInfo, boolean isExtension) {
             super(structVector);
+            this.isExtension = isExtension;
             this.structTypeInfo = typeInfo;
             this.childTypeInfos = ((StructTypeInfo) typeInfo).getFieldTypeInfos();
             this.childAccessors = new ArrowVectorAccessor[structVector.size()];
             for (int i = 0; i < childAccessors.length; i++) {
                 this.childAccessors[i] = ArrowToRecordConverter.createColumnVectorAccessor(
-                        structVector.getVectorById(i), childTypeInfos.get(i));
+                        structVector.getVectorById(i), childTypeInfos.get(i), isExtension);
             }
         }
 
@@ -55,7 +58,7 @@ public class ArrowStructAccessorImpl {
             List<Object> values = new ArrayList<>();
             try {
                 for (int i = 0; i < childAccessors.length; i++) {
-                    values.add(ArrowToRecordConverter.getData(childAccessors[i], childTypeInfos.get(i), rowId));
+                    values.add(ArrowToRecordConverter.getData(childAccessors[i], childTypeInfos.get(i), rowId, isExtension));
                 }
                 return new SimpleStruct((StructTypeInfo) structTypeInfo, values);
             } catch (Exception e) {

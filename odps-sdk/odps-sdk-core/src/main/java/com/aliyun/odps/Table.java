@@ -19,7 +19,7 @@
 
 package com.aliyun.odps;
 
-import java.io.ByteArrayInputStream;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -30,11 +30,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.arrow.vector.ipc.ArrowStreamReader;
+
 import com.aliyun.odps.Partition.PartitionModel;
 import com.aliyun.odps.Partition.PartitionSpecModel;
 import com.aliyun.odps.commons.transport.Headers;
-import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.data.DefaultRecordReader;
+import com.aliyun.odps.data.ArrowStreamRecordReader;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
@@ -49,6 +50,7 @@ import com.aliyun.odps.simpleframework.xml.convert.Converter;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.StringUtils;
@@ -1084,14 +1086,12 @@ public class Table extends LazyLoad {
    * @throws OdpsException
    */
   public RecordReader read(int limit) throws OdpsException {
-    //TODO FIX DATE
     return read(null, null, limit);
   }
 
   /**
    * 读取表内的数据 <br />
-   * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
-   * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
+   * 读取数据时，最多返回 1w 条记录 (project read 默认值），若超过，数据将被截断。<br />
    *
    * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
    * @param columns   所要读取的列名的列表。如果读取全表可传入null
@@ -1101,60 +1101,94 @@ public class Table extends LazyLoad {
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit)
       throws OdpsException {
-    //TODO FIX DATE
     return read(partition, columns, limit, null);
   }
 
   /**
    * 读取表内的数据 <br />
-   * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
-   * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
+   * 读取数据时，最多返回 1w 条记录 (project read 默认值），若超过，数据将被截断。<br />
    *
    * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
    * @param columns   所要读取的列名的列表。如果读取全表可传入null
    * @param limit     最多读取的记录行数。
-   * @param timezone  设置 datetime 类型数据的时区
+   * @param timezone  设置 datetime 类型数据的时区，新接口使用Java8无时区类型，指定Timezone无效。
    * @return {@link RecordReader}对象
    * @throws OdpsException
    */
   public RecordReader read(PartitionSpec partition, List<String> columns, int limit,
-                           String timezone)
+                           String timezone) throws OdpsException {
+    return read(partition, columns, limit, timezone, false);
+  }
+
+  /**
+   * 读取表内的数据 <br />
+   * 读取数据时，最多返回 1w 条记录 (project read 默认值），若超过，数据将被截断。<br />
+   *
+   * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
+   * @param columns   所要读取的列名的列表。如果读取全表可传入null
+   * @param limit     最多读取的记录行数。
+   * @param timezone  设置 datetime 类型数据的时区，新接口使用Java8无时区类型，故指定Timezone无效
+   * @param useLegacyMode  是否使用兼容旧Read接口模式，默认为false。老接口性能较差，不推荐。
+   * @see <a href="https://aliyuque.antfin.com/odps/sdk/pi9ec3d5tly76af8?singleDoc#">《新老read接口区别》</a>
+   * @return {@link ArrowStreamRecordReader}
+   * @throws OdpsException
+   */
+  public RecordReader read(PartitionSpec partition, List<String> columns, int limit,
+                           String timezone, boolean useLegacyMode)
       throws OdpsException {
-    //TODO FIX DATE
-    if (limit < 0) {
-      // TODO: should throw IllegalArgumentException
-      throw new OdpsException("limit number should >= 0.");
-    }
-    Map<String, String> params = initParamsWithSchema();
-    params.put("data", null);
+    return read(partition, columns, limit, timezone, useLegacyMode, null);
+  }
 
-    if (partition != null && partition.keys().size() > 0) {
-      params.put("partition", partition.toString());
+  /**
+   * 读取表内的数据 <br />
+   * 读取数据时，最多返回 1w 条记录 (project read 默认值），若超过，数据将被截断。<br />
+   *
+   * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
+   * @param columns   所要读取的列名的列表。如果读取全表可传入null
+   * @param limit     最多读取的记录行数。
+   * @param timezone  设置 datetime 类型数据的时区，新接口使用Java8无时区类型，故指定Timezone无效
+   * @param useLegacyMode  是否使用兼容旧Read接口模式，默认为false。老接口性能较差，不推荐。
+   * @see <a href="https://aliyuque.antfin.com/odps/sdk/pi9ec3d5tly76af8?singleDoc#">《新老read接口区别》</a>
+   * @return {@link ArrowStreamRecordReader}
+   * @throws OdpsException
+   */
+  public RecordReader read(PartitionSpec partition, List<String> columns, int limit,
+                           String timezone, boolean useLegacyMode, String tunnelEndpoint)
+      throws OdpsException {
+    if (limit <= 0) {
+      throw new OdpsException("ODPS-0420061: Invalid parameter in HTTP request - 'linenum' must be bigger than zero!");
     }
-
-    if (columns != null && columns.size() != 0) {
-      String column = "";
-      for (String temp : columns) {
-        column += temp;
-        column += ",";
+    TableSchema schema = getSchema();
+    if (partition != null && !hasPartition(partition)) {
+      return new ArrowStreamRecordReader(null, schema);
+    }
+    TableTunnel tableTunnel = new TableTunnel(odps);
+    if (!StringUtils.isNullOrEmpty(tunnelEndpoint)) {
+      tableTunnel.setEndpoint(tunnelEndpoint);
+    }
+    String partitionName = null;
+    if (partition != null && !partition.keys().isEmpty()) {
+      partitionName = partition.toString().replace("'", "");
+    }
+    ArrowStreamReader arrowReader;
+    arrowReader = tableTunnel.preview(getProject(), getSchemaName(), model.name, partitionName,
+                                      (long) limit);
+    ArrowStreamRecordReader
+        recordReader = new ArrowStreamRecordReader(arrowReader, schema, columns);
+    if (!StringUtils.isNullOrEmpty(timezone)) {
+      try {
+        recordReader.setTimeZone(ZoneId.of(timezone));
+      } catch (Exception e) {
+        throw new OdpsException("invalid timezone name: " + timezone, e);
       }
-      column = column.substring(0, column.lastIndexOf(","));
-      params.put("cols", column);
+    } else {
+      try {
+        String defaultTimezone = odps.projects().get(getProject()).getProperty("odps.sql.timezone");
+        recordReader.setTimeZone(ZoneId.of(defaultTimezone));
+      } catch (Exception ignored) {}
     }
-
-    if (limit != -1) {
-      params.put("linenum", String.valueOf(limit));
-    }
-
-    Map<String, String> header = null;
-    if (timezone != null) {
-      header = new HashMap<String, String>();
-      header.put("x-odps-sql-timezone", timezone);
-    }
-
-    String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
-    Response resp = client.request(resource, "GET", params, header, null);
-    return new DefaultRecordReader(new ByteArrayInputStream(resp.getBody()), getSchema());
+    recordReader.setUseLegacyOutputFormat(useLegacyMode);
+    return recordReader;
   }
 
   private TableSchema loadSchemaFromJson(String json) {

@@ -119,13 +119,11 @@ public class SQLExecutorTest extends TestBase {
     }
     writer.close();
     uploadSession.commit();
-
     Instance ins = SQLTask.run(odps, createComplexTypeSql);
     ins.waitForSuccess();
 
     ins = SQLTask.run(odps, insertComplexTypeSql);
     ins.waitForSuccess();
-
     odps.tables().create(streamTableName, schema, true);
     TableTunnel.StreamUploadSession upload = tableTunnel.buildStreamUploadSession(odps.getDefaultProject(), streamTableName).build();
     Record record = upload.newRecord();
@@ -175,6 +173,56 @@ public class SQLExecutorTest extends TestBase {
     }
   }
 
+  @Test
+  public void testFailByTunnel() throws OdpsException, IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.session.max.instance.number", "1");
+    hint.put("odps.sql.mapper.split.size", "1");
+    try {
+      sqlExecutor.run(bigSql, hint);
+      sqlExecutor.getResult();
+      Assert.assertEquals(true, false);
+    } catch (OdpsException e) {
+      Assert.assertTrue(e.getMessage().contains("TaskFailed"));
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  @Test
+  public void testFail() throws OdpsException, IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.INTERACTIVE)
+        .properties(properties)
+        .useInstanceTunnel(false)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    Map<String, String> hint = new HashMap<>();
+    hint.put("odps.sql.session.max.instance.number", "1");
+    hint.put("odps.sql.mapper.split.size", "1");
+    try {
+      sqlExecutor.run(bigSql, hint);
+      sqlExecutor.getResult();
+      Assert.assertEquals(true, false);
+    } catch (OdpsException e) {
+      Assert.assertTrue(e.getMessage().contains("instance count"));
+    } finally {
+      sqlExecutor.close();
+    }
+  }
   @Test
   public void testTunnelFetchRefreshAttachLiveTime() throws OdpsException, IOException, InterruptedException {
     Map<String, String> properties = new HashMap<>();

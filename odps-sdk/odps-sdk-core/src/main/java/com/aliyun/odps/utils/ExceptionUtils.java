@@ -7,5 +7,9 @@ public class ExceptionUtils {
             throw new IllegalArgumentException("Argument '" + arg + "' cannot be null or empty");
         }
     }
-
+    public static void checkArgumentNotNull(String arg, Object value) {
+        if (value == null) {
+            throw new IllegalArgumentException("Argument '" + arg + "' cannot be null");
+        }
+    }
 }

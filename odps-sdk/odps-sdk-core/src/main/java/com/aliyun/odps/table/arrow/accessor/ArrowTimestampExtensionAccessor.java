@@ -19,29 +19,29 @@
 
 package com.aliyun.odps.table.arrow.accessor;
 
-import com.aliyun.odps.table.utils.Preconditions;
-import org.apache.arrow.vector.ValueVector;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
-/**
- * Access arrow column vector through specific subclasses.
- */
-public abstract class ArrowVectorAccessor {
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.complex.StructVector;
 
-    private final ValueVector vector;
+public class ArrowTimestampExtensionAccessor extends ArrowVectorAccessor{
 
-    public ArrowVectorAccessor(ValueVector vector) {
-        this.vector = Preconditions.checkNotNull(vector, "Value vector");
-    }
+  protected final BigIntVector sec;
+  protected final IntVector nano;
 
-    public boolean isNullAt(int rowId) {
-        return vector.isNull(rowId);
-    }
+  public ArrowTimestampExtensionAccessor(StructVector structVector) {
+    super(structVector);
+    sec = (BigIntVector)structVector.getVectorById(0);
+    nano = (IntVector)structVector.getVectorById(1);
+  }
 
-    public final int getNullCount() {
-        return vector.getNullCount();
-    }
-
-    public final void close() {
-        vector.close();
-    }
+  public LocalDateTime getTimestampNtz(int index) {
+    return LocalDateTime.ofEpochSecond(sec.get(index), nano.get(index), ZoneOffset.UTC);
+  }
+  public Instant getTimestamp(int index) {
+    return Instant.ofEpochSecond(sec.get(index), nano.get(index));
+  }
 }

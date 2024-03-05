@@ -14,20 +14,29 @@
  */
 package com.aliyun.odps.volume;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -35,18 +44,24 @@ import com.aliyun.odps.Volume;
 import com.aliyun.odps.VolumeException;
 import com.aliyun.odps.VolumeFSFile;
 import com.aliyun.odps.Volumes;
+import com.aliyun.odps.commons.transport.DefaultConnection;
+import com.aliyun.odps.commons.transport.Request;
+import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.fs.VolumeFileSystemConfigKeys;
+import com.aliyun.odps.rest.ResourceBuilder;
+import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.VolumeFSErrorCode;
 import com.aliyun.odps.tunnel.VolumeFSTunnel;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.VolumeOutputStream;
+import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.volume.protocol.VolumeFSConstants;
 import com.aliyun.odps.volume.protocol.VolumeFSErrorMessageGenerator;
 
 /**
  * Client for Volume
- * 
+ *
  * @author Emerson Zhao [mailto:zhenyi.zzy@alibaba-inc.com]
  *
  */
@@ -58,6 +73,8 @@ public class VolumeFSClient {
 
   private Configuration conf;
 
+  private RestClient client;
+
   public VolumeFSClient(Odps odps, String project, String serviceEndpoint, String tunnelEndpoint,
       Configuration conf) {
     this.odps = odps;
@@ -65,11 +82,12 @@ public class VolumeFSClient {
     this.odps.setEndpoint(serviceEndpoint);
     this.tunnelEndpoint = tunnelEndpoint;
     this.conf = conf;
+    client = odps.getRestClient();
   }
 
   /**
    * Get File meta info
-   * 
+   *
    * @param path
    * @throws VolumeException
    */
@@ -140,13 +158,36 @@ public class VolumeFSClient {
    * @throws VolumeException
    */
   public boolean mkdirs(String path) throws VolumeException {
-
     return new VolumeFSJobRunnerProxy<Boolean>() {
 
       @Override
       public Boolean doJob(String path, Map<String, Object> params) throws VolumeException {
+        boolean isExternal = false;
+        String pathName = null;
+        String volumeName = null;
+        try {
+          String[] volumeAndPath = VolumeFSUtil.getVolumeAndPath(path);
+          volumeName = volumeAndPath[0];
+          pathName = volumeAndPath[1];
+          isExternal = isExternalVolume(volumeName);
+        } catch (Exception ignored) {
+          // not external volume may have no volume name
+        }
 
-        VolumeFSFile.create(odps.getDefaultProject(), path, true, odps.getRestClient());
+        if (isExternal) {
+          if (pathName == null || volumeName == null) {
+            throw new VolumeException(VolumeFSErrorCode.NoSuchVolume,
+                                      VolumeFSErrorMessageGenerator.isNotAValidODPSVolumeFSFilename(
+                                          path));
+          }
+          if (!pathName.endsWith(VolumeFSConstants.SEPARATOR)) {
+            pathName = pathName + VolumeFSConstants.SEPARATOR;
+          }
+          putObjectWithHttp(odps.getDefaultProject(), volumeName, pathName,
+                            new ByteArrayInputStream(new byte[0]));
+        } else {
+          VolumeFSFile.create(odps.getDefaultProject(), path, true, odps.getRestClient());
+        }
         return true;
       }
 
@@ -213,7 +254,7 @@ public class VolumeFSClient {
 
   /**
    * Set file's replication
-   * 
+   *
    * @param path
    * @param replication
    * @throws VolumeException
@@ -257,7 +298,7 @@ public class VolumeFSClient {
 
   /**
    * List files (and directories) in specific path
-   * 
+   *
    * @param path
    * @throws VolumeException
    */
@@ -324,7 +365,7 @@ public class VolumeFSClient {
 
   /**
    * Rename file (or directory)
-   * 
+   *
    * @param src
    * @param dst
    * @throws VolumeException
@@ -336,15 +377,22 @@ public class VolumeFSClient {
     innerParams.put(VolumeFSFile.ParamKey.PATH.name().toLowerCase(), dst);
     params.put("params", innerParams);
 
+    String[] srcPair = VolumeFSUtil.getVolumeAndPath(src);
+    String[] dstPair = VolumeFSUtil.getVolumeAndPath(dst);
+    boolean isExternal = isExternalVolume(srcPair[0]);
     return new VolumeFSJobRunnerProxy<Boolean>() {
 
       @SuppressWarnings("unchecked")
       @Override
       public Boolean doJob(String path, Map<String, Object> params) throws VolumeException {
-
-        VolumeFSFile file =
-            odps.volumes().get(VolumeFSUtil.getVolumeFromPath(path)).getVolumeFSFile(path);
-        file.update((Map<String, String>) params.get("params"));
+        if (isExternal) {
+          copy(odps.getDefaultProject(), srcPair[0], srcPair[1], dstPair[0], dstPair[1]);
+          delete(src, false);
+        } else {
+          VolumeFSFile file =
+              odps.volumes().get(VolumeFSUtil.getVolumeFromPath(path)).getVolumeFSFile(path);
+          file.update((Map<String, String>) params.get("params"));
+        }
         return true;
       }
 
@@ -376,7 +424,7 @@ public class VolumeFSClient {
 
   /**
    * Delete file (or directory)
-   * 
+   *
    * @param path
    * @param recursive
    * @throws VolumeException
@@ -437,7 +485,7 @@ public class VolumeFSClient {
 
   /**
    * Download volume file
-   * 
+   *
    * @param path
    * @param start start of range
    * @param end start of range
@@ -468,7 +516,7 @@ public class VolumeFSClient {
 
   /**
    * Create an {@link InputStream} at the indicated Path
-   * 
+   *
    * @param path
    * @param start
    * @param end
@@ -497,9 +545,25 @@ public class VolumeFSClient {
     return in;
   }
 
+  public void downloadFileFromExternalVolume(String path, String targetPath)
+      throws OdpsException, VolumeException {
+    String[] parts = path.split(VolumeFSConstants.SEPARATOR, 3);
+    String volumeName =  parts[1];;
+    String pathName = parts[2];
+    download(odps.getDefaultProject(), volumeName, pathName, targetPath);
+  }
+
+  public void uploadFileToExternalVolume(String path, InputStream fileInputStream)
+      throws OdpsException, VolumeException {
+    String[] parts = path.split(VolumeFSConstants.SEPARATOR, 3);
+    String volumeName =  parts[1];;
+    String pathName = parts[2];
+    upload(odps.getDefaultProject(), volumeName, pathName, fileInputStream);
+  }
+
   /**
    * Create an {@link OutputStream} at the indicated Path
-   * 
+   *
    * @param path
    * @param overwrite
    * @param replication
@@ -563,7 +627,7 @@ public class VolumeFSClient {
 
   /**
    * Create a zero-byte file
-   * 
+   *
    * @param path
    * @param replication
    * @param tunnel
@@ -586,7 +650,7 @@ public class VolumeFSClient {
 
   /**
    * Commit the uploadSession
-   * 
+   *
    * @param path
    * @param out
    * @param overwrite
@@ -627,6 +691,162 @@ public class VolumeFSClient {
     }
   }
 
+  /**
+   * 上传文件到external volume
+   * 文件存储于：/volumeName/path
+   * 上传已存在文件，会覆盖
+   *
+   * @param path            文件存储地址
+   * @param fileInputStream 文件输入流
+   */
+  private void upload(String projectName, String volumeName, String path,
+                     InputStream fileInputStream) throws VolumeException {
+    path = path.trim();
+    if (path.endsWith("/")) {
+      throw new VolumeException("upload file path can not end with '/', do you mean to use mkdir?");
+    }
+    putObjectWithHttp(projectName, volumeName, path, fileInputStream);
+  }
+
+  /**
+   * external volume 下载指定文件到指定地址
+   *
+   * @param fromPath volume内文件路径
+   * @param toPath   本地下载路径
+   */
+  private void download(String projectName, String volumeName, String fromPath, String toPath)
+      throws VolumeException {
+    InputStream in = getObjectWithHttp(projectName, volumeName, fromPath);
+    File file = new File(toPath);
+    if (file.isDirectory()) {
+      // 如果toPath是一个目录，则文件名应该与fromPath的文件名相同
+      String fileName = new File(fromPath).getName();
+      file = new File(file, fileName);
+    }
+    try (FileOutputStream out = new FileOutputStream(file)) {
+      com.aliyun.odps.commons.util.IOUtils.copyLarge(in, out);
+      in.close();
+      out.flush();
+    } catch (Exception e) {
+      throw new VolumeException("Error download file", e);
+    }
+  }
+
+  /**
+   * exteral volume copy，原理是先下载，再上传
+   *
+   * @param fromPath 源文件路径
+   * @param toPath   目标文件路径
+   */
+  private void copy(String projectName, String fromVolumeName, String fromPath, String toVolumeName, String toPath)
+      throws VolumeException {
+    InputStream in = getObjectWithHttp(projectName, fromVolumeName, fromPath);
+    putObjectWithHttp(projectName, toVolumeName, toPath, in);
+  }
+
+  private void putObjectWithHttp(String projectName, String volumeName, String path,
+                                InputStream fileInputStream) throws VolumeException {
+    if (fileInputStream == null) {
+      throw new VolumeException("fileInputStream can't be null");
+    }
+    DefaultConnection conn = new DefaultConnection();
+    try {
+      URI signedUrl = generatePresignedUrl(projectName, volumeName, path, "put");
+      Request request = new Request();
+      request.setURI(signedUrl);
+      request.setMethod(Request.Method.PUT);
+      conn.connect(request);
+      DataOutputStream out = new DataOutputStream(conn.getOutputStream());
+      com.aliyun.odps.commons.util.IOUtils.copyLarge(fileInputStream, out);
+      out.flush();
+      out.close();
+      int responseCode = conn.getResponse().getStatus();
+      if (responseCode != 200) {
+        throw new VolumeException("Uploading failed with response code " + responseCode);
+      }
+    } catch (IOException e) {
+      throw new VolumeException("Error uploading file", e);
+    } catch (OdpsException e) {
+      throw new VolumeException(VolumeFSErrorCode.NoSuchVolume, e);
+    } finally {
+      try {
+        conn.disconnect();
+      } catch (Exception ignored) {
+      }
+    }
+  }
+
+  private InputStream getObjectWithHttp(String projectName, String volumeName, String path)
+      throws VolumeException {
+    DefaultConnection conn = new DefaultConnection();
+    try {
+      URI signedUrl = generatePresignedUrl(projectName, volumeName, path, "get");
+      Request request = new Request();
+      request.setURI(signedUrl);
+      request.setMethod(Request.Method.GET);
+      conn.connect(request);
+      int responseCode = conn.getResponse().getStatus();
+      if (responseCode != 200) {
+        throw new VolumeException(VolumeFSErrorCode.InvalidPath, "Download failed with response code " + responseCode);
+      }
+      InputStream inputStream = conn.getInputStream();
+      return new ByteArrayInputStream(org.apache.commons.io.IOUtils.toByteArray(inputStream));
+    } catch (IOException e) {
+      throw new VolumeException("Error downloading file", e);
+    } catch (OdpsException e) {
+      throw new VolumeException(VolumeFSErrorCode.NoSuchVolume, e);
+    } finally {
+      try {
+        conn.disconnect();
+      } catch (Exception ignored) {
+      }
+    }
+  }
+
+  /**
+   * 生成 external volume 读写指定文件的presigned url
+   *
+   * @param httpMethod get or put
+   */
+  private URI generatePresignedUrl(String projectName, String volumeName, String path,
+                                   String httpMethod) throws OdpsException {
+    if (!StringUtils.allNotNullOrEmpty(projectName, volumeName, path, httpMethod)) {
+      throw new IllegalArgumentException("require all params not null or empty");
+    }
+    if (!"put".equalsIgnoreCase(httpMethod) && !"get".equalsIgnoreCase(httpMethod)) {
+      throw new IllegalArgumentException("invalid http method: " + httpMethod);
+    }
+    String resource = ResourceBuilder.buildVolumeResource(projectName, volumeName);
+    if (path.charAt(0) == '/') {
+      path = "/" + volumeName + path;
+    } else {
+      path = "/" + volumeName + "/" + path;
+    }
+
+    Map<String, String> params = new HashMap<>();
+    params.put("sign_url", httpMethod);
+    params.put("meta", null);
+
+    Map<String, String> headers = new HashMap<>();
+    headers.put("x-odps-volume-fs-path", path);
+
+    Response response = client.request(resource, "GET", params, headers, null);
+    if (response.isOK()) {
+      try {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(new ByteArrayInputStream(response.getBody()));
+        NodeList nodeList = doc.getElementsByTagName("URL");
+        Node node = nodeList.item(0);
+        return new URI(node.getTextContent());
+      } catch (Exception e) {
+        throw new OdpsException("Cannot read XML responce", e);
+      }
+    } else {
+      throw new OdpsException("Can't generate presigned url: " + response.getStatus());
+    }
+  }
+
   private VolumeFSTunnel getVolumeTunnel() {
     VolumeFSTunnel tunnelFS = new VolumeFSTunnel(odps.clone());
     if (tunnelEndpoint != null)
@@ -640,5 +860,9 @@ public class VolumeFSClient {
 
   public static boolean isExternalVolume(Volume v) {
     return Volume.Type.EXTERNAL.equals(v.getType());
+  }
+
+  public boolean isExternalVolume(String volumeName) {
+    return isExternalVolume(odps.volumes().get(volumeName));
   }
 }

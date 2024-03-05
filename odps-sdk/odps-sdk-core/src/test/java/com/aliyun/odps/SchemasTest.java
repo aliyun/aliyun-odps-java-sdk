@@ -40,6 +40,9 @@ public class SchemasTest {
 
   @AfterClass
   public static void clean() throws OdpsException, InterruptedException {
+    if (schemas == null) {
+      return;
+    }
     deleteIfExists(TEST_PROJECT_1, TEST_SCHEMA_IN_PROJECT_1);
     deleteIfExists(TEST_PROJECT_1, TEST_SCHEMA_ITERATOR_IN_PROJECT_1);
     deleteIfExists(TEST_PROJECT_2, TEST_SCHEMA_IN_PROJECT_2);

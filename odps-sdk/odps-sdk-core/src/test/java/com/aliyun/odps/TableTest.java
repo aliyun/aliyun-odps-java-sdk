@@ -19,6 +19,13 @@
 
 package com.aliyun.odps;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -30,8 +37,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import javax.swing.text.TabExpander;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -46,8 +51,6 @@ import com.aliyun.odps.Classification.StringAttributeDefinition;
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.Table.TableType;
 import com.aliyun.odps.Tags.TagBuilder;
-import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordReader;
@@ -60,8 +63,6 @@ import com.aliyun.odps.type.TypeInfoFactory;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.org.apache.xml.internal.utils.URI;
-
-import static org.junit.Assert.*;
 
 public class TableTest extends TestBase {
 
@@ -245,23 +246,18 @@ public class TableTest extends TestBase {
 
   @Test
   public void testReadTable() throws OdpsException, IOException {
-
-    Table a = odps.tables().get(TRUNCATE_TABLE_NAME);
-    RecordReader rr = a.read(1000000);
+    Table a = odps.tables().get(SOURCE_TABLE_NAME);
     Record g;
+    int count = 0;
+    int limit = 5;
+    RecordReader rr = a.read(null, null, limit, null);
     while ((g = rr.read()) != null) {
+      count++;
       for (int i = 0; i < g.getColumnCount(); ++i) {
         System.out.println(g.getColumns()[i].getName() + ":" + g.get(i));
       }
     }
-
-    try {
-      a.read(-1);
-    } catch (OdpsException e) {
-      return;
-    } finally {
-    }
-    Assert.fail("Read should not accept limit < 0");
+    Assert.assertEquals(count, limit);
   }
 
   @Test

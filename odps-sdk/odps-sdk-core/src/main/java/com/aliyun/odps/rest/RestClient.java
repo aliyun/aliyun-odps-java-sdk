@@ -474,7 +474,9 @@ public class RestClient {
       // FOR HTTPS CERTS CHECK FAILED
       // USE RuntimeException could avoid retry
       throw new RuntimeException(e.getMessage(), e);
-    } catch (UnknownHostException | SocketTimeoutException | ConnectException e) {
+    } catch (UnknownHostException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    } catch (SocketTimeoutException | ConnectException e) {
       throw new OdpsException(e.getMessage()
                               + ", the possible reason is that the endpoint `" + endpoint
                               + "` is wrong, please check your endpoint",

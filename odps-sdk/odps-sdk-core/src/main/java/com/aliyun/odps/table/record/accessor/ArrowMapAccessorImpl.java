@@ -19,33 +19,36 @@
 
 package com.aliyun.odps.table.record.accessor;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.StructVector;
+
 import com.aliyun.odps.table.arrow.accessor.ArrowMapAccessor;
 import com.aliyun.odps.table.arrow.accessor.ArrowVectorAccessor;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
-import org.apache.arrow.vector.complex.MapVector;
-import org.apache.arrow.vector.complex.StructVector;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class ArrowMapAccessorImpl {
 
     public static class ArrowMapAccessorForRecord extends ArrowMapAccessor<Map<Object, Object>> {
+        private final boolean isExtension;
         private final TypeInfo keyTypeInfo;
         private final TypeInfo valueTypeInfo;
         private final ArrowVectorAccessor keyAccessor;
         private final ArrowVectorAccessor valueAccessor;
 
-        public ArrowMapAccessorForRecord(MapVector mapVector, TypeInfo typeInfo) {
+        public ArrowMapAccessorForRecord(MapVector mapVector, TypeInfo typeInfo, boolean isExtension) {
             super(mapVector);
+            this.isExtension = isExtension;
             this.keyTypeInfo = ((MapTypeInfo) typeInfo).getKeyTypeInfo();
             this.valueTypeInfo = ((MapTypeInfo) typeInfo).getValueTypeInfo();
             StructVector entries = (StructVector) mapVector.getDataVector();
             this.keyAccessor = ArrowToRecordConverter.createColumnVectorAccessor(
-                    entries.getChild(MapVector.KEY_NAME), keyTypeInfo);
+                    entries.getChild(MapVector.KEY_NAME), keyTypeInfo, isExtension);
             this.valueAccessor = ArrowToRecordConverter.createColumnVectorAccessor(
-                    entries.getChild(MapVector.VALUE_NAME), valueTypeInfo);
+                    entries.getChild(MapVector.VALUE_NAME), valueTypeInfo, isExtension);
         }
 
         @Override
@@ -53,8 +56,8 @@ public class ArrowMapAccessorImpl {
             Map<Object, Object> map = new HashMap<>();
             try {
                 for (int i = 0; i < numElements; i++) {
-                    map.put(ArrowToRecordConverter.getData(keyAccessor, keyTypeInfo, offset + i),
-                            ArrowToRecordConverter.getData(valueAccessor, valueTypeInfo, offset + i));
+                    map.put(ArrowToRecordConverter.getData(keyAccessor, keyTypeInfo, offset + i, isExtension),
+                            ArrowToRecordConverter.getData(valueAccessor, valueTypeInfo, offset + i, isExtension));
                 }
                 return map;
             } catch (Exception e) {
