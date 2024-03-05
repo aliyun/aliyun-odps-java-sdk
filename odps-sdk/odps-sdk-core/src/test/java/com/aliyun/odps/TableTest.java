@@ -19,12 +19,6 @@
 
 package com.aliyun.odps;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -67,6 +61,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.org.apache.xml.internal.utils.URI;
 
+import static org.junit.Assert.*;
+
 public class TableTest extends TestBase {
 
   private static TableSchema schema;
@@ -97,7 +93,10 @@ public class TableTest extends TestBase {
   private static String NON_PARTITION_TABLE =
       TableTest.class.getSimpleName() + "_non_partition_table";
   private static String PARTITIONED_TABLE_NAME =
-      TableTest.class.getSimpleName() + "_partitioned_table";
+      TableTest.class.getSimpleName() + "_partitioned_table_1";
+
+  private static String PARTITIONED_TABLE_NAME_2 =
+      TableTest.class.getSimpleName() + "_partitioned_table_2";
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -130,6 +129,7 @@ public class TableTest extends TestBase {
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_2, schema, true);
     odps.tables().create(odps.getDefaultProject(), HUB_TABLE_NAME_4, schema, true);
     odps.tables().create(odps.getDefaultProject(), PARTITIONED_TABLE_NAME, schema, true);
+    odps.tables().create(odps.getDefaultProject(), PARTITIONED_TABLE_NAME_2, schema, true);
 
     odps.projects().get().getSecurityManager()
         .runQuery("SET LABEL 2 to TABLE " + TABLE_NAME + "(c1)", false);
@@ -174,6 +174,7 @@ public class TableTest extends TestBase {
     odps.tables().delete(HUB_TABLE_NAME_4, true);
     odps.tables().delete(NON_PARTITION_TABLE, true);
     odps.tables().delete(PARTITIONED_TABLE_NAME, true);
+    odps.tables().delete(PARTITIONED_TABLE_NAME_2, true);
   }
 
   @Test
@@ -202,6 +203,20 @@ public class TableTest extends TestBase {
     assertEquals(OdpsType.MAP, mapTypeInfo.getOdpsType());
     assertEquals(OdpsType.STRING, ((MapTypeInfo) mapTypeInfo).getKeyTypeInfo().getOdpsType());
     assertEquals(OdpsType.STRING, ((MapTypeInfo) mapTypeInfo).getValueTypeInfo().getOdpsType());
+  }
+
+  @Test
+  public void testPartitionGetMarker() throws OdpsException {
+    Table t = odps.tables().get(PARTITIONED_TABLE_NAME_2);
+    for (int i = 10; i < 25; i++) {
+      t.createPartition(new PartitionSpec("p1=" + i + ",p2=foo"), true);
+    }
+    Iterator<Partition> iterator = t.getPartitionIterator();
+
+    ListIterator<Partition> listIterator = (ListIterator) iterator;
+    List<Partition> partitions = listIterator.list(null, 10);
+    assertEquals(10, partitions.size());
+    assertNotNull(listIterator.getMarker());
   }
 
   @Test
@@ -274,6 +289,11 @@ public class TableTest extends TestBase {
 
    Assert.assertTrue(column.isNullable());
    Assert.assertFalse(column.hasDefaultValue());
+  }
+
+  private static void testWhy() {
+    Table table = odps.tables().get(TABLE_NAME);
+    System.out.println(table.getSchema().getColumn("c1").getExtendedlabels());
   }
 
 

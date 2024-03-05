@@ -1,13 +1,15 @@
 package com.aliyun.odps.tunnel.hasher;
 
+import com.aliyun.odps.OdpsType;
+
 /**
  * Hash factory
  */
-public interface HasherFactory {
+interface HasherFactory {
   /**
-   * get hash by type Name
-   * @param typeName
-   * @return
+   * get hash by type
+   * @param type
+   * @return haser
    */
-  OdpsHasher getHasher(String typeName);
+  OdpsHasher getHasher(OdpsType type);
 }

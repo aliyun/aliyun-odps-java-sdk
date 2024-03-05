@@ -2,8 +2,10 @@ package com.aliyun.odps.type;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Odps struct 类型
@@ -27,19 +29,8 @@ class SimpleStructTypeInfo implements StructTypeInfo {
   SimpleStructTypeInfo(List<String> names, List<TypeInfo> typeInfos) {
     validateParameters(names, typeInfos);
 
-    this.fieldNames = toLowerCase(names);
+    this.fieldNames = StringUtils.toLowerCase(names);
     this.fieldTypeInfos = new ArrayList<TypeInfo>(typeInfos);
-  }
-
-  private List<String> toLowerCase(List<String> names)
-  {
-    List<String> lowerNames = new ArrayList<String>(names.size());
-
-    for (String name : names) {
-      lowerNames.add(name.toLowerCase());
-    }
-
-    return lowerNames;
   }
 
   private void validateParameters(List<String> names, List<TypeInfo> typeInfos) {
@@ -110,5 +101,25 @@ class SimpleStructTypeInfo implements StructTypeInfo {
   @Override
   public String toString() {
     return getTypeName();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    SimpleStructTypeInfo that = (SimpleStructTypeInfo) o;
+    return StringUtils.equalsIgnoreCase(fieldNames, that.fieldNames)
+           && Objects.equals(fieldTypeInfos, that.fieldTypeInfos);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(StringUtils.toLowerCase(fieldNames), fieldTypeInfos);
   }
 }

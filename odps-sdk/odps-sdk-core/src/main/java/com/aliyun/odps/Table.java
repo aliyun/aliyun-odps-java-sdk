@@ -1609,6 +1609,22 @@ public class Table extends LazyLoad {
       }
 
       @Override
+      public String getMarker() {
+        return params.get("marker");
+      }
+
+      @Override
+      public List<Partition> list(String marker, long maxItems) {
+        if (marker != null) {
+          params.put("marker", marker);
+        }
+        if (maxItems >= 0) {
+          params.put("maxitems", String.valueOf(maxItems));
+        }
+        return list();
+      }
+
+      @Override
       protected List<Partition> list() {
         ArrayList<Partition> partitions = new ArrayList<>();
         params.put("partitions", null);
@@ -1619,7 +1635,7 @@ public class Table extends LazyLoad {
         if (reverse) {
           params.put("reverse", null);
         }
-        if (batchSize != null) {
+        if (params.get("maxitems") == null && batchSize != null) {
           params.put("maxitems", batchSize.toString());
         }
 

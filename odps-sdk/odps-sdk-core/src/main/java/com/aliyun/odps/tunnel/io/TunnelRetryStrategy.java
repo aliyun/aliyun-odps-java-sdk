@@ -37,19 +37,7 @@ public class TunnelRetryStrategy extends RetryStrategy {
 
     @Override
     protected boolean needRetry(Exception e) {
-        TunnelException err = null;
-        if (e.getCause() instanceof TunnelException) {
-            err = (TunnelException) e.getCause();
-        }
-
-        if (e instanceof TunnelException) {
-            err = (TunnelException) e;
-        }
-
-        if (err != null && err.getStatus() != null && err.getStatus() / 100 == 4) {
-            return false;
-        }
-
+        // not retry on specific error code, current none
         return true;
     }
 }

@@ -22,8 +22,6 @@ package com.aliyun.odps.mapred.cli;
 
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.account.Account.AccountProvider;
-
-
 import com.aliyun.odps.conf.Configuration;
 
 /**
@@ -47,6 +45,8 @@ public class OdpsConf extends Configuration {
   private final static String ACCESSID = "odps.access.id";
   private final static String STS_TOKEN = "odps.sts.token";
   private final static String ACCESSKEY = "odps.access.key";
+  private final static String APP_ACCESS_ID = "odps.app.access.id";
+  private final static String APP_ACCESS_KEY = "odps.app.access.key";
   private final static String ACCOUNT_PROVIDER = "odps.account.provider";
 
 
@@ -131,6 +131,22 @@ public class OdpsConf extends Configuration {
    */
   public void setAccessKey(String accessKey) {
     set(ACCESSKEY, accessKey);
+  }
+
+  public String getAppAccessId() {
+    return get(APP_ACCESS_ID);
+  }
+
+  public void setAppAccessId(String appAccessId) {
+    set(APP_ACCESS_ID, appAccessId);
+  }
+
+  public String getAppAccessKey() {
+    return get(APP_ACCESS_KEY);
+  }
+
+  public void setAppAccessKey(String appAccessKey) {
+    set(APP_ACCESS_KEY, appAccessKey);
   }
 
   /**

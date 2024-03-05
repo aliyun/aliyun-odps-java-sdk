@@ -82,24 +82,24 @@ public class SecurityManagerTest extends TestBase {
 
   @Test
   public void testGetUserById() throws OdpsException {
-    String name = OdpsTestUtils.getCurrentUser(odps);
-    String id = sm.getUserByName(name).getID();
+    String grantUser = OdpsTestUtils.getGrantUser();
+    String id = sm.getUserByName(grantUser).getID();
     User user = sm.getUserById(id);
     Assert.assertEquals(user.getLabel(), 0);
-    Assert.assertEquals(user.getDisplayname(), name);
+    Assert.assertEquals(user.getDisplayname(), grantUser);
     Assert.assertEquals(user.getComment(), "");
-    Assert.assertEquals(user.getRoles().size(), 0);
+    Assert.assertEquals(user.getRoles().size(), 1);
     Assert.assertEquals(user.getProperties().size(), 0);
   }
 
   @Test
   public void testGetUserByName() throws OdpsException {
-    String name = OdpsTestUtils.getCurrentUser(odps);
-    User user = sm.getUserByName(name);
+    String grantUser = OdpsTestUtils.getGrantUser();
+    User user = sm.getUserByName(grantUser);
     Assert.assertEquals(user.getLabel(), 0);
-    Assert.assertEquals(user.getDisplayname(), name);
+    Assert.assertEquals(user.getDisplayname(), grantUser);
     Assert.assertEquals(user.getComment(), "");
-    Assert.assertEquals(user.getRoles().size(), 0);
+    Assert.assertEquals(user.getRoles().size(), 1);
     Assert.assertEquals(user.getProperties().size(), 0);
   }
 

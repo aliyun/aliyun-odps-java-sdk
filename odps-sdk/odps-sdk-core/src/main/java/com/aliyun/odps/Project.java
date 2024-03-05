@@ -161,6 +161,10 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String defaultCluster;
 
+    @Element(name = "QuotaID", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String defaultQuotaID;
+
     @Element(name = "Clusters", required = false)
     Clusters clusters;
 
@@ -245,7 +249,9 @@ public class Project extends LazyLoad {
     }
 
     public Cluster(String name, String quotaID) {
-      if (StringUtils.isNullOrEmpty(name) || StringUtils.isNullOrEmpty(quotaID)) {
+      if (StringUtils.isNullOrEmpty(name) || null == quotaID) {
+        // quotaId can be set to empty string.
+        // In that case, project has no related compute quota
         throw new IllegalArgumentException("Missing arguments: name, quotaID");
       }
       this.name = name;

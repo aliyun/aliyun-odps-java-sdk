@@ -1121,6 +1121,26 @@ public class TableTunnel {
 
       UpsertSession.Builder setCommitTimeout(long commitTimeoutMs);
 
+      /**
+       * Netty 进行网络IO的线程池（EventLoop）的线程数，默认为 1
+       */
+      UpsertSession.Builder setNetworkThreadNum(int threadNum);
+
+      /**
+       * 最大并发数（允许同时存在的 Channel 数量），默认为 8，设为 <=0 为无限制
+       */
+      UpsertSession.Builder setConcurrentNum(int concurrentNum);
+
+      /**
+       * 建立链接的超时时间，单位 毫秒，默认为 180 * 1000
+       */
+      UpsertSession.Builder setConnectTimeout(long timeout);
+
+      /**
+       * 请求响应的超时时间，单位 毫秒，默认为 300 * 1000
+       */
+      UpsertSession.Builder setReadTimeout(long timeout);
+
       UpsertSession build() throws TunnelException, IOException;
     }
   }
@@ -1955,6 +1975,12 @@ public class TableTunnel {
     private String quotaName;
     private ConfigurationImpl conf;
 
+    /**
+     * tunnel下载行级权限表（RAP）会按照行级权限规则起sql进行过滤处理，
+     * 此时SQL的InstanceId，非RAP时为null
+     */
+    private String RAPInstanceId;
+
     private RestClient tunnelServiceClient;
     private boolean shouldTransform = false;
 
@@ -2091,11 +2117,34 @@ public class TableTunnel {
                                                List<Column> columns)
         throws TunnelException, IOException {
 
+      return openRecordReader(start, count, compress, columns, false);
+    }
+
+    /**
+     * 打开{@link RecordReader}用来读取记录
+     *
+     * @param start
+     *     本次要读取记录的起始位置
+     * @param count
+     *     本次要读取记录的数量
+     * @param compress
+     *     数据传输是否进行压缩；即使设置了压缩选项，如果server 不支持压缩，传输数据也不会被压缩
+     * @param columns
+     *     本次需要下载的列
+     * @param disableModifiedCheck
+     *     不检查下载的数据是否是表中最新数据
+     * @throws TunnelException
+     * @throws IOException
+     */
+    public TunnelRecordReader openRecordReader(long start, long count, CompressOption compress,
+                                               List<Column> columns, boolean disableModifiedCheck)
+        throws TunnelException, IOException {
+
       if (columns != null && columns.isEmpty()) {
         throw new TunnelException("Specified column list is empty.");
       }
 
-      TunnelRecordReader reader = new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this);
+      TunnelRecordReader reader = new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this, disableModifiedCheck);
       reader.setTransform(shouldTransform);
 
       return reader;
@@ -2135,10 +2184,14 @@ public class TableTunnel {
     }
 
     public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator, CompressOption compress)
-            throws TunnelException, IOException {
-      return new ArrowTunnelRecordReader(start, count, columns, this.tunnelServiceClient, this, allocator, compress);
+        throws TunnelException, IOException {
+      return openArrowRecordReader(start, count, columns, allocator, compress, false);
     }
 
+    public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator, CompressOption compress, boolean disableModifiedCheck)
+        throws TunnelException, IOException {
+      return new ArrowTunnelRecordReader(start, count, columns, this.tunnelServiceClient, this, allocator, compress, disableModifiedCheck);
+    }
 
     // initiate a new download session
     private void initiate(boolean async, boolean wait) throws TunnelException {
@@ -2299,6 +2352,8 @@ public class TableTunnel {
 
     public String getQuotaName() { return quotaName; }
 
+    public String getRAPInstanceId() { return RAPInstanceId; }
+
     private String getResource() {
       return conf.getResource(projectName, schemaName, tableName);
     }
@@ -2332,6 +2387,10 @@ public class TableTunnel {
 
         if (tree.has("QuotaName")) {
           quotaName = tree.get("QuotaName").getAsString();
+        }
+
+        if (tree.has("RAPInstanceId")) {
+          RAPInstanceId = tree.get("RAPInstanceId").getAsString();
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
@@ -2410,7 +2469,7 @@ public class TableTunnel {
      * @param timeout
      *     等待超时时间，单位：秒，最低0秒
      */
-    boolean wait(DownloadSession download, int interval, long timeout) throws TunnelException {
+    public boolean wait(DownloadSession download, int interval, long timeout) throws TunnelException {
       if (download == null) {
         return false;
       }

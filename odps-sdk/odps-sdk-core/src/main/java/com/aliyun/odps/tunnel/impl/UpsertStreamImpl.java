@@ -8,31 +8,38 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.tunnel.*;
 import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.hasher.OdpsHasher;
+import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.hasher.TypeHasher;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
+import com.aliyun.odps.utils.FixedNettyChannelPool;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.handler.codec.http.*;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslHandler;
-
-import javax.net.ssl.SSLEngine;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.timeout.ReadTimeoutException;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 
 public class UpsertStreamImpl implements UpsertStream {
   // required
@@ -54,6 +61,9 @@ public class UpsertStreamImpl implements UpsertStream {
   // netty
   private final Bootstrap bootstrap;
   private CountDownLatch latch;
+  private FixedNettyChannelPool channelPool;
+  private long connectTimeout;
+  private long readTimeout;
 
   // status
   private Status status = Status.NORMAL;
@@ -141,14 +151,21 @@ public class UpsertStreamImpl implements UpsertStream {
     this.endpoint = session.getEndpoint();
     this.buckets = session.getBuckets();
     this.schema = session.getRecordSchema();
-    for (Integer slot : buckets.keySet()) {
-      this.bucketBuffer.put(slot, new ProtobufRecordPack(schema, new Checksum(), 0, new CompressOption()));
-    }
     this.hashKeys = session.getHashKeys();
     this.bootstrap = session.getBootstrap();
+    this.channelPool = session.getChannelPool();
+    this.connectTimeout = session.getConnectTimeout();
+    this.readTimeout = session.getReadTimeout();
     this.listener = builder.getListener();
+
+    newBucketBuffer();
   }
 
+  private void newBucketBuffer() throws IOException {
+    for (Integer slot : this.buckets.keySet()) {
+      this.bucketBuffer.put(slot, new ProtobufRecordPack(this.schema, new Checksum(), 0, new CompressOption()));
+    }
+  }
   @Override
   public void upsert(Record record) throws IOException, TunnelException {
     write(record, UpsertStreamImpl.Operation.UPSERT, null);
@@ -172,6 +189,18 @@ public class UpsertStreamImpl implements UpsertStream {
     }
   }
 
+  @Override
+  public void reset() throws IOException {
+    if (!bucketBuffer.isEmpty()) {
+      for (ProtobufRecordPack pack : bucketBuffer.values()) {
+        pack.reset();
+      }
+    }
+
+    totalBufferSize = 0;
+    status = Status.NORMAL;
+  }
+
   private void write(Record record, UpsertStreamImpl.Operation op, List<String> validColumns)
           throws TunnelException, IOException {
     checkStatus();
@@ -182,12 +211,8 @@ public class UpsertStreamImpl implements UpsertStream {
       if (value == null) {
         throw new TunnelException("Hash key " + key + " can not be null!");
       }
-      OdpsHasher hasher = TypeHasher.getHasher(schema.getColumn(key)
-                                                     .getTypeInfo()
-                                                     .getTypeName()
-                                                     .toLowerCase(),
-                                               session.getHasher());
-      hashValues.add(hasher.hash(value));
+      hashValues.add(TypeHasher.hash(schema.getColumn(key).getTypeInfo().getOdpsType(), value,
+                                     session.getHasher()));
     }
 
     int bucket = TypeHasher.CombineHashVal(hashValues) % buckets.size();
@@ -231,6 +256,7 @@ public class UpsertStreamImpl implements UpsertStream {
     do {
       success = true;
       handlers.clear();
+      Channel channel = null;
       try {
         checkStatus();
         latch = new CountDownLatch(bucketBuffer.size());
@@ -247,21 +273,25 @@ public class UpsertStreamImpl implements UpsertStream {
                 totalBufferSize += bytes;
               }
               Request request = session.buildRequest("PUT", k, buckets.get(k), pack.getTotalBytes(), pack.getSize(), compressOption);
-              String host = request.getURI().getHost();
-              int port = request.getURI().getPort();
-              if (port == -1) {
-                if (request.getURI().getScheme().equalsIgnoreCase("https")) {
-                  port = 443;
-                } else {
-                  port = 80;
-                }
-              }
-
               FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry);
-              Channel channel = bootstrap.connect(host, port).sync().channel();
+              channel = channelPool.acquire();
               channel.pipeline().addLast(handler);
               handlers.add(handler);
-              channel.writeAndFlush(buildFullHttpRequest(request, pack.getProtobufStream()));
+              ChannelFuture
+                  channelFuture =
+                  channel.writeAndFlush(buildFullHttpRequest(request, pack.getProtobufStream()));
+              channelFuture.addListener((ChannelFutureListener) future -> {
+                if (!future.isSuccess()) {
+                  latch.countDown();
+                  channelPool.release(future.channel());
+                  handler.setException(
+                      new TunnelException("Connect : " + future.cause().getMessage(),
+                                          future.cause()));
+                  future.channel().close();
+                } else {
+                  future.channel().pipeline().addFirst(new ReadTimeoutHandler(readTimeout, TimeUnit.MILLISECONDS));
+                }
+              });
             } else {
               latch.countDown();
             }
@@ -277,9 +307,19 @@ public class UpsertStreamImpl implements UpsertStream {
       for (FlushResultHandler handler : handlers) {
         if (handler.getException() != null) {
           success = false;
-          if (!handler.isNeedRetry()) {
-            status = Status.ERROR;
-            throw handler.getException();
+          if (listener != null) {
+            if (!listener.onFlushFail(handler.getException().getMessage(), retry)) {
+              status = Status.ERROR;
+              TunnelException e = new TunnelException(handler.getException().getErrorMsg(), handler.getException());
+              e.setRequestId(handler.getException().getRequestId());
+              e.setErrorCode(handler.getException().getErrorCode());
+              throw e;
+            }
+          } else {
+            TunnelException e = new TunnelException(handler.getException().getErrorMsg(), handler.getException());
+            e.setRequestId(handler.getException().getRequestId());
+            e.setErrorCode(handler.getException().getErrorCode());
+            throw e;
           }
         } else {
           if (!flushAll) {
@@ -305,7 +345,7 @@ public class UpsertStreamImpl implements UpsertStream {
   private HttpRequest buildFullHttpRequest(Request request, ByteArrayOutputStream content) {
     String uri = request.getURI().toString().replace(endpoint.toString(), "");
     HttpRequest req = new DefaultFullHttpRequest(
-            HttpVersion.HTTP_1_1, HttpMethod.PUT, uri, Unpooled.wrappedBuffer(content.toByteArray()));
+        HttpVersion.HTTP_1_1, HttpMethod.PUT, uri, Unpooled.wrappedBuffer(content.toByteArray()));
     request.getHeaders().forEach((key, value) -> req.headers().set(key, value));
     req.headers().set(HttpHeaderNames.HOST, request.getURI().getHost());
     return req;
@@ -320,7 +360,6 @@ public class UpsertStreamImpl implements UpsertStream {
     long start;
     Listener listener;
     int retry;
-    boolean needRetry = false;
 
     public UpsertStream.FlushResult getFlushResult() {
       return flushResult;
@@ -330,8 +369,8 @@ public class UpsertStreamImpl implements UpsertStream {
       return exception;
     }
 
-    public boolean isNeedRetry() {
-      return needRetry;
+    public void setException(TunnelException exception) {
+      this.exception = exception;
     }
 
     FlushResultHandler(ProtobufRecordPack pack, CountDownLatch latch, Listener listener, int retry) {
@@ -346,45 +385,46 @@ public class UpsertStreamImpl implements UpsertStream {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+      FullHttpResponse response = null;
       try {
-
-        FullHttpResponse response = (FullHttpResponse) msg;
+        response = (FullHttpResponse) msg;
         this.flushResult.traceId = response.headers().get(HttpHeaders.HEADER_ODPS_REQUEST_ID);
         if (response.status() == HttpResponseStatus.OK) {
+          this.flushResult.flushTime = System.currentTimeMillis() - start;
           pack.reset();
           if (listener != null) {
             try {
               listener.onFlush(flushResult);
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+            }
           }
         } else {
-          exception = new TunnelException(this.flushResult.traceId,
-                  new ByteBufInputStream(response.content()),
-                  response.status().code());
-          if (listener != null) {
-            try {
-              listener.onFlushFail(exception.getMessage(), retry);
-            } catch (Exception ignore) {}
+          try (ByteBufInputStream contentStream = new ByteBufInputStream(response.content())) {
+            exception = new TunnelException(this.flushResult.traceId, contentStream, response.status().code());
           }
         }
       } catch (Exception e) {
         exception = new TunnelException(e.getMessage(), e);
-        try {
-          needRetry = listener.onFlushFail(e.getMessage(), retry);
-        } catch (Exception ignore) {}
       } finally {
         latch.countDown();
+        if (response != null) {
+          response.release();
+        }
+        channelPool.release(ctx.channel());
         ctx.close();
-        this.flushResult.flushTime = System.currentTimeMillis() - start;
       }
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-      exception = new TunnelException(cause.getMessage(), cause);
+      if (cause instanceof ReadTimeoutException) {
+        exception = new TunnelException("Flush time out, cannot get response from server");
+      } else {
+        exception = new TunnelException(cause.getMessage(), cause);
+      }
       latch.countDown();
+      channelPool.release(ctx.channel());
       ctx.close();
-      this.flushResult.flushTime = System.currentTimeMillis() - start;
     }
   }
 }

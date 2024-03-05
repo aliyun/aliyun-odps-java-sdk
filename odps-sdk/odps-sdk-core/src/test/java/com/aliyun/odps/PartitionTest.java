@@ -47,6 +47,7 @@ import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
 public class PartitionTest extends TestBase {
 
   private static String TABLE_NAME = "test_partition_test";
+
   private static final String BASE_CLASSIFICATION_NAME_PREFIX = PartitionTest.class.getSimpleName();
   private static final String BASE_TAG_NAME_PREFIX = PartitionTest.class.getSimpleName();
 

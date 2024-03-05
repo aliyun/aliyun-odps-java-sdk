@@ -46,6 +46,8 @@ public class EnvironmentSettings {
 
     private final RestOptions restOptions;
 
+    private final Long slotNum;
+
     // TODO: Environment Credentials
 
     private EnvironmentSettings(Builder builder) {
@@ -57,6 +59,7 @@ public class EnvironmentSettings {
         this.serviceEndpoint = builder.serviceEndPoint;
         this.tunnelEndpoint = builder.tunnelEndpoint;
         this.restOptions = builder.restOptions;
+        this.slotNum = builder.slotNum;
     }
 
     public ExecutionMode getExecutionMode() {
@@ -91,6 +94,10 @@ public class EnvironmentSettings {
         return Optional.ofNullable(restOptions);
     }
 
+    public Optional<Long> getSlotNum() {
+        return Optional.ofNullable(slotNum);
+    }
+
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -110,6 +117,7 @@ public class EnvironmentSettings {
         private String serviceEndPoint;
         private String tunnelEndpoint;
         private RestOptions restOptions;
+        private Long slotNum;
 
         public Builder inLocalMode() {
             this.executionMode = ExecutionMode.LOCAL;
@@ -164,6 +172,12 @@ public class EnvironmentSettings {
         public Builder withRestOptions(RestOptions restOptions) {
             Preconditions.checkNotNull(restOptions, "Rest Options");
             this.restOptions = restOptions;
+            return this;
+        }
+
+        public Builder withSlotNum(Long slotNum) {
+            Preconditions.checkLong(slotNum, 1, "Slot num");
+            this.slotNum = slotNum;
             return this;
         }
 

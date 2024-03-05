@@ -23,12 +23,10 @@ import com.aliyun.odps.table.arrow.ArrowReader;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.compression.CompressionCodec;
-import org.apache.arrow.vector.compression.NoCompressionCodec;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 
 import java.io.IOException;
 import java.io.InputStream;
-
 public class ArrowBatchReusedReader implements ArrowReader {
 
     private final ArrowStreamReader arrowReader;
@@ -36,7 +34,8 @@ public class ArrowBatchReusedReader implements ArrowReader {
 
     public ArrowBatchReusedReader(InputStream is,
                                   BufferAllocator allocator) {
-        this(is, allocator, NoCompressionCodec.Factory.INSTANCE);
+        this.arrowReader = new ArrowStreamReader(is, allocator);
+        this.currentBatch = null;
     }
 
     public ArrowBatchReusedReader(InputStream is,

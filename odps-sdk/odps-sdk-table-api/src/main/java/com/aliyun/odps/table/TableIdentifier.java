@@ -19,10 +19,10 @@
 
 package com.aliyun.odps.table;
 
-import com.aliyun.odps.table.utils.Preconditions;
-
 import java.io.Serializable;
 import java.util.Objects;
+
+import com.aliyun.odps.table.utils.Preconditions;
 
 /**
  * Identifier of table.
@@ -81,9 +81,8 @@ public class TableIdentifier implements Serializable {
         }
 
         TableIdentifier that = (TableIdentifier) o;
-        return project.equals(that.project)
-                && schema.equals(that.schema)
-                && table.equals(that.table);
+        return Objects.equals(project, that.project) && Objects.equals(schema, that.schema)
+               && Objects.equals(table, that.table);
     }
 
     @Override

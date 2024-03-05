@@ -87,6 +87,19 @@ public class Function extends LazyLoad {
     @Element(name = "SqlDefinitionText", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String sqlDefinitionText;
+
+    @Element(name = "IsEmbeddedFunction", required = false)
+    Boolean isEmbeddedFunction;
+
+    @Element(name = "ProgramLanguage", required = false)
+    String programLanguage;
+
+    @Element(name = "Code", required = false)
+    String code;
+
+    @Element(name = "FileName", required = false)
+    String fileName;
+
   }
 
   FunctionModel model;
@@ -340,6 +353,50 @@ public class Function extends LazyLoad {
     } else {
       return null;
     }
+  }
+
+  /**
+   * Returns true if this is an embedded function, otherwise false
+   *
+   * @return true if this is an embedded function, otherwise false
+   */
+  public boolean isEmbeddedFunction() {
+    lazyLoad();
+
+    if (model.isEmbeddedFunction == null) {
+      model.isEmbeddedFunction = false;
+    }
+    return model.isEmbeddedFunction;
+  }
+
+  /**
+   * Returns program language if this is an embedded function, otherwise null
+   *
+   * @return program language if this is an embedded function, otherwise null
+   */
+  public String getEmbeddedFunctionProgramLanguage() {
+    lazyLoad();
+    return model.programLanguage;
+  }
+
+  /**
+   * Returns code if this is an embedded function, otherwise null
+   *
+   * @return code if this is an embedded function, otherwise null
+   */
+  public String getEmbeddedFunctionCode() {
+    lazyLoad();
+    return model.code;
+  }
+
+  /**
+   * Return filename if this is an embedded function, otherwise null
+   *
+   * @return filename if this is an embedded function, otherwise null
+   */
+  public String getEmbeddedFunctionFilename() {
+    lazyLoad();
+    return model.fileName;
   }
 
   @Override

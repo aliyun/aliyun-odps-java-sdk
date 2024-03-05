@@ -25,7 +25,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Test;
 
 import com.aliyun.odps.Odps;
@@ -56,6 +59,25 @@ public class RestClientTest extends TestBase {
   }
 
   @Test
+  public void testRetryAfter() {
+    String resource = "/projects/retry_after/tables/test_retry";
+    String method = "GET";
+    boolean ok = false;
+    for (int i = 0; i < 20; i++) {
+      try {
+        odps.getRestClient().setRetryTimes(0);
+        odps.getRestClient().request(resource, method, null, null, null, 0);
+      } catch (OdpsException err) {
+        ok = err.existRetryAfter();
+        if (ok) {
+          break;
+        }
+      }
+    }
+    assertTrue(ok);
+  }
+
+  @Test
   public void testRestHeaderValueNull() throws OdpsException {
 
     String resource = "/projects/" + odps.getDefaultProject();
@@ -74,7 +96,13 @@ public class RestClientTest extends TestBase {
     String method = "GET";
     Map<String, String> params = null;
     Map<String, String> headers = null;
-    odps.getRestClient().request(resource, method, params, headers, null, 0);
+    Response response = odps.getRestClient().request(resource, method, params, headers, null, 0);
+    System.out.println(response.getMessage());
+    try {
+      Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
     assertTrue(OdpsDeprecatedLogger.getDeprecatedCalls().isEmpty());
   }
 
@@ -86,7 +114,7 @@ public class RestClientTest extends TestBase {
     assertTrue(odps.getRestClient().getUserAgent().contains("Revision"));
   }
 
-  @Test (expected = RuntimeException.class)
+  @Test(expected = RuntimeException.class)
   public void testError() throws OdpsException {
     Odps errorOdps = odps.clone();
     errorOdps.setEndpoint("http://error");
@@ -100,14 +128,18 @@ public class RestClientTest extends TestBase {
     String appAccessId = "app_id";
     String appAccessKey = "app_key";
     Odps odps = new Odps(new AliyunAccount(accessId, accessKey),
-        new AppAccount(new AliyunAccount(appAccessId, appAccessKey)));
+                         new AppAccount(new AliyunAccount(appAccessId, appAccessKey)));
     RestClient restClient = odps.getRestClient();
 
     Map<String, String> params = new HashMap<String, String>();
     Map<String, String> headers = new HashMap<String, String>();
-    headers.put(Headers.ODPS_USER_AGENT, "JavaSDK Revision:295ed47 Version:0.30.3 JavaVersion:1.8.0_172 CLT(0.30.0 : c36da9d); Mac OS X(30.5.26.135/jondeMacBook-Pro.local)");
+    headers.put(Headers.ODPS_USER_AGENT,
+                "JavaSDK Revision:295ed47 Version:0.30.3 JavaVersion:1.8.0_172 CLT(0.30.0 : c36da9d); Mac OS X(30.5.26.135/jondeMacBook-Pro.local)");
     headers.put(Headers.DATE, "Fri, 30 Nov 2018 03:31:29 GMT");
-    Request request = restClient.buildRequest("/projects/project_name/instances/instance_name", "POST", params, headers);
+    Request
+        request =
+        restClient.buildRequest("/projects/project_name/instances/instance_name", "POST", params,
+                                headers);
     assertTrue(request.getHeaders().containsKey(Headers.APP_AUTHENTICATION));
   }
 }

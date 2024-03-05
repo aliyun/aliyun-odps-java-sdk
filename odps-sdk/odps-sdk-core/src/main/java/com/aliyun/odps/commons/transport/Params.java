@@ -21,4 +21,6 @@ public class Params {
   public static final String ODPS_QUOTA_REGION_ID = "region";
   public static final String ODPS_QUOTA_TENANT_ID = "tenant";
   public static final String ODPS_QUOTA_VERSION = "version";
+
+  public static final String ODPS_PERMANENT= "permanent";
 }

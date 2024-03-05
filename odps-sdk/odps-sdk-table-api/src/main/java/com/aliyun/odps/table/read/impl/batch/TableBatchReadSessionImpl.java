@@ -40,6 +40,7 @@ import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
+import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.table.DataFormat;
@@ -99,6 +100,12 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         Preconditions.checkNotNull(split, "Input split");
         Preconditions.checkNotNull(options, "Reader options");
         return new SplitArrowReaderImpl(identifier, split, options);
+    }
+
+    @Override
+    public SplitReader<ArrayRecord> createRecordReader(InputSplit split, ReaderOptions options) throws IOException {
+        SplitReader<VectorSchemaRoot> arrowReader = createArrowReader(split, options);
+        return new SplitRecordReaderImpl(arrowReader, readSchema, options);
     }
 
     @Override

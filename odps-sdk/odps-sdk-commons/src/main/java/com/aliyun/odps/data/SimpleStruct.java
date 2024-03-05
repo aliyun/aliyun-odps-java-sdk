@@ -1,9 +1,11 @@
 package com.aliyun.odps.data;
 
 import java.util.List;
+import java.util.Objects;
 
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * 一个简单 {@link Struct} 接口的实现
@@ -89,6 +91,30 @@ public class SimpleStruct implements Struct {
     }
     valueStr += "}";
     return valueStr;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    SimpleStruct that = (SimpleStruct) o;
+
+    if (!StringUtils.equalsIgnoreCase(this.typeInfo.getFieldNames(), that.typeInfo.getFieldNames())) {
+      return false;
+    }
+
+    return Objects.equals(this.getFieldValues(), that.getFieldValues());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(StringUtils.toLowerCase(typeInfo.getFieldNames()), values);
   }
 
 }

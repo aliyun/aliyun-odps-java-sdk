@@ -3,8 +3,9 @@ package com.aliyun.odps.security;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.aliyun.odps.Odps;
@@ -17,7 +18,7 @@ import com.google.gson.reflect.TypeToken;
 
 public class TenantSecurityManagerTest {
 
-  private static String TENANT_ROLE_PREFIX = "TenantSecurityManagerTest_";
+  private static String TENANT_ROLE_PREFIX = "tenantsecuritymanagertest_";
 
   private static String POLICY = "{\n"
       + "    \"Statement\": [{\n"
@@ -49,13 +50,19 @@ public class TenantSecurityManagerTest {
     return tenantRoleName;
   }
 
-  @AfterClass
-  public static void tearDown() throws OdpsException {
+  // clean test tenant before test
+  @BeforeClass
+  public static void setUp() throws OdpsException {
     Odps odps = OdpsTestUtils.newDefaultOdps();
     SecurityManager sm = odps.projects().get().getSecurityManager();
-    AuthorizationQueryInstance i = sm.run("LIST TENANT ROLES",true);
-    i.waitForSuccess();
-
+    AuthorizationQueryInstance i = null;
+    try {
+      i = sm.run("LIST TENANT ROLES", true);
+      i.waitForSuccess();
+    } catch (OdpsException e) {
+      // skip case if current project has no default tenant
+      Assume.assumeNoException(e);
+    }
     Type t = new TypeToken<List<String>>(){}.getType();
     List<String> tenantRoles = GsonObjectBuilder.get().fromJson(i.getResult(), t);
     for (String tenantRole : tenantRoles) {

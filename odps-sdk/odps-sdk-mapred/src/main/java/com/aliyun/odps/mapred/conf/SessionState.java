@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
+import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.account.StsAccount;
 import com.aliyun.odps.mapred.utils.SqlUtils;
 import com.aliyun.odps.utils.GsonObjectBuilder;
@@ -126,6 +127,8 @@ public class SessionState {
   private final static String OLD_ENDPOINT_KEY = "odps.end.point";
   private final static String OLD_ACCESSID_KEY = "odps.access.id";
   private final static String OLD_ACCESSKEY_KEY = "odps.access.key";
+  private final static String OLD_APP_ACCESS_ID = "odps.app.access.id";
+  private final static String OLD_APP_ACCESS_KEY = "odps.app.access.key";
   private final static String OLD_STS_TOKEN_KEY = "odps.sts.token";
   private final static String OLD_RUNMODE_KEY = "odps.runner.mode";
   private final static String OLD_RESOURCE_KEY = "odps.cache.resources";
@@ -264,6 +267,8 @@ public class SessionState {
       String project = prop.getProperty(OLD_PROJNAME_KEY);
       String accessId = prop.getProperty(OLD_ACCESSID_KEY);
       String accessKey = prop.getProperty(OLD_ACCESSKEY_KEY);
+      String appAccessId = prop.getProperty(OLD_APP_ACCESS_ID);
+      String appAccessKey = prop.getProperty(OLD_APP_ACCESS_KEY);
       String stsToken = prop.getProperty(OLD_STS_TOKEN_KEY);
       String runmode = prop.getProperty(OLD_RUNMODE_KEY, "remote");
       this.tunnelEndpoint = prop.getProperty(LOCAL_TUNNEL_ENDPOINT);
@@ -296,7 +301,13 @@ public class SessionState {
         default:
           throw new RuntimeException("Unsupported account provider:" + accountProvider);
       }
-      Odps odps = new Odps(account);
+
+      AppAccount appAccount = null;
+      if (!StringUtils.isNullOrEmpty(appAccessId) && !StringUtils.isNullOrEmpty(appAccessKey)) {
+        appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+      }
+
+      Odps odps = new Odps(account, appAccount);
       odps.setDefaultProject(project);
       odps.setEndpoint(endpoint);
       setOdps(odps);

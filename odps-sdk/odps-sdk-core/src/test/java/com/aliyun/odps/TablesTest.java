@@ -37,11 +37,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.utils.StringUtils;
+
 import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
@@ -85,6 +87,23 @@ public class TablesTest extends TestBase {
     }
   }
 
+  @Test
+  public void testListSystemCatalogTables() throws OdpsException {
+    Assume.assumeTrue(odps.projects().exists("system_catalog"));
+    Iterator<Table>
+        it =
+        odps.tables().iterator("system_catalog", "information_schema", null, false);
+    ListIterator<Table> listIterator = (ListIterator<Table>) it;
+    List<Table> tables = listIterator.list(null, 1);
+    assertNotNull(listIterator.getMarker());
+  }
+
+  @Test
+  public void testGetSystemCatalogTable() throws OdpsException {
+    Assume.assumeTrue(odps.projects().exists("system_catalog"));
+    Table table = odps.tables().get("system_catalog", "information_schema", "catalog_privileges");
+    table.reload();
+  }
   @Test
   public void testCreateTable() throws OdpsException {
     String tableName = String.format(

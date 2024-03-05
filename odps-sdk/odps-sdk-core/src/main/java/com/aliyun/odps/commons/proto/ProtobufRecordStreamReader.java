@@ -347,6 +347,13 @@ public class ProtobufRecordStreamReader implements RecordReader {
         crc.update(nano);
         return new IntervalDayTime(time, nano);
       }
+      case TIMESTAMP_NTZ: {
+        long time = in.readSInt64();
+        int nano = in.readSInt32();
+        crc.update(time);
+        crc.update(nano);
+        return LocalDateTime.ofEpochSecond(time, nano, ZoneOffset.UTC);
+      }
       case TIMESTAMP: {
         long time = in.readSInt64();
         int nano = in.readSInt32();

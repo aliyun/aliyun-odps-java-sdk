@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.aliyun.odps.OdpsType;
+
 /**
  * Created by wlz on 17/2/28.
  */
@@ -38,7 +40,36 @@ public class TypeHasher {
         return version;
     }
 
-    public static OdpsHasher getHasher(String typeName, String version) {
+    /**
+     * 计算 hash 值
+     * @param type odps 类型
+     * @param value 数据值
+     * @return hash 值
+     */
+    public static int hash(OdpsType type, Object value) {
+        OdpsHasher hasher = getHasher(type, null);
+
+        return hasher.hash(hasher.normalizeType(value));
+    }
+
+    /**
+     * 计算 hash 值
+     *
+     * @param type odps 类型
+     * @param value 数据值
+     * @param version 版本，包括 legacy 和 default
+     * @return hash 值
+     */
+    public static int hash(OdpsType type, Object value, String version) {
+        OdpsHasher hasher = getHasher(type, version);
+
+        return hasher.hash(hasher.normalizeType(value));
+    }
+
+    static OdpsHasher getHasher(OdpsType type) {
+        return getHasher(type, null);
+    }
+    static OdpsHasher getHasher(OdpsType type, String version) {
 
         if (version == null || version.isEmpty()) {
             version = defaultVersion;
@@ -49,16 +80,10 @@ public class TypeHasher {
             throw new RuntimeException("Not supported hash function version:" + version);
         }
 
-        OdpsHasher hasher = factory.getHasher(typeName.toLowerCase());
+        OdpsHasher hasher = factory.getHasher(type);
         if (hasher == null) {
-            throw new RuntimeException("Not supported hash function type:" + typeName);
+            throw new RuntimeException("Not supported hash function type:" + type.name());
         }
-        return hasher;
-    }
-
-    public static OdpsHasher getHasher(String typeName) {
-        OdpsHasher hasher = getHasher(typeName, null);
-        assert hasher != null;
         return hasher;
     }
 
@@ -81,24 +106,5 @@ public class TypeHasher {
             combineHashVal += hashVal;
         }
         return (combineHashVal ^ (combineHashVal >> 8));
-    }
-
-    public static void main(String[] args) {
-
-        OdpsHasher hasher = TypeHasher.getHasher("bigint", "legacy");
-        int[] hash = new int[1];
-        hash[0] = hasher.hash(0L);
-        int prehash = CombineHashVal(hash) % 3;
-        System.out.println(prehash);
-        for (long i=0; i<10L; i++) {
-            hash[0] = hasher.hash(i);
-            int curhash = CombineHashVal(hash) % 3;
-            System.out.println(i + ": " + curhash);
-//            if (curhash != prehash) {
-//                System.out.println(i);
-//                System.out.println(curhash);
-//                break;
-//            }
-        }
     }
 }

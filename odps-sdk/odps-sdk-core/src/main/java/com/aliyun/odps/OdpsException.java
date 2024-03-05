@@ -19,6 +19,9 @@
 
 package com.aliyun.odps;
 
+import java.util.Map;
+
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.RestException;
 
 /**
@@ -28,9 +31,11 @@ import com.aliyun.odps.rest.RestException;
  */
 @SuppressWarnings("serial")
 public class OdpsException extends Exception {
+
   protected Integer status;
   protected String requestId;
   protected String errorCode;
+  protected Long retryAfter;
 
   public OdpsException() {
 
@@ -81,9 +86,35 @@ public class OdpsException extends Exception {
   }
 
   /**
+   * 设置 失败请求中 retryAfter
+   *
+   * @param retryAfter
+   */
+  public void setRetryAfter(String retryAfter) {
+    try {
+      this.retryAfter = Long.parseLong(retryAfter);
+    } catch (NumberFormatException e) {
+      this.retryAfter = null;
+    }
+  }
+
+  public boolean existRetryAfter() {
+    return retryAfter != null;
+  }
+
+  /**
+   * 获取 失败请求中的 Retry-After参数值
+   *
+   * @return Retry-After 单位秒
+   */
+  public Long getRetryAfter() {
+    return retryAfter;
+  }
+
+  /**
    * 设置网络状态
    *
-   * @param  status
+   * @param status
    */
   public void setStatus(Integer status) {
     this.status = status;

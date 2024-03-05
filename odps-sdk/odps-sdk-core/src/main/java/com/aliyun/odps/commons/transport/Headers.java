@@ -52,6 +52,7 @@ public class Headers {
   public static final String ODPS_SUPERVISION_TOKEN = "odps-x-supervision-token";
   public static final String TUNNEL_SCHEMA = "odps-tunnel-schema";
   public static final String TUNNEL_RECORD_COUNT = "odps-tunnel-record-count";
+  public static final String ODPS_RETRY_AFTER = "Retry-After";
 
   /**
    * Used by Resource
@@ -94,52 +95,57 @@ public class Headers {
   public static final String ALI_DATA_AUTH_SIGNATURE_TYPE = "x-ali-data-auth-signature-type";
   public static final String ALI_DATA_AUTH_METHOD = "x-ali-data-auth-method";
 
-  public static final Map<String, String> LOWER_CASE_HEADER_NAME_TO_HEADER_NAME = new HashMap<String, String>(){{
-    put(CACHE_CONTROL.toLowerCase(), CACHE_CONTROL);
-    put(CONTENT_ENCODING.toLowerCase(), CONTENT_ENCODING);
-    put(CONTENT_LENGTH.toLowerCase(), CONTENT_LENGTH);
-    put(CONTENT_MD5.toLowerCase(), CONTENT_MD5);
-    put(CONTENT_TYPE.toLowerCase(), CONTENT_TYPE);
-    put(DATE.toLowerCase(), DATE);
-    put(ETAG.toLowerCase(), ETAG);
-    put(EXPIRES.toLowerCase(), EXPIRES);
-    put(HOST.toLowerCase(), HOST);
-    put(LAST_MODIFIED.toLowerCase(), LAST_MODIFIED);
-    put(RANGE.toLowerCase(), RANGE);
-    put(LOCATION.toLowerCase(), LOCATION);
-    put(TRANSFER_ENCODING.toLowerCase(), TRANSFER_ENCODING);
-    put(CHUNKED.toLowerCase(), CHUNKED);
-    put(ACCEPT_ENCODING.toLowerCase(), ACCEPT_ENCODING);
-    put(USER_AGENT.toLowerCase(), USER_AGENT);
-    put(ODPS_OWNER.toLowerCase(), ODPS_OWNER);
-    put(ODPS_CREATION_TIME.toLowerCase(), ODPS_CREATION_TIME);
-    put(ODPS_REQUEST_ID.toLowerCase(), ODPS_REQUEST_ID);
-    put(ODPS_USER_AGENT.toLowerCase(), ODPS_USER_AGENT);
-    put(ODPS_SUPERVISION_TOKEN.toLowerCase(), ODPS_SUPERVISION_TOKEN);
-    put(TUNNEL_SCHEMA.toLowerCase(), TUNNEL_SCHEMA);
-    put(TUNNEL_RECORD_COUNT.toLowerCase(), TUNNEL_RECORD_COUNT);
-    put(ODPS_COPY_TABLE_SOURCE.toLowerCase(), ODPS_COPY_TABLE_SOURCE);
-    put(ODPS_COPY_FILE_SOURCE.toLowerCase(), ODPS_COPY_FILE_SOURCE);
-    put(ODPS_COMMENT.toLowerCase(), ODPS_COMMENT);
-    put(ODPS_RESOURCE_NAME.toLowerCase(), ODPS_RESOURCE_NAME);
-    put(ODPS_RESOURCE_TYPE.toLowerCase(), ODPS_RESOURCE_TYPE);
-    put(ODPS_RESOURCE_IS_TEMP.toLowerCase(), ODPS_RESOURCE_IS_TEMP);
-    put(ODPS_RESOURCE_LAST_UPDATOR.toLowerCase(), ODPS_RESOURCE_LAST_UPDATOR);
-    put(ODPS_RESOURCE_SIZE.toLowerCase(), ODPS_RESOURCE_SIZE);
-    put(CONTENT_DISPOSITION.toLowerCase(), CONTENT_DISPOSITION);
-    put(ODPS_START_TIME.toLowerCase(), ODPS_START_TIME);
-    put(ODPS_END_TIME.toLowerCase(), ODPS_END_TIME);
-    put(QUOTA_ID.toLowerCase(), QUOTA_ID);
-    put(AUTHORIZATION.toLowerCase(), AUTHORIZATION);
-    put(GROUP_AUTHORIZATION.toLowerCase(), GROUP_AUTHORIZATION);
-    put(APP_AUTHENTICATION.toLowerCase(), APP_AUTHENTICATION);
-    put(STS_AUTHENTICATION.toLowerCase(), STS_AUTHENTICATION);
-    put(STS_TOKEN.toLowerCase(), STS_TOKEN);
-    put(ODPS_BEARER_TOKEN.toLowerCase(), ODPS_BEARER_TOKEN);
-    put(ALI_DATA_SERVICE.toLowerCase(), ALI_DATA_SERVICE);
-    put(ALI_DATA_AUTH_SIGNATURE_TYPE.toLowerCase(), ALI_DATA_AUTH_SIGNATURE_TYPE);
-    put(ALI_DATA_AUTH_METHOD.toLowerCase(), ALI_DATA_AUTH_METHOD);
-  }};
+  public static final String ODPS_INSTSNCE_TOKEN = "x-odps-instance-token";
+
+  public static final Map<String, String>
+      LOWER_CASE_HEADER_NAME_TO_HEADER_NAME =
+      new HashMap<String, String>() {{
+        put(CACHE_CONTROL.toLowerCase(), CACHE_CONTROL);
+        put(CONTENT_ENCODING.toLowerCase(), CONTENT_ENCODING);
+        put(CONTENT_LENGTH.toLowerCase(), CONTENT_LENGTH);
+        put(CONTENT_MD5.toLowerCase(), CONTENT_MD5);
+        put(CONTENT_TYPE.toLowerCase(), CONTENT_TYPE);
+        put(DATE.toLowerCase(), DATE);
+        put(ETAG.toLowerCase(), ETAG);
+        put(EXPIRES.toLowerCase(), EXPIRES);
+        put(HOST.toLowerCase(), HOST);
+        put(LAST_MODIFIED.toLowerCase(), LAST_MODIFIED);
+        put(RANGE.toLowerCase(), RANGE);
+        put(LOCATION.toLowerCase(), LOCATION);
+        put(TRANSFER_ENCODING.toLowerCase(), TRANSFER_ENCODING);
+        put(CHUNKED.toLowerCase(), CHUNKED);
+        put(ACCEPT_ENCODING.toLowerCase(), ACCEPT_ENCODING);
+        put(USER_AGENT.toLowerCase(), USER_AGENT);
+        put(ODPS_OWNER.toLowerCase(), ODPS_OWNER);
+        put(ODPS_CREATION_TIME.toLowerCase(), ODPS_CREATION_TIME);
+        put(ODPS_REQUEST_ID.toLowerCase(), ODPS_REQUEST_ID);
+        put(ODPS_USER_AGENT.toLowerCase(), ODPS_USER_AGENT);
+        put(ODPS_SUPERVISION_TOKEN.toLowerCase(), ODPS_SUPERVISION_TOKEN);
+        put(TUNNEL_SCHEMA.toLowerCase(), TUNNEL_SCHEMA);
+        put(TUNNEL_RECORD_COUNT.toLowerCase(), TUNNEL_RECORD_COUNT);
+        put(ODPS_COPY_TABLE_SOURCE.toLowerCase(), ODPS_COPY_TABLE_SOURCE);
+        put(ODPS_COPY_FILE_SOURCE.toLowerCase(), ODPS_COPY_FILE_SOURCE);
+        put(ODPS_COMMENT.toLowerCase(), ODPS_COMMENT);
+        put(ODPS_RESOURCE_NAME.toLowerCase(), ODPS_RESOURCE_NAME);
+        put(ODPS_RESOURCE_TYPE.toLowerCase(), ODPS_RESOURCE_TYPE);
+        put(ODPS_RESOURCE_IS_TEMP.toLowerCase(), ODPS_RESOURCE_IS_TEMP);
+        put(ODPS_RESOURCE_LAST_UPDATOR.toLowerCase(), ODPS_RESOURCE_LAST_UPDATOR);
+        put(ODPS_RESOURCE_SIZE.toLowerCase(), ODPS_RESOURCE_SIZE);
+        put(CONTENT_DISPOSITION.toLowerCase(), CONTENT_DISPOSITION);
+        put(ODPS_START_TIME.toLowerCase(), ODPS_START_TIME);
+        put(ODPS_END_TIME.toLowerCase(), ODPS_END_TIME);
+        put(QUOTA_ID.toLowerCase(), QUOTA_ID);
+        put(AUTHORIZATION.toLowerCase(), AUTHORIZATION);
+        put(GROUP_AUTHORIZATION.toLowerCase(), GROUP_AUTHORIZATION);
+        put(APP_AUTHENTICATION.toLowerCase(), APP_AUTHENTICATION);
+        put(STS_AUTHENTICATION.toLowerCase(), STS_AUTHENTICATION);
+        put(STS_TOKEN.toLowerCase(), STS_TOKEN);
+        put(ODPS_BEARER_TOKEN.toLowerCase(), ODPS_BEARER_TOKEN);
+        put(ALI_DATA_SERVICE.toLowerCase(), ALI_DATA_SERVICE);
+        put(ALI_DATA_AUTH_SIGNATURE_TYPE.toLowerCase(), ALI_DATA_AUTH_SIGNATURE_TYPE);
+        put(ALI_DATA_AUTH_METHOD.toLowerCase(), ALI_DATA_AUTH_METHOD);
+        put(ODPS_RETRY_AFTER.toLowerCase(),ODPS_RETRY_AFTER);
+      }};
 
   public static String toCaseSensitiveHeaderName(String headerName) {
     if (headerName == null) {

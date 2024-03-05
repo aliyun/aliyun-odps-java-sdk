@@ -41,6 +41,8 @@ public class TypeInfoFactory {
       DATETIME = new SimplePrimitiveTypeInfo(OdpsType.DATETIME);
   public static final PrimitiveTypeInfo
       TIMESTAMP = new SimplePrimitiveTypeInfo(OdpsType.TIMESTAMP);
+  public static final PrimitiveTypeInfo
+      TIMESTAMP_NTZ = new SimplePrimitiveTypeInfo(OdpsType.TIMESTAMP_NTZ);
 
   public static final PrimitiveTypeInfo
       BINARY = new SimplePrimitiveTypeInfo(OdpsType.BINARY);
@@ -75,6 +77,7 @@ public class TypeInfoFactory {
     typeInfoMap.put(DATE.getOdpsType(), DATE);
     typeInfoMap.put(DATETIME.getOdpsType(), DATETIME);
     typeInfoMap.put(TIMESTAMP.getOdpsType(), TIMESTAMP);
+    typeInfoMap.put(TIMESTAMP_NTZ.getOdpsType(), TIMESTAMP_NTZ);
     typeInfoMap.put(BINARY.getOdpsType(), BINARY);
     typeInfoMap.put(INTERVAL_DAY_TIME.getOdpsType(), INTERVAL_DAY_TIME);
     typeInfoMap.put(INTERVAL_YEAR_MONTH.getOdpsType(), INTERVAL_YEAR_MONTH);

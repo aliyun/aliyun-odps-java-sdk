@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -935,6 +936,48 @@ public class ArrayRecord implements Record {
     return getTimestamp(getColumnIndex(columnName));
   }
 
+  /**
+   * Set timestamp_ntz data, using a {@link java.time.LocalDateTime} value.
+   *
+   * @param idx Column index
+   * @param localDateTime A {@link LocalDateTime} object. Could be null.
+   */
+  public void setTimestampNtz(int idx, LocalDateTime localDateTime) {
+    set(idx, localDateTime);
+  }
+
+  /**
+   * Set timestamp_ntz data, using a {@link java.time.LocalDateTime} value.
+   *
+   * @param columnName Column name
+   * @param localDateTime A {@link LocalDateTime} object. Could be null.
+   */
+  public void setTimestampNtz(String columnName, LocalDateTime localDateTime) {
+    set(getColumnIndex(columnName), localDateTime);
+  }
+
+  /**
+   * Get the value of the designated column as a {@link LocalDateTime} object.
+   *
+   * @param idx Column index.
+   * @return A {@link LocalDateTime} object. If the value is SQL <code>NULL</code>, the value returned
+   *         is <code>null</code>.
+   */
+  public LocalDateTime getTimestampNtz(int idx) {
+    return getInternal(idx);
+  }
+
+  /**
+   * Get the value of the designated column as a {@link LocalDateTime} object.
+   *
+   * @param columnName Column name.
+   * @return A {@link LocalDateTime} object. If the value is SQL <code>NULL</code>, the value returned
+   *         is <code>null</code>.
+   */
+  public LocalDateTime getTimestampNtz(String columnName) {
+    return getInternal(getColumnIndex(columnName));
+  }
+
   public void setFloat(int idx, Float value) {
     set(idx, value);
   }
@@ -1104,7 +1147,7 @@ public class ArrayRecord implements Record {
    *     byte array
    * @return 字符串
    */
-  static String bytesToString(byte[] bytes) {
+  protected static String bytesToString(byte[] bytes) {
     try {
       return new String(bytes, DEFAULT_CHARSET);
     } catch (UnsupportedEncodingException e) {
@@ -1118,7 +1161,7 @@ public class ArrayRecord implements Record {
    *     字符串
    * @return byte array
    */
-  static byte[] stringToBytes(String string) {
+  protected static byte[] stringToBytes(String string) {
     try {
       return string.getBytes(DEFAULT_CHARSET);
     } catch (UnsupportedEncodingException e) {

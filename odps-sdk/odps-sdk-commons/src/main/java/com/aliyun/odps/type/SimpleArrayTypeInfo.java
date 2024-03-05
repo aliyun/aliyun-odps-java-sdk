@@ -1,5 +1,7 @@
 package com.aliyun.odps.type;
 
+import java.util.Objects;
+
 import com.aliyun.odps.OdpsType;
 
 /**
@@ -48,5 +50,22 @@ class SimpleArrayTypeInfo implements ArrayTypeInfo {
   @Override
   public String toString() {
     return getTypeName();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SimpleArrayTypeInfo that = (SimpleArrayTypeInfo) o;
+    return Objects.equals(valueType, that.valueType);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(valueType);
   }
 }
