@@ -19,9 +19,10 @@
 
 package com.aliyun.odps.commons.util;
 
-import com.aliyun.odps.Column;
-import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.type.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.IntervalUnit;
@@ -30,11 +31,14 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.codehaus.jackson.map.type.MapType;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import com.aliyun.odps.Column;
+import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.DecimalTypeInfo;
+import com.aliyun.odps.type.MapTypeInfo;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 
 public class ArrowUtils {
 
@@ -144,6 +148,7 @@ public class ArrowUtils {
                 arrowType = new ArrowType.Date(DateUnit.MILLISECOND);
                 break;
             case TIMESTAMP:
+            case TIMESTAMP_NTZ:
                 //TODO: 8 bytes => 12 bytes
                 arrowType = new ArrowType.Timestamp(TimeUnit.NANOSECOND, null);
                 break;

@@ -80,6 +80,14 @@ public class ResourceBuilder {
     return sb.toString();
   }
 
+  public static String buildSchemaResource(String projectName) {
+    return PROJECTS + '/' + encodeObjectName(projectName) + SCHEMAS;
+  }
+
+  public static String buildSchemaResource(String projectName, String schemaName) {
+    return PROJECTS + '/' + encodeObjectName(projectName) + SCHEMAS + '/' + encodeObjectName(schemaName);
+  }
+
   public static String buildTablesResource(String projectName) {
     StringBuilder sb = new StringBuilder();
 

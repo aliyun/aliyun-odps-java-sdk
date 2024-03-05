@@ -19,7 +19,6 @@
 
 package com.aliyun.odps.commons.transport;
 
-import com.aliyun.odps.account.AppAccount;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -35,6 +34,7 @@ import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.InstanceTunnel;
@@ -79,12 +79,28 @@ public class OdpsTestUtils {
     return props;
   }
 
+  public static String getSchemaProject1() {
+    return props.getProperty("schema.project.1");
+  }
+
+  public static String getSchemaProject2() {
+    return props.getProperty("schema.project.2");
+  }
+
+  public static String getDefaultOwner() {
+    return props.getProperty("default.project.owner");
+  }
+
   public static String getGrantUser() {
     return props.getProperty("grant.user");
   }
 
   public static String getRamUser() {
     return props.getProperty("test.ram.user");
+  }
+
+  public static String getRamRole() {
+    return props.getProperty("test.ram.role");
   }
 
   public static String getMultiIDUser() {
@@ -197,7 +213,7 @@ public class OdpsTestUtils {
     String accessId = props.getProperty("default.access.id");
     String accessKey = props.getProperty("default.access.key");
     String endpoint = props.getProperty("default.endpoint");
-    String project = props.getProperty("default.schema.project");
+    String project = getSchemaProject1();
     String appAccessId = props.getProperty("default.app.access.id");
     String appAccessKey = props.getProperty("default.app.access.key");
     Account account = new AliyunAccount(accessId, accessKey);
@@ -275,6 +291,17 @@ public class OdpsTestUtils {
 
   public static synchronized String currentTime() {
     return df.format(new Date());
+  }
+
+  public static enum Env {
+    _daily,
+    _test_trunk,
+    _test_release,
+    _5ktest
+  }
+
+  public static Env getEnv() {
+    return Env.valueOf("_" + getProperty("LABEL").replace("-", "_"));
   }
 
   public static String getProperty(String name) {

@@ -1,5 +1,7 @@
 package com.aliyun.odps.type;
 
+import java.util.Objects;
+
 import com.aliyun.odps.OdpsType;
 
 /**
@@ -31,5 +33,22 @@ public abstract class AbstractPrimitiveTypeInfo implements PrimitiveTypeInfo {
   @Override
   public String toString() {
     return getTypeName();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    AbstractPrimitiveTypeInfo that = (AbstractPrimitiveTypeInfo) o;
+    return odpsType == that.odpsType;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(odpsType);
   }
 }

@@ -44,7 +44,9 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -168,6 +170,7 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       case JSON:
       case INTERVAL_DAY_TIME:
       case TIMESTAMP:
+      case TIMESTAMP_NTZ:
       case STRING:
       case CHAR:
       case VARCHAR:
@@ -219,6 +222,17 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         longValue = localDate.toEpochDay();
         crc.update(longValue);
         out.writeSInt64NoTag(longValue);
+        break;
+      }
+      case TIMESTAMP_NTZ: {
+        LocalDateTime localDateTime = (LocalDateTime) v;
+        Instant instant = localDateTime.toInstant(ZoneOffset.UTC);
+        int nano = instant.getNano();
+        long value = instant.getEpochSecond();
+        crc.update(value);
+        crc.update(nano);
+        out.writeSInt64NoTag(value);
+        out.writeSInt32NoTag(nano);
         break;
       }
       case TIMESTAMP: {

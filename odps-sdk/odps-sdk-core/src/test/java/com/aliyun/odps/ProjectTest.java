@@ -23,16 +23,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.junit.Assume;
+import org.junit.Test;
+
 import com.aliyun.odps.Project.Cluster;
 import com.aliyun.odps.Project.Clusters;
 import com.aliyun.odps.Project.ProjectModel;
 import com.aliyun.odps.rest.SimpleXmlUtils;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import org.junit.Test;
 
 public class ProjectTest extends TestBase {
+
   private String xml =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
       + "<Project>\n"
@@ -58,6 +62,20 @@ public class ProjectTest extends TestBase {
       + "      </Cluster>\n"
       + "   </Clusters>\n"
       + "</Project>";
+
+  @Test
+  public void testGetModel() throws OdpsException {
+
+    Project p = odps.projects().get();
+    boolean projectFlag = Boolean.parseBoolean(
+        p.getProperty("odps.schema.model.enabled"));
+    Assume.assumeTrue(projectFlag);
+    Iterator<Schema> iterator = odps.schemas().iterator(p.getName());
+    while (iterator.hasNext()) {
+      Schema schema = iterator.next();
+      break;
+    }
+  }
 
   @Test
   public void testGetName() throws OdpsException {

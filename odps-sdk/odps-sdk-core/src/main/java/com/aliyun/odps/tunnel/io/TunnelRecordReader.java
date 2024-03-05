@@ -67,6 +67,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
   private TableTunnel.DownloadSession tableSession;
   private InstanceTunnel.DownloadSession instanceSession;
   private RawTunnelRecordReader reader;
+  private boolean disableModifiedCheck = false;
 
 
   /**
@@ -126,6 +127,30 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
                             CompressOption option, RestClient tunnelRestClient,
                             TableTunnel.DownloadSession session)
       throws TunnelException, IOException {
+      this(start, count, columns, option, tunnelRestClient, session, false);
+  }
+
+  /**
+   * 构造此类对象
+   *
+   * @param columns
+   *     需要读取的列 {@link Column}
+   * @param option
+   *     {@link CompressOption}
+   * @param start
+   *     本次要读取记录的起始位置
+   * @param count
+   *     本次要读取记录的数量
+   * @param session
+   *     本次读取所在 session
+   * @param disableModifiedCheck
+   *     不检查下载的数据是否是表中最新数据
+   * @throws IOException
+   */
+  public TunnelRecordReader(long start, long count, List<Column> columns,
+                            CompressOption option, RestClient tunnelRestClient,
+                            TableTunnel.DownloadSession session, boolean disableModifiedCheck)
+      throws TunnelException, IOException {
     this.start = start;
     this.count = count;
     this.offset = 0;
@@ -135,6 +160,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     this.reader = null;
     this.instanceSession = null;
     this.tunnelServiceClient = tunnelRestClient;
+    this.disableModifiedCheck = disableModifiedCheck;
 
     createNewReader();
   }
@@ -289,7 +315,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
         if (tableSession != null) {
           reader = RawTunnelRecordReader
                   .createTableTunnelReader(start + offset, count - offset, option, columnList,
-                                           tunnelServiceClient, tableSession);
+                                           tunnelServiceClient, tableSession, disableModifiedCheck);
           reader.setTransform(this.shouldTransform);
         }
 

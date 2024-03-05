@@ -19,32 +19,22 @@
 
 package com.aliyun.odps.mapred.cli;
 
+import com.aliyun.odps.Odps;
+import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.account.*;
+import com.aliyun.odps.account.Account.AccountProvider;
+import com.aliyun.odps.mapred.conf.SessionState;
+import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import org.apache.commons.cli.*;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
-
-import com.aliyun.odps.account.StsAccount;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
-import org.apache.commons.cli.BasicParser;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-
-import com.aliyun.odps.Odps;
-import com.aliyun.odps.OdpsException;
-import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.Account.AccountProvider;
-import com.aliyun.odps.account.AliyunAccount;
-import com.aliyun.odps.mapred.conf.SessionState;
 
 
 /**
@@ -122,7 +112,8 @@ public class OptionParser {
     }
 
     Account account = getAccount(odpsConf);
-    Odps odps = new Odps(account);
+    AppAccount appAccount = getAppAccount(odpsConf);
+    Odps odps = new Odps(account, appAccount);
     odps.setDefaultProject(odpsConf.getProjName());
     if (odpsConf.getEndpoint() != null) {
       odps.setEndpoint(odpsConf.getEndpoint());
@@ -206,6 +197,15 @@ public class OptionParser {
         throw new OdpsException("unsupport account provider:" + accountProvider);
     }
 
+  }
+
+  private AppAccount getAppAccount(OdpsConf odpsConf) {
+    String appAccessId = odpsConf.getAppAccessId();
+    String appAccessKey = odpsConf.getAppAccessKey();
+    if (!StringUtils.isNullOrEmpty(appAccessId) && !StringUtils.isNullOrEmpty(appAccessKey)) {
+      return new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+    }
+    return null;
   }
 
 }

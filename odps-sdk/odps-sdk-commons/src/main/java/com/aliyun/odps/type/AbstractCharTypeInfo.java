@@ -1,5 +1,7 @@
 package com.aliyun.odps.type;
 
+import java.util.Objects;
+
 import com.aliyun.odps.OdpsType;
 
 /**
@@ -37,5 +39,25 @@ public abstract class AbstractCharTypeInfo extends AbstractPrimitiveTypeInfo {
   @Override
   public String getTypeName() {
     return String.format("%s(%s)", super.getTypeName(), length);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    AbstractCharTypeInfo that = (AbstractCharTypeInfo) o;
+    return length == that.length;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), length);
   }
 }

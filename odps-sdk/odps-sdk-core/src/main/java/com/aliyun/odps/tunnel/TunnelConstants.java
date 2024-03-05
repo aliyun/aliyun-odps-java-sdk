@@ -84,4 +84,5 @@ public interface TunnelConstants {
   public static String SESSION_STATUS_ABORTED = "aborted";
   public static String PARAM_QUOTA_NAME= "quotaName";
   public static String PARAM_BLOCK_VERSION = "block_version";
+  public static String PARAM_DISABLE_MODIFIED_CHECK = "disable_modified_check";
 }

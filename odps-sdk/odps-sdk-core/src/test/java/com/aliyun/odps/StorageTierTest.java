@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -27,10 +28,11 @@ public class StorageTierTest extends TestBase {
   private static Map<String, String> hint;
   private static Odps odps;
   @BeforeClass
-  public static void initOdpsFlag() {
+  public static void initOdpsFlag() throws OdpsException {
     hint = new HashMap<>();
     hint.put("odps.tiered.storage.enable", "true");
     odps = OdpsTestUtils.newStorageTierOdps();
+    Assume.assumeTrue(odps.projects().exists(odps.getDefaultProject()));
   }
 
   @Test

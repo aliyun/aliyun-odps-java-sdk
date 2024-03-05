@@ -8,6 +8,7 @@ import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.chrono.IsoChronology;
 import java.util.ArrayList;
@@ -61,6 +62,7 @@ public class OdpsTypeTransformer {
     ODPS_TYPE_MAPPER.put(OdpsType.SMALLINT, Short.class);
     ODPS_TYPE_MAPPER.put(OdpsType.DATE, java.sql.Date.class);
     ODPS_TYPE_MAPPER.put(OdpsType.TIMESTAMP, Timestamp.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.TIMESTAMP_NTZ, LocalDateTime.class);
     ODPS_TYPE_MAPPER.put(OdpsType.FLOAT, Float.class);
     ODPS_TYPE_MAPPER.put(OdpsType.CHAR, Char.class);
     ODPS_TYPE_MAPPER.put(OdpsType.BINARY, Binary.class);
@@ -316,6 +318,7 @@ public class OdpsTypeTransformer {
         }
         break;
       case TIMESTAMP:
+      case TIMESTAMP_NTZ:
         if (setData) {
           if (value instanceof Instant) {
             transformMapper = ODPS_TYPE_MAPPER_V2;

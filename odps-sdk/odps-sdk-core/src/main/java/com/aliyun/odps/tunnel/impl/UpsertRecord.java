@@ -11,7 +11,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-class UpsertRecord extends ArrayRecord {
+public class UpsertRecord extends ArrayRecord {
     private Column [] columns;
     ArrayRecord record;
     private HashMap<String, Integer> nameMap = new HashMap<>();

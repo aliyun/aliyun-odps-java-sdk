@@ -211,11 +211,17 @@
                 <version>1.13</version>
             </dependency>
 
-                <dependency>
-                    <groupId>org.codehaus.jackson</groupId>
-                    <artifactId>jackson-mapper-asl</artifactId>
-                    <version>1.9.13</version>
-                </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.15.2</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.codehaus.jackson</groupId>
+                <artifactId>jackson-mapper-asl</artifactId>
+                <version>1.9.13</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.xerial.snappy</groupId>
@@ -337,6 +343,12 @@
                 <groupId>org.yaml</groupId>
                 <artifactId>snakeyaml</artifactId>
                 <version>2.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>aliyun-java-auth</artifactId>
+                <version>0.1.13-beta</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

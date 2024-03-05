@@ -35,7 +35,9 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.StringTokenizer;
+import java.util.stream.Collectors;
 
 /**
  * General string utils
@@ -939,7 +941,34 @@ public class StringUtils {
   }
   
   public static boolean equals(String str1, String str2) {
-      return str1 == null ? str2 == null : str1.equals(str2);
+      return Objects.equals(str1, str2);
+  }
+
+  public static boolean equalsIgnoreCase(String s1, String s2) {
+    return s1 == null ? s2 == null : s1.equalsIgnoreCase(s2);
+  }
+
+  public static boolean equalsIgnoreCase(List<String> l1, List<String> l2) {
+    if (l1 == l2) {
+      return true;
+    }
+
+    if (l1 == null || l2 == null || l1.size() != l2.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < l1.size(); i++) {
+      if (!equalsIgnoreCase(l1.get(i), l2.get(i))) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  public static List<String> toLowerCase(List<String> names)
+  {
+    return names.stream().map(String::toLowerCase).collect(Collectors.toList());
   }
 
   public static final byte[] encodeQuotedPrintable(final byte[] bytes) {

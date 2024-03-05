@@ -20,6 +20,7 @@
 package com.aliyun.odps.rest;
 
 import com.aliyun.odps.account.AppAccount;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,7 +35,11 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLHandshakeException;
 
@@ -65,6 +70,9 @@ import com.google.gson.GsonBuilder;
  */
 public class RestClient {
 
+  private ThreadPoolExecutor deprecatedLogThreadPool = new ThreadPoolExecutor(
+      0, 3, 10L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+
   static class RestRetryStrategy extends RetryStrategy {
 
     RestRetryStrategy(int limit, BackOffStrategy strategy) {
@@ -77,6 +85,9 @@ public class RestClient {
         OdpsException err = (OdpsException) e;
 
         if (err.getStatus() != null && err.getStatus() / 100 == 4) {
+          if (err.getStatus() == 429 && err.existRetryAfter()) {
+            return true;
+          }
           return false;
         }
       }
@@ -90,12 +101,9 @@ public class RestClient {
     /**
      * 当 RestClent 发生重试前的回调函数
      *
-     * @param e
-     *     错误异常
-     * @param retryCount
-     *     重试计数
-     * @param retrySleepTime
-     *     下次需要的重试时间(s)
+     * @param e              错误异常
+     * @param retryCount     重试计数
+     * @param retrySleepTime 下次需要的重试时间(s)
      */
     public abstract void onRetryLog(Throwable e, long retryCount, long retrySleepTime);
   }
@@ -158,7 +166,7 @@ public class RestClient {
 
   /**
    * If true, send calling history of deprecated interface to ODPS.
-   *
+   * <p>
    * By default, deprecated logger is enabled
    */
   private boolean deprecatedLoggerEnabled = true;
@@ -176,12 +184,9 @@ public class RestClient {
   /**
    * 请求RESTful API
    *
-   * @param clazz
-   *     返回结果绑定的Java类型
-   * @param resource
-   *     API资源标识
-   * @param method
-   *     访问方法
+   * @param clazz    返回结果绑定的Java类型
+   * @param resource API资源标识
+   * @param method   访问方法
    * @return 与API返回结果绑定的clazz类型对象
    * @throws OdpsException
    */
@@ -305,10 +310,8 @@ public class RestClient {
    * @param method
    * @param params
    * @param headers
-   * @param body
-   *     InputStream, 通常FileInputStream/ByteArrayInputStream
-   * @param bodyLen
-   *     InputStream的文件大小
+   * @param body     InputStream, 通常FileInputStream/ByteArrayInputStream
+   * @param bodyLen  InputStream的文件大小
    * @return
    * @throws OdpsException
    */
@@ -360,26 +363,34 @@ public class RestClient {
   }
 
   private void uploadDeprecatedLog() {
-    try {
-      ConcurrentHashMap<String, Long> deprecatedMaps = OdpsDeprecatedLogger.getDeprecatedCalls();
-      if (deprecatedMaps.isEmpty()) {
-        return;
-      }
-      String deprecatedLogs = new GsonBuilder().disableHtmlEscaping().create().toJson(deprecatedMaps);
-      OdpsDeprecatedLogger.getDeprecatedCalls().clear();
-
-      String project = getDefaultProject();
-      if (project == null) {
-        return;
-      }
-      String resource = ResourceBuilder.buildProjectResource(project);
-      resource += "/logs";
-      byte[] bytes = deprecatedLogs.getBytes(CHARSET);
-      ByteArrayInputStream body = new ByteArrayInputStream(bytes);
-      requestWithNoRetry(resource, "PUT", null, null, body, bytes.length);
-    } catch (Throwable e) {
-      //do nothing if error occured
+    if (deprecatedLogThreadPool.getQueue().size() > 1000) {
+      // 堆积太多 log 跳过
+      return;
     }
+    CompletableFuture.runAsync(() -> {
+      try {
+        ConcurrentHashMap<String, Long> deprecatedMaps = OdpsDeprecatedLogger.getDeprecatedCalls();
+        if (deprecatedMaps.isEmpty()) {
+          return;
+        }
+        String
+            deprecatedLogs =
+            new GsonBuilder().disableHtmlEscaping().create().toJson(deprecatedMaps);
+        OdpsDeprecatedLogger.getDeprecatedCalls().clear();
+
+        String project = getDefaultProject();
+        if (project == null) {
+          return;
+        }
+        String resource = ResourceBuilder.buildProjectResource(project);
+        resource += "/logs";
+        byte[] bytes = deprecatedLogs.getBytes(CHARSET);
+        ByteArrayInputStream body = new ByteArrayInputStream(bytes);
+        requestWithNoRetry(resource, "PUT", null, null, body, bytes.length);
+      } catch (Throwable e) {
+        //do nothing if error occured
+      }
+    }, deprecatedLogThreadPool);
   }
 
   private void handleErrorResponse(Response resp) throws OdpsException {
@@ -400,6 +411,14 @@ public class RestClient {
         } else {
           String errorMessage = resp.getBody() == null ? null : new String(resp.getBody());
           e = new OdpsException(errorMessage);
+        }
+        // capture the header information
+        if (resp.getStatus() == 429) {
+          Map<String, String> errorHeader = resp.getHeaders();
+          if (errorHeader != null && errorHeader.containsKey(Headers.ODPS_RETRY_AFTER)
+              && errorHeader.get(Headers.ODPS_RETRY_AFTER) != null) {
+            e.setRetryAfter(errorHeader.get(Headers.ODPS_RETRY_AFTER));
+          }
         }
       }
 
@@ -455,9 +474,7 @@ public class RestClient {
       // FOR HTTPS CERTS CHECK FAILED
       // USE RuntimeException could avoid retry
       throw new RuntimeException(e.getMessage(), e);
-    } catch (UnknownHostException e) {
-      throw new RuntimeException(e.getMessage(), e);
-    } catch (SocketTimeoutException | ConnectException e) {
+    } catch (UnknownHostException | SocketTimeoutException | ConnectException e) {
       throw new OdpsException(e.getMessage()
                               + ", the possible reason is that the endpoint `" + endpoint
                               + "` is wrong, please check your endpoint",
@@ -504,7 +521,7 @@ public class RestClient {
    */
   public Connection connect(String resource, String method, Map<String, String> params,
                             Map<String, String> headers, String endpoint)
-          throws OdpsException, IOException {
+      throws OdpsException, IOException {
 
     Request req = buildRequest(resource, method, params, headers, endpoint);
     return transport.connect(req);
@@ -582,12 +599,12 @@ public class RestClient {
   }
 
   public Request buildRequest(String resource, String method, Map<String, String> params,
-                                 Map<String, String> headers) {
+                              Map<String, String> headers) {
     return buildRequest(resource, method, params, headers, this.endpoint);
   }
 
   protected Request buildRequest(String resource, String method, Map<String, String> params,
-                               Map<String, String> headers, String endpoint) {
+                                 Map<String, String> headers, String endpoint) {
     if (resource == null || !resource.startsWith("/")) {
       throw new IllegalArgumentException("Invalid resource: " + resource);
     }
@@ -639,7 +656,7 @@ public class RestClient {
       req.setURI(new URI(url.toString()));
       req.setMethod(Method.valueOf(method));
 
-      Map<String, String> reqHeaders =  req.getHeaders();
+      Map<String, String> reqHeaders = req.getHeaders();
 
       if (!userDefinedHeaders.isEmpty()) {
         reqHeaders.putAll(userDefinedHeaders);
@@ -696,8 +713,7 @@ public class RestClient {
   /**
    * 设置建立连接超时时间
    *
-   * @param timeout
-   *     超时时间，单位秒
+   * @param timeout 超时时间，单位秒
    */
   public void setConnectTimeout(int timeout) {
     this.connectTimeout = timeout;
@@ -717,8 +733,7 @@ public class RestClient {
   /**
    * 设置网络超时时间
    *
-   * @param timeout
-   *     超时时间，单位秒
+   * @param timeout 超时时间，单位秒
    */
   public void setReadTimeout(int timeout) {
     this.readTimeout = timeout;
@@ -748,8 +763,7 @@ public class RestClient {
   /**
    * 设置网络重试次数
    *
-   * @param retryTimes
-   *     重试次数
+   * @param retryTimes 重试次数
    */
   public void setRetryTimes(int retryTimes) {
     this.retryTimes = retryTimes;

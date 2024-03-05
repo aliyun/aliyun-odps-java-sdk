@@ -136,6 +136,11 @@ public enum OdpsType {
   JSON,
 
   /**
+   * 时区无关的时间戳
+   */
+  TIMESTAMP_NTZ,
+
+  /**
    * Unsupported types from external systems
    */
   UNKNOWN;

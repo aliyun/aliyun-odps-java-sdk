@@ -1748,6 +1748,13 @@ public class SQLExecutorTest extends TestBase {
       Assert.assertEquals(records.size(), 1);
       String summary = sqlExecutor.getSummary();
       System.out.println(summary);
+      for(int retry = 0; retry < 10; retry++) {
+        summary = sqlExecutor.getSummary();
+        if(!StringUtils.isNullOrEmpty(summary)) {
+          break;
+        }
+        Thread.sleep(5000);
+      }
       Assert.assertFalse(StringUtils.isNullOrEmpty(summary));
     } catch (IOException e) {
       e.printStackTrace();

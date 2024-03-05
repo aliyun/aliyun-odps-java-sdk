@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -22,6 +23,7 @@ public class DescribeSchemaCommandTest extends TestBase {
 
   @BeforeClass
   public static void createSchema() throws OdpsException {
+    Assume.assumeTrue(odps.projects().exists(THREE_PROJECT_NAME));
     odps.setDefaultProject(THREE_PROJECT_NAME);
 
     if (odps.schemas().exists(TEST_SCHEMA_NAME)) {

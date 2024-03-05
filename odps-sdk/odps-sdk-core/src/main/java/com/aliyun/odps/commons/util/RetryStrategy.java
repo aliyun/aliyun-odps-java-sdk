@@ -3,6 +3,7 @@ package com.aliyun.odps.commons.util;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.commons.util.backoff.ConstantBackOffStrategy;
 import com.aliyun.odps.commons.util.backoff.ExponentialBackOffStrategy;
@@ -35,7 +36,7 @@ import com.aliyun.odps.rest.RestClient.RetryLogger;
  *    // 对于超过重试次数的情况进行处理
  * }
  * </pre>
- *
+ * <p>
  * Created by onesuper(yichao.cheng@alibaba-inc.com) on 16/1/8.
  */
 public class RetryStrategy {
@@ -74,6 +75,10 @@ public class RetryStrategy {
   final static private int DEFAULT_ATTEMPTS = 10;
 
   /**
+   * retryAfter 的最大值 120s
+   */
+  final static private long MAX_RETRY_AFTER = 120;
+  /**
    * 默认的失败到下次重试的等待间隔，1 秒
    */
   final static private int DEFAULT_BACKOFF_INTERVAL = 1;
@@ -109,10 +114,8 @@ public class RetryStrategy {
   /**
    * 构造重试策略
    *
-   * @param limit
-   *     尝试次数上限
-   * @param strategy
-   *     回避策略
+   * @param limit    尝试次数上限
+   * @param strategy 回避策略
    */
   public RetryStrategy(int limit, BackOffStrategy strategy) {
     init(limit, strategy);
@@ -121,12 +124,9 @@ public class RetryStrategy {
   /**
    * 构造重试策略
    *
-   * @param limit
-   *     尝试次数上限
-   * @param interval
-   *     初始发生失败到到下次重试的时间间隔
-   * @param strategy
-   *     回避策略
+   * @param limit    尝试次数上限
+   * @param interval 初始发生失败到到下次重试的时间间隔
+   * @param strategy 回避策略
    */
   public RetryStrategy(int limit, int interval, BackoffStrategy strategy) {
     init(limit, transform(strategy, interval));
@@ -135,10 +135,8 @@ public class RetryStrategy {
   /**
    * 构造重试策略
    *
-   * @param attempts
-   *     尝试次数
-   * @param interval
-   *     发生失败到到下次重试的时间间隔
+   * @param attempts 尝试次数
+   * @param interval 发生失败到到下次重试的时间间隔
    */
   public RetryStrategy(int attempts, int interval) {
     this(attempts, interval, BackoffStrategy.CONSTANT_BACKOFF);
@@ -147,8 +145,7 @@ public class RetryStrategy {
   /**
    * 构造重试策略
    *
-   * @param attempts
-   *     尝试次数
+   * @param attempts 尝试次数
    */
   public RetryStrategy(int attempts) {
     this(attempts, DEFAULT_BACKOFF_INTERVAL, BackoffStrategy.CONSTANT_BACKOFF);
@@ -182,11 +179,10 @@ public class RetryStrategy {
    * 该方法会忽略一定次数的失败，并策略性地进行回避，然后进入后续的逻辑（重试）
    * 直到达到重试上限时会抛出异常。
    *
-   * @param err
-   *     用户 catch 到的异常
-   * @param logger
-   *     错误日志
+   * @param err    用户 catch 到的异常
+   * @param logger 错误日志
    */
+
   public void onFailure(Exception err, RetryLogger logger)
       throws RetryExceedLimitException, InterruptedException {
     if (!needRetry(err)) {
@@ -198,12 +194,19 @@ public class RetryStrategy {
     }
 
     long millis = strategy.next();
-
+    if (err instanceof OdpsException) {
+      OdpsException ret = (OdpsException) (err);
+      Long retryAfter = ret.getRetryAfter();
+      if (retryAfter != null && retryAfter >= 0) {
+        retryAfter = Math.min(retryAfter, MAX_RETRY_AFTER);
+        millis = retryAfter * 1000;
+      }
+    }
     if (logger != null) {
       logger.onRetryLog(err, attempts, millis / 1000);
     } else if (LOG.isLoggable(Level.FINE)) {
       LOG.fine(String.format("Start to retry, retryCount: %d, will retry in %d seconds.",
-                             attempts, millis / 1000 ));
+                             attempts, millis / 1000));
     }
 
     Thread.sleep(millis);

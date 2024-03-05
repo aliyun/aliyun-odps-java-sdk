@@ -42,7 +42,7 @@ import com.aliyun.odps.Classification.IntegerAttributeDefinition;
 import com.aliyun.odps.Classification.StringAttributeDefinition;
 import com.aliyun.odps.Tags.TagBuilder;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
-import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.utils.TestUtils;
 
 public class FunctionTest extends TestBase {
 
@@ -60,6 +60,31 @@ public class FunctionTest extends TestBase {
 
   private static final String SQL_FUNCTION_DEFINITION_TEXT =
       String.format("CREATE SQL FUNCTION %s(@a bigint, @b bigint) as @a + @b;", SQL_FUNCTION_TEST);
+
+  private static final String EMBEDDED_FUNCTION_NAME = ODPS_JAVA_SDK_UT_PREFIX + "embedded_function";
+  private static final String EMBEDDED_FUNCTION_CODE = "package com.test;\n"
+                                                       + "import com.aliyun.odps.udf.UDF;\n"
+                                                       + "public class Reverse extends UDF {\n"
+                                                       + "  public String evaluate(String input) {\n"
+                                                       + "    if (input == null) {\n"
+                                                       + "      return null;\n"
+                                                       + "    }\n"
+                                                       + "//<ProgramLanguage>python</ProgramLanguage>\n"
+                                                       + "//<!-- xml comment -->\n"
+                                                       + "    StringBuilder ret = new StringBuilder();\n"
+                                                       + "    for (int i = input.toCharArray().length - 1; i >= 0; i--) {\n"
+                                                       + "      ret.append(input.toCharArray()[i]);\n"
+                                                       + "    }\n"
+                                                       + "    return ret.toString();\n"
+                                                       + "  }\n"
+                                                       + "}\n"
+                                                       + "\n";
+  private static final String EMBEDDED_FUNCTION_SQL =  "create or replace embedded function "
+                                                       + EMBEDDED_FUNCTION_NAME
+                                                       + " as 'com.test.Reverse' USING\n"
+                                                       + "#CODE ('lang'='JAVA', 'fileName'='java_code')\n"
+                                                       + EMBEDDED_FUNCTION_CODE
+                                                       + "#END CODE;";
 
   @BeforeClass
   public static void beforeClass() throws FileNotFoundException, OdpsException {
@@ -87,8 +112,9 @@ public class FunctionTest extends TestBase {
     }
 
     // Create a SQL function
-    Instance createSqlFunc  = SQLTask.run(odps, SQL_FUNCTION_DEFINITION_TEXT);
-    createSqlFunc.waitForSuccess();
+    TestUtils.executeSql(odps, SQL_FUNCTION_DEFINITION_TEXT);
+
+    TestUtils.executeSqlScript(odps, EMBEDDED_FUNCTION_SQL);
   }
 
   private static void prepareResource() throws FileNotFoundException, OdpsException {
@@ -124,6 +150,12 @@ public class FunctionTest extends TestBase {
 
     try {
       odps.functions().delete(SQL_FUNCTION_TEST);
+    } catch (Exception e) {
+      // Ignore
+    }
+
+    try {
+      odps.functions().delete(EMBEDDED_FUNCTION_NAME);
     } catch (Exception e) {
       // Ignore
     }
@@ -317,5 +349,21 @@ public class FunctionTest extends TestBase {
     function.reload();
     categoryToKvs = function.getSimpleTags();
     assertEquals(0, categoryToKvs.size());
+  }
+
+  @Test
+  public void testGetEmbeddedFunction() throws OdpsException {
+    Function function = odps.functions().get(EMBEDDED_FUNCTION_NAME);
+    System.out.println(function.getEmbeddedFunctionCode());
+    Assert.assertTrue(function.isEmbeddedFunction());
+    Assert.assertEquals(EMBEDDED_FUNCTION_CODE, function.getEmbeddedFunctionCode());
+    Assert.assertEquals("JAVA", function.getEmbeddedFunctionProgramLanguage());
+    Assert.assertEquals("java_code", function.getEmbeddedFunctionFilename());
+
+    Function nonEmbeddedFunction = odps.functions().get(FUNCTION_TEST);
+    Assert.assertFalse(nonEmbeddedFunction.isEmbeddedFunction());
+    Assert.assertNull(nonEmbeddedFunction.getEmbeddedFunctionFilename());
+    Assert.assertNull(nonEmbeddedFunction.getEmbeddedFunctionProgramLanguage());
+    Assert.assertNull(nonEmbeddedFunction.getEmbeddedFunctionCode());
   }
 }

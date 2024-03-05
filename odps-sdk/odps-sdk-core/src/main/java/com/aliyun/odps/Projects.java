@@ -19,7 +19,10 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.account.BearerTokenAccount;
 import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.commons.transport.Params;
+import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
@@ -38,6 +41,7 @@ import com.aliyun.odps.Project.ProjectModel;
 import com.aliyun.odps.account.AccountFormat;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Projects表示ODPS中所有{@link Project}的集合
@@ -206,7 +210,7 @@ public class Projects {
    *                   odps.security.ip.whitelist:能否访问Project的Ip白名单列表； b. READ_TABLE_MAX_ROW:select语句返回数据的最大行数；
    * @param clusters   Project对应的计算集群列表
    */
-  private void updateProject(final String projectName, final Project.Status status,
+  public void updateProject(final String projectName, final Project.Status status,
                              final String owner, final String comment,
                              final Map<String, String> properties,
                              List<Project.Cluster> clusters)
@@ -220,6 +224,62 @@ public class Projects {
     headers.put(Headers.CONTENT_TYPE, "application/xml");
 
     client.stringRequest(resource, "PUT", null, headers, xml);
+  }
+
+  /**
+   * 删除项目
+   * @param projectName 项目名称
+   * @param isImmediate 是否立即删除
+   *                    是 表示立即删除，项目会不可逆的被永久删除
+   *                    否 表示逻辑删除，项目被标记成删除状态，还可以恢复
+   * @return instance 对象，立即删除时为删除项目的 instance， 逻辑删除时始终返回 null
+   *
+   * @throws OdpsException 出错异常
+   */
+  public Instance delete(String projectName, boolean isImmediate) throws OdpsException {
+
+    Map<String, String> params = new HashMap<>();
+    if (isImmediate) {
+      params.put(Params.ODPS_PERMANENT, "true");
+    }
+
+    Response
+        response =
+        client.request(ResourceBuilder.buildProjectResource(projectName), "DELETE", params, null,
+                       null);
+    if (isImmediate && response.getStatus() == 202) {
+      String location = response.getHeaders().get(Headers.LOCATION);
+      if (StringUtils.isNullOrEmpty(location)) {
+        throw new OdpsException("Invalid response, instance location required when delete project immediately.");
+      }
+
+      String token = response.getHeaders().get(Headers.ODPS_INSTSNCE_TOKEN);
+      if (StringUtils.isNullOrEmpty(token)) {
+        throw new OdpsException("Invalid response, instance token required when delete project immediately.");
+      }
+
+      String instanceId = location.substring(location.lastIndexOf("/") + 1);
+
+      BearerTokenAccount bearerAccount = new BearerTokenAccount(token);
+      Odps bearerOdps = new Odps(bearerAccount);
+      bearerOdps.setEndpoint(odps.getEndpoint());
+      bearerOdps.setDefaultProject("admin_task_project");
+      return bearerOdps.instances().get(instanceId);
+    }
+
+    return null;
+  }
+  /**
+   * 创建 managed 项目
+   *
+   * @param param 创建项目的参数对象
+   */
+  public void create(CreateProjectParam param) throws OdpsException {
+    String xml = marshal(param.getProjectModel());
+
+    HashMap<String, String> headers = new HashMap<String, String>();
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
+    client.stringRequest(ResourceBuilder.buildProjectsResource(), "POST", null, headers, xml);
   }
 
   public Iterator<Project> iteratorByFilter(ProjectFilter filter) {
@@ -308,6 +368,16 @@ public class Projects {
     }
   }
 
+  private static String marshal(final ProjectModel model) throws OdpsException {
+    String xml = null;
+    try {
+      xml = SimpleXmlUtils.marshal(model);
+    } catch (Exception e) {
+      throw new OdpsException("Marshal project model failed", e);
+    }
+    return xml;
+  }
+
   private static String marshal(final String projectName, final Project.ProjectType projectType,
                                 final String projectOwner, final String groupName,
                                 final Project.Status status, final String comment,
@@ -352,12 +422,6 @@ public class Projects {
       model.clusters.entries = clusters;
     }
 
-    String xml = null;
-    try {
-      xml = SimpleXmlUtils.marshal(model);
-    } catch (Exception e) {
-      throw new OdpsException("Marshal project model failed", e);
-    }
-    return xml;
+    return marshal(model);
   }
 }

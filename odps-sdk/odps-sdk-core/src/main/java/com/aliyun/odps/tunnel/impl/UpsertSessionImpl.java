@@ -1,31 +1,52 @@
 package com.aliyun.odps.tunnel.impl;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import com.aliyun.odps.Column;
+import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.tunnel.*;
 import com.aliyun.odps.tunnel.HttpHeaders;
+import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.tunnel.TunnelConstants;
+import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.type.TypeInfoFactory;
-import com.google.gson.*;
+import com.aliyun.odps.utils.FixedNettyChannelPool;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpContentDecompressor;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.*;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class UpsertSessionImpl extends SessionBase implements TableTunnel.UpsertSession {
     private long slotNum;
@@ -35,10 +56,13 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     private List<String> hashKeys = new ArrayList<>();
     private TunnelTableSchema recordSchema;
     private long commitTimeout;
+    private long connectTimeout;
+    private long readTimeout;
+    private boolean supportPartialUpdate = false;
 
     // netty
-    private final EventLoopGroup group = new NioEventLoopGroup();
-    private final Bootstrap bootstrap = new Bootstrap();
+    private EventLoopGroup group;
+    private Bootstrap bootstrap;
 
     // timer
     Timer timer = new Timer();
@@ -46,6 +70,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     ReentrantReadWriteLock.ReadLock readLock = rwLock.readLock();
     ReentrantReadWriteLock.WriteLock writeLock = rwLock.writeLock();
     private Random random = new Random();
+    private FixedNettyChannelPool channelPool;
 
     public UpsertSessionImpl(UpsertSessionImpl.Builder builder) throws TunnelException, IOException {
         this.projectName = builder.getProjectName();
@@ -56,6 +81,8 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         this.httpClient = config.newRestClient(projectName);
         this.slotNum = builder.getSlotNum();
         this.commitTimeout = builder.getCommitTimeout();
+        this.connectTimeout = config.getSocketConnectTimeout() * 1000L;
+        this.readTimeout = config.getSocketTimeout() * 1000L;
         this.id = builder.getUpsertId();
         if (id == null) {
             initiate();
@@ -63,7 +90,17 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
             reload(true);
         }
         initTimer();
-        initNetty();
+        if (builder.bootstrap == null) {
+            initNettyBootstrap(builder.threadNum);
+        } else {
+            this.bootstrap = builder.bootstrap;
+        }
+        channelPool = newChannelPool(builder.concurrentNum);
+    }
+
+
+    public FixedNettyChannelPool getChannelPool() {
+        return channelPool;
     }
 
     @Override
@@ -159,7 +196,9 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     public void close() {
         timer.cancel();
         timer.purge();
-        group.shutdownGracefully();
+        if (group != null) {
+            group.shutdownGracefully().syncUninterruptibly();
+        }
     }
 
     private void reload(boolean init) throws TunnelException {
@@ -285,26 +324,57 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     /**
      * 用于初始化http相关成员变量，包括netty的线程组和通用的header与parameter
      */
-    private void initNetty() {
-        bootstrap.group(group)
-                .channel(NioSocketChannel.class)
-                .handler(new ChannelInitializer<Channel>() {
-                    protected void initChannel(Channel channel) throws Exception {
-                        URI uri = new URI(config.getOdps().getEndpoint());
-                        if (uri.getScheme().equalsIgnoreCase("https")) {
-                            SslContextBuilder builder = SslContextBuilder.forClient();
-                            if (config.getOdps().getRestClient().isIgnoreCerts()) {
-                                builder = builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-                            }
-                            SslContext sc = builder.build();
-                            channel.pipeline().addLast(sc.newHandler(channel.alloc()));
+    private void initNettyBootstrap(int threadNum) throws TunnelException {
+        group = new NioEventLoopGroup(threadNum);
+        bootstrap = generateNettyBootstrap(config, group);
+    }
+
+    private FixedNettyChannelPool newChannelPool(int concurrentNum) throws TunnelException {
+        try {
+            URI uri = new URI(httpClient.getEndpoint() + getResource());
+            String host = uri.getHost();
+            int port = uri.getPort();
+            if (port == -1) {
+                if ("https".equalsIgnoreCase(uri.getScheme())) {
+                    port = 443;
+                } else {
+                    port = 80;
+                }
+            }
+            int finalPort = port;
+            FixedNettyChannelPool.ChannelFactory channelFactory =
+                () -> bootstrap.connect(host, finalPort).sync().channel();
+            return new FixedNettyChannelPool(concurrentNum, channelFactory);
+        } catch (Exception e) {
+            throw new TunnelException(e.getMessage(), e);
+        }
+    }
+
+    public static Bootstrap generateNettyBootstrap(ConfigurationImpl configuration,
+                                                   EventLoopGroup group) {
+        Bootstrap bootstrap = new Bootstrap();
+        Odps odps = configuration.getOdps();
+        bootstrap.group(group).channel(NioSocketChannel.class)
+            .handler(new ChannelInitializer<Channel>() {
+                @Override
+                protected void initChannel(Channel channel) throws Exception {
+                    URI uri = new URI(odps.getEndpoint());
+                    if ("https".equalsIgnoreCase(uri.getScheme())) {
+                        SslContextBuilder builder = SslContextBuilder.forClient();
+                        if (odps.getRestClient().isIgnoreCerts()) {
+                            builder = builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
                         }
-                        channel.pipeline()
-                                .addLast(new HttpClientCodec())
-                                .addLast(new HttpObjectAggregator(65536))
-                                .addLast(new HttpContentDecompressor());
+                        SslContext sc = builder.build();
+                        channel.pipeline().addLast(sc.newHandler(channel.alloc()));
                     }
-                });
+                    channel.pipeline().addLast(new HttpClientCodec())
+                        .addLast(new HttpObjectAggregator(65536))
+                        .addLast(new HttpContentDecompressor());
+                }
+            });
+        bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,
+                         configuration.getSocketConnectTimeout());
+        return bootstrap;
     }
 
     Request buildRequest(String method,
@@ -383,12 +453,23 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         return config.getResource(projectName, schemaName, tableName)+ "/" + TunnelConstants.UPSERTS;
     }
 
+    public long getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    public long getReadTimeout() {
+        return readTimeout;
+    }
+
     public static class Builder implements TableTunnel.UpsertSession.Builder {
         private String upsertId;
         private String projectName;
         private String schemaName;
         private String tableName;
         private PartitionSpec partitionSpec;
+        Bootstrap bootstrap;
+        int concurrentNum = 8;
+        int threadNum = 1;
         private long slotNum = 1;
         private long commitTimeout = 120 * 1000;
         ConfigurationImpl config;
@@ -457,6 +538,9 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         }
 
         public UpsertSessionImpl.Builder setConfig(ConfigurationImpl config) {
+            if (config == null) {
+                throw new IllegalArgumentException("config can not be null!");
+            }
             this.config = config;
             return this;
         }
@@ -470,6 +554,41 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 throw new IllegalArgumentException("timeout value must be positive");
             }
             this.commitTimeout = commitTimeout;
+            return this;
+        }
+
+        @Override
+        public UpsertSessionImpl.Builder setNetworkThreadNum(int threadNum) {
+            this.threadNum = threadNum;
+            return this;
+        }
+
+        @Override
+        public UpsertSessionImpl.Builder setConcurrentNum(int concurrentNum) {
+            this.concurrentNum = concurrentNum;
+            return this;
+        }
+
+        @Override
+        public UpsertSessionImpl.Builder setConnectTimeout(long timeout) {
+            if (timeout <= 0) {
+                throw new IllegalArgumentException("timeout value must be positive");
+            }
+            config.setSocketConnectTimeout((int) (timeout / 1000));
+            return this;
+        }
+
+        @Override
+        public UpsertSessionImpl.Builder setReadTimeout(long timeout) {
+            if (timeout <= 0) {
+                throw new IllegalArgumentException("timeout value must be positive");
+            }
+            config.setSocketTimeout((int) (timeout / 1000));
+            return this;
+        }
+
+        public UpsertSessionImpl.Builder setNettyBootStrap(Bootstrap bootstrap) {
+            this.bootstrap = bootstrap;
             return this;
         }
 

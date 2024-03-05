@@ -99,7 +99,7 @@ public class SQLTaskTest extends TestBase {
   public void testInstanceTunnelResult() throws OdpsException, IOException {
     odps.tables().delete("test_select_sql_test_from_tunnel", true);
 
-    OdpsTestUtils.createTableForTest("test_select_sql_test_from_tunnel");
+    OdpsTestUtils.createTableForTest(odps, "test_select_sql_test_from_tunnel");
 
     String taskName = "test_select_sql_task_tunnel";
     Instance i = SQLTask.run(odps, odps.getDefaultProject(),

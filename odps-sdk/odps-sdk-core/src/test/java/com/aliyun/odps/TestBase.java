@@ -27,6 +27,8 @@ public class TestBase {
 
   protected static Odps odps;
 
+  protected static final String ODPS_JAVA_SDK_UT_PREFIX = "ODPS_JAVA_SDK_UT_";
+
   @BeforeClass
   public static void setUpBeforeClassBase() throws Exception {
     odps = OdpsTestUtils.newDefaultOdps();

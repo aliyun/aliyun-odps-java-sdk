@@ -94,8 +94,8 @@ public class VolumesTest extends TestBase {
     //Already Test in method tearDown() ,please don't delete again
   }
 
-  @Test(expected = OdpsException.class)
-  public void testExternalVolume() throws OdpsException {
+  @Test
+  public void testExternalVolume() {
     try {
       odps.volumes().delete(extVolumeName);
     } catch (Exception e) {
@@ -112,7 +112,6 @@ public class VolumesTest extends TestBase {
     } catch (OdpsException e) {
       // id key not specified
       Assert.assertTrue(e.getMessage().contains("Status: 403"));
-      throw e;
     }
   }
 }

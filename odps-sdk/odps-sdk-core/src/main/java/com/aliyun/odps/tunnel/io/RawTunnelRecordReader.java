@@ -235,6 +235,15 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
                                                               RestClient restClient,
                                                               TableTunnel.DownloadSession session)
       throws IOException, TunnelException {
+      return createTableTunnelReader(start, count, compress, columns, restClient, session, false);
+  }
+  public static RawTunnelRecordReader createTableTunnelReader(long start, long count,
+                                                              CompressOption compress,
+                                                              List<Column> columns,
+                                                              RestClient restClient,
+                                                              TableTunnel.DownloadSession session,
+                                                              boolean disableModifiedCheck)
+      throws IOException, TunnelException {
     HashMap<String, String> params = new HashMap<String, String>();
     HashMap<String, String> headers = new HashMap<String, String>();
 
@@ -289,6 +298,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
     Configuration conf = session.getConfig();
     if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
       params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
+    }
+
+    if (disableModifiedCheck) {
+      params.put(TunnelConstants.PARAM_DISABLE_MODIFIED_CHECK, "true");
     }
 
     Connection conn = null;

@@ -72,6 +72,18 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
                                    BufferAllocator allocator,
                                    CompressOption compress)
             throws TunnelException, IOException {
+        this(start, count, columns, tunnelRestClient, session, allocator, compress, false);
+    }
+
+    public ArrowTunnelRecordReader(long start,
+                                   long count,
+                                   List<Column> columns,
+                                   RestClient tunnelRestClient,
+                                   TableTunnel.DownloadSession session,
+                                   BufferAllocator allocator,
+                                   CompressOption compress,
+                                   boolean disableModifiedCheck)
+            throws TunnelException, IOException {
         this.start = start;
         this.count = count;
         this.columnList = columns;
@@ -85,7 +97,7 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
         this.isClosed = false;
         this.arrowSchema = ArrowUtils.tableSchemaToArrowSchema(session.getSchema(), columns);
         this.compression = compress;
-        openReaderConnection(this.start, this.count, this.columnList, this.tunnelServiceClient, this.tableSession);
+        openReaderConnection(this.start, this.count, this.columnList, this.tunnelServiceClient, this.tableSession, disableModifiedCheck);
     }
 
     private ArrowRecordBatch readBatch() throws IOException {
@@ -138,7 +150,7 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
     }
 
     private void openReaderConnection(long start, long count, List<Column> columns, RestClient restClient,
-                                      TableTunnel.DownloadSession session)
+                                      TableTunnel.DownloadSession session, boolean disableModifiedCheck)
             throws IOException, TunnelException {
         HashMap<String, String> params = new HashMap<String, String>();
         HashMap<String, String> headers = new HashMap<String, String>();
@@ -192,6 +204,10 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
         Configuration conf = tableSession.getConfig();
         if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
             params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
+        }
+
+        if (disableModifiedCheck) {
+            params.put(TunnelConstants.PARAM_DISABLE_MODIFIED_CHECK, "true");
         }
 
         Connection conn = null;
