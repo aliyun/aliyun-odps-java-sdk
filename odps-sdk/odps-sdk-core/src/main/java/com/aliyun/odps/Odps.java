@@ -89,6 +89,7 @@ public class Odps {
   private OfflineModels offlineModels;
   private Classifications classifications;
   private Quotas quotas;
+  private Streams streams;
 
   /* RestClient instance */
   protected RestClient client;
@@ -138,6 +139,7 @@ public class Odps {
     projects = new Projects(this);
     schemas = new Schemas(this);
     tables = new Tables(this);
+    streams = new Streams(this);
     instances = new Instances(this);
     resources = new Resources(this);
     functions = new Functions(this);
@@ -182,6 +184,15 @@ public class Odps {
    */
   public Tables tables() {
     return tables;
+  }
+
+  /**
+   * 获取表示ODPS所有{@link Stream}的集合对象
+   *
+   * @return {@link Streams}
+   */
+  public Streams streams() {
+    return streams;
   }
 
   /**

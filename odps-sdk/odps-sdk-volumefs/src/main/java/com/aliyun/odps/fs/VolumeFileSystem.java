@@ -39,6 +39,8 @@ import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.tunnel.VolumeFSErrorCode;
 import com.aliyun.odps.utils.StringUtils;
+import com.aliyun.odps.volume.ExternalVolumeFSInputStream;
+import com.aliyun.odps.volume.ExternalVolumeFSOutputStream;
 import com.aliyun.odps.volume.VolumeFSClient;
 import com.aliyun.odps.volume.VolumeFSInputStream;
 import com.aliyun.odps.volume.VolumeFSOutputStream;
@@ -48,7 +50,7 @@ import com.aliyun.odps.volume.protocol.VolumeFSErrorMessageGenerator;
 
 /**
  * The ODPS Volume implementation of Hadoop {@link FileSystem}
- * 
+ *
  * @author Emerson Zhao [mailto:zhenyi.zzy@alibaba-inc.com]
  *
  */
@@ -172,6 +174,9 @@ public class VolumeFileSystem extends FileSystem {
     if (fileStatus.isDirectory()) {
       throw new FileNotFoundException(VolumeFSErrorMessageGenerator.isADirectory(filePath));
     }
+    if(fileStatus.isSymlink()){
+      return new FSDataInputStream(new ExternalVolumeFSInputStream(filePath, volumeClient, getConf()));
+    }
     return new FSDataInputStream(new VolumeFSInputStream(filePath, volumeClient,
         fileStatus.getLen(), getConf()));
   }
@@ -191,6 +196,11 @@ public class VolumeFileSystem extends FileSystem {
           VolumeFSErrorMessageGenerator.theOpreationIsNotAllowed("Create file in the root path!"));
     }
     try {
+      if (volumeClient.isExternalVolume(VolumeFSUtil.getVolumeFromPath(absF))) {
+        return new FSDataOutputStream(
+            new ExternalVolumeFSOutputStream(filePath, volumeClient, overwrite, getConf()),
+            statistics);
+      }
       return new FSDataOutputStream(new VolumeFSOutputStream(filePath, volumeClient, permission,
           overwrite, replication, blockSize, progress), statistics);
     } catch (VolumeException e) {
@@ -380,7 +390,7 @@ public class VolumeFileSystem extends FileSystem {
   /**
    * Checks that the passed URI belongs to this filesystem and returns just the path component.
    * Expects a URI with an absolute path.
-   * 
+   *
    * @param file URI with absolute path
    * @return path component of {file}
    * @throws IllegalArgumentException if URI does not belong to this DFS

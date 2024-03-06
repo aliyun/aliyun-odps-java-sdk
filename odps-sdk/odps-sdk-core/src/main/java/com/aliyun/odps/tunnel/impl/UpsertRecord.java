@@ -63,7 +63,7 @@ public class UpsertRecord extends ArrayRecord {
         record.setTinyint(TunnelConstants.META_FIELD_OPERATION, operation);
     }
 
-    void setValueCols(List<Integer> cols) {
+    void setValueCols(List<Long> cols) {
         record.setArray(TunnelConstants.META_FIELD_VALUE_COLS, cols);
     }
 

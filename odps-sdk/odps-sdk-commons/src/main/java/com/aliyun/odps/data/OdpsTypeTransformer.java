@@ -41,8 +41,8 @@ public class OdpsTypeTransformer {
   private static final long DATETIME_MAX_TICKS = 253402387200000L;
   private static final long DATETIME_MIN_TICKS = -62167305600000L;
 
-  static final Map<OdpsType, Class> ODPS_TYPE_MAPPER = new HashMap<>();
-  static final Map<OdpsType, Class> ODPS_TYPE_MAPPER_V2 = new HashMap<>();
+  public static final Map<OdpsType, Class> ODPS_TYPE_MAPPER = new HashMap<>();
+  public static final Map<OdpsType, Class> ODPS_TYPE_MAPPER_V2 = new HashMap<>();
 
 
   OdpsTypeTransformer() {}

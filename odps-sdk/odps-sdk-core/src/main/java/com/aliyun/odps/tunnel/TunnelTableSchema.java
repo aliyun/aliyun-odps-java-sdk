@@ -19,14 +19,20 @@
 
 package com.aliyun.odps.tunnel;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoParser;
+import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 public class TunnelTableSchema extends TableSchema {
+
+  private Map<String, Long> columnIdMap = new HashMap<>();
 
   public TunnelTableSchema(JsonObject node) {
     JsonArray columns = node.has("columns") ? node.get("columns").getAsJsonArray() : new JsonArray();
@@ -44,12 +50,23 @@ public class TunnelTableSchema extends TableSchema {
     }
   }
 
+  public long getColumnId(String name) throws TunnelException {
+    if (!columnIdMap.containsKey(name)) {
+      throw new TunnelException("Cannot get column '" + name + "' id from schema");
+    }
+    return columnIdMap.get(name);
+  }
+
   private Column parseColumn(JsonObject column) {
     String name = column.has("name") ? column.get("name").getAsString() : null;
     String type = column.has("type") ? column.get("type").getAsString() : null;
     String comment = column.has("comment") ? column.get("comment").getAsString() : null;
     String nullable = column.has("nullable") ? column.get("nullable").getAsString() : null;
-    Column col = null;
+    String columnId = column.has("column_id") ? column.get("column_id").getAsString() : null;
+    if (!StringUtils.isNullOrEmpty(columnId) && !StringUtils.isNullOrEmpty(name)) {
+      columnIdMap.put(name, Long.valueOf(columnId));
+    }
+    Column col;
     TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(type);
     col = new Column(name, typeInfo, comment);
     if (nullable != null) {

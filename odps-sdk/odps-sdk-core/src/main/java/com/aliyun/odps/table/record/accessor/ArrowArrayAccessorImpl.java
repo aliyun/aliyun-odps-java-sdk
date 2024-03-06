@@ -19,27 +19,30 @@
 
 package com.aliyun.odps.table.record.accessor;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.arrow.vector.complex.ListVector;
+
 import com.aliyun.odps.table.arrow.accessor.ArrowArrayAccessor;
 import com.aliyun.odps.table.arrow.accessor.ArrowVectorAccessor;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
-import org.apache.arrow.vector.complex.ListVector;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class ArrowArrayAccessorImpl {
 
     public static class ArrowArrayAccessorForRecord extends ArrowArrayAccessor<List<Object>> {
 
+        private final boolean isExtension;
         private final TypeInfo elementTypeInfo;
         private final ArrowVectorAccessor dataAccessor;
 
-        public ArrowArrayAccessorForRecord(ListVector vector, TypeInfo typeInfo) {
+        public ArrowArrayAccessorForRecord(ListVector vector, TypeInfo typeInfo, boolean isExtension) {
             super(vector);
+            this.isExtension = isExtension;
             this.elementTypeInfo = ((ArrayTypeInfo) typeInfo).getElementTypeInfo();
             this.dataAccessor = ArrowToRecordConverter.
-                    createColumnVectorAccessor(vector.getDataVector(), elementTypeInfo);
+                    createColumnVectorAccessor(vector.getDataVector(), elementTypeInfo, isExtension);
         }
 
         @Override
@@ -48,7 +51,7 @@ public class ArrowArrayAccessorImpl {
             try {
                 for (int i = 0; i < length; i++) {
                     list.add(ArrowToRecordConverter.getData(dataAccessor,
-                            elementTypeInfo, offset + i));
+                            elementTypeInfo, offset + i, isExtension));
                 }
                 return list;
             } catch (Exception e) {

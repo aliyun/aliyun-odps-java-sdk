@@ -41,6 +41,7 @@ public final class Column {
   private String defaultValue = null;
   private boolean isNullable = true;
   private boolean hasDefaultValue = false;
+  private boolean primaryKey = false;
 
   private List<OdpsType> genericOdpsTypeList;
   private List<String> extendedLabels;
@@ -103,6 +104,17 @@ public final class Column {
     // if it is array or map, should init genericOdpsTypeList.
     // otherwise, getGenericTypeList returns null when init column by this constructor
     initGenericOdpsTypeList();
+  }
+
+  public static ColumnBuilder newBuilder(String name, TypeInfo typeInfo) {
+    return new ColumnBuilder(name, typeInfo);
+  }
+
+  public Column(ColumnBuilder columnBuilder) {
+    this(columnBuilder.name, columnBuilder.typeInfo, columnBuilder.comment, columnBuilder.label,
+         columnBuilder.extendedLabels);
+    this.isNullable = !columnBuilder.notNull;
+    this.primaryKey = columnBuilder.primaryKey;
   }
 
   /**
@@ -368,4 +380,53 @@ public final class Column {
     return hasDefaultValue;
   }
 
+  public boolean isPrimaryKey() {
+    return primaryKey;
+  }
+
+  public static class ColumnBuilder {
+
+    private String name;
+    private TypeInfo typeInfo;
+    private String comment;
+    private String label;
+    private List<String> extendedLabels;
+    private boolean notNull = false;
+    private boolean primaryKey = false;
+
+    private ColumnBuilder(String name, TypeInfo typeInfo) {
+      this.name = name;
+      this.typeInfo = typeInfo;
+    }
+
+    public ColumnBuilder withComment(String comment) {
+      this.comment = comment;
+      return this;
+    }
+
+    public ColumnBuilder withLabel(String label) {
+      this.label = label;
+      return this;
+    }
+
+    public ColumnBuilder withExtendedLabels(List<String> extendedLabels) {
+      this.extendedLabels = extendedLabels;
+      return this;
+    }
+
+    public ColumnBuilder notNull() {
+      this.notNull = true;
+      return this;
+    }
+
+    public ColumnBuilder primaryKey() {
+      this.primaryKey = true;
+      this.notNull = true;
+      return this;
+    }
+
+    public Column build() {
+      return new Column(this);
+    }
+  }
 }

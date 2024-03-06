@@ -117,7 +117,7 @@ public class VolumeFSFileTest extends TestBase {
   public void testNoSuchVolume() {
     try {
       VolumeFSFile.create(odps.getDefaultProject(), "/chuxiang_no_such_volume/", true,
-          odps.getRestClient());
+                          odps.getRestClient());
     } catch (VolumeException e) {
       assertTrue(e.getMessage(), VolumeFSErrorCode.NoSuchVolume.equalsIgnoreCase(e.getErrCode()));
     }
@@ -130,7 +130,7 @@ public class VolumeFSFileTest extends TestBase {
       VolumeFSFile.create(odps.getDefaultProject(), TEST_FILE, true, odps.getRestClient());
     } catch (VolumeException e) {
       assertTrue(e.getMessage(),
-          VolumeFSErrorCode.PathAlreadyExists.equalsIgnoreCase(e.getErrCode()));
+                 VolumeFSErrorCode.PathAlreadyExists.equalsIgnoreCase(e.getErrCode()));
     }
   }
 
@@ -140,7 +140,7 @@ public class VolumeFSFileTest extends TestBase {
       VolumeFSFile.create(odps.getDefaultProject(), TEST_FILE + "1", false, odps.getRestClient());
     } catch (VolumeException e) {
       assertTrue(e.getMessage(),
-          VolumeFSErrorCode.NotAcceptableOperation.equalsIgnoreCase(e.getErrCode()));
+                 VolumeFSErrorCode.NotAcceptableOperation.equalsIgnoreCase(e.getErrCode()));
     }
   }
 
@@ -155,7 +155,7 @@ public class VolumeFSFileTest extends TestBase {
       assertTrue(false);
     } catch (VolumeException e) {
       assertTrue(e.getMessage(),
-          VolumeFSErrorCode.PathAlreadyExists.equalsIgnoreCase(e.getErrCode()));
+                 VolumeFSErrorCode.PathAlreadyExists.equalsIgnoreCase(e.getErrCode()));
     }
     try {
       VolumeFSFile file = odps.volumes().get(TEST_VOLUME).getVolumeFSFile(TEST_DIR);
@@ -319,7 +319,7 @@ public class VolumeFSFileTest extends TestBase {
       volumeFSDir.update(param);
     } catch (VolumeException e) {
       assertTrue(e.getMessage(),
-          VolumeFSErrorCode.NotAcceptableOperation.equalsIgnoreCase(e.getErrCode()));
+                 VolumeFSErrorCode.NotAcceptableOperation.equalsIgnoreCase(e.getErrCode()));
     }
   }
 
@@ -357,11 +357,11 @@ public class VolumeFSFileTest extends TestBase {
     try {
       volumeFSDir =
           VolumeFSFile.create(odps.getDefaultProject(), TEST_DIR_LIST_PARENT, true,
-              odps.getRestClient());
+                              odps.getRestClient());
       VolumeFSFile.create(odps.getDefaultProject(), TEST_DIR_LIST_SON_DIR1, true,
-          odps.getRestClient());
+                          odps.getRestClient());
       VolumeFSFile.create(odps.getDefaultProject(), TEST_DIR_LIST_SON_DIR2, true,
-          odps.getRestClient());
+                          odps.getRestClient());
       createFile(TEST_DIR_LIST_SON_FILE1);
       createFile(TEST_DIR_LIST_SON_FILE2);
     } catch (VolumeException e) {
@@ -402,7 +402,7 @@ public class VolumeFSFileTest extends TestBase {
         volumeFSDir.reload();
       } catch (OdpsException e2) {
         assertTrue(e2.getMessage(),
-            VolumeFSErrorCode.NoSuchPath.equalsIgnoreCase(e2.getErrorCode()));
+                   VolumeFSErrorCode.NoSuchPath.equalsIgnoreCase(e2.getErrorCode()));
       }
     }
   }
@@ -439,7 +439,7 @@ public class VolumeFSFileTest extends TestBase {
     try {
       lowerCaseFile =
           VolumeFSFile.create(odps.getDefaultProject(), TEST_CASE_DIR.toLowerCase(), true,
-              odps.getRestClient());
+                              odps.getRestClient());
     } catch (VolumeException e) {
       if (!VolumeFSErrorCode.PathAlreadyExists.equalsIgnoreCase(e.getErrCode())) {
         assertTrue(e.getMessage(), false);
@@ -449,7 +449,7 @@ public class VolumeFSFileTest extends TestBase {
     try {
       upperCaseFile =
           VolumeFSFile.create(odps.getDefaultProject(), TEST_CASE_DIR.toUpperCase(), true,
-              odps.getRestClient());
+                              odps.getRestClient());
       upperCaseFile.delete(false);
     } catch (VolumeException e) {
       if (!VolumeFSErrorCode.PathAlreadyExists.equalsIgnoreCase(e.getErrCode())) {

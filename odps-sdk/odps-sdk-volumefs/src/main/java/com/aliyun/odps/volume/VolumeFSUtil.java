@@ -18,7 +18,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -237,4 +236,14 @@ public class VolumeFSUtil {
     }
   }
 
+  public static String[] getVolumeAndPath(String path) throws VolumeException {
+    String[] parts = path.split(VolumeFSConstants.SEPARATOR, 3);
+    if (parts.length == 3) {
+      return new String[]{parts[1], parts[2]};
+    } else if (parts.length == 2) {
+      return new String[]{parts[1], ""};
+    } else {
+      throw new VolumeException("Invalid path: " + path);
+    }
+  }
 }

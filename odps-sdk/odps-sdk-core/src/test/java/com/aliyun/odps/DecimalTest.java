@@ -70,6 +70,6 @@ public class DecimalTest extends TestBase {
     Table table = odps.tables().get(tableName);
     RecordReader reader = table.read(10000);
     Record record2 = reader.read();
-    assertEquals(record2.getDecimal(0), decimal);
+    assertEquals(record2.getDecimal(0).stripTrailingZeros(), decimal);
   }
 }

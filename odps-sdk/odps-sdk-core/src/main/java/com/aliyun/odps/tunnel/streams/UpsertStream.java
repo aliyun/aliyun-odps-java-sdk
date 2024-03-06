@@ -15,6 +15,8 @@ public interface UpsertStream {
    */
   public void upsert(Record record) throws IOException, TunnelException;
 
+  public void upsert(Record record, List<String> upsertCols) throws IOException, TunnelException;
+
   /**
    * 按delete操作，写入一条{@link Record}对象到缓冲区
    *

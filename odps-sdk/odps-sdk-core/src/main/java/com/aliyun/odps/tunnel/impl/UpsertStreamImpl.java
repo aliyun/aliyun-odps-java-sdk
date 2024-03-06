@@ -7,10 +7,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.HttpHeaders;
@@ -172,6 +174,25 @@ public class UpsertStreamImpl implements UpsertStream {
   }
 
   @Override
+  public void upsert(Record record, List<String> upsertCols) throws IOException, TunnelException {
+    if (upsertCols != null && !upsertCols.isEmpty() && !session.supportPartialUpdate()) {
+      throw new TunnelException(
+          "Table " + session.tableName
+          + " do not support partial update, consider set table properties 'acid.partial.fields.update.enable=true'");
+    }
+    if (upsertCols != null && !upsertCols.isEmpty()) {
+      Set<String> columnSet =
+          schema.getColumns().stream().map(Column::getName).collect(Collectors.toSet());
+      upsertCols.forEach((col) -> {
+        if (!columnSet.contains(col)) {
+          throw new IllegalArgumentException("Invalid column name:" + col);
+        }
+      });
+    }
+    write(record, UpsertStreamImpl.Operation.UPSERT, upsertCols);
+  }
+
+  @Override
   public void delete(Record record) throws IOException, TunnelException {
     write(record, UpsertStreamImpl.Operation.DELETE, null);
   }
@@ -201,15 +222,17 @@ public class UpsertStreamImpl implements UpsertStream {
     status = Status.NORMAL;
   }
 
-  private void write(Record record, UpsertStreamImpl.Operation op, List<String> validColumns)
-          throws TunnelException, IOException {
+  private void write(Record record, UpsertStreamImpl.Operation op, List<String> valueColumns)
+      throws TunnelException, IOException {
     checkStatus();
 
     List<Integer> hashValues = new ArrayList<>();
     for (int key : hashKeys) {
       Object value = record.get(key);
       if (value == null) {
-        throw new TunnelException("Hash key " + key + " can not be null!");
+        throw new TunnelException(
+            " UpsertRecord must have primary key value, consider provide values for column '"
+            + schema.getColumn(key).getName() + "'");
       }
       hashValues.add(TypeHasher.hash(schema.getColumn(key).getTypeInfo().getOdpsType(), value,
                                      session.getHasher()));
@@ -219,16 +242,19 @@ public class UpsertStreamImpl implements UpsertStream {
 
     if (!bucketBuffer.containsKey(bucket)) {
       throw new TunnelException(
-              "Tunnel internal error! Do not have bucket for hash key " + bucket);
+          "Tunnel internal error! Do not have bucket for hash key " + bucket);
     }
 
     ProtobufRecordPack pack = bucketBuffer.get(bucket);
     UpsertRecord r = (UpsertRecord) record;
     r.setOperation(op == UpsertStreamImpl.Operation.UPSERT ? (byte)'U' : (byte)'D');
-    r.setValueCols(validColumns == null ?
-                     new ArrayList<>() :
-                     validColumns.stream().map(this.schema::getColumnIndex).collect(Collectors.toList()));
-
+    ArrayList<Long> valueCols = new ArrayList<>();
+    if (valueColumns != null) {
+      for (String validColumnName : valueColumns) {
+        valueCols.add(this.schema.getColumnId(validColumnName));
+      }
+    }
+    r.setValueCols(valueCols);
     long bytes = pack.getTotalBytes();
     pack.append(r.getRecord());
     bytes = pack.getTotalBytes() - bytes;
@@ -239,7 +265,6 @@ public class UpsertStreamImpl implements UpsertStream {
       flush(true);
     }
   }
-
   private void flush(boolean flushAll) throws TunnelException, IOException {
     List<FlushResultHandler> handlers = new ArrayList<>();
     boolean success;

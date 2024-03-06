@@ -47,6 +47,7 @@ public class ResourceBuilder {
   public static final String CACHED_INSTANCES = "/cachedinstances";
   public static final String VOLUMES = "/volumes";
   private static final String STREAMS = "/streams";
+  private static final String STREAMOBJECTS = "/streamobjects";
   private static final String TOPOLOGIES = "/topologies";
   private static final String XFLOWS = "/xflows";
   private static final String STREAMJOBS = "/streamjobs";
@@ -233,6 +234,14 @@ public class ResourceBuilder {
     sb.append(STREAMS).append('/').append(encodeObjectName(streamName));
 
     return sb.toString();
+  }
+  public static String buildStreamObjectResource(String projectName) {
+    return PROJECTS + '/' + encodeObjectName(projectName) + STREAMOBJECTS;
+  }
+
+  public static String buildStreamObjectResource(String projectName, String streamName) {
+    return PROJECTS + '/' + encodeObjectName(projectName)
+           + STREAMOBJECTS + '/' + encodeObjectName(streamName);
   }
 
   public static String buildTopologiesResource(String projectName) {

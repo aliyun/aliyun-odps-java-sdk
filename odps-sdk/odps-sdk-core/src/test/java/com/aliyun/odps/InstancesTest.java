@@ -154,7 +154,7 @@ public class InstancesTest extends TestBase {
     }
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testDateIllegal() throws OdpsException {
     InstanceFilter filter = new InstanceFilter();
     filter.setOnlyOwner(true);

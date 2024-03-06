@@ -785,6 +785,10 @@ public class StringUtils {
       return !StringUtils.isBlank(str);
   }
 
+  public static boolean allNotNullOrEmpty(String... str) {
+    return Arrays.stream(str).noneMatch(StringUtils::isNullOrEmpty);
+  }
+
   public static String join(Object[] array, char separator) {
       if (array == null) {
           return null;
