@@ -1169,5 +1169,18 @@ public class ArrayRecord implements Record {
     }
   }
 
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    for (Object o : values) {
+      if (o instanceof byte[]) {
+        sb.append(bytesToString((byte[]) o)).append(",");
+      } else {
+        sb.append(o.toString()).append(",");
+      }
+    }
+    sb.setLength(sb.length() - 1);
+    return sb.toString();
+  }
 }
 

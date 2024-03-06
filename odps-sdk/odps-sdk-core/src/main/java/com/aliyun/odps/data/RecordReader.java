@@ -21,11 +21,14 @@ package com.aliyun.odps.data;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * <code>RecordReader</code>用来读取记录
  */
-public interface RecordReader extends Closeable {
+public interface RecordReader extends Closeable, Iterable<Record> {
 
   /**
    * 读取一条记录
@@ -35,4 +38,49 @@ public interface RecordReader extends Closeable {
    *     读取过程发生异常, 发生异常后不可重试
    */
   public Record read() throws IOException;
+
+  /**
+   * 提供一个迭代器来遍历所有的记录。
+   * <p>
+   * 默认实现会创建一个匿名的 {@link Iterator} 对象，
+   * 该对象的 {@code hasNext} 和 {@code next} 方法依赖于 {@code read} 方法。
+   *
+   * @return 一个新的 {@link Iterator} 对象，用于遍历记录。
+   */
+  @Override
+  default Iterator<Record> iterator() {
+    return new Iterator<Record>() {
+      private Record nextRecord;
+
+      {
+        // 初始化时尝试读取第一条记录。
+        try {
+          nextRecord = read();
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }
+
+      @Override
+      public boolean hasNext() {
+        // 如果 nextRecord 不为 null，则表示还有更多记录。
+        return nextRecord != null;
+      }
+
+      @Override
+      public Record next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        Record current = nextRecord;
+        // 在返回当前记录的同时，尝试读取下一条记录。
+        try {
+          nextRecord = read();
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+        return current;
+      }
+    };
+  }
 }

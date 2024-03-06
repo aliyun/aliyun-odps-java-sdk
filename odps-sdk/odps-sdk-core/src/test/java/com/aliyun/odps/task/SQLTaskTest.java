@@ -464,7 +464,6 @@ public class SQLTaskTest extends TestBase {
     Map<String, String> hints = new HashMap<>();
     hints.put("odps.sql.allow.schema.evolution", "true");
     hints.put("odps.sql.decimal.odps2", "true");
-    hints.put("odps.sql.upsertable.table.enable", "true");
     System.out.println("Execute SQL => " + sql);
     SQLTask.run(odps, odps.getDefaultProject(), sql, "SqlTask", hints, null).waitForSuccess();
   }

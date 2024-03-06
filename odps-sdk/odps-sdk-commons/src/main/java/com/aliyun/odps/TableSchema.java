@@ -23,6 +23,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.aliyun.odps.type.TypeInfoFactory;
+
 /**
  * TableSchema表示ODPS中表的定义
  */
@@ -39,6 +41,10 @@ public class TableSchema {
    */
   public TableSchema() {
 
+  }
+
+  public static Builder builder() {
+    return new Builder();
   }
 
   /**
@@ -184,6 +190,12 @@ public class TableSchema {
     return (List<Column>) partitionColumns.clone();
   }
 
+
+  public List<Column> getAllColumns() {
+    List<Column> allColumns = getColumns();
+    allColumns.addAll(partitionColumns);
+    return allColumns;
+  }
   /**
    * 获得分区列定义
    *
@@ -233,5 +245,96 @@ public class TableSchema {
       throw new IllegalArgumentException("idx out of range");
     }
     return partitionColumns.get(idx);
+  }
+
+  public boolean basicallyEquals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    TableSchema that = (TableSchema) o;
+    List<Column> columnsA = getAllColumns();
+    List<Column> columnsB = that.getAllColumns();
+    if (columnsA.size() != columnsB.size()) {
+      return false;
+    }
+    for (int i = 0; i < columnsA.size(); i++) {
+      Column columnA = columnsA.get(i);
+      Column columnB = columnsB.get(i);
+      if (!columnA.getName().equals(columnB.getName()) || !columnA.getTypeInfo().getTypeName()
+          .equals(columnB.getTypeInfo().getTypeName())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public static class Builder {
+
+    private final TableSchema schema;
+
+    public Builder() {
+      schema = new TableSchema();
+    }
+
+    public Builder withColumns(List<Column> columns) {
+      for (Column column : columns) {
+        withColumn(column);
+      }
+      return this;
+    }
+
+    public Builder withColumn(Column column) {
+      schema.addColumn(column);
+      return this;
+    }
+
+    public Builder withPartitionColumn(Column column) {
+      schema.addPartitionColumn(column);
+      return this;
+    }
+
+    /**
+     * easy method to add specific type column.
+     * for more column type, please use withColumn
+     * @see Column
+     * @see com.aliyun.odps.Column.ColumnBuilder
+     */
+
+    public Builder withBigintColumn(String columnName) {
+      schema.addColumn(new Column(columnName, TypeInfoFactory.BIGINT));
+      return this;
+    }
+
+    public Builder withStringColumn(String columnName) {
+      schema.addColumn(new Column(columnName, TypeInfoFactory.STRING));
+      return this;
+    }
+
+    public Builder withDoubleColumn(String columnName) {
+      schema.addColumn(new Column(columnName, TypeInfoFactory.DOUBLE));
+      return this;
+    }
+
+    public Builder withDecimalColumn(String columnName) {
+      schema.addColumn(new Column(columnName, TypeInfoFactory.DECIMAL));
+      return this;
+    }
+
+    public Builder withDatetimeColumn(String columnName) {
+      schema.addColumn(new Column(columnName, TypeInfoFactory.DATETIME));
+      return this;
+    }
+
+    public Builder withBooleanColumn(String columnName) {
+      schema.addColumn(new Column(columnName, TypeInfoFactory.BOOLEAN));
+      return this;
+    }
+
+    public TableSchema build() {
+      return schema;
+    }
   }
 }

@@ -36,6 +36,7 @@ public class ConfigConstants {
     public static final String ROW_INDEX = "row_index";
     public static final String ROW_COUNT = "row_count";
     public static final String MAX_BATCH_ROWS = "max_batch_rows";
+    public static final String MAX_BATCH_RAW_SIZE = "max_batch_raw_size";
 
     public static final String BLOCK_NUMBER = "block_number";
     public static final String ATTEMPT_NUMBER = "attempt_number";

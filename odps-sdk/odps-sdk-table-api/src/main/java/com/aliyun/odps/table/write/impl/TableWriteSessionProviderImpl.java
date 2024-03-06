@@ -19,10 +19,12 @@
 
 package com.aliyun.odps.table.write.impl;
 
-import com.aliyun.odps.table.write.*;
-import com.aliyun.odps.table.write.impl.batch.TableBatchWriteSessionImpl;
-
 import java.io.IOException;
+
+import com.aliyun.odps.table.write.TableBatchWriteSession;
+import com.aliyun.odps.table.write.TableWriteSessionBuilder;
+import com.aliyun.odps.table.write.TableWriteSessionProvider;
+import com.aliyun.odps.table.write.impl.batch.TableBatchWriteSessionImpl;
 
 public class TableWriteSessionProviderImpl implements TableWriteSessionProvider {
 
@@ -40,7 +42,8 @@ public class TableWriteSessionProviderImpl implements TableWriteSessionProvider 
                     builder.getDynamicPartitionOptions(),
                     builder.getArrowOptions(),
                     builder.getWriteCapabilities(),
-                    builder.getSettings());
+                    builder.getSettings(),
+                    builder.getMaxFieldSize());
         } else {
             return new TableBatchWriteSessionImpl(builder.getIdentifier(),
                     builder.getSessionId(), builder.getSettings());

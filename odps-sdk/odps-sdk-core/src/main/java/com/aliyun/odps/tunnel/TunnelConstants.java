@@ -85,5 +85,6 @@ public interface TunnelConstants {
   public static String PARAM_QUOTA_NAME= "quotaName";
   public static String PARAM_BLOCK_VERSION = "block_version";
   public static String ENABLE_PARTIAL_UPDATE = "enable_partial_update";
+  public static String SCHEMA_VERSION = "schema_version";
   public static String PARAM_DISABLE_MODIFIED_CHECK = "disable_modified_check";
 }
