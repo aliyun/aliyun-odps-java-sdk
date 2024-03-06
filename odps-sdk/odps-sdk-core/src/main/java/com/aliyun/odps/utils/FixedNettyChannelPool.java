@@ -53,7 +53,7 @@ public class FixedNettyChannelPool {
     if (noLimit) {
       return acquireChannel();
     }
-    availableChannels.acquire(); // ????????п??????
+    availableChannels.acquire(); // 阻塞直到有可用通道
     try {
       return acquireChannel();
     } catch (Throwable e) {
@@ -88,12 +88,12 @@ public class FixedNettyChannelPool {
 
   public void release(Channel channel) {
     if (!noLimit && (channels.remove(channel) != null)) {
-        availableChannels.release(); // ????????????????????
+        availableChannels.release(); // 释放许可，让其他线程能获取
     }
   }
 
   public int getAcquiredChannelCount() {
-    // ??????????δ???????????????????????????
+    // 返回已获取但未释放的许可数，即当前被占用的通道数
     return availableChannels.getQueueLength();
   }
 

@@ -19,18 +19,18 @@
 
 package com.aliyun.odps;
 
-import com.aliyun.odps.account.AppAccount;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AccountFormat;
+import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
-
-import java.util.Map;
+import com.aliyun.odps.tunnel.TableTunnel;
 
 /**
  * Odps类是ODPS SDK的入口
@@ -75,6 +75,7 @@ public class Odps {
   private String endpoint;
   private String defaultProject;
   private String currentSchema;
+  private String tunnelEndpoint;
 
   /* resource collection objects */
   private Tenant tenant;
@@ -238,6 +239,10 @@ public class Odps {
     return classifications;
   }
 
+  public TableTunnel tableTunnel() {
+    return new TableTunnel(this);
+  }
+
   public Quotas quotas() {
     return quotas;
   }
@@ -292,6 +297,14 @@ public class Odps {
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException(e);
     }
+  }
+
+  public void setTunnelEndpoint(String tunnelEndpoint) {
+    this.tunnelEndpoint = tunnelEndpoint;
+  }
+
+  public String getTunnelEndpoint() {
+    return tunnelEndpoint;
   }
 
   /**

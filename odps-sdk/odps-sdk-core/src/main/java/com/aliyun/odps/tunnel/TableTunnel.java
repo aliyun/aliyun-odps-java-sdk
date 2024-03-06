@@ -111,47 +111,47 @@ import com.google.gson.JsonParser;
  * <pre>
  * public class Sample {
 
- private static String accessID = "<your access id>";
- private static String accessKey = "<your access key>";
- private static String odpsURL = "<your odps endpoint>";
- private static String tunnelURL = "<your tunnel endpoint>";
- private static String project = "<your project>";
- private static String table1 = "<your table1>";
- private static String table2 = "<your table2>";
+    private static String accessID = "<your access id>";
+    private static String accessKey = "<your access key>";
+    private static String odpsURL = "<your odps endpoint>";
+    private static String tunnelURL = "<your tunnel endpoint>";
+    private static String project = "<your project>";
+    private static String table1 = "<your table1>";
+    private static String table2 = "<your table2>";
 
- public static void main(String args[]) {
- Account account = new AliyunAccount(accessID, accessKey);
- Odps odps = new Odps(account);
- odps.setEndpoint(odpsURL);
- odps.setDefaultProject(project);
+    public static void main(String args[]) {
+      Account account = new AliyunAccount(accessID, accessKey);
+      Odps odps = new Odps(account);
+      odps.setEndpoint(odpsURL);
+      odps.setDefaultProject(project);
 
- TableTunnel tunnel = new TableTunnel(odps);
- tunnel.setEndpoint(tunnelURL);
+      TableTunnel tunnel = new TableTunnel(odps);
+      tunnel.setEndpoint(tunnelURL);
 
- try {
- DownloadSession downloadSession = tunnel.createDownloadSession(project, table1);
- long count = downloadSession.getRecordCount();
- RecordReader recordReader = downloadSession.openRecordReader(0, count);
- Record record;
+      try {
+        DownloadSession downloadSession = tunnel.createDownloadSession(project, table1);
+        long count = downloadSession.getRecordCount();
+        RecordReader recordReader = downloadSession.openRecordReader(0, count);
+        Record record;
 
- UploadSession uploadSession = tunnel.createUploadSession(project, table2);
- RecordWriter recordWriter = uploadSession.openRecordWriter(0);
+        UploadSession uploadSession = tunnel.createUploadSession(project, table2);
+        RecordWriter recordWriter = uploadSession.openRecordWriter(0);
 
- while ((record = recordReader.read()) != null) {
- recordWriter.write(record);
- }
+        while ((record = recordReader.read()) != null) {
+          recordWriter.write(record);
+        }
 
- recordReader.close();
+        recordReader.close();
 
- recordWriter.close();
- uploadSession.commit(new Long[]{0L});
- } catch (TunnelException e) {
- e.printStackTrace();
- } catch (IOException e1) {
- e1.printStackTrace();
- }
- }
- }
+        recordWriter.close();
+        uploadSession.commit(new Long[]{0L});
+      } catch (TunnelException e) {
+        e.printStackTrace();
+      } catch (IOException e1) {
+        e1.printStackTrace();
+      }
+    }
+  }
  * </pre>
  *
  * </p>
@@ -217,7 +217,7 @@ public class TableTunnel {
    * @throws TunnelException
    */
   public TableTunnel.UploadSession createUploadSession(String projectName, String tableName,
-                                                       boolean overwrite) throws TunnelException {
+      boolean overwrite) throws TunnelException {
     return createUploadSession(projectName, config.getOdps().getCurrentSchema(), tableName, overwrite);
   }
 
@@ -551,8 +551,8 @@ public class TableTunnel {
   }
 
   public DownloadSessionBuilder buildDownloadSession(
-      String projectName,
-      String tableName) {
+          String projectName,
+          String tableName) {
     return new DownloadSessionBuilder().setProjectName(projectName).setTableName(tableName);
   }
 
@@ -570,7 +570,7 @@ public class TableTunnel {
   public TableTunnel.DownloadSession createDownloadSession(
       String projectName,
       String tableName) throws TunnelException {
-    return createDownloadSession(projectName, tableName, false);
+      return createDownloadSession(projectName, tableName, false);
   }
 
   /**
@@ -611,9 +611,9 @@ public class TableTunnel {
       String tableName,
       boolean async) throws TunnelException {
     return buildDownloadSession(projectName, tableName)
-        .setSchemaName(schemaName)
-        .setAsyncMode(async)
-        .build();
+              .setSchemaName(schemaName)
+              .setAsyncMode(async)
+              .build();
   }
 
   /**
@@ -693,10 +693,10 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
     return buildDownloadSession(projectName, tableName)
-        .setSchemaName(schemaName)
-        .setPartitionSpec(partitionSpec)
-        .setAsyncMode(async)
-        .build();
+              .setSchemaName(schemaName)
+              .setPartitionSpec(partitionSpec)
+              .setAsyncMode(async)
+              .build();
   }
 
   /**
@@ -709,8 +709,8 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
     return buildDownloadSession(projectName, tableName)
-        .setShardId(shardId)
-        .build();
+            .setShardId(shardId)
+            .build();
   }
 
   /**
@@ -727,9 +727,9 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
     return buildDownloadSession(projectName, tableName)
-        .setPartitionSpec(partitionSpec)
-        .setShardId(shardId)
-        .build();
+            .setPartitionSpec(partitionSpec)
+            .setShardId(shardId)
+            .build();
   }
 
   /**
@@ -767,9 +767,9 @@ public class TableTunnel {
       String tableName,
       String id) throws TunnelException {
     return buildDownloadSession(projectName, tableName)
-        .setSchemaName(schemaName)
-        .setDownloadId(id)
-        .build();
+            .setSchemaName(schemaName)
+            .setDownloadId(id)
+            .build();
   }
 
   /**
@@ -782,9 +782,9 @@ public class TableTunnel {
       long shardId,
       String id) throws TunnelException {
     return buildDownloadSession(projectName, tableName)
-        .setShardId(shardId)
-        .setDownloadId(id)
-        .build();
+            .setShardId(shardId)
+            .setDownloadId(id)
+            .build();
   }
 
   /**
@@ -830,10 +830,10 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, partition spec required.");
     }
     return buildDownloadSession(projectName, tableName)
-        .setSchemaName(schemaName)
-        .setPartitionSpec(partitionSpec)
-        .setDownloadId(id)
-        .build();
+            .setSchemaName(schemaName)
+            .setPartitionSpec(partitionSpec)
+            .setDownloadId(id)
+            .build();
   }
 
   /**
@@ -850,10 +850,10 @@ public class TableTunnel {
       throw new IllegalArgumentException("Invalid arguments, shard id required.");
     }
     return buildDownloadSession(projectName, tableName)
-        .setPartitionSpec(partitionSpec)
-        .setShardId(shardId)
-        .setDownloadId(id)
-        .build();
+            .setPartitionSpec(partitionSpec)
+            .setShardId(shardId)
+            .setDownloadId(id)
+            .build();
   }
 
   private String getResource(String projectName, String tableName) {
@@ -879,17 +879,17 @@ public class TableTunnel {
   }
 
   public TableTunnel.StreamUploadSession.Builder buildStreamUploadSession(
-      String projectName, String tableName) {
+          String projectName, String tableName) {
     return new StreamUploadSessionImpl.Builder().setConfig(this.config)
-        .setProjectName(projectName)
-        .setTableName(tableName).setSchemaName(config.getOdps().getCurrentSchema());
+                                                .setProjectName(projectName)
+                                                .setTableName(tableName).setSchemaName(config.getOdps().getCurrentSchema());
   }
 
   public TableTunnel.UpsertSession.Builder buildUpsertSession(
-      String projectName, String tableName) {
+          String projectName, String tableName) {
     return new UpsertSessionImpl.Builder().setConfig(this.config)
-        .setProjectName(projectName)
-        .setTableName(tableName);
+                                          .setProjectName(projectName)
+                                          .setTableName(tableName);
   }
 
   /**
@@ -916,7 +916,7 @@ public class TableTunnel {
    * 可以使用 {@link ArrowStreamRecordReader} 转换为RecordReader
    */
   public ArrowStreamReader preview(String projectName, String schemaName, String tableName,
-                                   String partitionSpec) throws TunnelException {
+                             String partitionSpec) throws TunnelException {
     return preview(projectName, schemaName, tableName, partitionSpec, -1L);
   }
 
@@ -931,7 +931,7 @@ public class TableTunnel {
    * 可以使用 {@link ArrowStreamRecordReader} 转换为RecordReader
    */
   public ArrowStreamReader preview(String projectName, String schemaName, String tableName,
-                                   String partitionSpec, Long limit) throws TunnelException {
+                             String partitionSpec, Long limit) throws TunnelException {
     return preview(projectName, schemaName, tableName, partitionSpec, limit, null);
   }
 
@@ -1095,6 +1095,12 @@ public class TableTunnel {
     public TableSchema getSchema();
 
     /**
+     * 获取表结构Id
+     */
+    public String getSchemaVersion();
+
+
+    /**
      * 获取当前 Quota
      */
     public String getQuotaName();
@@ -1123,7 +1129,7 @@ public class TableTunnel {
       private PartitionSpec partitionSpec;
       private long slotNum = 0;
       private boolean createPartition = false;
-
+      private String schemaVersion;
       public String getSchemaName() {
         return schemaName;
       }
@@ -1154,6 +1160,15 @@ public class TableTunnel {
       public Builder setSlotNum(long slotNum) {
         this.slotNum = slotNum;
         return this;
+      }
+
+      public Builder setSchemaVersion(String schemaVersion) {
+        this.schemaVersion = schemaVersion;
+        return this;
+      }
+
+      public String getSchemaVersion() {
+        return schemaVersion;
       }
 
       public boolean isCreatePartition() {
@@ -1477,7 +1492,7 @@ public class TableTunnel {
      */
     public void writeBlock(long blockId, RecordPack pack)
         throws IOException {
-      writeBlock(blockId, pack, 0);
+        writeBlock(blockId, pack, 0);
     }
 
     /**
@@ -1491,14 +1506,14 @@ public class TableTunnel {
      *     超时时间 单位 ms 仅对 ProtobufRecordPack 有效 <=0 无超时
      */
     public void writeBlock(long blockId, RecordPack pack, long timeout)
-        throws IOException {
-      writeBlockInternal(blockId, pack, timeout, 0);
+            throws IOException {
+        writeBlockInternal(blockId, pack, timeout, 0);
     }
 
     public void writeBlock(long blockId, RecordPack pack, long timeout, long blockVersion)
         throws IOException, TunnelException {
-      checkBlockVersion(blockVersion);
-      writeBlockInternal(blockId, pack, timeout, blockVersion);
+        checkBlockVersion(blockVersion);
+        writeBlockInternal(blockId, pack, timeout, blockVersion);
     }
 
     private void writeBlockInternal(long blockId, RecordPack pack, long timeout, long blockVersion)
@@ -1528,7 +1543,7 @@ public class TableTunnel {
     }
 
     private void sendBlock(ProtobufRecordPack pack, Connection conn) throws IOException {
-      sendBlock(pack, conn, 0);
+        sendBlock(pack, conn, 0);
     }
 
     private void sendBlock(ProtobufRecordPack pack, Connection conn, long timeout) throws IOException {
@@ -1610,14 +1625,14 @@ public class TableTunnel {
 
     public RecordWriter openRecordWriter(long blockId, CompressOption compress, long blockVersion)
         throws TunnelException,
-               IOException {
+        IOException {
       checkBlockVersion(blockVersion);
       return openRecordWriterInternal(blockId, compress, blockVersion);
     }
 
     private RecordWriter openRecordWriterInternal(long blockId, CompressOption compress, long blockVersion)
         throws TunnelException,
-               IOException {
+        IOException {
 
       TunnelRecordWriter writer = null;
       Connection conn = null;
@@ -1655,7 +1670,7 @@ public class TableTunnel {
      */
     public RecordWriter openBufferedWriter(boolean compress) throws TunnelException {
       CompressOption compressOption = compress ? conf.getCompressOption() :
-                                      new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
+                              new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
       return openBufferedWriter(compressOption);
     }
 
@@ -1709,27 +1724,27 @@ public class TableTunnel {
     }
 
     public ArrowRecordWriter openArrowRecordWriter(long blockId)
-        throws TunnelException,
-               IOException{
-      return openArrowRecordWriter(blockId, new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
+            throws TunnelException,
+            IOException{
+        return openArrowRecordWriter(blockId, new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
     }
 
     public ArrowRecordWriter openArrowRecordWriter(long blockId, CompressOption option)
         throws TunnelException,
-               IOException{
-      return openArrowRecordWriterInternal(blockId, option, 0);
+        IOException{
+        return openArrowRecordWriterInternal(blockId, option, 0);
     }
 
     public ArrowRecordWriter openArrowRecordWriter(long blockId, CompressOption option, long blockVersion)
         throws TunnelException,
-               IOException{
+        IOException{
       checkBlockVersion(blockVersion);
       return openArrowRecordWriterInternal(blockId, option, blockVersion);
     }
 
     private ArrowRecordWriter openArrowRecordWriterInternal(long blockId, CompressOption option, long blockVersion)
         throws TunnelException,
-               IOException{
+        IOException{
       ArrowTunnelRecordWriter arrowTunnelRecordWriter = null;
       Connection conn = null;
       try {
@@ -1749,7 +1764,7 @@ public class TableTunnel {
     }
 
     private Connection getConnection(long blockId, CompressOption compress, long blockVersion)
-        throws OdpsException, IOException {
+            throws OdpsException, IOException {
       return getConnection(blockId, false, compress, blockVersion);
     }
 
@@ -2283,7 +2298,7 @@ public class TableTunnel {
     }
 
     public ArrowRecordReader openArrowRecordReader(long start, long count)
-        throws TunnelException, IOException {
+            throws TunnelException, IOException {
       return openArrowRecordReader(start, count, null, null);
     }
 
@@ -2293,12 +2308,12 @@ public class TableTunnel {
     }
 
     public ArrowRecordReader openArrowRecordReader(long start, long count, BufferAllocator allocator)
-        throws TunnelException, IOException {
+            throws TunnelException, IOException {
       return openArrowRecordReader(start, count, null, allocator);
     }
 
     public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns)
-        throws TunnelException, IOException {
+            throws TunnelException, IOException {
       return openArrowRecordReader(start, count, columns, null);
     }
 
@@ -2308,7 +2323,7 @@ public class TableTunnel {
     }
 
     public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator, CompressOption compress)
-        throws TunnelException, IOException {
+            throws TunnelException, IOException {
       return openArrowRecordReader(start, count, columns, allocator, compress, false);
     }
 

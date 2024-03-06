@@ -254,15 +254,15 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                     schema = new TunnelTableSchema(tunnelTableSchema);
                     this.recordSchema = new TunnelTableSchema(tunnelTableSchema);
                     this.recordSchema.addColumn(
-                        new Column(TunnelConstants.META_FIELD_VERSION, TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT)));
+                            new Column(TunnelConstants.META_FIELD_VERSION, TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT)));
                     this.recordSchema.addColumn(
-                        new Column(TunnelConstants.META_FIELD_APP_VERSION, TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT)));
+                            new Column(TunnelConstants.META_FIELD_APP_VERSION, TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT)));
                     this.recordSchema.addColumn(
-                        new Column(TunnelConstants.META_FIELD_OPERATION, TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.TINYINT)));
+                            new Column(TunnelConstants.META_FIELD_OPERATION, TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.TINYINT)));
                     this.recordSchema.addColumn(new Column(TunnelConstants.META_FIELD_KEY_COLS, TypeInfoFactory
-                        .getArrayTypeInfo(TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT))));
+                            .getArrayTypeInfo(TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT))));
                     this.recordSchema.addColumn(new Column(TunnelConstants.META_FIELD_VALUE_COLS, TypeInfoFactory
-                        .getArrayTypeInfo(TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT))));
+                            .getArrayTypeInfo(TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.BIGINT))));
                     // hash key
                     tree.get("hash_key").getAsJsonArray().forEach(v -> this.hashKeys.add(v.getAsString()));
                     // has function
@@ -385,11 +385,11 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     }
 
     Request buildRequest(String method,
-                         int bucket,
-                         Slot slot,
-                         long contentLength,
-                         long recordCount,
-                         CompressOption compressOption) throws TunnelException {
+                                int bucket,
+                                Slot slot,
+                                long contentLength,
+                                long recordCount,
+                                CompressOption compressOption) throws TunnelException {
         if (slot.getServer().isEmpty()) {
             throw new TunnelException("slot addr is empty");
         }

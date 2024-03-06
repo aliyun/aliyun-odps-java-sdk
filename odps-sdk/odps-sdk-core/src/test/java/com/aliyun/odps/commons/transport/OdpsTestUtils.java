@@ -207,6 +207,12 @@ public class OdpsTestUtils {
     return odps;
   }
 
+  public static Odps newListResourcesOdps() {
+    Odps odps = newDefaultOdps();
+    odps.setDefaultProject(props.getProperty("list.resources.project"));
+    return odps;
+  }
+
   public static Odps newSchemaOdps() {
     Odps odps;
 
@@ -294,7 +300,7 @@ public class OdpsTestUtils {
   }
 
   public static enum Env {
-    _daily,
+    _gcc492, // daily
     _test_trunk,
     _test_release,
     _5ktest

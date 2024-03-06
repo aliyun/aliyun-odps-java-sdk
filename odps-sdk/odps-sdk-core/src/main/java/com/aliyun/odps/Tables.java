@@ -23,9 +23,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.commons.transport.Headers;
@@ -36,7 +36,9 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.utils.ExceptionUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -539,17 +541,12 @@ public class Tables implements Iterable<Table> {
   public void create(String projectName, String tableName, TableSchema schema,
                      String comment, boolean ifNotExists, Long shardNum, Long hubLifecycle)
       throws OdpsException {
-    String sql = getHubString(
-        projectName,
-        odps.getCurrentSchema(),
-        tableName,
-        schema,
-        comment,
-        ifNotExists,
-        shardNum,
-        hubLifecycle);
-
-    submitCreateAndWait(odps.getCurrentSchema(), sql, "SQLCreateTableTask", null, null);
+    TableCreator tableCreator = newTableCreator(projectName, tableName, schema).withSchemaName(odps.getCurrentSchema())
+        .withComment(comment).withShardNum(shardNum).withHubLifecycle(hubLifecycle);
+    if (ifNotExists) {
+      tableCreator = tableCreator.ifNotExists();
+    }
+    tableCreator.create();
   }
 
   /**
@@ -656,17 +653,13 @@ public class Tables implements Iterable<Table> {
       Long lifeCycle,
       Map<String, String> hints,
       Map<String, String> aliases) throws OdpsException {
-    // new SQLTask
-    String ddl = getCreateTableStatement(
-        projectName,
-        schemaName,
-        tableName,
-        schema,
-        comment,
-        ifNotExists,
-        lifeCycle);
-
-    submitCreateAndWait(schemaName, ddl, "SQLCreateTableTask", hints, aliases);
+    TableCreator tableCreator = newTableCreator(projectName, tableName, schema)
+        .withSchemaName(schemaName).withComment(comment).withLifeCycle(lifeCycle)
+        .withHints(hints).withAliases(aliases);
+    if (ifNotExists) {
+      tableCreator = tableCreator.ifNotExists();
+    }
+    tableCreator.create();
   }
 
   /**
@@ -758,20 +751,15 @@ public class Tables implements Iterable<Table> {
       Long lifeCycle,
       Map<String, String> hints,
       Map<String, String> aliases) throws OdpsException {
-    String sql = getCreateExternalTableStatement(
-        projectName,
-        schemaName,
-        tableName,
-        schema,
-        comment,
-        ifNotExists,
-        lifeCycle,
-        storedBy,
-        location,
-        usingJars,
-        serdeProperties);
-
-    submitCreateAndWait(schemaName, sql, "SQLCreateExternalTableTask", hints, aliases);
+    TableCreator
+        tableCreator =
+        newTableCreator(projectName, tableName, schema).withSchemaName(schemaName)
+            .withJars(usingJars).withSerdeProperties(serdeProperties).withComment(comment)
+            .withLifeCycle(lifeCycle).withHints(hints).withAliases(aliases);
+    if (ifNotExists) {
+      tableCreator = tableCreator.ifNotExists();
+    }
+    tableCreator.createExternal(storedBy, location);
   }
 
 
@@ -1034,185 +1022,353 @@ public class Tables implements Iterable<Table> {
     i.waitForSuccess();
   }
 
-  private String getHubString(
-      String projectName,
-      String schemaName,
-      String tableName,
-      TableSchema schema,
-      String comment,
-      boolean ifNotExists,
-      Long shardNum,
-      Long hubLifecycle) {
-    StringBuilder sb = new StringBuilder();
-    sb.append(
-        getCreateTableStatement(
-            projectName,
-            schemaName,
-            tableName,
-            schema,
-            comment,
-            ifNotExists,
-            null)
-    );
-    if (sb.length() > 0) {
-      sb.deleteCharAt(sb.length() - 1);
-    }
-
-    if (null != shardNum) {
-      sb.append(" INTO " + String.valueOf(shardNum) + " SHARDS");
-    }
-
-    if (null != hubLifecycle) {
-      sb.append(" HUBLIFECYCLE " + String.valueOf(hubLifecycle));
-    }
-
-    sb.append(';');
-
-    return sb.toString();
+  public TableCreator newTableCreator(String projectName, String tableName, TableSchema schema) {
+    return new TableCreator(odps, projectName, tableName, schema);
   }
 
-  private String getCreateExternalTableStatement(
-      String projectName,
-      String schemaName,
-      String tableName,
-      TableSchema schema,
-      String comment,
-      boolean ifNotExists,
-      Long lifeCycle,
-      String storedBy,
-      String location,
-      List<String> jars,
-      Map<String, String> properties) {
+  public static class TableCreator {
 
-    String plainString = getCreateTableStatement(
-        projectName,
-        schemaName,
-        tableName,
-        schema,
-        comment,
-        ifNotExists,
-        lifeCycle);
-    if (!plainString.startsWith("CREATE TABLE ")){
-      throw new RuntimeException("Plain sql table creation must start with CREATE TABLE .");
+    // must have
+    private Odps odps;
+    private String projectName;
+    private String tableName;
+    private TableSchema tableSchema;
+
+    // optional common
+    private String schemaName;
+    private String comment;
+    private boolean ifNotExists = false;
+    private Long lifeCycle;
+    private Map<String, String> hints;
+    private Map<String, String> aliases;
+    private boolean debug = true;
+
+    // for common table
+    private Long shardNum;
+    private Long hubLifecycle;
+    private boolean transactionTable = false;
+    private Map<String, String> tblProperties;
+
+    // for external table
+    private String storedBy;
+    private String location;
+    private List<String> jars;
+    private Map<String, String> serdeProperties;
+
+    private TableCreator(Odps odps, String projectName, String tableName, TableSchema tableSchema) {
+      ExceptionUtils.checkArgumentNotNull("odps", odps);
+      ExceptionUtils.checkStringArgumentNotNull("projectName", projectName);
+      ExceptionUtils.checkStringArgumentNotNull("tableName", tableName);
+      ExceptionUtils.checkArgumentNotNull("tableSchema", tableSchema);
+      this.odps = odps;
+      this.projectName = projectName;
+      this.tableName = tableName;
+      this.tableSchema = tableSchema;
+      this.schemaName = odps.getCurrentSchema();
     }
-    plainString = new StringBuilder(plainString).insert("CREATE".length(), " EXTERNAL").toString();
-    if (storedBy == null || location == null){
-      throw new IllegalArgumentException();
+
+    public TableCreator withSchemaName(String schemaName) {
+      this.schemaName = schemaName;
+      return this;
     }
-    StringBuilder sb = new StringBuilder();
-    sb.append(" STORED BY '")
-      .append(storedBy.trim())
-      .append("'");
-    if (properties != null && !properties.isEmpty()) {
-      sb.append(" WITH SERDEPROPERTIES(");
-      int index = 0;
-      for(Map.Entry<String, String> entry : properties.entrySet()) {
-        index++;
-        sb.append("'")
-          .append(entry.getKey())
-          .append("' = '")
-          .append(entry.getValue())
-          .append("'");
-        if (index != properties.size()){
-          sb.append(" , ");
+
+    public TableCreator withComment(String comment) {
+      this.comment = comment;
+      return this;
+    }
+
+    public TableCreator ifNotExists() {
+      this.ifNotExists = true;
+      return this;
+    }
+
+    public TableCreator withLifeCycle(Long lifeCycle) {
+      this.lifeCycle = lifeCycle;
+      return this;
+    }
+
+    public TableCreator transactionTable() {
+      getTblProperties().put("transactional", "true");
+      getHints().put("odps.sql.upsertable.table.enable", "true");
+      transactionTable = true;
+      return this;
+    }
+
+    public TableCreator withBucketNum(Integer bucketNum) {
+      Preconditions.checkInteger(bucketNum, 1, "bucketNum");
+      getTblProperties().put("write.bucket.num", String.valueOf(bucketNum));
+      return this;
+    }
+
+    public TableCreator withTblProperties(Map<String, String> tblProperties) {
+      if (tblProperties != null) {
+        getTblProperties().putAll(tblProperties);
+      }
+      return this;
+    }
+
+    public TableCreator withSerdeProperties(Map<String, String> serdeProperties) {
+      if (serdeProperties != null) {
+        getSerdeProperties().putAll(serdeProperties);
+      }
+      return this;
+    }
+
+    public TableCreator withHints(Map<String, String> hints) {
+      if (hints != null) {
+        getHints().putAll(hints);
+      }
+      return this;
+    }
+
+    public TableCreator withAliases(Map<String, String> aliases) {
+      if (aliases != null) {
+        getAliases().putAll(aliases);
+      }
+      return this;
+    }
+
+    public TableCreator withShardNum(Long shardNum) {
+      this.shardNum = shardNum;
+      return this;
+    }
+
+    public TableCreator withHubLifecycle(Long hubLifecycle) {
+      this.hubLifecycle = hubLifecycle;
+      return this;
+    }
+
+    public TableCreator withJars(List<String> jars) {
+      if (jars != null) {
+        if (this.jars == null) {
+          this.jars = new ArrayList<>();
+        }
+        this.jars.addAll(jars);
+      }
+      return this;
+    }
+
+    public TableCreator debug() {
+      this.debug = true;
+      return this;
+    }
+
+    public void create() throws OdpsException {
+      hints = NameSpaceSchemaUtils.setSchemaFlagInHints(hints, schemaName);
+      Instance
+          i =
+          SQLTask.run(odps, projectName, generateCreateTableSql(), "SQLCreateTableTask", hints,
+                      aliases);
+      if (debug) {
+        String logView = odps.logview().generateLogView(i, 24);
+        System.out.println(logView);
+      }
+      i.waitForSuccess();
+    }
+
+    public void createExternal(String storedBy, String location) throws OdpsException {
+      this.storedBy = storedBy;
+      this.location = location;
+      hints = NameSpaceSchemaUtils.setSchemaFlagInHints(hints, schemaName);
+      Instance
+          i =
+          SQLTask.run(odps, projectName, generateCreateExternalTableSql(),
+                      "SQLCreateExternalTableTask", hints, aliases);
+      if (debug) {
+        String logView = odps.logview().generateLogView(i, 24);
+        System.out.println(logView);
+      }
+      i.waitForSuccess();
+    }
+
+    private String generateCreateExternalTableSql() {
+      if (storedBy == null || location == null) {
+        throw new IllegalArgumentException("Create external table must with storedBy and location");
+      }
+      String plainString = generateCreateTableSql();
+      plainString =
+          new StringBuilder(plainString).insert("CREATE".length(), " EXTERNAL").toString();
+      StringBuilder sb = new StringBuilder();
+      sb.append(" STORED BY '").append(storedBy.trim()).append("'");
+      if (serdeProperties != null && !serdeProperties.isEmpty()) {
+        sb.append(" WITH SERDEPROPERTIES(");
+        int index = 0;
+        for (Map.Entry<String, String> entry : serdeProperties.entrySet()) {
+          index++;
+          sb.append("'").append(entry.getKey()).append("' = '").append(entry.getValue())
+              .append("'");
+          if (index != serdeProperties.size()) {
+            sb.append(" , ");
+          }
+        }
+        sb.append(")");
+      }
+      sb.append(" LOCATION '").append(location).append("'");
+      if (jars != null && !jars.isEmpty()) {
+        sb.append(" USING '");
+        int index = 0;
+        for (String jar : jars) {
+          index++;
+          sb.append(jar);
+          if (index != jars.size()) {
+            sb.append(",");
+          }
+        }
+        sb.append("'");
+      }
+      if (lifeCycle != null) {
+        // remove LIFE CYCLE from original sql query
+        int index = plainString.lastIndexOf(" LIFECYCLE ");
+        if (index < 0) {
+          throw new IllegalArgumentException();
+        }
+        plainString = plainString.substring(0, index);
+        sb.append(" LIFECYCLE ").append(lifeCycle).append(";");
+      } else {
+        // remove the trailing ';'
+        plainString = plainString.substring(0, plainString.length() - 1);
+        sb.append(";");
+      }
+      if (debug) {
+        System.out.println(plainString + sb);
+      }
+      return plainString + sb;
+    }
+
+
+    private String generateCreateTableSql() {
+      StringBuilder sql = new StringBuilder();
+      sql.append("CREATE TABLE ");
+
+      if (ifNotExists) {
+        sql.append("IF NOT EXISTS ");
+      }
+
+      sql.append(NameSpaceSchemaUtils.getFullName(projectName, schemaName, tableName));
+      sql.append(" (");
+
+      List<Column> columns = tableSchema.getColumns();
+      List<String> primaryKey = new ArrayList<>();
+
+      for (int i = 0; i < columns.size(); i++) {
+        Column column = columns.get(i);
+        sql.append("`").append(column.getName()).append("` ")
+            .append(column.getTypeInfo().getTypeName());
+
+        if (!column.isNullable()) {
+          sql.append(" NOT NULL");
+        }
+
+        if (StringUtils.isNotBlank(column.getDefaultValue())) {
+          sql.append(" DEFAULT ").append(column.getDefaultValue());
+        }
+
+        if (column.getComment() != null) {
+          sql.append(" COMMENT '").append(column.getComment()).append("'");
+        }
+        if (column.isPrimaryKey()) {
+          primaryKey.add(column.getName());
+        }
+        if (i + 1 < columns.size()) {
+          sql.append(',');
         }
       }
-      sb.append(")");
-    }
-    sb.append(" LOCATION '").append(location).append("'");
-    if (jars != null && !jars.isEmpty()) {
-      sb.append(" USING '");
-      int index = 0;
-      for (String jar : jars) {
-        index++;
-        sb.append(jar);
-        if (index != jars.size()) {
-          sb.append(",");
+      if (!primaryKey.isEmpty() && !transactionTable) {
+        throw new IllegalArgumentException("only transaction table support primary key");
+      }
+      if (transactionTable) {
+        if (primaryKey.isEmpty()) {
+          throw new IllegalArgumentException("transaction table must have a primary key");
         }
+        sql.append(", PRIMARY KEY(").append(primaryKey.stream().map(s -> '`' + s + '`').collect(
+            Collectors.joining(","))).append(")");
       }
-      sb.append("'");
-    }
-    if (lifeCycle != null) {
-      // remove LIFE CYCLE from original sql query
-      int index = plainString.lastIndexOf(" LIFECYCLE ");
-      if (index < 0) {
-        throw new IllegalArgumentException();
+
+      sql.append(')');
+
+      if (comment != null) {
+        sql.append(" COMMENT '").append(comment).append("' ");
       }
-      plainString = plainString.substring(0, index);
-      sb.append(" LIFECYCLE ").append(lifeCycle).append(";");
-    } else {
-      // remove the trailing ';'
-      plainString = plainString.substring(0, plainString.length() - 1);
-      sb.append(";");
-    }
-    return plainString + sb.toString();
-  }
 
-  private String getCreateTableStatement(
-      String projectName,
-      String schemaName,
-      String tableName,
-      TableSchema schema,
-      String comment,
-      boolean ifNotExists,
-      Long lifeCycle) {
-    if (projectName == null || tableName == null || schema == null) {
-      throw new IllegalArgumentException(
-          "Argument 'projectName', 'tableName', or 'schema' cannot be null");
-    }
+      List<Column> partitionColumns = tableSchema.getPartitionColumns();
 
-    StringBuilder sb = new StringBuilder();
-    sb.append("CREATE TABLE ");
-    if (ifNotExists) {
-      sb.append(" IF NOT EXISTS ");
-    }
+      if (!partitionColumns.isEmpty()) {
+        sql.append(" PARTITIONED BY (");
 
-    sb.append(NameSpaceSchemaUtils.getFullName(projectName, schemaName, tableName));
-    sb.append(" (");
+        for (int i = 0; i < partitionColumns.size(); i++) {
+          Column column = partitionColumns.get(i);
+          sql.append(column.getName()).append(" ").append(column.getTypeInfo().getTypeName());
 
+          if (column.getComment() != null) {
+            sql.append(" COMMENT '").append(column.getComment()).append("'");
+          }
 
-    List<Column> columns = schema.getColumns();
-    for (int i = 0; i < columns.size(); i++) {
-      Column c = columns.get(i);
-      sb.append("`").append(c.getName()).append("` ")
-          .append(c.getTypeInfo().getTypeName());
-      if (c.getComment() != null) {
-        sb.append(" COMMENT '").append(c.getComment()).append("'");
-      }
-      if (i + 1 < columns.size()) {
-        sb.append(',');
-      }
-    }
-
-    sb.append(')');
-
-    if (comment != null) {
-      sb.append(" COMMENT '" + comment + "' ");
-    }
-
-    List<Column> pcolumns = schema.getPartitionColumns();
-    if (pcolumns.size() > 0) {
-      sb.append(" PARTITIONED BY (");
-      for (int i = 0; i < pcolumns.size(); i++) {
-        Column c = pcolumns.get(i);
-        sb.append(c.getName()).append(" ")
-            .append(c.getTypeInfo().getTypeName());
-        if (c.getComment() != null) {
-          sb.append(" COMMENT '").append(c.getComment()).append("'");
+          if (i + 1 < partitionColumns.size()) {
+            sql.append(',');
+          }
         }
-        if (i + 1 < pcolumns.size()) {
-          sb.append(',');
-        }
+
+        sql.append(')');
       }
-      sb.append(')');
+
+      if (tblProperties != null && !tblProperties.isEmpty()) {
+        sql.append(" TBLPROPERTIES('");
+
+        for (Map.Entry<String, String> entry : tblProperties.entrySet()) {
+          sql.append(entry.getKey()).append("'='").append(entry.getValue()).append("',");
+        }
+
+        sql.deleteCharAt(sql.length() - 1);
+        sql.append(")");
+      }
+
+      if (lifeCycle != null) {
+        sql.append(" LIFECYCLE ").append(lifeCycle);
+      }
+
+      if (shardNum != null) {
+        sql.append(" INTO ").append(shardNum).append(" SHARDS");
+      }
+
+      if (hubLifecycle != null) {
+        if (lifeCycle != null) {
+          throw new IllegalArgumentException("only one of lifeCycle and hubLifecycle can be set");
+        }
+        sql.append(" HUBLIFECYCLE ").append(hubLifecycle);
+      }
+
+      sql.append(';');
+      if (debug) {
+        System.out.println(sql);
+      }
+      return sql.toString();
     }
 
-    if (lifeCycle != null) {
-      sb.append(" LIFECYCLE ").append(lifeCycle);
+    private Map<String, String> getHints() {
+      if (hints == null) {
+        hints = new HashMap<>();
+      }
+      return hints;
+    }
+    private Map<String, String> getAliases() {
+      if (aliases == null) {
+        aliases = new HashMap<>();
+      }
+      return aliases;
     }
 
-    sb.append(';');
+    private Map<String, String> getTblProperties() {
+      if (tblProperties == null) {
+        tblProperties = new HashMap<>();
+      }
+      return tblProperties;
+    }
 
-    return sb.toString();
+    private Map<String, String> getSerdeProperties() {
+      if (serdeProperties == null) {
+        serdeProperties = new HashMap<>();
+      }
+      return serdeProperties;
+    }
   }
 }

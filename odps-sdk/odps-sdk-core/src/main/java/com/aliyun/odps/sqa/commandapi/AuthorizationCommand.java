@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -52,13 +53,10 @@ class AuthorizationCommand implements Command {
   @Override
   public RecordIter<Record> run(Odps odps, CommandInfo commandInfo) throws OdpsException {
 
-    Map<String, String> settings = new HashMap<>();
-    settings.put("odps.namespace.schema", String.valueOf(commandInfo.isOdpsNamespaceSchema()));
-
-    if (commandInfo.getHint().containsKey("odps.sql.allow.namespace.schema")) {
-      settings.put("odps.sql.allow.namespace.schema",
-                   String.valueOf(commandInfo.isOdpsNamespaceSchema()));
-    }
+    Map<String, String> settings = Optional.ofNullable(commandInfo.getHint()).orElse(new HashMap<>());
+    settings.putIfAbsent("odps.namespace.schema", String.valueOf(commandInfo.isOdpsNamespaceSchema()));
+    settings.putIfAbsent("odps.sql.allow.namespace.schema",
+                         String.valueOf(commandInfo.isOdpsNamespaceSchema()));
 
     settings.put("odps.default.schema", odps.getCurrentSchema());
 

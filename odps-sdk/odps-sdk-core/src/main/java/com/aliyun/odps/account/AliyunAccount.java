@@ -42,10 +42,21 @@ public class AliyunAccount implements Account {
    *     AccessKey
    */
   public AliyunAccount(String accessId, String accessKey) {
+    this(accessId, accessKey, null);
+  }
+
+  /**
+   * 构造AliyunAccount对象
+   *
+   * @param accessId  AccessId
+   * @param accessKey AccessKey
+   * @param region region name
+   */
+  public AliyunAccount(String accessId, String accessKey, String region) {
     this.accessId = accessId;
     this.accessKey = accessKey;
 
-    signer = new AliyunRequestSigner(accessId, accessKey);
+    signer = new AliyunRequestSigner(accessId, accessKey, region);
   }
 
   /**
@@ -64,6 +75,15 @@ public class AliyunAccount implements Account {
    */
   public String getAccessKey() {
     return accessKey;
+  }
+
+  /**
+   * 设置region
+   * 可用于升级验签方式为v4签名
+   * @param region
+   */
+  public void setRegion(String region) {
+    signer.setRegionName(region);
   }
 
   @Override

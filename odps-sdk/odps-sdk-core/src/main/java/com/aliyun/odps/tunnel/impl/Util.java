@@ -23,6 +23,7 @@ public class Util {
         headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
         headers.put(HttpHeaders.HEADER_ODPS_DATE_TRANSFORM, TUNNEL_DATE_TRANSFORM_VERSION);
         headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_SDK_SUPPORT_SCHEMA_EVOLUTION, "true");
         return headers;
     }
 

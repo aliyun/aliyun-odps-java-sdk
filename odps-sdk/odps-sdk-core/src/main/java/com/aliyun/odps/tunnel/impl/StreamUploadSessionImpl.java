@@ -86,7 +86,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                     getPartitionSpec(),
                     isCreatePartition(),
                     getSlotNum(),
-                    zorderColumns);
+                    zorderColumns,
+                    getSchemaVersion());
         }
     }
 
@@ -101,7 +102,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                                    String partitionSpec,
                                    boolean cretaPartition,
                                    long slotNum,
-                                   List<Column> zorderColumns) throws TunnelException {
+                                   List<Column> zorderColumns,
+                                   String schemaVersion) throws TunnelException {
         this.config = conf;
         this.projectName = projectName;
         this.schemaName = schemaName;
@@ -109,6 +111,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         this.partitionSpec = partitionSpec;
         this.columns = zorderColumns;
         this.httpClient = Util.newRestClient(conf, projectName);
+        this.schemaVersion = schemaVersion;
         initiate(slotNum, cretaPartition);
     }
 
@@ -124,8 +127,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             params.put(TunnelConstants.ZORDER_COLUMNS, getColumnString());
         }
 
-        HashMap<String, String> headers = getCommonHeaders();
+        if (schemaVersion != null && !schemaVersion.isEmpty()) {
+            params.put(TunnelConstants.SCHEMA_VERSION, this.schemaVersion);
+        }
 
+        HashMap<String, String> headers = getCommonHeaders();
         if (slotNum > 0) {
             headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slotNum));
         }
@@ -145,6 +151,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         HashMap<String, String> params = getCommonParams();
 
         params.put(TunnelConstants.UPLOADID, id);
+        params.put(TunnelConstants.SCHEMA_VERSION, schemaVersion);
 
         HashMap<String, String> headers = getCommonHeaders();
 
@@ -221,6 +228,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         params.put(TunnelConstants.UPLOADID, id);
         params.put(TunnelConstants.SLOT_ID, slot.getSlot());
+        params.put(TunnelConstants.SCHEMA_VERSION, schemaVersion);
 
         if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
             params.put(TunnelConstants.RES_PARTITION, partitionSpec);
@@ -234,7 +242,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             params.put(TunnelConstants.ZORDER_COLUMNS, getColumnString());
         }
 
-        HashMap<String, String> headers = new HashMap<String, String>();
+        HashMap<String, String> headers = getCommonHeaders();
 
         if (size < 0) {
             headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
@@ -382,6 +390,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     @Override
     public TableSchema getSchema() {
         return schema;
+    }
+
+    @Override
+    public String getSchemaVersion() {
+        return schemaVersion;
     }
 
     @Override

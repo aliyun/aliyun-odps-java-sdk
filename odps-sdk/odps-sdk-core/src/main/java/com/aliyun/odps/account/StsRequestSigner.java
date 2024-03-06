@@ -27,7 +27,11 @@ public class StsRequestSigner extends AliyunRequestSigner {
   private String stsToken;
 
   public StsRequestSigner(String accessId, String accessKey, String stsToken) {
-    super(accessId, accessKey);
+    this(accessId, accessKey, stsToken, null);
+  }
+
+  public StsRequestSigner(String accessId, String accessKey, String stsToken, String region) {
+    super(accessId, accessKey, region);
     this.stsToken = stsToken;
   }
 

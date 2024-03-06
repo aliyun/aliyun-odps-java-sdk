@@ -19,6 +19,7 @@
         <module>odps-sdk-table-api</module>
 
         <!-- Tunnel SDK UT -->
+        <!-- Quota SDK UT -->
 
         <!-- MR/UDF/Graph commons -->
         <module>odps-sdk-commons</module>

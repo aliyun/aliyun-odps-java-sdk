@@ -32,5 +32,6 @@ public class HttpHeaders extends Headers {
   public static final String HEADER_ODPS_DATE_TRANSFORM = "odps-tunnel-date-transform";
   public static final String HEADER_ODPS_ROUTED_SERVER = "odps-tunnel-routed-server";
   public static final String HEADER_ODPS_SLOT_NUM = "odps-tunnel-slot-num";
+  public static final String HEADER_ODPS_TUNNEL_SDK_SUPPORT_SCHEMA_EVOLUTION = "odps-tunnel-sdk-support-schema-evolution";
 
 }

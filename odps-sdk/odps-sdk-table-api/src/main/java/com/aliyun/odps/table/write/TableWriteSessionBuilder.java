@@ -44,6 +44,7 @@ public class TableWriteSessionBuilder {
     private EnvironmentSettings settings;
     private String sessionId;
     private String sessionProvider;
+    private long maxFieldSize = 8 * 1024 * 1024L;
 
     /**
      * Set the write target to a specific table by {@link Table}.
@@ -127,6 +128,18 @@ public class TableWriteSessionBuilder {
     }
 
     /**
+     * Specify the maximum data size allowed to be written for the varchar/char/string/binary type.
+     * The unit is Byte, and the possible value range is 8-256MB.
+     * If not set, the default is 8MB.
+     * <p>
+     * note: this size cannot be larger than the project setting: [odps.sql.cfile2.field.maxsize]
+     */
+    public TableWriteSessionBuilder withMaxFieldSize(long maxFieldSize) {
+        this.maxFieldSize = maxFieldSize;
+        return this;
+    }
+
+    /**
      * Returns a logical {@link TableBatchWriteSession}.
      */
     public TableBatchWriteSession buildBatchWriteSession() throws IOException {
@@ -177,6 +190,10 @@ public class TableWriteSessionBuilder {
 
     public TableWriteCapabilities getWriteCapabilities() {
         return writeCapabilities;
+    }
+
+    public long getMaxFieldSize() {
+        return maxFieldSize;
     }
 
     private TableWriteSessionProvider getProvider() throws IOException {
