@@ -66,7 +66,8 @@ public class InstancesTest extends TestBase {
     gi = odps.instances().create(task);
     gi.getId();
     gi.waitForSuccess();
-    gi.getTaskDetailJson("testsqlcase");
+    String testsqlcase = gi.getTaskDetailJson("testsqlcase");
+    System.out.println(testsqlcase);
     // i.getOwner();
     // i.getStartTime();
     // i.getEndTime();
@@ -86,6 +87,7 @@ public class InstancesTest extends TestBase {
   @Test
   public void testGetDetail() throws OdpsException {
     String details = gi.getTaskDetailJson("testsqlcase");
+    System.out.println(details);
     assertTrue("contains stage", details.contains("Stages"));
     assertTrue("contains stage", details.contains("Instance"));
   }

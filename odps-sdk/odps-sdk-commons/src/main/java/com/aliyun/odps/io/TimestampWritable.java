@@ -65,8 +65,8 @@ public class TimestampWritable extends AbstractDatetimeWritable<TimestampWritabl
 
   @Override
   public void set(long value) {
-    super.set(value / 1000);
-    this.nanos = (int)(value % 1000) * 1000000;
+    super.set(Math.floorDiv(value, 1000));
+    this.nanos = (int)Math.floorMod(value, 1000) * 1000000;
   }
 
   public long getTotalSeconds() {
@@ -84,7 +84,7 @@ public class TimestampWritable extends AbstractDatetimeWritable<TimestampWritabl
   }
 
   public void setTimestamp(Timestamp ts) {
-    set(ts.getTime() / 1000, ts.getNanos());
+    set(Math.floorDiv(ts.getTime(), 1000), ts.getNanos());
   }
 
   public void set(long seconds, int nanos) {

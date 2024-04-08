@@ -538,16 +538,38 @@ public class TableTunnel {
       String tableName,
       PartitionSpec partitionSpec,
       String id) throws TunnelException {
-    if (partitionSpec == null || partitionSpec.keys().size() == 0) {
-      throw new IllegalArgumentException("Invalid arguments, partition spec required.");
-    }
+    return getUploadSession(projectName, schemaName, tableName, partitionSpec, id, true);
+  }
+
+  /**
+   * Get the upload session specified by the upload session ID.
+   *
+   * @param projectName Project name.
+   * @param schemaName Schema name.
+   * @param tableName Table name.
+   * @param partitionSpec Partition spec.
+   * @param id Upload session ID.
+   * @param getBlockId Indicates whether to retrieve a list of block IDs. If set to false, the blockList will be empty,
+   *                   resulting in reduced latency; however, you will not be able to use commit(Long[] blocks) and must
+   *                   use commit() instead.
+   * @return {@link TableTunnel.UploadSession}
+   * @throws TunnelException
+   */
+  public TableTunnel.UploadSession getUploadSession(
+      String projectName,
+      String schemaName,
+      String tableName,
+      PartitionSpec partitionSpec,
+      String id,
+      boolean getBlockId) throws TunnelException {
     return new TableTunnel.UploadSession(
         projectName,
         schemaName,
         tableName,
-        partitionSpec.toString().replaceAll("'", ""),
+        partitionSpec == null ? null : partitionSpec.toString().replace("'", ""),
         id,
-        false);
+        false,
+        getBlockId);
   }
 
   public DownloadSessionBuilder buildDownloadSession(
@@ -1343,6 +1365,7 @@ public class TableTunnel {
     private static final int RETRY_SLEEP_SECONDS = 5;
     private boolean shouldTransform = false;
     private boolean overwrite = false;
+    private boolean fetchBlockId = true;
 
     /**
      * 构造一个{@link UploadSession}对象
@@ -1371,6 +1394,17 @@ public class TableTunnel {
         String partitionSpec,
         String uploadId,
         boolean overwrite) throws TunnelException {
+      this(projectName, schemaName, tableName, partitionSpec, uploadId, overwrite, true);
+    }
+
+    UploadSession(
+        String projectName,
+        String schemaName,
+        String tableName,
+        String partitionSpec,
+        String uploadId,
+        boolean overwrite,
+        boolean fetchBlockId) throws TunnelException {
       this.conf = TableTunnel.this.config;
       this.projectName = projectName;
       this.schemaName = schemaName;
@@ -1378,6 +1412,7 @@ public class TableTunnel {
       this.partitionSpec = partitionSpec;
       this.id = uploadId;
       this.overwrite = overwrite;
+      this.fetchBlockId = fetchBlockId;
 
       tunnelServiceClient = conf.newRestClient(projectName);
       if (id == null) {
@@ -1812,6 +1847,7 @@ public class TableTunnel {
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
+      params.put(TunnelConstants.GET_BLOCK_ID, String.valueOf(fetchBlockId));
 
       Connection conn = null;
       try {
