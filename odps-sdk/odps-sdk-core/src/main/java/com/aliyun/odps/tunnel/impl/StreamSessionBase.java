@@ -17,6 +17,8 @@ import java.util.Map;
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
 public class StreamSessionBase extends SessionBase {
+    protected String schemaVersion;
+
     protected List<Slot> loadFromJson(String requestId, JsonObject tree, boolean reload) throws TunnelException {
         try {
             if (!reload) {
@@ -28,6 +30,11 @@ public class StreamSessionBase extends SessionBase {
                     schema = new TunnelTableSchema(tunnelTableSchema);
                 } else {
                     throw new TunnelException(requestId, "Incomplete session info: '" + tree.toString() + "'");
+                }
+
+                if (tree.has("schema_version")) {
+                    // schemaVersion
+                    schemaVersion = tree.get("schema_version").getAsString();
                 }
             }
 

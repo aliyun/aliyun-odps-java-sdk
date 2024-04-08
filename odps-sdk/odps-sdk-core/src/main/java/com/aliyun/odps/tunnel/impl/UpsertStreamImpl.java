@@ -223,7 +223,7 @@ public class UpsertStreamImpl implements UpsertStream {
   }
 
   private void write(Record record, UpsertStreamImpl.Operation op, List<String> valueColumns)
-      throws TunnelException, IOException {
+          throws TunnelException, IOException {
     checkStatus();
 
     List<Integer> hashValues = new ArrayList<>();
@@ -242,7 +242,7 @@ public class UpsertStreamImpl implements UpsertStream {
 
     if (!bucketBuffer.containsKey(bucket)) {
       throw new TunnelException(
-          "Tunnel internal error! Do not have bucket for hash key " + bucket);
+              "Tunnel internal error! Do not have bucket for hash key " + bucket);
     }
 
     ProtobufRecordPack pack = bucketBuffer.get(bucket);
@@ -298,8 +298,8 @@ public class UpsertStreamImpl implements UpsertStream {
                 totalBufferSize += bytes;
               }
               Request request = session.buildRequest("PUT", k, buckets.get(k), pack.getTotalBytes(), pack.getSize(), compressOption);
-              FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry);
               channel = channelPool.acquire();
+              FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry);
               channel.pipeline().addLast(handler);
               handlers.add(handler);
               ChannelFuture
@@ -370,7 +370,7 @@ public class UpsertStreamImpl implements UpsertStream {
   private HttpRequest buildFullHttpRequest(Request request, ByteArrayOutputStream content) {
     String uri = request.getURI().toString().replace(endpoint.toString(), "");
     HttpRequest req = new DefaultFullHttpRequest(
-        HttpVersion.HTTP_1_1, HttpMethod.PUT, uri, Unpooled.wrappedBuffer(content.toByteArray()));
+            HttpVersion.HTTP_1_1, HttpMethod.PUT, uri, Unpooled.wrappedBuffer(content.toByteArray()));
     request.getHeaders().forEach((key, value) -> req.headers().set(key, value));
     req.headers().set(HttpHeaderNames.HOST, request.getURI().getHost());
     return req;

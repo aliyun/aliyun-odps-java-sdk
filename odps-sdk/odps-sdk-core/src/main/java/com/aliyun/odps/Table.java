@@ -49,6 +49,8 @@ import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.simpleframework.xml.convert.Converter;
 import com.aliyun.odps.simpleframework.xml.stream.InputNode;
 import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
+import com.aliyun.odps.table.StreamIdentifier;
+import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.utils.ColumnUtils;
@@ -1833,4 +1835,15 @@ public class Table extends LazyLoad {
     return model.acidDataRetainHours;
   }
 
+  public Stream newStream(String streamName) throws OdpsException {
+    if (!isTransactional()) {
+      throw new IllegalArgumentException("only transactional table can attach stream");
+    }
+    StreamIdentifier
+        identifier =
+        StreamIdentifier.of(model.projectName, streamName);
+    odps.streams().create(identifier,
+                          TableIdentifier.of(model.projectName, model.schemaName, model.name));
+    return odps.streams().get(identifier);
+  }
 }

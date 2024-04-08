@@ -4,6 +4,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.utils.StringUtils;
 
 public class ConfigurationImpl extends Configuration {
     public ConfigurationImpl(Odps odps) {
@@ -16,8 +17,12 @@ public class ConfigurationImpl extends Configuration {
 
         odpsServiceClient.setReadTimeout(getSocketTimeout());
         odpsServiceClient.setConnectTimeout(getSocketConnectTimeout());
-        odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
 
+        if (StringUtils.isNullOrEmpty(odps.getTunnelEndpoint())) {
+            odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
+        } else {
+            odpsServiceClient.setEndpoint(odps.getTunnelEndpoint());
+        }
         return odpsServiceClient;
     }
 }

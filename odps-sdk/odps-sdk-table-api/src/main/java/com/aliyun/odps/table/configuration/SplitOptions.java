@@ -30,6 +30,7 @@ public class SplitOptions {
     private SplitMode splitMode;
     private long splitNumber;
     private boolean crossPartition;
+    private int splitMaxFileNum;
 
     private SplitOptions() {
         this.splitMode = DEFAULT_SPLIT_MODE;
@@ -55,6 +56,10 @@ public class SplitOptions {
 
     public SplitMode getSplitMode() {
         return splitMode;
+    }
+
+    public int getSplitMaxFileNum() {
+        return splitMaxFileNum;
     }
 
     public static class Builder {
@@ -92,6 +97,11 @@ public class SplitOptions {
         public SplitOptions.Builder withCrossPartition(boolean crossPartition) {
             Preconditions.checkNotNull(this.splitOptions, "Split option");
             this.splitOptions.crossPartition = crossPartition;
+            return this;
+        }
+
+        public SplitOptions.Builder withMaxFileNum(int splitMaxFileNum) {
+            this.splitOptions.splitMaxFileNum = splitMaxFileNum;
             return this;
         }
 

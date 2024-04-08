@@ -426,7 +426,6 @@ public class JobConf extends Configuration {
   @SuppressWarnings("rawtypes")
   public void setOutputKeyComparatorClass(Class<? extends RecordComparator> theClass) {
     setClass(CONF.OUTPUT_KEY_COMPARATOR_CLASS, theClass, RecordComparator.class);
-    set(SessionState.MR_EXECUTION_MODE, "lot");
   }
 
   /**

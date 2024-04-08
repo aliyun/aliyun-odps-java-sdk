@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Identifier of table.
@@ -67,7 +68,11 @@ public class TableIdentifier implements Serializable {
 
     @Override
     public String toString() {
-        return String.join(".", project, schema, table);
+        if (StringUtils.isNullOrEmpty(schema)) {
+            return String.join(".", project, table);
+        } else {
+            return String.join(".", project, schema, table);
+        }
     }
 
     @Override

@@ -30,6 +30,7 @@ import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_BUFFERED_ROW_C
 public class ReaderOptions {
 
     private int batchRowCount;
+    private long batchRawSize;
     private BufferAllocator bufferAllocator;
     private boolean reuseBatch;
     private EnvironmentSettings settings;
@@ -46,6 +47,10 @@ public class ReaderOptions {
 
     public int getBatchRowCount() {
         return batchRowCount;
+    }
+
+    public long getBatchRawSize() {
+        return batchRawSize;
     }
 
     public BufferAllocator getBufferAllocator() {
@@ -106,6 +111,11 @@ public class ReaderOptions {
         public Builder withDataFormat(DataFormat dataFormat) {
             Preconditions.checkNotNull(dataFormat, "Data format");
             this.readerOptions.dataFormat = dataFormat;
+            return this;
+        }
+
+        public Builder withMaxBatchRawSize(long batchRawSize) {
+            this.readerOptions.batchRawSize = batchRawSize;
             return this;
         }
 

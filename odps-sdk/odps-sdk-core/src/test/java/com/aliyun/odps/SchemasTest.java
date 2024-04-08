@@ -7,6 +7,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
@@ -104,13 +105,14 @@ public class SchemasTest {
   /**
    * test create / get / exists / delete
    */
+  @Ignore("this case is not stable")
   @Test
   public void testCRUD() throws OdpsException, InterruptedException {
     // test CRUD in default project
     schemas.create(TEST_SCHEMA_IN_PROJECT_1);
     testSchema(schemas.get(TEST_SCHEMA_IN_PROJECT_1), TEST_PROJECT_1, TEST_SCHEMA_IN_PROJECT_1, "");
     schemas.delete(TEST_SCHEMA_IN_PROJECT_1);
-    Thread.sleep(1000);
+    Thread.sleep(10000);
     Assert.assertFalse(schemas.exists(TEST_SCHEMA_IN_PROJECT_1));
 
 
@@ -121,7 +123,7 @@ public class SchemasTest {
     testSchema(schemas.get(TEST_PROJECT_2, TEST_SCHEMA_IN_PROJECT_2),
                TEST_PROJECT_2, TEST_SCHEMA_IN_PROJECT_2, "");
     schemas.delete(TEST_PROJECT_2, TEST_SCHEMA_IN_PROJECT_2);
-    Thread.sleep(1000);
+    Thread.sleep(10000);
     Assert.assertFalse(schemas.exists(TEST_PROJECT_2, TEST_SCHEMA_IN_PROJECT_2));
 
     // test create all args

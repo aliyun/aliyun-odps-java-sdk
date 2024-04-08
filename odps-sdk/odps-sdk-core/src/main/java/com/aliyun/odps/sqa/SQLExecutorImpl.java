@@ -1338,12 +1338,14 @@ class SQLExecutorImpl implements SQLExecutor {
             queryInfo.getHint().put(SQLExecutorConstants.WLM_QUOTA_FLAG, fallbackQuota);
           }
           queryInfo.getHint().put(SQLExecutorConstants.SQA_TASK_FLAG, "false");
-          if (queryInfo.getInstance() != null) {
-            queryInfo.getHint().put(SQLExecutorConstants.SESSION_FALLBACK_TRACER,
-                                    queryInfo.getInstance().getId() + "_" + queryInfo.getId());
-          } else {
-            queryInfo.getHint().put(SQLExecutorConstants.SESSION_FALLBACK_TRACER,
-                                    "fallback4AttachFailed");
+          if (!forceRunInOffline) {
+            if (queryInfo.getInstance() != null) {
+              queryInfo.getHint().put(SQLExecutorConstants.SESSION_FALLBACK_TRACER,
+                                      queryInfo.getInstance().getId() + "_" + queryInfo.getId());
+            } else {
+              queryInfo.getHint().put(SQLExecutorConstants.SESSION_FALLBACK_TRACER,
+                                      "fallback4AttachFailed");
+            }
           }
         }
         runInOffline(rerunMsg);

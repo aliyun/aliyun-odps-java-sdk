@@ -141,6 +141,9 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
 
         params.put(ConfigConstants.MAX_BATCH_ROWS,
                 String.valueOf(options.getBatchRowCount()));
+        if (options.getBatchRawSize() != 0L) {
+            params.put(ConfigConstants.MAX_BATCH_RAW_SIZE, String.valueOf(options.getBatchRawSize()));
+        }
         params.put(ConfigConstants.DATA_FORMAT_TYPE,
                 options.getDataFormat().getType().toString());
         params.put(ConfigConstants.DATA_FORMAT_VERSION,

@@ -104,6 +104,7 @@
                 <version>0.47.0-public</version>
             </dependency>
 
+
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-common-local</artifactId>
@@ -203,6 +204,8 @@
                 <version>4.5.13</version>
                 <scope>test</scope>
             </dependency>
+
+
 
             <!-- Base64 -->
             <dependency>

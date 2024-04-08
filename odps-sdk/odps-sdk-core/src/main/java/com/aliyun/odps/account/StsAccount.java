@@ -20,11 +20,16 @@
 package com.aliyun.odps.account;
 
 public class StsAccount extends AliyunAccount {
+
   private StsRequestSigner signer;
 
   public StsAccount(String accessId, String accessKey, String stsToken) {
-    super(accessId, accessKey);
-    this.signer = new StsRequestSigner(accessId, accessKey, stsToken);
+    this(accessId, accessKey, stsToken, null);
+  }
+
+  public StsAccount(String accessId, String accessKey, String stsToken, String region) {
+    super(accessId, accessKey, region);
+    this.signer = new StsRequestSigner(accessId, accessKey, stsToken, region);
   }
 
   @Override

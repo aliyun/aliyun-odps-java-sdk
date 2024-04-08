@@ -19,6 +19,10 @@
 
 package com.aliyun.odps.table.write.impl.batch;
 
+import java.io.IOException;
+import java.util.Optional;
+import java.util.Set;
+
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.table.DataFormat;
 import com.aliyun.odps.table.DataSchema;
@@ -33,10 +37,6 @@ import com.aliyun.odps.table.order.SortOrder;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.table.write.TableBatchWriteSession;
 import com.aliyun.odps.table.write.TableWriteCapabilities;
-
-import java.io.IOException;
-import java.util.Optional;
-import java.util.Set;
 
 public abstract class TableBatchWriteSessionBase implements TableBatchWriteSession {
 
@@ -71,6 +71,17 @@ public abstract class TableBatchWriteSessionBase implements TableBatchWriteSessi
     protected long maxBlockNumber;
 
     protected Set<DataFormat> supportDataFormats;
+    protected long maxFieldSize;
+
+    public TableBatchWriteSessionBase(TableIdentifier identifier, PartitionSpec partitionSpec,
+                                      boolean overwrite,
+                                      DynamicPartitionOptions dynamicPartitionOptions,
+                                      ArrowOptions arrowOptions,
+                                      TableWriteCapabilities capabilities,
+                                      EnvironmentSettings settings) throws IOException {
+        this(identifier, partitionSpec, overwrite, dynamicPartitionOptions, arrowOptions,
+             capabilities, settings, null);
+    }
 
     public TableBatchWriteSessionBase(TableIdentifier identifier,
                                       PartitionSpec partitionSpec,
@@ -78,13 +89,14 @@ public abstract class TableBatchWriteSessionBase implements TableBatchWriteSessi
                                       DynamicPartitionOptions dynamicPartitionOptions,
                                       ArrowOptions arrowOptions,
                                       TableWriteCapabilities capabilities,
-                                      EnvironmentSettings settings) throws IOException {
+                                      EnvironmentSettings settings,
+                                      Long maxFieldSize) throws IOException {
         Preconditions.checkNotNull(identifier, "Table identifier", "required");
         Preconditions.checkNotNull(settings, "Environment settings", "required");
         this.settings = settings;
         this.identifier = identifier;
         this.overwrite = overwrite;
-        sanitize(partitionSpec, dynamicPartitionOptions, arrowOptions, capabilities);
+        sanitize(partitionSpec, dynamicPartitionOptions, arrowOptions, capabilities, maxFieldSize);
         initSession();
     }
 
@@ -107,7 +119,8 @@ public abstract class TableBatchWriteSessionBase implements TableBatchWriteSessi
     private void sanitize(PartitionSpec partitionSpec,
                           DynamicPartitionOptions dynamicPartitionOptions,
                           ArrowOptions arrowOptions,
-                          TableWriteCapabilities writeCapabilities) {
+                          TableWriteCapabilities writeCapabilities,
+                          Long maxFieldSize) {
         this.targetPartitionSpec = partitionSpec == null ?
                 new PartitionSpec() : partitionSpec;
         this.dynamicPartitionOptions = dynamicPartitionOptions == null ?
@@ -116,6 +129,7 @@ public abstract class TableBatchWriteSessionBase implements TableBatchWriteSessi
                 ArrowOptions.createDefault() : arrowOptions;
         this.writeCapabilities = writeCapabilities == null ?
                 TableWriteCapabilities.createDefault() : writeCapabilities;
+        this.maxFieldSize = maxFieldSize == null ? 8 * 1024 * 1024L : maxFieldSize;
     }
 
     @Override

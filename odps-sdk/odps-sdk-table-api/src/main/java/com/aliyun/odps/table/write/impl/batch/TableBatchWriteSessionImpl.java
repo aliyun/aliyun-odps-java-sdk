@@ -89,9 +89,10 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                                       DynamicPartitionOptions dynamicPartitionOptions,
                                       ArrowOptions arrowOptions,
                                       TableWriteCapabilities capabilities,
-                                      EnvironmentSettings settings) throws IOException {
+                                      EnvironmentSettings settings,
+                                      long maxFieldSize) throws IOException {
         super(identifier, partitionSpec, overwrite,
-                dynamicPartitionOptions, arrowOptions, capabilities, settings);
+                dynamicPartitionOptions, arrowOptions, capabilities, settings, maxFieldSize);
     }
 
     public TableBatchWriteSessionImpl(TableIdentifier identifier,
@@ -356,6 +357,7 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         } else {
             request.add("SupportWriteCluster", new JsonPrimitive(false));
         }
+        request.addProperty("MaxFieldSize", maxFieldSize);
 
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         return gson.toJson(request);

@@ -149,6 +149,17 @@ public class SecurityUtils {
     }
   }
 
+  protected static byte[] hmacsha256Signature(byte[] data, byte[] key) {
+    try {
+      SecretKeySpec signingKey = new SecretKeySpec(key, "HmacSHA256");
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(signingKey);
+      return mac.doFinal(data);
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+  }
+
   protected static PrivateKey getPrivateKey(byte[] encodedkey) throws Exception {
     PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encodedkey);
     try {
