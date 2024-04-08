@@ -1161,9 +1161,6 @@ public class Table extends LazyLoad {
       throw new OdpsException("ODPS-0420061: Invalid parameter in HTTP request - 'linenum' must be bigger than zero!");
     }
     TableSchema schema = getSchema();
-    if (partition != null && !hasPartition(partition)) {
-      return new ArrowStreamRecordReader(null, schema);
-    }
     TableTunnel tableTunnel = new TableTunnel(odps);
     if (!StringUtils.isNullOrEmpty(tunnelEndpoint)) {
       tableTunnel.setEndpoint(tunnelEndpoint);

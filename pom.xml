@@ -12,7 +12,7 @@
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps</artifactId>
-    <version>0.45.6-public</version>
+    <version>0.47.0-public</version>
     <packaging>pom</packaging>
     <name>odps-sdk-java</name>
     <description>Aliyun ODPS SDK for Java Developers</description>
@@ -65,62 +65,62 @@
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-table-api</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-commons</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-core</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-mapred</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-lot-proto</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-lot</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-graph</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-common-local</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-udf</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-mapred-bridge</artifactId>
-                <version>0.45.6-public</version>
+                <version>0.47.0-public</version>
             </dependency>
 
             <dependency>
@@ -399,6 +399,8 @@
                         <artifactSet>
                             <includes>
                                 <include>com.google.protobuf:protobuf-java:jar:</include>
+                                <include>com.google.guava:guava-java:jar:</include>
+                                <include>org.apache.arrow:arrow-vector:jar:</include>
                             </includes>
                         </artifactSet>
                         <relocations>
@@ -406,9 +408,18 @@
                                 <pattern>com.google.protobuf</pattern>
                                 <shadedPattern>com.aliyun.odps.thirdparty.com.google.protobuf</shadedPattern>
                             </relocation>
+                            <relocation>
+                                <pattern>com.google.guava</pattern>
+                                <shadedPattern>com.aliyun.odps.thirdparty.com.google.guava
+                                </shadedPattern>
+                            </relocation>
+                            <relocation>
+                                <pattern>org.apache.arrow</pattern>
+                                <shadedPattern>com.aliyun.odps.thirdparty.org.apache.arrow</shadedPattern>
+                            </relocation>
                         </relocations>
+                        <shadedClassifierName>jar-with-dependencies</shadedClassifierName>
                         <shadedArtifactAttached>true</shadedArtifactAttached>
-                        <shadedClassifierName>shaded</shadedClassifierName>
                     </configuration>
                     <executions>
                         <execution>
