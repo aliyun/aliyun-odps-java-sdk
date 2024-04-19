@@ -1173,13 +1173,17 @@ public class ArrayRecord implements Record {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     for (Object o : values) {
-      if (o instanceof byte[]) {
+      if (o == null) {
+        sb.append("null").append(",");
+      } else if (o instanceof byte[]) {
         sb.append(bytesToString((byte[]) o)).append(",");
       } else {
         sb.append(o.toString()).append(",");
       }
     }
-    sb.setLength(sb.length() - 1);
+    if (sb.length() > 0) {
+      sb.setLength(sb.length() - 1);
+    }
     return sb.toString();
   }
 }

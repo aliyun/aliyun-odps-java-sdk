@@ -38,6 +38,9 @@ public class RestOptions implements Serializable {
 
     private Integer asyncTimeoutInSeconds;
 
+    private Integer upsertConcurrentNum;
+    private Integer upsertNetworkNum;
+
     private RestOptions() {
     }
 
@@ -63,6 +66,13 @@ public class RestOptions implements Serializable {
 
     public Optional<Boolean> isIgnoreCerts() {
         return Optional.ofNullable(ignoreCerts);
+    }
+
+    public Optional<Integer> getUpsertConcurrentNum() {
+        return Optional.ofNullable(upsertConcurrentNum);
+    }
+    public Optional<Integer> getUpsertNetworkNum() {
+        return Optional.ofNullable(upsertNetworkNum);
     }
 
     public Optional<Long> getAsyncIntervalInMills() {
@@ -113,6 +123,15 @@ public class RestOptions implements Serializable {
 
         public Builder withAsyncTimeoutInSeconds(int asyncTimeoutInSeconds) {
             this.restOptions.asyncTimeoutInSeconds = asyncTimeoutInSeconds;
+            return this;
+        }
+
+        public Builder withUpsertConcurrentNum(int upsertConcurrentNum) {
+            this.restOptions.upsertConcurrentNum = upsertConcurrentNum;
+            return this;
+        }
+        public Builder withUpsertNetworkNum(int upsertNetworkNum) {
+            this.restOptions.upsertNetworkNum = upsertNetworkNum;
             return this;
         }
 

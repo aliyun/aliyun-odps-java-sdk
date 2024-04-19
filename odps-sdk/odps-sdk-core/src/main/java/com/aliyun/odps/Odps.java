@@ -158,6 +158,9 @@ public class Odps {
     setEndpoint(odps.getEndpoint());
     setLogViewHost(odps.getLogViewHost());
     client.setIgnoreCerts(odps.getRestClient().isIgnoreCerts());
+    if (odps.getRestClient().getProxy() != null) {
+      client.setProxy(odps.getRestClient().getProxy());
+    }
     instances.setDefaultRunningCluster(odps.instances.getDefaultRunningCluster());
   }
 

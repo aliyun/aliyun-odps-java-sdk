@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.Proxy;
 
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.commons.transport.Request.Method;
@@ -36,14 +37,21 @@ import com.aliyun.odps.commons.util.IOUtils;
 @Survey
 public class DefaultTransport implements Transport {
 
+  private Proxy proxy;
+
   public DefaultTransport() {
   }
 
   @Override
   public Connection connect(Request req) throws IOException {
-    DefaultConnection conn = new DefaultConnection();
+    DefaultConnection conn = new DefaultConnection(proxy);
     conn.connect(req);
     return conn;
+  }
+
+  @Override
+  public void setProxy(Proxy proxy) {
+    this.proxy = proxy;
   }
 
   @Override

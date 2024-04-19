@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,14 @@ public class DefaultConnection implements Connection {
   private static final Logger log = Logger.getLogger(DefaultConnection.class.getName());
 
   private HttpURLConnection conn;
+  private Proxy proxy;
+
+  public DefaultConnection() {
+  }
+
+  public DefaultConnection(Proxy proxy) {
+    this.proxy = proxy;
+  }
 
   @Override
   public void connect(Request req) throws IOException {
@@ -67,7 +76,11 @@ public class DefaultConnection implements Connection {
     try {
       String scheme = u.getScheme().toLowerCase();
       if (scheme.startsWith("http") || scheme.startsWith("https") || scheme.startsWith("test")) {
-        conn = (HttpURLConnection) u.toURL().openConnection();
+        if (proxy == null) {
+          conn = (HttpURLConnection) u.toURL().openConnection();
+        } else {
+          conn = (HttpURLConnection) u.toURL().openConnection(proxy);
+        }
       } else {
         throw new IOException("Protocol not supported: " + u.getScheme());
       }

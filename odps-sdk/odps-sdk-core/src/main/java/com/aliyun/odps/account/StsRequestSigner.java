@@ -21,6 +21,7 @@ package com.aliyun.odps.account;
 
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
+import com.aliyun.odps.utils.StringUtils;
 
 public class StsRequestSigner extends AliyunRequestSigner {
 
@@ -38,6 +39,8 @@ public class StsRequestSigner extends AliyunRequestSigner {
   @Override
   public void sign(String resource, Request req) {
     super.sign(resource, req);
-    req.getHeaders().put(Headers.AUTHORIZATION_STS_TOKEN, stsToken);
+    if (!StringUtils.isNullOrEmpty(stsToken)) {
+      req.getHeaders().put(Headers.AUTHORIZATION_STS_TOKEN, stsToken);
+    }
   }
 }

@@ -19,9 +19,14 @@
 
 package com.aliyun.odps;
 
+import java.io.IOException;
+import java.util.List;
+
 import org.junit.BeforeClass;
 
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.data.Record;
+import com.aliyun.odps.task.SQLTask;
 
 public class TestBase {
 
@@ -32,6 +37,19 @@ public class TestBase {
   @BeforeClass
   public static void setUpBeforeClassBase() throws Exception {
     odps = OdpsTestUtils.newDefaultOdps();
+  }
+
+  public static Instance runQuery(String project, String sql) throws OdpsException {
+    System.out.println("execute sql: " + sql);
+    Instance i = SQLTask.run(odps, project, sql, null, null);
+    System.out.println(new LogView(odps).generateLogView(i, 24 * 7));
+    i.waitForSuccess();
+    return i;
+  }
+
+  public static List<Record> runSelect(String project, String sql) throws OdpsException, IOException {
+    Instance i = runQuery(project, sql);
+    return SQLTask.getResultByInstanceTunnel(i);
   }
 
 }

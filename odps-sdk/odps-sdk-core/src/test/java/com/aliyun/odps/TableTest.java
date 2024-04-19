@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -814,5 +815,67 @@ public class TableTest extends TestBase {
   public void testLastAccessTime() {
     Table table = odps.tables().get(TABLE_NAME);
     table.getLastDataAccessTime();
+  }
+
+  @Test
+  public void testNoDataMasking() {
+    Table table = odps.tables().get(TABLE_NAME);
+    assertNull(table.getColumnMaskInfo());
+  }
+
+  @Test
+  public void testDataMasking() throws OdpsException, IOException {
+    String project = "data_mask_test";
+    String tableName = "wuyue_sdk_test";
+    String policy1 = "wuyue_sdk_mask_policy1";
+    String policy2 = "wuyue_sdk_mask_policy2";
+
+
+    String createPolicy1 = "create data masking policy if not exists " + policy1 + " to default using UNMASKED;";
+    String createPolicy2 = "create data masking policy if not exists " + policy2 + " to default using MASKED_STRING_MASKED_BA(2, 5);";
+    String createTable = "create table " + tableName + " (s1 string, s2 string);";
+    String insert = "insert into " + tableName + " values('1234567890', '1234567890');";
+    String bindPolicy1ToS1 = "apply data masking policy " + policy1 + " bind to table " + tableName + " column s1;";
+    String bindPolicy1ToS2 = "apply data masking policy " + policy1 + " bind to table " + tableName + " column s2;";
+    String bindPolicy2ToS2 = "apply data masking policy " + policy2 + " bind to table " + tableName + " column s2;";
+
+    try {
+      runQuery(project, createPolicy1);
+    } catch (Exception e) {
+      // TODO if not exists not support yet
+    }
+
+    try {
+      runQuery(project, createPolicy2);
+    } catch (Exception e) {
+      // TODO if not exists not support yet
+    }
+    odps.tables().delete(project, tableName, true);
+    runQuery(project, createTable);
+    runQuery(project, insert);
+    runQuery(project, bindPolicy1ToS1);
+    runQuery(project, bindPolicy1ToS2);
+    runQuery(project, bindPolicy2ToS2);
+
+    Table table = odps.tables().get(project, tableName);
+    for (Table.ColumnMaskInfo columnMaskInfo : table.getColumnMaskInfo()) {
+      if (columnMaskInfo.getName().equals("s1")) {
+        assertEquals(policy1, columnMaskInfo.getPolicyNameList().get(0));
+      } else if (columnMaskInfo.getName().equals("s2")) {
+        assertEquals(2, columnMaskInfo.getPolicyNameList().size());
+        String p1 = columnMaskInfo.getPolicyNameList().get(0);
+        String p2 = columnMaskInfo.getPolicyNameList().get(1);
+        if (p1.equals(policy1)) {
+          assertEquals(policy2, p2);
+        } else if (p1.equals(policy2)) {
+          assertEquals(policy1, p2);
+        }
+      }
+    }
+    List<Record> records = runSelect(project, "select * from " + tableName + ";");
+
+    // TODO result is not masking yet
+    System.out.println(records.get(0).getString(0));
+    System.out.println(records.get(0).getString(1));
   }
 }
