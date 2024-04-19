@@ -399,6 +399,8 @@
                         <artifactSet>
                             <includes>
                                 <include>com.google.protobuf:protobuf-java:jar:</include>
+                                <include>com.google.guava:guava-java:jar:</include>
+                                <include>org.apache.arrow:arrow-vector:jar:</include>
                             </includes>
                         </artifactSet>
                         <relocations>
@@ -406,9 +408,18 @@
                                 <pattern>com.google.protobuf</pattern>
                                 <shadedPattern>com.aliyun.odps.thirdparty.com.google.protobuf</shadedPattern>
                             </relocation>
+                            <relocation>
+                                <pattern>com.google.guava</pattern>
+                                <shadedPattern>com.aliyun.odps.thirdparty.com.google.guava
+                                </shadedPattern>
+                            </relocation>
+                            <relocation>
+                                <pattern>org.apache.arrow</pattern>
+                                <shadedPattern>com.aliyun.odps.thirdparty.org.apache.arrow</shadedPattern>
+                            </relocation>
                         </relocations>
+                        <shadedClassifierName>jar-with-dependencies</shadedClassifierName>
                         <shadedArtifactAttached>true</shadedArtifactAttached>
-                        <shadedClassifierName>shaded</shadedClassifierName>
                     </configuration>
                     <executions>
                         <execution>
