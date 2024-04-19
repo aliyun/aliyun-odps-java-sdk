@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * <code>RecordReader</code>用来读取记录
@@ -82,5 +84,9 @@ public interface RecordReader extends Closeable, Iterable<Record> {
         return current;
       }
     };
+  }
+
+  default Stream<Record> stream() {
+    return StreamSupport.stream(spliterator(), false);
   }
 }

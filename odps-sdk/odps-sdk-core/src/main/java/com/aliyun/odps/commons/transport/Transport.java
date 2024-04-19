@@ -20,6 +20,7 @@
 package com.aliyun.odps.commons.transport;
 
 import java.io.IOException;
+import java.net.Proxy;
 
 import com.aliyun.odps.Survey;
 
@@ -68,4 +69,6 @@ public interface Transport {
    * @throws IOException
    */
   public Connection connect(Request req) throws IOException;
+
+  public void setProxy(Proxy proxy);
 }

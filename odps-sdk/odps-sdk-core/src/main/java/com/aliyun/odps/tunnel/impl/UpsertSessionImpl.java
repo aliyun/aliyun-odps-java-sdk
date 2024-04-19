@@ -380,7 +380,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 }
             });
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,
-                         configuration.getSocketConnectTimeout());
+                         configuration.getSocketConnectTimeout() * 1000);
         return bootstrap;
     }
 

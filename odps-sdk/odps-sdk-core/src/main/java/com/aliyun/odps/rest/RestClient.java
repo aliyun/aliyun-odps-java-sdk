@@ -19,13 +19,12 @@
 
 package com.aliyun.odps.rest;
 
-import com.aliyun.odps.account.AppAccount;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
+import java.net.Proxy;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
@@ -48,6 +47,7 @@ import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.account.Account;
+import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
@@ -153,6 +153,7 @@ public class RestClient {
           .getJavaVersion();
 
   private String userAgent;
+  private Proxy proxy;
 
   public RetryLogger getRetryLogger() {
     return logger;
@@ -814,6 +815,18 @@ public class RestClient {
 
   public void addUserDefinedHeader(String key, String value) {
     this.userDefinedHeaders.put(key, value);
+  }
+
+  public void setProxy(Proxy proxy) {
+    if (!Proxy.Type.HTTP.equals(proxy.type())) {
+      throw new IllegalArgumentException("Unsupported proxy type: " + proxy.type() + " support HTTP only");
+    }
+    this.proxy = proxy;
+    this.transport.setProxy(proxy);
+  }
+
+  public Proxy getProxy() {
+    return this.proxy;
   }
 
   private Map<String, String> userDefinedHeaders = new HashMap<>();

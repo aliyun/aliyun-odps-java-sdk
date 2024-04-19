@@ -64,6 +64,7 @@ import com.aliyun.odps.utils.TagUtils.ObjectTagInfo;
 import com.aliyun.odps.utils.TagUtils.SetObjectTagInput;
 import com.aliyun.odps.utils.TagUtils.SimpleTag;
 import com.aliyun.odps.utils.TagUtils.TagRef;
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -170,6 +171,10 @@ public class Table extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String cryptoAlgoName;
 
+    @Element(name = "TableMaskInfo", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String tableMaskInfo;
+
     @Element(name = "CreationTime", required = false)
     @Convert(SimpleXmlUtils.DateConverter.class)
     Date createdTime;
@@ -226,6 +231,27 @@ public class Table extends LazyLoad {
     List<String> primaryKey;
     int acidDataRetainHours;
     StorageTierInfo storageTierInfo;
+
+    List<ColumnMaskInfo> columnMaskInfoList;
+  }
+
+  public static class ColumnMaskInfo {
+
+    private final String name;
+    private final List<String> policyNameList;
+
+    public String getName() {
+      return name;
+    }
+
+    public List<String> getPolicyNameList() {
+      return policyNameList;
+    }
+
+    ColumnMaskInfo(String name, List<String> policyNameList) {
+      this.name = name;
+      this.policyNameList = policyNameList;
+    }
   }
 
 
@@ -862,6 +888,36 @@ public class Table extends LazyLoad {
       lazyLoad();
     }
     return model.viewExpandedText;
+  }
+
+//  {
+//    "columnMaskInfoList": [
+//          {
+//            "name": "s1",
+//            "policyNameList": ["wuyue_mask_ba"]
+//          }
+//          ]
+//  }
+  public List<ColumnMaskInfo> getColumnMaskInfo() {
+    if (model.columnMaskInfoList != null) {
+      return model.columnMaskInfoList;
+    }
+    if (model.tableMaskInfo == null) {
+      lazyLoad();
+    }
+    if (StringUtils.isNullOrEmpty(model.tableMaskInfo)) {
+      return null;
+    }
+    Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+    JsonArray jsonArray = JsonParser.parseString(model.tableMaskInfo)
+            .getAsJsonObject()
+            .getAsJsonArray("columnMaskInfoList");
+
+    model.columnMaskInfoList = new ArrayList<>(jsonArray.size());
+    for (int i = 0; i < jsonArray.size(); i++) {
+      model.columnMaskInfoList.add(gson.fromJson(jsonArray.get(i), ColumnMaskInfo.class));
+    }
+    return model.columnMaskInfoList;
   }
 
   /**

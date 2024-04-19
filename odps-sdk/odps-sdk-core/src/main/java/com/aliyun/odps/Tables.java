@@ -1312,10 +1312,10 @@ public class Tables implements Iterable<Table> {
       }
 
       if (tblProperties != null && !tblProperties.isEmpty()) {
-        sql.append(" TBLPROPERTIES('");
+        sql.append(" TBLPROPERTIES(");
 
         for (Map.Entry<String, String> entry : tblProperties.entrySet()) {
-          sql.append(entry.getKey()).append("'='").append(entry.getValue()).append("',");
+          sql.append("'").append(entry.getKey()).append("'='").append(entry.getValue()).append("',");
         }
 
         sql.deleteCharAt(sql.length() - 1);
