@@ -401,6 +401,13 @@
                                 <include>com.google.protobuf:protobuf-java:jar:</include>
                                 <include>com.google.guava:guava-java:jar:</include>
                                 <include>org.apache.arrow:arrow-vector:jar:</include>
+                                <include>org.apache.arrow:arrow-format:jar:</include>
+                                <include>org.apache.arrow:arrow-memory-core:jar:</include>
+                                <include>org.apache.arrow:arrow-memory-netty:jar:</include>
+                                <include>org.antlr:ST4:jar:</include>
+                                <include>org.antlr:antlr-runtime:jar:</include>
+                                <include>org.antlr:antlr4:jar:</include>
+                                <include>org.antlr:antlr4-runtime:jar:</include>
                             </includes>
                         </artifactSet>
                         <relocations>
@@ -417,8 +424,16 @@
                                 <pattern>org.apache.arrow</pattern>
                                 <shadedPattern>com.aliyun.odps.thirdparty.org.apache.arrow</shadedPattern>
                             </relocation>
+                            <relocation>
+                                <pattern>org.stringtemplate.v4</pattern>
+                                <shadedPattern>com.aliyun.odps.thirdparty.org.stringtemplate.v4</shadedPattern>
+                            </relocation>
+                            <relocation>
+                                <pattern>org.antlr</pattern>
+                                <shadedPattern>com.aliyun.odps.thirdparty.antlr</shadedPattern>
+                            </relocation>
                         </relocations>
-                        <shadedClassifierName>jar-with-dependencies</shadedClassifierName>
+                        <shadedClassifierName>shaded</shadedClassifierName>
                         <shadedArtifactAttached>true</shadedArtifactAttached>
                     </configuration>
                     <executions>
