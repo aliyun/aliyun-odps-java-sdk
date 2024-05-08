@@ -19,6 +19,11 @@
 
 package com.aliyun.odps.table.read.impl.batch;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.table.DataFormat;
 import com.aliyun.odps.table.DataSchema;
@@ -27,14 +32,10 @@ import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
+import com.aliyun.odps.table.optimizer.predicate.Predicate;
 import com.aliyun.odps.table.read.TableBatchReadSession;
 import com.aliyun.odps.table.read.split.InputSplitAssigner;
 import com.aliyun.odps.table.utils.Preconditions;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
 
 public abstract class TableBatchReadSessionBase implements TableBatchReadSession {
 
@@ -69,6 +70,7 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
     protected String errorMessage;
 
     protected Set<DataFormat> supportDataFormats;
+    protected Predicate filterPredicate;
 
     public TableBatchReadSessionBase(TableIdentifier identifier,
                                      List<PartitionSpec> requiredPartitions,
@@ -77,14 +79,15 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
                                      List<Integer> bucketIds,
                                      SplitOptions splitOptions,
                                      ArrowOptions arrowOptions,
-                                     EnvironmentSettings settings) throws IOException {
+                                     EnvironmentSettings settings,
+                                     Predicate filterPredicate) throws IOException {
         Preconditions.checkNotNull(identifier, "Table identifier", "required");
         Preconditions.checkNotNull(settings, "Environment settings", "required");
         this.identifier = identifier;
         this.settings = settings;
         this.sessionStatus = SessionStatus.UNKNOWN;
         sanitize(requiredPartitions, requiredDataColumns,
-                requiredPartitionColumns, bucketIds, splitOptions, arrowOptions);
+                requiredPartitionColumns, bucketIds, splitOptions, arrowOptions, filterPredicate);
 
         planInputSplits();
     }
@@ -112,7 +115,8 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
                           List<String> partitionColumns,
                           List<Integer> bucketIds,
                           SplitOptions splitOptions,
-                          ArrowOptions arrowOptions) {
+                          ArrowOptions arrowOptions,
+                          Predicate filterPredicate) {
         this.requiredPartitions = partitions == null ? Collections.emptyList()
                 : Collections.unmodifiableList(partitions);
 
@@ -128,6 +132,8 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
         this.splitOptions = splitOptions == null ? SplitOptions.createDefault() : splitOptions;
 
         this.arrowOptions = arrowOptions == null ? ArrowOptions.createDefault() : arrowOptions;
+
+        this.filterPredicate = filterPredicate == null ? Predicate.NO_PREDICATE : filterPredicate;
 
         Preconditions.checkIntList(
                 this.requiredBucketIds, 0, 0, "requiredBucketIds");

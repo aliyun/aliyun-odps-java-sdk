@@ -3,6 +3,7 @@ package com.aliyun.odps;
 import java.util.Iterator;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -24,6 +25,7 @@ public class StreamTest {
   @BeforeClass
   public static void init() throws OdpsException {
     odps = OdpsTestUtils.newSchemaOdps();
+    Assume.assumeTrue(odps.projects().exists(odps.getDefaultProject()));
     TableSchema schema = new TableSchema();
     Column pk = Column.newBuilder("key1", TypeInfoFactory.BIGINT).primaryKey().build();
     Column pk2 = Column.newBuilder("key2", TypeInfoFactory.BIGINT).primaryKey().build();

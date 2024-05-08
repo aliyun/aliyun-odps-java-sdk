@@ -19,17 +19,18 @@
 
 package com.aliyun.odps.table.read;
 
+import java.io.IOException;
+import java.util.List;
+
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.Table;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
+import com.aliyun.odps.table.optimizer.predicate.Predicate;
 import com.aliyun.odps.table.read.impl.TableReadSessionProviderImpl;
 import com.aliyun.odps.table.utils.SessionUtils;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * An interface for building the {@link TableReadSession}.
@@ -46,6 +47,7 @@ public class TableReadSessionBuilder {
     private EnvironmentSettings settings;
     private String sessionId;
     private String sessionProvider;
+    private Predicate filterPredicate;
 
     /**
      * Set the read session target to a specific table by {@link Table}.
@@ -137,6 +139,14 @@ public class TableReadSessionBuilder {
         return this;
     }
 
+    /**
+     * predicate use to push down
+     */
+    public TableReadSessionBuilder withFilterPredicate(Predicate filterPredicate) {
+        this.filterPredicate = filterPredicate;
+        return this;
+    }
+
     public String getSessionId() {
         return sessionId;
     }
@@ -171,6 +181,10 @@ public class TableReadSessionBuilder {
 
     public List<String> getRequiredPartitionColumns() {
         return requiredPartitionColumns;
+    }
+
+    public Predicate getFilterPredicate() {
+        return filterPredicate;
     }
 
     /**
