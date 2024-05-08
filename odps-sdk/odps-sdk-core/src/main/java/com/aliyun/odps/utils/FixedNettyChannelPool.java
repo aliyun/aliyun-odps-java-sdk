@@ -88,7 +88,7 @@ public class FixedNettyChannelPool {
 
   public void release(Channel channel) {
     if (!noLimit && (channels.remove(channel) != null)) {
-        availableChannels.release();
+      availableChannels.release();
     }
   }
 

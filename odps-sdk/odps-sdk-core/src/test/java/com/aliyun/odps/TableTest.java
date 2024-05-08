@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import static com.aliyun.odps.commons.transport.OdpsTestUtils.newStorageTierOdps;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -877,5 +878,47 @@ public class TableTest extends TestBase {
     // TODO result is not masking yet
     System.out.println(records.get(0).getString(0));
     System.out.println(records.get(0).getString(1));
+  }
+
+  @Test
+  public void testGetTableLifecycleConfig() throws OdpsException {
+    Odps odps = newStorageTierOdps();
+    // partitioned table
+    String tableName = "test_table_lifecycle_config";
+    odps.tables().create(tableName, schema, true);
+    Table partitionedTable = odps.tables().get(tableName);
+    partitionedTable.createPartition(new PartitionSpec("p1=1,p2=foo"), true);
+    // set table lifecycle config
+    String lifecycleConfigStr = "{" +
+            "  \"TierToLowFrequency\": {" +
+            "    \"DaysAfterLastModificationGreaterThan\": 90," +
+            "    \"DaysAfterLastAccessGreaterThan\": 30, " +
+            "    \"DaysAfterLastTierModificationGreaterThan\": 7" +
+            "  },\n" +
+            "  \"TierToLongterm\": {" +
+            "    \"DaysAfterLastModificationGreaterThan\": 180," +
+            "    \"DaysAfterLastAccessGreaterThan\": 60, " +
+            "    \"DaysAfterLastTierModificationGreaterThan\": 14" +
+            "  } \n" +
+            "}";
+    String properties = String.format("'lifecycle_config' = '%s'", lifecycleConfigStr);
+    String sql = "ALTER TABLE " + tableName + " SET TBLPROPERTIES (" + properties + ");";
+    Instance instance = SQLTask.run(odps, odps.getDefaultProject(), sql, null, null);
+    instance.waitForSuccess();
+    //
+    TableLifecycleConfig tableLifecycleConfig = partitionedTable.getTableLifecycleConfig();
+    Assert.assertNotNull(tableLifecycleConfig);
+    Assert.assertNotNull(tableLifecycleConfig.getTierToLowFrequency());
+    Assert.assertNotNull(tableLifecycleConfig.getTierToLongTerm());
+    //
+    JsonObject jsonObject = JsonParser.parseString(lifecycleConfigStr).getAsJsonObject();
+    JsonObject tierToLowFrequencyJsonObject = jsonObject.get("TierToLowFrequency").getAsJsonObject();
+    JsonObject tierToLongtermJsonObject = jsonObject.get("TierToLongterm").getAsJsonObject();
+    for (TableLifecycleConfig.TableLifecycleConfigItemEnum tableLifecycleConfigItemEnum : TableLifecycleConfig.TableLifecycleConfigItemEnum.values()) {
+      Assert.assertEquals(tierToLowFrequencyJsonObject.get(tableLifecycleConfigItemEnum.getName()).getAsString(), tableLifecycleConfig.getTierToLowFrequency().get(tableLifecycleConfigItemEnum.getName()));
+      Assert.assertEquals(tierToLongtermJsonObject.get(tableLifecycleConfigItemEnum.getName()).getAsString(), tableLifecycleConfig.getTierToLongTerm().get(tableLifecycleConfigItemEnum.getName()));
+    }
+    // delete table
+    odps.tables().delete(tableName);
   }
 }

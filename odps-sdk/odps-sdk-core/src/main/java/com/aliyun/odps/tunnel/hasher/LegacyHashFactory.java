@@ -242,7 +242,7 @@ class LegacyHashFactory implements HasherFactory {
     public LocalDate normalizeType(Object value) {
       if (value instanceof java.util.Date) {
         return ZonedDateTime.ofInstant(Instant.ofEpochMilli(((Date) value).getTime()),
-                                       ZoneId.systemDefault()).toLocalDate();
+                                       ZoneId.of("UTC")).toLocalDate();
       }
 
       return OdpsHasher.super.normalizeType(value);
@@ -265,7 +265,7 @@ class LegacyHashFactory implements HasherFactory {
     public ZonedDateTime normalizeType(Object value) {
       if (value instanceof java.util.Date) {
         return ZonedDateTime.ofInstant(Instant.ofEpochMilli(((Date) value).getTime()),
-                                       ZoneId.systemDefault());
+                                       ZoneId.of("UTC"));
       }
 
       return OdpsHasher.super.normalizeType(value);

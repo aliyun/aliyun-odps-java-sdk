@@ -52,6 +52,7 @@ import com.aliyun.odps.table.configuration.ReaderOptions;
 import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
+import com.aliyun.odps.table.optimizer.predicate.Predicate;
 import com.aliyun.odps.table.read.SplitReader;
 import com.aliyun.odps.table.read.split.InputSplit;
 import com.aliyun.odps.table.read.split.impl.IndexedInputSplitAssigner;
@@ -89,9 +90,10 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                                      List<Integer> bucketIds,
                                      SplitOptions splitOptions,
                                      ArrowOptions arrowOptions,
-                                     EnvironmentSettings settings) throws IOException {
+                                     EnvironmentSettings settings,
+                                     Predicate filterPredicate) throws IOException {
         super(identifier, requiredPartitions, requiredDataColumns,
-                requiredPartitionColumns, bucketIds, splitOptions, arrowOptions, settings);
+                requiredPartitionColumns, bucketIds, splitOptions, arrowOptions, settings, filterPredicate);
     }
 
     @Override
@@ -292,8 +294,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         jsonArrowOptions.addProperty("DatetimeUnit", arrowOptions.getDateTimeUnit().toString());
         request.add("ArrowOptions", jsonArrowOptions);
 
-        // TODO: FilterPredicate
-        request.add("FilterPredicate", new JsonPrimitive(""));
+        request.add("FilterPredicate", new JsonPrimitive(filterPredicate.toString()));
 
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         return gson.toJson(request);

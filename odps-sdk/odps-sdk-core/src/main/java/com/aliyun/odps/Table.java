@@ -231,6 +231,7 @@ public class Table extends LazyLoad {
     List<String> primaryKey;
     int acidDataRetainHours;
     StorageTierInfo storageTierInfo;
+    TableLifecycleConfig tableLifecycleConfig;
 
     List<ColumnMaskInfo> columnMaskInfoList;
   }
@@ -453,6 +454,18 @@ public class Table extends LazyLoad {
     return model.storageTierInfo;
   }
 
+  /**
+   * 获取分层存储的lifecycle配置
+   *
+   * @return TableLifecycleConfig
+   * */
+  public TableLifecycleConfig getTableLifecycleConfig() {
+    if (model.tableLifecycleConfig == null) {
+      reloadExtendInfo();
+      isExtendInfoLoaded = true;
+    }
+    return model.tableLifecycleConfig;
+  }
 
   /**
    * Get {@link Tag}(s) attached to this table.
@@ -1475,6 +1488,9 @@ public class Table extends LazyLoad {
 
     // load storageTier info
     model.storageTierInfo = StorageTierInfo.getStorageTierInfo(reservedJson);
+
+    // load table lifecycle configuration
+    model.tableLifecycleConfig = TableLifecycleConfig.parse(reservedJson);
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {

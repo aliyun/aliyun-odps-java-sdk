@@ -43,7 +43,8 @@ public class TableReadSessionProviderImpl implements TableReadSessionProvider {
                     builder.getRequiredBucketIds(),
                     builder.getSplitOptions(),
                     builder.getArrowOptions(),
-                    builder.getSettings());
+                    builder.getSettings(),
+                    builder.getFilterPredicate());
         } else {
             return new TableBatchReadSessionImpl(builder.getIdentifier(),
                     builder.getSessionId(),
