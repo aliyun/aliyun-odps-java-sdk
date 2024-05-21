@@ -23,7 +23,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FixedSizeBinaryVector;
 
 /**
@@ -48,30 +47,34 @@ public class ArrowDecimalExtensionAccessor extends ArrowVectorAccessor {
    *     int8_t mPadding[4]; //For Memory Align
    */
   public BigDecimal getDecimal(int rowId) {
-    byte[] val = decimalVector.get(rowId);
-    ByteBuffer buffer = ByteBuffer.wrap(val);
-    buffer.order(ByteOrder.LITTLE_ENDIAN);
-    byte mSign = buffer.get(1);
-    byte mIntg = buffer.get(2);
-    byte mFrac = buffer.get(3);
-    StringBuilder decimalBuilder = new StringBuilder();
-    if (mSign > 0) {
-      decimalBuilder.append("-");
-    }
-    for (int j = mIntg; j > 0; j--) {
-      int num = buffer.getInt(8 + j * 4);
-      if (j == mIntg) {
-        decimalBuilder.append(num);
-      } else {
+    try {
+      byte[] val = decimalVector.get(rowId);
+      ByteBuffer buffer = ByteBuffer.wrap(val);
+      buffer.order(ByteOrder.LITTLE_ENDIAN);
+      byte mSign = buffer.get(1);
+      byte mIntg = buffer.get(2);
+      byte mFrac = buffer.get(3);
+      StringBuilder decimalBuilder = new StringBuilder();
+      if (mSign > 0) {
+        decimalBuilder.append("-");
+      }
+      for (int j = mIntg; j > 0; j--) {
+        int num = buffer.getInt(8 + j * 4);
+        if (j == mIntg) {
+          decimalBuilder.append(num);
+        } else {
+          decimalBuilder.append(String.format("%09d", num));
+        }
+      }
+      decimalBuilder.append(".");
+      for (int j = 0; j < mFrac; j++) {
+        int num = buffer.getInt(8 - 4 * j);
         decimalBuilder.append(String.format("%09d", num));
       }
+      return new BigDecimal(decimalBuilder.toString());
+    } catch (Exception e) {
+      // if decimal is inf or nan, return null
+      return null;
     }
-    decimalBuilder.append(".");
-    for(int j = 0; j < mFrac; j++) {
-      int num = buffer.getInt(8 - 4 * j);
-      decimalBuilder.append(String.format("%09d", num));
-    }
-    BigDecimal bd = new BigDecimal(decimalBuilder.toString());
-    return bd;
   }
 }

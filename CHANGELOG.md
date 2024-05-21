@@ -1,4 +1,19 @@
 # Changelog
+## [0.48.3-public] - 2024-05-21
+
+### Added
+- Support for passing `retryStrategy` when building `UpsertSession`.
+
+### Changed
+- The `onFlushFail(String, int)` interface in `UpsertStream.Listener` has been marked as `@Deprecated` in favor of `onFlushFail(Throwable, int)` interface. This interface will be removed in version 0.50.0.
+- Default compression algorithm for Tunnel upsert has been changed to `ODPS_LZ4_FRAME`.
+
+### Fixed
+- Fixed an issue where data couldn't be written correctly in Tunnel upsert when the compression algorithm was set to something other than `ZLIB`.
+- Fixed a resource leak in `UpsertSession` that could persist for a long time if `close` was not explicitly called by the user.
+- Fixed an exception thrown by Tunnel data retrieval interfaces (`preview`, `download`) when encountering invalid `Decimal` types (such as `inf`, `nan`) in tables; will now return `null` to align with the `getResult` interface.
+
+
 ## [0.48.2-public] - 2024-05-08
 
 ### Important fixes

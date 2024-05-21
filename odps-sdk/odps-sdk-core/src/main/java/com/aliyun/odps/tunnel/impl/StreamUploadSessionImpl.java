@@ -272,6 +272,10 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                 headers.put(Headers.CONTENT_ENCODING, "x-snappy-framed");
                 break;
             }
+            case ODPS_LZ4_FRAME: {
+                headers.put(Headers.CONTENT_ENCODING, "x-lz4-frame");
+                break;
+            }
             default: {
                 throw new TunnelException("unsupported compression option.");
             }

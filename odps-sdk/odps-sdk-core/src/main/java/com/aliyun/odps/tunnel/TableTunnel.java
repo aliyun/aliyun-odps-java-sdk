@@ -77,6 +77,7 @@ import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import com.aliyun.odps.tunnel.io.TunnelRetryStrategy;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.ConnectionWatcher;
@@ -1301,6 +1302,8 @@ public class TableTunnel {
        * 请求响应的超时时间，单位 毫秒，默认为 300 * 1000
        */
       UpsertSession.Builder setReadTimeout(long timeout);
+
+      UpsertSession.Builder setRetryStrategy(TunnelRetryStrategy retryStrategy);
 
       UpsertSession build() throws TunnelException, IOException;
     }

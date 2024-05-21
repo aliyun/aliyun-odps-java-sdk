@@ -60,7 +60,17 @@ public interface UpsertStream {
      * @param retry - 已重试次数
      * @return 是否重试
      */
-    boolean onFlushFail(String error, int retry);
+    default boolean onFlushFail(Exception error, int retry) {
+      return onFlushFail(error.getMessage(), retry);
+    }
+
+    /**
+     * use {@link #onFlushFail(Exception, int)} instead
+     */
+    @Deprecated
+    default boolean onFlushFail(String error, int retry) {
+      return false;
+    }
   }
 
   interface Builder {

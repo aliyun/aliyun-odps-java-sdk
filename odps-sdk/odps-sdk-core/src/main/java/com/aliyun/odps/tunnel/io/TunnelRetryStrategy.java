@@ -27,11 +27,11 @@ public class TunnelRetryStrategy extends RetryStrategy {
     private final static int limit = 6;
     private final static int interval = 4;
 
-    TunnelRetryStrategy() {
+    public TunnelRetryStrategy() {
         super(limit, interval, RetryStrategy.BackoffStrategy.EXPONENTIAL_BACKOFF);
     }
 
-    TunnelRetryStrategy(int limit, BackOffStrategy strategy) {
+    public TunnelRetryStrategy(int limit, BackOffStrategy strategy) {
         super(limit, strategy);
     }
 

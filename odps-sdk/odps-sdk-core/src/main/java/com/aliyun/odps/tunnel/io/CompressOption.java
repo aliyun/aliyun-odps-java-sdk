@@ -27,10 +27,11 @@ public class CompressOption {
   public static enum CompressAlgorithm {
     ODPS_RAW,
     ODPS_ZLIB,
-    ODPS_SNAPPY,
     ODPS_LZ4_FRAME,
     ODPS_ARROW_LZ4_FRAME,
     ODPS_ARROW_ZSTD,
+
+    ODPS_SNAPPY,
   }
 
   public CompressOption() {

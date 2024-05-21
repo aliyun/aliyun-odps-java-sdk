@@ -365,8 +365,12 @@ public class ProtobufRecordStreamReader implements RecordReader {
         int size = in.readRawVarint32();
         byte[] bytes = in.readRawBytes(size);
         crc.update(bytes, 0, bytes.length);
-        BigDecimal decimal = new BigDecimal(new String(bytes, "UTF-8"));
-        return decimal;
+        try {
+          return new BigDecimal(new String(bytes, "UTF-8"));
+        } catch (Exception e) {
+          // if decimal is inf or nan, return null
+          return null;
+        }
       }
       case ARRAY: {
         return readArray(((ArrayTypeInfo) type).getElementTypeInfo());

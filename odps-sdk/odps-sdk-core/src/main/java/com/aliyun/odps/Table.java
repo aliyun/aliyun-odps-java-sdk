@@ -1162,7 +1162,8 @@ public class Table extends LazyLoad {
 
   /**
    * 读取表内的数据 <br />
-   * 读取数据时，最多返回 1w 条记录 (project read 默认值），若超过，数据将被截断。<br />
+   * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
+   * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
    *
    * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
    * @param columns   所要读取的列名的列表。如果读取全表可传入null

@@ -87,7 +87,9 @@ public class UpsertStreamImpl implements UpsertStream {
     private UpsertSessionImpl session;
     private long maxBufferSize = 64 * 1024 * 1024;
     private long slotBufferSize = 1024 * 1024;
-    private CompressOption compressOption = new CompressOption();
+    private CompressOption
+        compressOption =
+        new CompressOption(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME, -1, 0);
     private Listener listener = null;
 
     public Builder setSession(UpsertSessionImpl session) {
@@ -165,7 +167,7 @@ public class UpsertStreamImpl implements UpsertStream {
 
   private void newBucketBuffer() throws IOException {
     for (Integer slot : this.buckets.keySet()) {
-      this.bucketBuffer.put(slot, new ProtobufRecordPack(this.schema, new Checksum(), 0, new CompressOption()));
+      this.bucketBuffer.put(slot, new ProtobufRecordPack(this.schema, new Checksum(), 0, compressOption));
     }
   }
   @Override
@@ -333,7 +335,7 @@ public class UpsertStreamImpl implements UpsertStream {
         if (handler.getException() != null) {
           success = false;
           if (listener != null) {
-            if (!listener.onFlushFail(handler.getException().getMessage(), retry)) {
+            if (!listener.onFlushFail(handler.getException(), retry)) {
               status = Status.ERROR;
               TunnelException e = new TunnelException(handler.getException().getErrorMsg(), handler.getException());
               e.setRequestId(handler.getException().getRequestId());
@@ -414,7 +416,7 @@ public class UpsertStreamImpl implements UpsertStream {
       try {
         response = (FullHttpResponse) msg;
         this.flushResult.traceId = response.headers().get(HttpHeaders.HEADER_ODPS_REQUEST_ID);
-        if (response.status() == HttpResponseStatus.OK) {
+        if (response.status().equals(HttpResponseStatus.OK)) {
           this.flushResult.flushTime = System.currentTimeMillis() - start;
           pack.reset();
           if (listener != null) {

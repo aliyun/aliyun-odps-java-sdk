@@ -1,4 +1,18 @@
 # 更新日志
+## [0.48.3-public] - 2024-05-21
+
+### 新增
+- 在构建UpsertSession时，现在支持传入 `retryStrategy`。
+
+### 变更
+- `UpsertStream.Listener` 的 `onFlushFail(String, int)` 接口被标记为了 `@Deprecated`，使用 `onFlushFail(Throwable, int)` 接口替代。该接口将在 0.50.0 版本中移除。
+- Tunnel upsert 的默认压缩算法更改为 `ODPS_LZ4_FRAME`。
+
+### 修复
+- 修复了 Tunnel upsert 当压缩算法不为 `ZLIB` 时，数据无法正确写入的问题。
+- 修复了 UpsertSession 当用户未显式调用 `close` 时，资源长时间无法释放的问题。
+- 修复了 Tunnel 获取数据相关接口（`preview`，`download`），当遇到表内存在不合法 `Decimal` 类型时（如 `inf`，`nan`），会抛出异常的问题，现在会返回 `null`（与 `getResult` 接口一致）。
+
 ## [0.48.2-public] - 2024-05-08
 
 ### 重要修复

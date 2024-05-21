@@ -6,9 +6,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.aliyun.odps.Column;
@@ -25,6 +25,7 @@ import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.TunnelRetryStrategy;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.utils.FixedNettyChannelPool;
@@ -64,12 +65,13 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     private EventLoopGroup group;
     private Bootstrap bootstrap;
 
-    // timer
-    Timer timer = new Timer();
+    /**
+     * scheduler to reload session periodically, which keep session alive.
+     */
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
     ReentrantReadWriteLock.ReadLock readLock = rwLock.readLock();
     ReentrantReadWriteLock.WriteLock writeLock = rwLock.writeLock();
-    private Random random = new Random();
     private FixedNettyChannelPool channelPool;
 
     public UpsertSessionImpl(UpsertSessionImpl.Builder builder) throws TunnelException, IOException {
@@ -84,12 +86,13 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         this.connectTimeout = config.getSocketConnectTimeout() * 1000L;
         this.readTimeout = config.getSocketTimeout() * 1000L;
         this.id = builder.getUpsertId();
+        this.tunnelRetryStrategy = builder.retryStrategy;
         if (id == null) {
             initiate();
         } else {
             reload(true);
         }
-        initTimer();
+        initScheduler();
         if (builder.bootstrap == null) {
             initNettyBootstrap(builder.threadNum);
         } else {
@@ -110,7 +113,26 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
     @Override
     public UpsertStream.Builder buildUpsertStream() {
-        return new UpsertStreamImpl.Builder().setSession(this);
+        return new UpsertStreamImpl.Builder().setSession(this).setListener(
+            new UpsertStream.Listener() {
+                @Override
+                public void onFlush(UpsertStream.FlushResult result) {
+                    // do nothing
+                }
+
+                @Override
+                public boolean onFlushFail(Exception error, int retry) {
+                    try {
+                        if (tunnelRetryStrategy == null) {
+                          return false;
+                        }
+                        tunnelRetryStrategy.onFailure(error);
+                        return true;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                }
+            });
     }
 
     @Override
@@ -125,9 +147,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
     @Override
     public String getStatus() throws TunnelException {
-        if (timer == null) {
-            reload(false);
-        }
+        reload(false);
         try {
             readLock.lock();
             return status;
@@ -182,7 +202,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 }
             }
             if (!status.equalsIgnoreCase(TunnelConstants.SESSION_STATUS_COMMITTED)) {
-                throw new TunnelException("Commit session failed, status:" + getStatus());
+                throw new TunnelException("Commit session failed, status:" + status);
             }
         }
     }
@@ -197,9 +217,9 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         httpRequest(headers, params, "DELETE", "abort upsert session");
     }
 
+    @Override
     public void close() {
-        timer.cancel();
-        timer.purge();
+        scheduler.shutdownNow();
         if (group != null) {
             group.shutdownGracefully().syncUninterruptibly();
         }
@@ -224,7 +244,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
         HashMap<String, String> headers = getCommonHeaders();
 
-        HttpResult result = httpRequest(headers, params, "POST", "create stream upload session");
+        HttpResult result = httpRequest(headers, params, "POST", "create upsert session");
 
         load(result, true);
     }
@@ -315,18 +335,20 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         }
     }
 
-    private void initTimer() {
-        timer.schedule(new TimerTask(){
-            @Override
-            public void run() {
-                try {
-                    reload(false);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }, 30000L, 30000L);
-    }
+  private void initScheduler() {
+    final Runnable task = () -> {
+      try {
+        reload(false);
+        if (!status.equalsIgnoreCase(TunnelConstants.SESSION_STATUS_NORMAL) &&
+            !status.equalsIgnoreCase(TunnelConstants.SESSION_STATUS_COMMITTING)) {
+          scheduler.shutdownNow();
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    };
+    scheduler.scheduleAtFixedRate(task, 30L, 30L, TimeUnit.SECONDS);
+  }
 
     /**
      * 用于初始化http相关成员变量，包括netty的线程组和通用的header与parameter
@@ -415,6 +437,10 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 headers.put(Headers.CONTENT_ENCODING, "x-snappy-framed");
                 break;
             }
+            case ODPS_LZ4_FRAME: {
+                headers.put(Headers.CONTENT_ENCODING, "x-lz4-frame");
+                break;
+            }
             default: {
                 throw new TunnelException("unsupported compression option.");
             }
@@ -480,6 +506,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         private long slotNum = 1;
         private long commitTimeout = 120 * 1000;
         ConfigurationImpl config;
+        TunnelRetryStrategy retryStrategy;
 
         public String getUpsertId() {
             return upsertId;
@@ -591,6 +618,12 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 throw new IllegalArgumentException("timeout value must be positive");
             }
             config.setSocketTimeout((int) (timeout / 1000));
+            return this;
+        }
+
+        @Override
+        public UpsertSessionImpl.Builder setRetryStrategy(TunnelRetryStrategy retryStrategy) {
+            this.retryStrategy = retryStrategy;
             return this;
         }
 
