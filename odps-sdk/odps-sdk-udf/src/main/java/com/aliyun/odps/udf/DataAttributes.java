@@ -1,6 +1,7 @@
 package com.aliyun.odps.udf;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.NotImplementedException;
 import com.aliyun.odps.OdpsType;
 import java.util.HashSet;
 import java.util.Map;
@@ -96,4 +97,7 @@ public abstract class DataAttributes {
    **/
   public abstract void verifySchema(OdpsType[] expectedSchemas);
 
+  public Map<String, String> getStaticPartitionVals() {
+    throw new NotImplementedException("getStaticPartitionVals is not implemented");
+  }
 }

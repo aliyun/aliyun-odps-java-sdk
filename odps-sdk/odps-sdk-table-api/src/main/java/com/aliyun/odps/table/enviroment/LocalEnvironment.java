@@ -21,9 +21,15 @@ package com.aliyun.odps.table.enviroment;
 
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Optional;
 
 import static com.aliyun.odps.table.utils.ConfigConstants.*;
@@ -46,10 +52,43 @@ public class LocalEnvironment extends ExecutionEnvironment {
             return;
         }
 
-        String prefix = System.getenv(MAX_STORAGE_DATA_PROXY_PREFIX);
-        String port = System.getenv(MAX_STORAGE_DATA_PROXY_PORT);
+        String prefix;
+        String port;
+        String confPath = System.getenv(MAX_STORAGE_DATA_PROXY_CONF_PATH);
 
-        Preconditions.checkString(port, "MAX_STORAGE_DATA_PROXY_PORT");
+        if (StringUtils.isNullOrEmpty(confPath)) {
+            prefix = System.getenv(MAX_STORAGE_DATA_PROXY_PREFIX);
+            port = System.getenv(MAX_STORAGE_DATA_PROXY_PORT);
+        } else {
+            port = System.getProperty(MAX_STORAGE_DATA_PROXY_PORT);
+            if (!StringUtils.isNullOrEmpty(port)) {
+                prefix = System.getProperty(MAX_STORAGE_DATA_PROXY_PREFIX);
+            } else {
+                try (FileInputStream fis = new FileInputStream(confPath);
+                     BufferedInputStream bis = new BufferedInputStream(fis)) {
+
+                    JsonObject conf = new JsonParser().parse(
+                            new String(IOUtils.toByteArray(bis))).getAsJsonObject();
+
+                    if (conf.has(MAX_STORAGE_DATA_PROXY_PORT)) {
+                        System.setProperty(MAX_STORAGE_DATA_PROXY_PORT,
+                                conf.get(MAX_STORAGE_DATA_PROXY_PORT).getAsString());
+                    }
+
+                    if (conf.has(MAX_STORAGE_DATA_PROXY_PREFIX)) {
+                        System.setProperty(MAX_STORAGE_DATA_PROXY_PREFIX,
+                                conf.get(MAX_STORAGE_DATA_PROXY_PREFIX).getAsString());
+                    }
+                } catch (IOException e) {
+                    logger.error("Local env find conf " + confPath + " failed!", e);
+                    return;
+                }
+                prefix = System.getProperty(MAX_STORAGE_DATA_PROXY_PREFIX);
+                port = System.getProperty(MAX_STORAGE_DATA_PROXY_PORT);
+            }
+        }
+
+        Preconditions.checkString(port, MAX_STORAGE_DATA_PROXY_PORT);
 
         String localHostPort;
         if (StringUtils.isNullOrEmpty(prefix)) {

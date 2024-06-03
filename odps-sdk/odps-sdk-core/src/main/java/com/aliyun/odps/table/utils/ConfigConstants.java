@@ -29,6 +29,7 @@ public class ConfigConstants {
     public static final String MAX_STORAGE_MODE = "MAX_STORAGE_MODE";
     public static final String MAX_STORAGE_VSHM_MODE = "MAX_STORAGE_VSHM_MODE";
     public static final String MAX_STORAGE_NET_MODE = "MAX_STORAGE_NET_MODE";
+    public static final String MAX_STORAGE_DATA_PROXY_CONF_PATH = "MAX_STORAGE_DATA_PROXY_CONF_PATH";
 
     public static final String SESSION_ID = "session_id";
     public static final String SESSION_TYPE = "session_type";

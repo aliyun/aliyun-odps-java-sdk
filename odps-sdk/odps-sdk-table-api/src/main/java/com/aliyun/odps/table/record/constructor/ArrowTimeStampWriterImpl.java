@@ -19,14 +19,18 @@
 
 package com.aliyun.odps.table.record.constructor;
 
+import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Struct;
 import com.aliyun.odps.table.arrow.constructor.ArrowTimeStampWriter;
+import com.aliyun.odps.type.TypeInfo;
 import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.types.TimeUnit;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static com.aliyun.odps.table.utils.DateTimeConstants.MICROS_PER_SECOND;
@@ -35,25 +39,34 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 public class ArrowTimeStampWriterImpl {
 
-    private static long transformToEpochTime(Object timestamp, TimeUnit unit) {
+    private static long transformToEpochTime(Object timestamp, TimeUnit unit, OdpsType odpsType) {
         Instant instant;
-        if (timestamp instanceof Instant) {
-            instant = (Instant) timestamp;
+        if (odpsType.equals(OdpsType.TIMESTAMP)) {
+            if (timestamp instanceof Instant) {
+                instant = (Instant) timestamp;
+            } else {
+                instant = ((Timestamp) timestamp).toInstant();
+            }
+        } else if (odpsType.equals(OdpsType.TIMESTAMP_NTZ)) {
+            instant = ((LocalDateTime) timestamp).toInstant(ZoneOffset.UTC);
         } else {
-            instant = ((Timestamp) timestamp).toInstant();
+            throw new UnsupportedOperationException("Unsupported odps type: " + odpsType);
         }
         return instantToEpochTime(instant, unit);
     }
 
     public static final class RecordTimeStampWriter extends ArrowTimeStampWriter<ArrayRecord> {
 
-        RecordTimeStampWriter(TimeStampVector timeStampVector) {
+        private final TypeInfo odpsTypeInfo;
+
+        RecordTimeStampWriter(TimeStampVector timeStampVector, TypeInfo typeInfo) {
             super(timeStampVector);
+            this.odpsTypeInfo = typeInfo;
         }
 
         @Override
         protected long readEpochTime(ArrayRecord row, int ordinal) {
-            return transformToEpochTime(row.get(ordinal), getType().getUnit());
+            return transformToEpochTime(row.get(ordinal), getType().getUnit(), odpsTypeInfo.getOdpsType());
         }
 
         @Override
@@ -64,13 +77,16 @@ public class ArrowTimeStampWriterImpl {
 
     public static final class ListTimeStampWriter extends ArrowTimeStampWriter<List<Object>> {
 
-        ListTimeStampWriter(TimeStampVector timeStampVector) {
+        private final TypeInfo odpsTypeInfo;
+
+        ListTimeStampWriter(TimeStampVector timeStampVector, TypeInfo typeInfo) {
             super(timeStampVector);
+            this.odpsTypeInfo = typeInfo;
         }
 
         @Override
         protected long readEpochTime(List<Object> row, int ordinal) {
-            return transformToEpochTime(row.get(ordinal), getType().getUnit());
+            return transformToEpochTime(row.get(ordinal), getType().getUnit(), odpsTypeInfo.getOdpsType());
         }
 
         @Override
@@ -81,13 +97,16 @@ public class ArrowTimeStampWriterImpl {
 
     public static final class StructTimeStampWriter extends ArrowTimeStampWriter<Struct> {
 
-        StructTimeStampWriter(TimeStampVector timeStampVector) {
+        private final TypeInfo odpsTypeInfo;
+
+        StructTimeStampWriter(TimeStampVector timeStampVector, TypeInfo typeInfo) {
             super(timeStampVector);
+            this.odpsTypeInfo = typeInfo;
         }
 
         @Override
         protected long readEpochTime(Struct row, int ordinal) {
-            return transformToEpochTime(row.getFieldValue(ordinal), getType().getUnit());
+            return transformToEpochTime(row.getFieldValue(ordinal), getType().getUnit(), odpsTypeInfo.getOdpsType());
         }
 
         @Override

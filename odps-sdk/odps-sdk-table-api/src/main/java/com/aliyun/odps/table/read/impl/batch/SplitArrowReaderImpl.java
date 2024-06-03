@@ -48,8 +48,12 @@ import com.aliyun.odps.table.utils.HttpUtils;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
+
+    private static final Logger logger = LoggerFactory.getLogger(SplitArrowReaderImpl.class.getName());
 
     private final ArrowReader reader;
     private Connection connection;
@@ -57,6 +61,7 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
     private Metrics metrics;
     private BytesCount bytesCount;
     private RecordCount recordCount;
+    private String requestId;
 
     public SplitArrowReaderImpl(TableIdentifier identifier,
                                 InputSplit split,
@@ -69,7 +74,12 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
 
     @Override
     public boolean hasNext() throws IOException {
-        return this.reader.nextBatch();
+        try {
+            return this.reader.nextBatch();
+        } catch (IOException e) {
+            logger.error("Get next record batch failed, requestId=" + requestId, e);
+            throw e;
+        }
     }
 
     @Override
@@ -165,10 +175,12 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                 throw err;
             }
             this.connection = conn;
+            this.requestId = resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID);
         } catch (Exception e) {
             if (connection != null) {
                 connection.disconnect();
             }
+            logger.error("Open split reader failed", e);
             throw new IOException(e.getMessage(), e);
         }
     }

@@ -1,4 +1,17 @@
 # 更新日志
+## [0.48.4-public] - 2024-06-04
+
+### 新增
+- 使用 `table-api` 写MaxCompute表，现在支持`JSON`和`TIMESTAMP_NTZ`类型
+- `odps-sdk-udf` 功能继续完善
+
+### 变更
+- Table.read() 接口在遇到 Decimal 类型时，目前将默认去掉尾部的 0（但不会使用科学计数法）
+
+### 修复
+- 修复了 ArrayRecord 针对 JSON 类型不支持 getBytes 方法的问题
+
+
 ## [0.48.3-public] - 2024-05-21
 
 ### 新增

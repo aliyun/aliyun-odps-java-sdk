@@ -22,7 +22,6 @@ package com.aliyun.odps.table.arrow.accessor;
 import java.math.BigDecimal;
 
 import org.apache.arrow.vector.DecimalVector;
-import org.apache.arrow.vector.FixedSizeBinaryVector;
 
 /**
  * Arrow column vector accessor for decimal.
@@ -37,6 +36,7 @@ public class ArrowDecimalAccessor extends ArrowVectorAccessor {
     }
 
     public BigDecimal getDecimal(int rowId) {
-        return decimalVector.getObject(rowId);
+        return new BigDecimal(decimalVector.getObject(rowId)
+                .stripTrailingZeros().toPlainString());
     }
 }

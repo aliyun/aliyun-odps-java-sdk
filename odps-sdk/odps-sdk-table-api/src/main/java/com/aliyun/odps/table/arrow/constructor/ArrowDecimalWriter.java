@@ -22,6 +22,7 @@ package com.aliyun.odps.table.arrow.constructor;
 import org.apache.arrow.vector.DecimalVector;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * {@link ArrowFieldWriter} for Decimal.
@@ -44,7 +45,8 @@ public abstract class ArrowDecimalWriter<IN> extends ArrowFieldWriter<IN> {
 
     @Override
     protected void setValue(IN row, int ordinal) {
-        ((DecimalVector) valueVector).setSafe(count, readBigDecimal(row, ordinal));
+        ((DecimalVector) valueVector).setSafe(count,
+                readBigDecimal(row, ordinal).setScale(scale, RoundingMode.HALF_UP));
     }
 
     abstract protected BigDecimal readBigDecimal(IN row, int ordinal);

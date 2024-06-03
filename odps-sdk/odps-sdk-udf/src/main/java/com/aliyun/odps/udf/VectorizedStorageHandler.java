@@ -27,4 +27,9 @@ public abstract class VectorizedStorageHandler extends OdpsStorageHandler {
     public Class<? extends Outputer> getOutputerClass() {
         throw new RuntimeException("Not support for outputer by default");
     }
+
+    /**
+     * @return null indicates plugin framework performs no commit action
+     */
+    public Class<? extends Committer> getCommitterClass() { return null; }
 }

@@ -133,9 +133,11 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
         try {
             String request = generateReadSessionRequest();
-            logger.debug(String.format("Read table '%s'.\n"
-                    + "Session request:\n"
-                    + "%s", identifier.toString(), request));
+            if (logger.isDebugEnabled()) {
+                logger.debug(String.format("Read table '%s'.\n"
+                        + "Session request:\n"
+                        + "%s", identifier.toString(), request));
+            }
 
             Response resp = restClient.stringRequest(
                     ResourceBuilder.buildTableSessionResource(
@@ -196,9 +198,11 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                                 sessionId,
                                 errorMessage));
             } else {
-                logger.debug(String.format("Read table '%s'.\n"
-                        + "Session response:\n"
-                        + "%s", identifier.toString(), response));
+                if (logger.isDebugEnabled()) {
+                    logger.debug(String.format("Read table '%s'.\n"
+                            + "Session response:\n"
+                            + "%s", identifier.toString(), response));
+                }
             }
         } catch (Exception e) {
             throw new IOException(e.getMessage(), e);
@@ -372,8 +376,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
             // record count
             if (tree.has("RecordCount")) {
                 long recordCount = tree.get("RecordCount").getAsLong();
-                if (recordCount >= 0
-                        && splitOptions.getSplitMode().equals(SplitOptions.SplitMode.ROW_OFFSET)) {
+                if (recordCount >= 0) {
                     inputSplitAssigner = new RowRangeInputSplitAssigner(sessionId, recordCount);
                 }
             }
@@ -382,11 +385,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
             if (tree.has("SplitsCount")) {
                 int splitsCount = tree.get("SplitsCount").getAsInt();
                 if (splitsCount >= 0) {
-                    if (splitOptions.getSplitMode().equals(SplitOptions.SplitMode.BUCKET)) {
-                        // TODO: for BucketInputSplits
-                    } else {
-                        inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
-                    }
+                    inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
                 }
             }
         } catch (Exception e) {

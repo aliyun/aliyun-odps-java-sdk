@@ -126,6 +126,7 @@ public class SchemaUtils {
         switch (typeInfo.getOdpsType()) {
             case CHAR:
             case VARCHAR:
+            case JSON:
             case STRING:
                 arrowType = new ArrowType.Utf8();
                 break;
@@ -169,6 +170,7 @@ public class SchemaUtils {
                 arrowType = parseTimeStamp(options.getDateTimeUnit());
                 break;
             case TIMESTAMP:
+            case TIMESTAMP_NTZ:
                 arrowType = parseTimeStamp(options.getTimestampUnit());
                 break;
             case ARRAY:

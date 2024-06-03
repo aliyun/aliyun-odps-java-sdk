@@ -19,11 +19,13 @@
 
 package com.aliyun.odps.table.record.constructor;
 
-import com.aliyun.odps.data.AbstractChar;
+import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.ArrayRecord;
+import com.aliyun.odps.data.SimpleJsonValue;
 import com.aliyun.odps.data.Struct;
 import com.aliyun.odps.table.arrow.constructor.ArrowVarCharWriter;
 import com.aliyun.odps.table.utils.ConfigConstants;
+import com.aliyun.odps.type.TypeInfo;
 import org.apache.arrow.vector.VarCharVector;
 
 import java.io.UnsupportedEncodingException;
@@ -76,13 +78,10 @@ public class ArrowVarCharWriterImpl {
         @Override
         protected byte[] readBytes(List<Object> row, int ordinal) {
             Object v = row.get(ordinal);
-            if (v instanceof String) {
-                return stringToBytes((String) v);
-            } else if (v instanceof AbstractChar) {
-                return stringToBytes(((AbstractChar) v).getValue());
-            } else {
-                return (byte[]) v;
+            if (!(v instanceof byte[])) {
+                return stringToBytes(v.toString());
             }
+            return (byte[]) v;
         }
     }
 
@@ -100,13 +99,10 @@ public class ArrowVarCharWriterImpl {
         @Override
         protected byte[] readBytes(Struct in, int ordinal) {
             Object v = in.getFieldValue(ordinal);
-            if (v instanceof String) {
-                return stringToBytes((String) v);
-            } else if (v instanceof AbstractChar) {
-                return stringToBytes(((AbstractChar) v).getValue());
-            } else {
-                return (byte[]) v;
+            if (!(v instanceof byte[])) {
+                return stringToBytes(v.toString());
             }
+            return (byte[]) v;
         }
     }
 

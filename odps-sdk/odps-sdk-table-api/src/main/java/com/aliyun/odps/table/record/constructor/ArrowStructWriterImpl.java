@@ -136,6 +136,7 @@ public class ArrowStructWriterImpl {
             case STRING:
             case VARCHAR:
             case CHAR:
+            case JSON:
                 return new ArrowVarCharWriterImpl.StructVarCharWriter((VarCharVector) vector);
             case BINARY:
                 return new ArrowVarBinaryWriterImpl.StructVarBinaryWriter((VarBinaryVector) vector);
@@ -144,7 +145,8 @@ public class ArrowStructWriterImpl {
             case DATETIME:
                 return new ArrowDateTimeWriterImpl.StructDateTimeWriter((TimeStampVector) vector);
             case TIMESTAMP:
-                return new ArrowTimeStampWriterImpl.StructTimeStampWriter((TimeStampVector) vector);
+            case TIMESTAMP_NTZ:
+                return new ArrowTimeStampWriterImpl.StructTimeStampWriter((TimeStampVector) vector, typeInfo);
             case ARRAY:
                 return new ArrowArrayWriterImpl.StructArrayWriter((ListVector) vector, typeInfo);
             case MAP:

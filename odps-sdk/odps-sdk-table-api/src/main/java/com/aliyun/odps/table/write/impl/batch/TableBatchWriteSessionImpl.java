@@ -116,9 +116,11 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
         try {
             String req = generateWriteSessionRequest();
-            logger.debug(String.format("Write table '%s'.\n"
-                    + "Session request:\n"
-                    + "%s", identifier.toString(), req));
+            if (logger.isDebugEnabled()) {
+                logger.debug(String.format("Write table '%s'.\n"
+                        + "Session request:\n"
+                        + "%s", identifier.toString(), req));
+            }
 
             Response resp = restClient.stringRequest(
                     ResourceBuilder.buildTableSessionResource(
@@ -131,12 +133,13 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
             if (resp.isOK()) {
                 String response = new String(resp.getBody());
-                logger.debug(String.format("Write table '%s'.\n"
-                        + "Session response:\n"
-                        + "%s", identifier.toString(), response));
+                if (logger.isDebugEnabled()) {
+                    logger.debug(String.format("Write table '%s'.\n"
+                            + "Session response:\n"
+                            + "%s", identifier.toString(), response));
+                }
                 loadResultFromJson(response);
             } else {
-
                 throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
                         new ByteArrayInputStream(resp.getBody()), resp.getStatus());
             }
@@ -245,9 +248,11 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
         try {
             String commitRequest = generateCommitRequest(messages);
-            logger.debug(String.format("Commit table '%s'.\n"
-                    + "Session request:\n"
-                    + "%s", identifier.toString(), commitRequest));
+            if (logger.isDebugEnabled()) {
+                logger.debug(String.format("Commit table '%s'.\n"
+                        + "Session request:\n"
+                        + "%s", identifier.toString(), commitRequest));
+            }
 
             Response resp = restClient.stringRequest(ResourceBuilder.buildTableCommitResource(
                     VERSION_1,
@@ -308,9 +313,11 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                                 sessionId,
                                 errorMessage));
             } else {
-                logger.debug(String.format("Commit table '%s' success.\n"
-                        + "Session response:\n"
-                        + "%s", identifier.toString(), response));
+                if (logger.isDebugEnabled()) {
+                    logger.debug(String.format("Commit table '%s' success.\n"
+                            + "Session response:\n"
+                            + "%s", identifier.toString(), response));
+                }
             }
         } catch (Exception e) {
             throw new IOException(e.getMessage(), e);

@@ -1,4 +1,16 @@
 # Changelog
+## [0.48.4-public] - 2024-06-04
+
+### New
+- Use `table-api` to write MaxCompute tables, now supports `JSON` and `TIMESTAMP_NTZ` types
+- `odps-sdk-udf` functions continue to be improved
+
+### Change
+- When the Table.read() interface encounters the Decimal type, it will currently remove the trailing 0 by default (but will not use scientific notation)
+
+### Fix
+- Fixed the problem that ArrayRecord does not support the getBytes method for JSON type
+
 ## [0.48.3-public] - 2024-05-21
 
 ### Added

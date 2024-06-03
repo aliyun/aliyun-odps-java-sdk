@@ -21,11 +21,9 @@ package com.aliyun.odps.table.record.constructor;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.data.ArrayRecord;
-import com.aliyun.odps.data.Struct;
 import com.aliyun.odps.table.arrow.constructor.ArrowBatchConstructor;
 import com.aliyun.odps.table.arrow.constructor.ArrowFieldWriter;
 import com.aliyun.odps.table.utils.SchemaUtils;
-import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.*;
@@ -87,6 +85,7 @@ public class RecordToArrowConverter {
             case STRING:
             case VARCHAR:
             case CHAR:
+            case JSON:
                 return new ArrowVarCharWriterImpl.RecordVarCharWriter((VarCharVector) vector);
             case BINARY:
                 return new ArrowVarBinaryWriterImpl.RecordVarBinaryWriter((VarBinaryVector) vector);
@@ -95,7 +94,8 @@ public class RecordToArrowConverter {
             case DATETIME:
                 return new ArrowDateTimeWriterImpl.RecordDateTimeWriter((TimeStampVector) vector);
             case TIMESTAMP:
-                return new ArrowTimeStampWriterImpl.RecordTimeStampWriter((TimeStampVector) vector);
+            case TIMESTAMP_NTZ:
+                return new ArrowTimeStampWriterImpl.RecordTimeStampWriter((TimeStampVector) vector, typeInfo);
             case ARRAY:
                 return new ArrowArrayWriterImpl.RecordArrayWriter((ListVector) vector, typeInfo);
             case MAP:

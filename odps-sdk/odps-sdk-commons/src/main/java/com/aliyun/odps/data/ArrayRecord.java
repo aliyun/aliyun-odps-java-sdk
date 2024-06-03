@@ -353,7 +353,9 @@ public class ArrayRecord implements Record {
     } else if (obj instanceof Binary) {
       return ((Binary) obj).data();
     } else if (obj instanceof AbstractChar) {
-        return stringToBytes(((AbstractChar)obj).getValue());
+      return stringToBytes(((AbstractChar)obj).getValue());
+    } else if (obj instanceof JsonValue) {
+      return stringToBytes(obj.toString());
     }
     else {
       throw new RuntimeException("Does not support getBytes for type other than String/Binary/Char/VarChar, sees "

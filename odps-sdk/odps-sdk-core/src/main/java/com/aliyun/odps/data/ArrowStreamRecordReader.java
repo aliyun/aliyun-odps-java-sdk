@@ -236,9 +236,6 @@ public class ArrowStreamRecordReader extends DefaultRecordReader {
                 ((Instant) data).atZone(ZoneId.systemDefault()).withZoneSameInstant(timeZone)
                     .toLocalDateTime()));
         break;
-      case DECIMAL:
-        data = ((BigDecimal) data).stripTrailingZeros();
-        break;
       case STRING:
         if (data instanceof byte[]) {
           data = new String((byte[]) data);

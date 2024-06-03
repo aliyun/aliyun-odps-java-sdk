@@ -10,9 +10,13 @@ public abstract class VectorizedOutputer {
     /**
      * Interface for write
      * @param arrowBatch write data
-     * @return actual write data count. should equal to arrowBatch.getRowCount()
      **/
-    public abstract int output(VectorSchemaRoot arrowBatch) throws IOException;
+    public abstract void output(VectorSchemaRoot arrowBatch) throws IOException;
+
+    /**
+     * @return null indicates no commit action will be performed by plugin framework.
+     */
+    public CommitMessage commit() { return null; }
 
     /**
      * Interface for operations upon outputer exit, implementation can be no-op
