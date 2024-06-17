@@ -11,6 +11,7 @@ import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.table.StreamIdentifier;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.type.TypeInfoFactory;
+import com.google.common.collect.ImmutableList;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
@@ -27,14 +28,15 @@ public class StreamTest {
     odps = OdpsTestUtils.newSchemaOdps();
     Assume.assumeTrue(odps.projects().exists(odps.getDefaultProject()));
     TableSchema schema = new TableSchema();
-    Column pk = Column.newBuilder("key1", TypeInfoFactory.BIGINT).primaryKey().build();
-    Column pk2 = Column.newBuilder("key2", TypeInfoFactory.BIGINT).primaryKey().build();
+    Column pk = Column.newBuilder("key1", TypeInfoFactory.BIGINT).notNull().build();
+    Column pk2 = Column.newBuilder("key2", TypeInfoFactory.BIGINT).notNull().build();
     schema.addColumn(pk);
     schema.addColumn(pk2);
     schema.addColumn(new Column("c2", TypeInfoFactory.BIGINT));
     schema.addColumn(new Column("c3", TypeInfoFactory.BIGINT));
     odps.tables().delete(tableName, true);
     odps.tables().newTableCreator(odps.getDefaultProject(), tableName, schema)
+        .withPrimaryKeys(ImmutableList.of("key1", "key2"))
         .withSchemaName(odps.getCurrentSchema()).transactionTable().ifNotExists().debug()
         .create();
     testCreateStream();

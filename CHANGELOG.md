@@ -1,4 +1,16 @@
 # Changelog
+## [0.48.5-public] - 2024-06-17
+### Added
+- Added the `getPartitionSpecs` method to the `Table` interface. Compared to the `getPartitions` method, this method does not require fetching detailed partition information, resulting in faster execution.
+
+### Changes
+- Removed the `isPrimaryKey` method from the `Column` class. This method was initially added to support users in specifying certain columns as primary keys when creating a table. However, it was found to be misleading in read scenarios, as it does not communicate with the server. Therefore, it is not suitable for determining whether a column is a primary key. Moreover, when using this method for table creation, primary keys should be table-level fields (since primary keys are ordered), and this method neglected the order of primary keys, leading to a flawed design. Hence, it has been removed in version 0.48.5.
+
+  For read scenarios, users should use the `Table.getPrimaryKey()` method to retrieve primary keys. For table creation, users can now use the `withPrimaryKeys` method in the `TableCreator` to specify primary keys during table creation.
+
+### Fixes
+- Fixed an issue in the `RecordConverter` where formatting a `Record` of type `String` would throw an exception when the data type was `byte[]`.
+
 ## [0.48.4-public] - 2024-06-04
 
 ### New

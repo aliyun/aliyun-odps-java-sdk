@@ -319,11 +319,7 @@ class ObjectConverterFactory {
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
             if (object instanceof byte[]) {
-                try {
-                    return new String((byte[]) object, "utf8");
-                } catch (UnsupportedEncodingException e) {
-                    throw new RuntimeException(e);
-                }
+                return new String((byte[]) object, StandardCharsets.UTF_8);
             } else {
                 return (String) object;
             }

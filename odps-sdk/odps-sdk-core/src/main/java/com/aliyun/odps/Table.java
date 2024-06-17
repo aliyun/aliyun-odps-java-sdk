@@ -1639,6 +1639,44 @@ public class Table extends LazyLoad {
     private Integer maxItems;
   }
 
+  @Root(strict = false)
+  private static class ListPartitionSpecsResponse {
+
+    @Element(name = "Marker", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    private String marker;
+
+    @Element(name = "MaxItems", required = false)
+    private Integer maxItems;
+
+    @ElementList(entry = "Partition", inline = true, required = false)
+    private List<PartitionSpecModel> partitionSpecs = new LinkedList<>();
+  }
+
+  /**
+   * Get list of partition specs. The returned partition specs are ordered lexicographically.
+   *
+   * @return list of {@link PartitionSpec}
+   */
+  public List<PartitionSpec> getPartitionSpecs() throws OdpsException {
+    Map<String, String> params = initParamsWithSchema();
+    params.put("partitions", null);
+    params.put("name", null);
+
+    String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+    List<PartitionSpec> partitionSpecs = new ArrayList<>();
+
+    ListPartitionSpecsResponse resp = client.request(ListPartitionSpecsResponse.class,
+                                                     resource,
+                                                     "GET",
+                                                     params);
+    for (PartitionSpecModel partitionSpecModel : resp.partitionSpecs) {
+      partitionSpecs.add(new PartitionSpec(partitionSpecModel.partitionSpec));
+    }
+
+    return partitionSpecs;
+  }
+
 
   /**
    * 在Table上创建Shards

@@ -1041,7 +1041,8 @@ public class Tables implements Iterable<Table> {
     private Long lifeCycle;
     private Map<String, String> hints;
     private Map<String, String> aliases;
-    private boolean debug = true;
+    private List<String> primaryKeys;
+    private boolean debug = false;
 
     // for common table
     private Long shardNum;
@@ -1091,6 +1092,11 @@ public class Tables implements Iterable<Table> {
       getTblProperties().put("transactional", "true");
       getHints().put("odps.sql.upsertable.table.enable", "true");
       transactionTable = true;
+      return this;
+    }
+
+    public TableCreator withPrimaryKeys(List<String> primaryKeys) {
+      this.primaryKeys = primaryKeys;
       return this;
     }
 
@@ -1248,7 +1254,6 @@ public class Tables implements Iterable<Table> {
       sql.append(" (");
 
       List<Column> columns = tableSchema.getColumns();
-      List<String> primaryKey = new ArrayList<>();
 
       for (int i = 0; i < columns.size(); i++) {
         Column column = columns.get(i);
@@ -1266,21 +1271,15 @@ public class Tables implements Iterable<Table> {
         if (column.getComment() != null) {
           sql.append(" COMMENT '").append(column.getComment()).append("'");
         }
-        if (column.isPrimaryKey()) {
-          primaryKey.add(column.getName());
-        }
         if (i + 1 < columns.size()) {
           sql.append(',');
         }
       }
-      if (!primaryKey.isEmpty() && !transactionTable) {
-        throw new IllegalArgumentException("only transaction table support primary key");
-      }
       if (transactionTable) {
-        if (primaryKey.isEmpty()) {
+        if (primaryKeys == null || primaryKeys.isEmpty()) {
           throw new IllegalArgumentException("transaction table must have a primary key");
         }
-        sql.append(", PRIMARY KEY(").append(primaryKey.stream().map(s -> '`' + s + '`').collect(
+        sql.append(", PRIMARY KEY(").append(primaryKeys.stream().map(s -> '`' + s + '`').collect(
             Collectors.joining(","))).append(")");
       }
 

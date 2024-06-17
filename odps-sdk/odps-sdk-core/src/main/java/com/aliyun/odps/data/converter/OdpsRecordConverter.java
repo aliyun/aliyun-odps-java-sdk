@@ -3,6 +3,7 @@ package com.aliyun.odps.data.converter;
 import static com.aliyun.odps.data.OdpsTypeTransformer.ODPS_TYPE_MAPPER;
 import static com.aliyun.odps.data.OdpsTypeTransformer.ODPS_TYPE_MAPPER_V2;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
@@ -95,7 +96,11 @@ public class OdpsRecordConverter {
             expectClass = OdpsTypeTransformer.odpsTypeToJavaType(ODPS_TYPE_MAPPER_V2, typeInfo.getOdpsType());
         }
         try {
-            object = expectClass.cast(object);
+            if (typeInfo.getOdpsType() == OdpsType.STRING && object instanceof byte[]) {
+                object = new String((byte[]) object, StandardCharsets.UTF_8);
+            } else {
+                object = expectClass.cast(object);
+            }
         } catch (ClassCastException e) {
             throw new IllegalArgumentException("Cannot format " + object
                     + "(" + object.getClass() + ") to ODPS type: " + typeInfo.getOdpsType()
