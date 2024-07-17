@@ -1,10 +1,12 @@
 package com.aliyun.odps.tunnel.hasher;
 
-import org.junit.Assert;
-import org.junit.Test;
-
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Timestamp;
 import java.time.Instant;
+
+import org.junit.Assert;
+import org.junit.Test;
 
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.IntervalDayTime;
@@ -195,5 +197,102 @@ public class TypeHasherTest {
 
     int[] hashVals4 = {-1111111111};
     System.out.println(TypeHasher.CombineHashVal(hashVals4));
+  }
+
+  @Test
+  public void testDecimalHasher16() {
+    OdpsHasher decimalHasher = TypeHasher.getHasher(OdpsType.DECIMAL);
+    assert decimalHasher.hash(null) == 0;
+    testDecimalHasherImpl(decimalHasher, "0", 0, 0, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "1", 1405592006, 1402234471, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "-1", 1405574141, 1402248358, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "3.22", -731948052, 730530999, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "-3.22", -731955013, 730537979, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "12.34", -904458774, 903682791, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "-12.34", -904460195, 903683925, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "2.5", -713505855, 716028674, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "-2.5", -713498858, 716023753, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "4.9", -708377772, 705872983, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "-4.9", -708362397, 705886300, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "6.4", 1264831551, 1260957683, 4, 2);
+    testDecimalHasherImpl(decimalHasher, "-6.4", 1264830356, 1260954707, 4, 2);
+  }
+
+  // Reference to task/sql_task/execution_engine/test/unittest/utils/codegen_hasher_unittest.cpp:TestDecimalHasher32
+  @Test
+  public void testDecimalHasher32() {
+    OdpsHasher decimalHasher = TypeHasher.getHasher(OdpsType.DECIMAL);
+    assert decimalHasher.hash(null) == 0;
+    testDecimalHasherImpl(decimalHasher, "0", 0, 0, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "1", 1405592006, 1402234471, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "-1", 1405574141, 1402248358, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "3.22", -731948052, 730530999, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "-3.22", -731955013, 730537979, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "12.34", -904458774, 903682791, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "-12.34", -904460195, 903683925, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "2.5", -713505855, 716028674, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "-2.5", -713498858, 716023753, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "4.9", -708377772, 705872983, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "-4.9", -708362397, 705886300, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "6.4", 1264831551, 1260957683, 9, 2);
+    testDecimalHasherImpl(decimalHasher, "-6.4", 1264830356, 1260954707, 9, 2);
+  }
+
+  // Reference to task/sql_task/execution_engine/test/unittest/utils/codegen_hasher_unittest.cpp:TestDecimalHasher64
+  @Test
+  public void testDecimalHasher64() {
+    OdpsHasher decimalHasher = TypeHasher.getHasher(OdpsType.DECIMAL);
+    assert decimalHasher.hash(null) == 0;
+    testDecimalHasherImpl(decimalHasher, "0", 0, 0, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "1", 1405592006, 1402234471, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "-1", 1405574141, 1402248358, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "3.22", -731948052, 730530999, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "-3.22", -731955013, 730537979, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "12.34", -904458774, 903682791, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "-12.34", -904460195, 903683925, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "2.5", -713505855, 716028674, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "-2.5", -713498858, 716023753, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "4.9", -708377772, 705872983, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "-4.9", -708362397, 705886300, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "6.4", 1264831551, 1260957683, 18, 2);
+    testDecimalHasherImpl(decimalHasher, "-6.4", 1264830356, 1260954707, 18, 2);
+  }
+
+  // Reference to task/sql_task/execution_engine/test/unittest/utils/codegen_hasher_unittest.cpp:TestDecimalHasher128
+  @Test
+  public void testDecimalHasher128() {
+    OdpsHasher decimalHasher = TypeHasher.getHasher(OdpsType.DECIMAL);
+    assert decimalHasher.hash(null) == 0;
+    testDecimalHasherImpl(decimalHasher, "0", 0, 0, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "1", -419049619, 417516194, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "-1", 845713778, 844823011, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "3.22", 767759606, 770627554, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "-3.22", 1356370932, 1351109479, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "12.34", -476504367, 477792207, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "-12.34", 250967822, 251363961, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "2.5", -1271677481, 1267175018, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "-2.5", -1715482525, 1713794995, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "4.9", 1252387462, 1257197420, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "-4.9", 1584384421, 1580312172, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "6.4", -1846789132, 1853741007, 38, 18);
+    testDecimalHasherImpl(decimalHasher, "-6.4", -692413333, 694953719, 38, 18);
+  }
+
+  private void testDecimalHasherImpl(OdpsHasher decimalHasher, String s, int expectHash, int expectFinalHash) {
+    testDecimalHasherImpl(decimalHasher, s, expectHash, expectFinalHash, 38, 18);
+  }
+
+  public int FinalHash(int hashVal) {
+    return hashVal ^ (hashVal >> 8);
+  }
+
+  private void testDecimalHasherImpl(OdpsHasher decimalHasher, String s, int expectHash, int expectFinalHash, int precision, int scale) {
+    BigDecimal bigDecimal = new BigDecimal(s);
+    DecimalHashObject decimalHashObject = new DecimalHashObject(bigDecimal, precision, scale);
+    int hash = decimalHasher.hash(decimalHashObject);
+    int finalHash = FinalHash(hash);
+    System.out.println(hash + " " + finalHash);
+    assert hash == expectHash;
+    assert finalHash == expectFinalHash;
   }
 }

@@ -88,4 +88,6 @@ public interface TunnelConstants {
   public static String SCHEMA_VERSION = "schema_version";
   public static String PARAM_DISABLE_MODIFIED_CHECK = "disable_modified_check";
   public static String GET_BLOCK_ID = "getblockid";
+  static final String INSTANCE_NOT_TERMINATED = "InstanceNotTerminate";
+  static final String TASK_FAILED = "TaskFailed";
 }

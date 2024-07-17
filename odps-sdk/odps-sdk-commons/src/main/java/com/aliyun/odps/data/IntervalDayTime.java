@@ -1,5 +1,6 @@
 package com.aliyun.odps.data;
 
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 
@@ -8,7 +9,7 @@ import java.util.concurrent.TimeUnit;
  *
  * Created by zhenhong.gzh on 16/12/12.
  */
-public class IntervalDayTime implements Comparable<IntervalDayTime> {
+public class IntervalDayTime implements Comparable<IntervalDayTime>, Serializable {
   private final static int NANOS_PER_SECOND = 1000000000;
 
   protected long totalSeconds;

@@ -198,17 +198,8 @@ public class StorageTierTest extends TestBase {
       assertEquals(Long.valueOf(1024L), storageTierInfo.getStorageSize("LongTerm"));
 
       table.reloadExtendInfo();
-      // 测试真实场景
-      assertNotNull(table.getStorageTierInfo().getStorageSize("Standard"));
-      System.out.println(
-          "StandardSize :" + table.getStorageTierInfo().getStorageSize("Standard"));
-      assertNotNull(table.getStorageTierInfo().getStorageSize("LowFrequency"));
-      System.out.println(
-          "LowFrequencySize :" + table.getStorageTierInfo().getStorageSize("LowFrequency"));
-      assertNotNull(table.getStorageTierInfo().getStorageSize("LongTerm"));
-      System.out.println("LongTerm :" + table.getStorageTierInfo().getStorageSize("LongTerm"));
-
     } catch (Exception e) {
+      e.printStackTrace();
       ok = false;
       System.out.println("something error in testPartitionStorageTier " + e.getMessage());
     } finally {

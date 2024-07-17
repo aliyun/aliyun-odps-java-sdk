@@ -447,6 +447,10 @@ public class Table extends LazyLoad {
    * @return StorageTierInfo 分层存储信息
    */
   public StorageTierInfo getStorageTierInfo() {
+    if (isPartitioned()) {
+      throw new UnsupportedOperationException(
+          "Partitioned table does not support get storage tier info, use Partition.getStorageTierInfo() instead.");
+    }
     if (model.storageTierInfo == null) {
       reloadExtendInfo();
       isExtendInfoLoaded = true;
@@ -1875,13 +1879,12 @@ public class Table extends LazyLoad {
    * 判断是否  Partition 表
    *
    * @return 是否为 Partition 表
-   * @throws OdpsException
    */
-  public boolean isPartitioned() throws OdpsException {
+  public boolean isPartitioned() {
     if (isVirtualView()) {
       return false;
     }
-    return getSchema().getPartitionColumns().size() > 0;
+    return !getSchema().getPartitionColumns().isEmpty();
   }
 
   private void runSQL(String taskName, String query) throws OdpsException {

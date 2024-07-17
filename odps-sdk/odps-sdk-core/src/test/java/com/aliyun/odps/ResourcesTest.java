@@ -29,11 +29,11 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import com.aliyun.odps.commons.transport.OdpsTestUtils;
-import com.aliyun.odps.utils.StringUtils;
-
 import org.junit.Assert;
 import org.junit.Test;
+
+import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 public class ResourcesTest extends TestBase {
 
@@ -128,6 +128,12 @@ public class ResourcesTest extends TestBase {
     int maxItems = 1000;
     int totalItems = 100000;
     Odps testOdps = OdpsTestUtils.newListResourcesOdps();
+    try {
+      // assume the project exists
+      testOdps.projects().get();
+    } catch (OdpsException e) {
+      return;
+    }
     ListIterator<Resource> iterator = (ListIterator<Resource>) testOdps.resources().iterator();
     List<Resource> list = iterator.list(null, maxItems);
     int cnt = list.size();
@@ -144,6 +150,12 @@ public class ResourcesTest extends TestBase {
   public void testIteratorWithoutMaxItems() {
     int totalItems = 100000;
     Odps testOdps = OdpsTestUtils.newListResourcesOdps();
+    try {
+      // assume the project exists
+      testOdps.projects().get();
+    } catch (OdpsException e) {
+      return;
+    }
     Iterator<Resource> iterator = testOdps.resources().iterator();
     int cnt = 0;
     while (iterator.hasNext()) {

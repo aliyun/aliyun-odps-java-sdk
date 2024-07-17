@@ -36,7 +36,6 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.impl.ConfigurationImpl;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.VolumeInputStream;
 import com.aliyun.odps.tunnel.io.VolumeOutputStream;
@@ -52,7 +51,7 @@ import com.google.gson.JsonParser;
  */
 public class VolumeTunnel {
 
-  private ConfigurationImpl config;
+  private Configuration config;
 
   /**
    * 构造此类对象
@@ -61,7 +60,7 @@ public class VolumeTunnel {
    *     {@link com.aliyun.odps.Odps}
    */
   public VolumeTunnel(Odps odps) {
-    this.config = new ConfigurationImpl(odps);
+    this.config = new Configuration(odps);
   }
 
   /**
@@ -184,7 +183,7 @@ public class VolumeTunnel {
     private UploadStatus status = UploadStatus.UNKNOWN;
     private String quotaName = "";
 
-    private ConfigurationImpl conf;
+    private Configuration conf;
 
     private RestClient tunnelServiceClient;
 
@@ -628,7 +627,7 @@ public class VolumeTunnel {
     private long fileLength = (long) -1;
     private DownloadStatus status = DownloadStatus.UNKNOWN;
     private String quotaName;
-    private ConfigurationImpl conf;
+    private Configuration conf;
 
     private RestClient tunnelServiceClient;
 

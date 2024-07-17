@@ -10,8 +10,9 @@ import com.aliyun.odps.OdpsType;
  * Created by zhenhong.gzh on 16/7/8.
  */
 class SimpleArrayTypeInfo implements ArrayTypeInfo {
+  private static final long serialVersionUID = 1L;
 
-  private TypeInfo valueType;
+  private final TypeInfo valueType;
 
   /**
    * 创建 odps array 类型对象

@@ -25,7 +25,9 @@ import java.net.URISyntaxException;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.GeneralConfiguration;
+import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
@@ -39,20 +41,34 @@ import com.aliyun.odps.utils.StringUtils;
  */
 public class Configuration extends GeneralConfiguration {
 
-  private CompressOption option = new CompressOption();
-
+  private CompressOption compressOption = new CompressOption();
   private String quotaName = "";
+  private TunnelRetryHandler.RetryPolicy retryPolicy;
+  private RestClient.RetryLogger retryLogger;
 
   public Configuration(Odps odps) {
     super(odps);
   }
 
+  public Configuration(Builder builder) {
+    super(builder.odps);
+    this.retryPolicy = builder.retryPolicy;
+    this.quotaName = builder.quotaName;
+    this.compressOption = builder.compressOption;
+    this.retryLogger = builder.retryLogger;
+  }
+
+  public static Builder builder(Odps odps) {
+    return new Builder(odps);
+  }
+
+
   public CompressOption getCompressOption() {
-    return option;
+    return compressOption;
   }
 
   public void setCompressOption(CompressOption option) {
-    this.option = option;
+    this.compressOption = option;
   }
 
   /**
@@ -86,11 +102,76 @@ public class Configuration extends GeneralConfiguration {
     return quotaName;
   }
 
+  public TunnelRetryHandler.RetryPolicy getRetryPolicy() {
+    return retryPolicy;
+  }
+
+  public RestClient.RetryLogger getRetryLogger() {
+    return retryLogger;
+  }
+
   public void setQuotaName(String quotaName) {
     this.quotaName = quotaName;
   }
 
-  protected boolean availableQuotaName() {
+  public boolean availableQuotaName() {
     return !StringUtils.isEmpty(this.quotaName);
+  }
+
+  public RestClient newRestClient(String projectName) throws TunnelException {
+
+    RestClient odpsServiceClient = odps.clone().getRestClient();
+
+    odpsServiceClient.setReadTimeout(getSocketTimeout());
+    odpsServiceClient.setConnectTimeout(getSocketConnectTimeout());
+
+    if (StringUtils.isNullOrEmpty(odps.getTunnelEndpoint())) {
+      odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
+    } else {
+      odpsServiceClient.setEndpoint(odps.getTunnelEndpoint());
+    }
+    return odpsServiceClient;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(odps).withQuotaName(quotaName).withCompressOptions(compressOption)
+        .withRetryPolicy(retryPolicy).withRetryLogger(retryLogger);
+  }
+
+  public static class Builder {
+
+    private final Odps odps;
+    private String quotaName = "";
+    private CompressOption compressOption = new CompressOption();
+    private TunnelRetryHandler.RetryPolicy retryPolicy;
+    private RestClient.RetryLogger retryLogger;
+
+    private Builder(Odps odps) {
+      this.odps = odps;
+    }
+
+    public Builder withQuotaName(String quotaName) {
+      this.quotaName = quotaName;
+      return this;
+    }
+
+    public Builder withCompressOptions(CompressOption compressOption) {
+      this.compressOption = compressOption;
+      return this;
+    }
+
+    public Builder withRetryPolicy(TunnelRetryHandler.RetryPolicy retryPolicy) {
+      this.retryPolicy = retryPolicy;
+      return this;
+    }
+
+    public Builder withRetryLogger(RestClient.RetryLogger retryLogger) {
+      this.retryLogger = retryLogger;
+      return this;
+    }
+
+    public Configuration build() {
+      return new Configuration(this);
+    }
   }
 }

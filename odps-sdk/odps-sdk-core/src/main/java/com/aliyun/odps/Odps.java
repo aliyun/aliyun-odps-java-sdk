@@ -30,6 +30,7 @@ import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
 
 /**
@@ -244,6 +245,9 @@ public class Odps {
 
   public TableTunnel tableTunnel() {
     return new TableTunnel(this);
+  }
+  public TableTunnel tableTunnel(Configuration configuration) {
+    return new TableTunnel(this, configuration);
   }
 
   public Quotas quotas() {

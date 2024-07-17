@@ -71,7 +71,9 @@ public class ArrowDecimalExtensionAccessor extends ArrowVectorAccessor {
         int num = buffer.getInt(8 - 4 * j);
         decimalBuilder.append(String.format("%09d", num));
       }
-      return new BigDecimal(decimalBuilder.toString());
+      // trim trailing zeros
+      return new BigDecimal(new BigDecimal(decimalBuilder.toString())
+                                .stripTrailingZeros().toPlainString());
     } catch (Exception e) {
       // if decimal is inf or nan, return null
       return null;

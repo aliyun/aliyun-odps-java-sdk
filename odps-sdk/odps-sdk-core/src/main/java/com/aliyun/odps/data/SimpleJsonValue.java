@@ -1,29 +1,38 @@
 package com.aliyun.odps.data;
 
+import java.io.Serializable;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-public class SimpleJsonValue implements JsonValue {
+public class SimpleJsonValue implements JsonValue, Serializable {
+
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  private JsonNode value;
+  private String stringValue;
+  private transient JsonNode value;
 
   public SimpleJsonValue(String value) {
-    try {
-      this.value = OBJECT_MAPPER.readTree(value);
-    } catch (Exception e) {
-      throw new IllegalArgumentException("Illegal argument for JsonValue value.");
+    this(value, false);
+  }
+
+  public SimpleJsonValue(String value, boolean validate) {
+    this.stringValue = value;
+    if (validate) {
+      lazyLoad();
     }
   }
 
   public SimpleJsonValue(JsonNode jsonNode) {
+    this.stringValue = jsonNode.toString();
     this.value = jsonNode;
   }
 
   @Override
   public int size() {
+    lazyLoad();
     if (!value.isArray()) {
       throw new UnsupportedOperationException();
     }
@@ -31,28 +40,43 @@ public class SimpleJsonValue implements JsonValue {
     return arrayNode.size();
   }
 
+  private void lazyLoad() {
+    if (value == null) {
+      try {
+        this.value = OBJECT_MAPPER.readTree(stringValue);
+      } catch (Exception e) {
+        throw new IllegalArgumentException("Illegal argument for JsonValue value.");
+      }
+    }
+  }
+
   @Override
   public boolean isJsonPrimitive() {
+    lazyLoad();
     return !value.isArray() && !value.isObject();
   }
 
   @Override
   public boolean isJsonArray() {
+    lazyLoad();
     return value.isArray();
   }
 
   @Override
   public boolean isJsonObject() {
+    lazyLoad();
     return this.value.isObject();
   }
 
   @Override
   public boolean isJsonNull() {
+    lazyLoad();
     return this.value.isNull();
   }
 
   @Override
   public JsonValue get(int index) {
+    lazyLoad();
     if (!isJsonArray()) {
       throw new UnsupportedOperationException();
     }
@@ -62,6 +86,7 @@ public class SimpleJsonValue implements JsonValue {
 
   @Override
   public JsonValue get(String filedName) {
+    lazyLoad();
     if (!isJsonObject()) {
       throw new UnsupportedOperationException();
     }
@@ -71,6 +96,7 @@ public class SimpleJsonValue implements JsonValue {
 
   @Override
   public Boolean getAsBoolean() {
+    lazyLoad();
     if (!value.isBoolean()) {
       throw new UnsupportedOperationException();
     }
@@ -79,6 +105,7 @@ public class SimpleJsonValue implements JsonValue {
 
   @Override
   public Number getAsNumber() {
+    lazyLoad();
     if (!value.isNumber()) {
       throw new UnsupportedOperationException();
     }
@@ -97,7 +124,7 @@ public class SimpleJsonValue implements JsonValue {
 
       @Override
       public float floatValue() {
-        return (float)value.asDouble();
+        return (float) value.asDouble();
       }
 
       @Override
@@ -109,6 +136,7 @@ public class SimpleJsonValue implements JsonValue {
 
   @Override
   public String getAsString() {
+    lazyLoad();
     if (!value.isTextual()) {
       throw new UnsupportedOperationException();
     }
@@ -117,6 +145,6 @@ public class SimpleJsonValue implements JsonValue {
 
   @Override
   public String toString() {
-    return this.value.toString();
+    return stringValue;
   }
 }

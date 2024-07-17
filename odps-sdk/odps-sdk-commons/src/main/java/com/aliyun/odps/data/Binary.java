@@ -1,5 +1,6 @@
 package com.aliyun.odps.data;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 import com.aliyun.odps.utils.StringUtils;
@@ -9,7 +10,7 @@ import com.aliyun.odps.utils.StringUtils;
  *
  * Created by zhenhong.gzh on 16/12/12.
  */
-public class Binary implements Comparable<Binary> {
+public class Binary implements Comparable<Binary>, Serializable {
   protected byte[] data;
 
   public Binary(byte[] data) {

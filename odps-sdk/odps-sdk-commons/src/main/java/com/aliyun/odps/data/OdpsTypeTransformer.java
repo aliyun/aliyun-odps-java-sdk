@@ -103,6 +103,14 @@ public class OdpsTypeTransformer {
     }
   }
 
+  private static void validateJson(Object value) {
+    // maybe we should validate string type here
+    if (value instanceof JsonValue) {
+      // trigger lazy load
+      ((JsonValue) value).isJsonObject();
+    }
+  }
+
   private static void validateChar(Char value, CharTypeInfo typeInfo) {
     if (value.length() > typeInfo.getLength()) {
       throw new IllegalArgumentException(String.format(
@@ -235,6 +243,7 @@ public class OdpsTypeTransformer {
         if (setData) {
           if (strict) {
             validateString(transformedResult.toString(), fieldMaxSize);
+            validateJson(transformedResult);
           }
           return (T) transformedResult;
         }

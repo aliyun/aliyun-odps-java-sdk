@@ -21,8 +21,6 @@ package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
 
-import com.aliyun.odps.commons.util.RetryExceedLimitException;
-import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -98,7 +96,6 @@ public class TunnelBufferedWriter implements RecordWriter {
 
   private ProtobufRecordPack bufferedPack;
   private TableTunnel.UploadSession session;
-  private RetryStrategy retry;
   private long bufferSize;
   private float flushThreshold;
   private long bytesWritten;
@@ -131,7 +128,6 @@ public class TunnelBufferedWriter implements RecordWriter {
     this.session = session;
     this.bufferSize = BUFFER_SIZE_DEFAULT;
     this.flushThreshold = FLUSH_THRESHOLD_DEFAULT;
-    this.retry = new TunnelRetryStrategy();
     this.bytesWritten = 0;
     this.isClosed = false;
   }
@@ -193,16 +189,6 @@ public class TunnelBufferedWriter implements RecordWriter {
   }
 
   /**
-   * 设置重试策略
-   *
-   * @param strategy
-   *     {@link RetryStrategy}
-   */
-  public void setRetryStrategy(RetryStrategy strategy) {
-    this.retry = strategy;
-  }
-
-  /**
    * 将 record 写入缓冲区，当其大小超过 bufferSize 时，上传缓冲区中的记录。过程中如果发生错误将
    * 进行自动重试，这个过程中 write 调用将一直阻塞，直到所有记录上传成功为止。
    *
@@ -252,9 +238,6 @@ public class TunnelBufferedWriter implements RecordWriter {
 
   public void flush() throws IOException {
     checkStatus();
-
-    // 每一个block的上传单独计算重试次数
-    retry.reset();
     // 得到实际序列化的的字节数，如果等于 0，说明没有写，跳过即可
     long delta = bufferedPack.getTotalBytesWritten();
     if (delta > 0) {
@@ -263,30 +246,19 @@ public class TunnelBufferedWriter implements RecordWriter {
       if (versionProvider != null) {
         version = versionProvider.generateVersion(blockId);
       }
-      while (true) {
+
+      if (versionProvider != null) {
         try {
-          if (versionProvider != null) {
-            try {
-              session.writeBlock(blockId, bufferedPack, timeout, version);
-            } catch (TunnelException e) {
-              throw new IOException("Generate block version invalid", e);
-            }
-          } else {
-            session.writeBlock(blockId, bufferedPack, timeout);
-          }
-          bufferedPack.reset();
-          bytesWritten += delta;
-          return;
-        } catch (IOException e) {
-          try {
-            retry.onFailure(e);
-          } catch (RetryExceedLimitException ignore) {
-            throw e;
-          } catch (InterruptedException ignore) {
-            throw e;
-          }
+          // write block already have retry logic.
+          session.writeBlock(blockId, bufferedPack, timeout, version);
+        } catch (TunnelException e) {
+          throw new IOException("Generate block version invalid", e);
         }
+      } else {
+        session.writeBlock(blockId, bufferedPack, timeout);
       }
+      bufferedPack.reset();
+      bytesWritten += delta;
     }
   }
 

@@ -1022,6 +1022,10 @@ public class Tables implements Iterable<Table> {
     i.waitForSuccess();
   }
 
+  public TableCreator newTableCreator(String tableName, TableSchema schema) {
+    return new TableCreator(odps, odps.getDefaultProject(), tableName, schema);
+  }
+
   public TableCreator newTableCreator(String projectName, String tableName, TableSchema schema) {
     return new TableCreator(odps, projectName, tableName, schema);
   }

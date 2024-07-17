@@ -13,9 +13,9 @@ import com.aliyun.odps.utils.StringUtils;
  * Created by zhenhong.gzh on 16/7/8.
  */
 class SimpleStructTypeInfo implements StructTypeInfo {
-
-  private List<String> fieldNames;
-  private List<TypeInfo> fieldTypeInfos;
+  private static final long serialVersionUID = 1L;
+  private final List<String> fieldNames;
+  private final List<TypeInfo> fieldTypeInfos;
 
 
   /**

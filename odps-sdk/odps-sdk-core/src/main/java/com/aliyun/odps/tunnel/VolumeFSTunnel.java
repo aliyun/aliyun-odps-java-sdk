@@ -31,7 +31,6 @@ import com.aliyun.odps.commons.transport.Request.Method;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.impl.ConfigurationImpl;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.VolumeInputStream;
 import com.aliyun.odps.tunnel.io.VolumeOutputStream;
@@ -44,7 +43,7 @@ import com.aliyun.odps.tunnel.io.VolumeOutputStream;
  */
 public class VolumeFSTunnel {
 
-  private ConfigurationImpl conf;
+  private Configuration conf;
 
   private static enum Encoding {
     deflate
@@ -55,7 +54,7 @@ public class VolumeFSTunnel {
   private static final String REPLICATION = "replication";
 
   public VolumeFSTunnel(Odps odps) {
-    this.conf = new ConfigurationImpl(odps);
+    this.conf = new Configuration(odps);
   }
 
   /**

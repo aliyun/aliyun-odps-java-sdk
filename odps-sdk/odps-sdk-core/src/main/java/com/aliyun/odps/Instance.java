@@ -42,6 +42,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import com.aliyun.odps.utils.GsonObjectBuilder;
+import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -902,13 +903,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    *     Instance失败
    */
   public void waitForSuccess(long interval) throws OdpsException {
-    while (!isTerminated()) {
-      try {
-        Thread.sleep(interval);
-      } catch (InterruptedException e) {
-        break;
-      }
-    }
+    waitForTerminated(interval);
 
     if (!isSuccessful()) {
       for (Entry<String, TaskStatus> e : getTaskStatus().entrySet()) {
@@ -919,6 +914,49 @@ public class Instance extends com.aliyun.odps.LazyLoad {
         }
       }
     }
+  }
+
+  /**
+   * 阻塞当前线程, 直到Instance结束。不检查 Instance 状态。
+   *
+   * @param interval
+   *     内部轮询间隔
+   */
+  public void waitForTerminated(long interval) {
+    while (!isTerminated()) {
+      try {
+        Thread.sleep(interval);
+      } catch (InterruptedException e) {
+        break;
+      }
+    }
+  }
+
+  /**
+   * 直接获取作业结果，无需调用 waitForSuccess 方法
+   * 该方法仅适用于离线作业（1个Instance对应1个Task）
+   */
+  public String waitForTerminatedAndGetResult() throws OdpsException {
+    waitForTerminated(1000);
+
+    TaskResult taskResult = getRawTaskResults().get(0);
+    String resultStr = taskResult.getResult().getString();
+
+    TaskStatus.Status taskStatus = TaskStatus.Status.SUCCESS;
+    if (!StringUtils.isNullOrEmpty(taskResult.getStatus())) {
+      taskStatus = TaskStatus.Status.valueOf(taskResult.getStatus().toUpperCase());
+    } else {
+      Map<String, TaskStatus> taskStatuses = getTaskStatus();
+      for (Entry<String, TaskStatus> e : taskStatuses.entrySet()) {
+        taskStatus = e.getValue().getStatus();
+      }
+    }
+    if (taskStatus == TaskStatus.Status.FAILED) {
+      throw new OdpsException(resultStr);
+    } else if (taskStatus != TaskStatus.Status.SUCCESS) {
+      throw new OdpsException(taskResult.getName() + ", Status=" + taskStatus + ", Result=" + resultStr);
+    }
+    return resultStr;
   }
 
   // SysTask

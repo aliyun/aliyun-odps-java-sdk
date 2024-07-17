@@ -1,7 +1,10 @@
 package com.aliyun.odps.tunnel.impl;
 
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_ROUTED_SERVER;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,16 +16,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.commons.transport.HttpStatus;
+import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
+import com.aliyun.odps.tunnel.hasher.DecimalHashObject;
 import com.aliyun.odps.tunnel.hasher.TypeHasher;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
+import com.aliyun.odps.type.DecimalTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.utils.FixedNettyChannelPool;
 
 import io.netty.bootstrap.Bootstrap;
@@ -236,8 +244,17 @@ public class UpsertStreamImpl implements UpsertStream {
             " UpsertRecord must have primary key value, consider provide values for column '"
             + schema.getColumn(key).getName() + "'");
       }
-      hashValues.add(TypeHasher.hash(schema.getColumn(key).getTypeInfo().getOdpsType(), value,
-                                     session.getHasher()));
+      TypeInfo typeInfo = schema.getColumn(key).getTypeInfo();
+
+      // java type BigDecimal's precision and scale may be different from typeInfo,
+      // so here converted to DecimalHashObject
+      if (typeInfo.getOdpsType() == OdpsType.DECIMAL) {
+        DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) typeInfo;
+        value =
+            new DecimalHashObject((BigDecimal) value, decimalTypeInfo.getPrecision(),
+                                  decimalTypeInfo.getScale());
+      }
+      hashValues.add(TypeHasher.hash(typeInfo.getOdpsType(), value, session.getHasher()));
     }
 
     int bucket = TypeHasher.CombineHashVal(hashValues) % buckets.size();
@@ -291,7 +308,7 @@ public class UpsertStreamImpl implements UpsertStream {
           ProtobufRecordPack pack = entry.getValue();
           if (pack.getSize() > 0) {
             if (pack.getTotalBytes() > slotBufferSize || flushAll) {
-              int k = entry.getKey();
+              int bucketId = entry.getKey();
               long bytes = pack.getTotalBytes();
               pack.checkTransConsistency(false);
               pack.complete();
@@ -299,9 +316,9 @@ public class UpsertStreamImpl implements UpsertStream {
               if (!flushAll) {
                 totalBufferSize += bytes;
               }
-              Request request = session.buildRequest("PUT", k, buckets.get(k), pack.getTotalBytes(), pack.getSize(), compressOption);
+              Request request = session.buildRequest("PUT", bucketId, buckets.get(bucketId), pack.getTotalBytes(), pack.getSize(), compressOption);
               channel = channelPool.acquire();
-              FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry);
+              FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry, bucketId);
               channel.pipeline().addLast(handler);
               handlers.add(handler);
               ChannelFuture
@@ -387,6 +404,7 @@ public class UpsertStreamImpl implements UpsertStream {
     long start;
     Listener listener;
     int retry;
+    int bucketId;
 
     public UpsertStream.FlushResult getFlushResult() {
       return flushResult;
@@ -400,7 +418,7 @@ public class UpsertStreamImpl implements UpsertStream {
       this.exception = exception;
     }
 
-    FlushResultHandler(ProtobufRecordPack pack, CountDownLatch latch, Listener listener, int retry) {
+    FlushResultHandler(ProtobufRecordPack pack, CountDownLatch latch, Listener listener, int retry, int bucketId) {
       this.flushResult.recordCount = pack.getSize();
       this.pack = pack;
       this.flushResult.flushSize = pack.getTotalBytes();
@@ -408,6 +426,7 @@ public class UpsertStreamImpl implements UpsertStream {
       this.start = System.currentTimeMillis();
       this.listener = listener;
       this.retry = retry;
+      this.bucketId = bucketId;
     }
 
     @Override
@@ -428,6 +447,17 @@ public class UpsertStreamImpl implements UpsertStream {
         } else {
           try (ByteBufInputStream contentStream = new ByteBufInputStream(response.content())) {
             exception = new TunnelException(this.flushResult.traceId, contentStream, response.status().code());
+
+            // 308 means should update slot map and retry
+            if (response.status().code() == HttpStatus.SLOT_REASSIGNMENT) {
+              if (response.headers().contains(HEADER_ODPS_ROUTED_SERVER)) {
+                String newSlotServer = response.headers().get(HEADER_ODPS_ROUTED_SERVER);
+                session.updateBuckets(bucketId, newSlotServer);
+              } else {
+                session.updateBuckets(bucketId, null);
+              }
+              buckets = session.getBuckets();
+            }
           }
         }
       } catch (Exception e) {

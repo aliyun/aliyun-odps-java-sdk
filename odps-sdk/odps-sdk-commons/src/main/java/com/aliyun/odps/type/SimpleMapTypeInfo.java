@@ -10,9 +10,10 @@ import com.aliyun.odps.OdpsType;
  * Created by zhenhong.gzh on 16/7/8.
  */
 class SimpleMapTypeInfo implements MapTypeInfo {
+  private static final long serialVersionUID = 1L;
 
-  private TypeInfo keyType;
-  private TypeInfo valueType;
+  private final TypeInfo keyType;
+  private final TypeInfo valueType;
 
   /**
    * 创建 odps map 类型

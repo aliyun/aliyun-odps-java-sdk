@@ -12,14 +12,15 @@ import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
-import com.aliyun.odps.tunnel.io.TunnelRetryStrategy;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.utils.StringUtils;
 
 public abstract class SessionBase {
     protected String id;
-    protected ConfigurationImpl config;
+    protected Configuration config;
     protected String projectName;
     protected String schemaName;
     protected String tableName;
@@ -27,7 +28,7 @@ public abstract class SessionBase {
     protected String quotaName;
     protected RestClient httpClient;
     protected TableSchema schema = new TableSchema();
-    protected TunnelRetryStrategy tunnelRetryStrategy = new TunnelRetryStrategy();
+    protected TunnelRetryHandler tunnelRetryHandler = new TunnelRetryHandler();
 
     public class HttpResult {
         public String requestId;
@@ -83,16 +84,13 @@ public abstract class SessionBase {
     protected SessionBase.HttpResult httpRequest(HashMap<String, String> headers,
                                                  Map<String, String> params, String method,
                                                  String action) throws TunnelException {
-        while (true) {
-            try {
-                return httpRequestWithNoRetry(headers, params, method, action);
-            } catch (TunnelException e) {
-                try {
-                    tunnelRetryStrategy.onFailure(e);
-                } catch (Exception ignored) {
-                    throw e;
-                }
-            }
+        try {
+           return tunnelRetryHandler.executeWithRetry(
+                () -> httpRequestWithNoRetry(headers, params, method, action));
+        } catch (TunnelException | RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new TunnelException(e.getMessage(), e);
         }
     }
 
@@ -112,5 +110,9 @@ public abstract class SessionBase {
         }
 
         return params;
+    }
+
+    public TunnelRetryHandler getTunnelRetryHandler() {
+        return tunnelRetryHandler;
     }
 }

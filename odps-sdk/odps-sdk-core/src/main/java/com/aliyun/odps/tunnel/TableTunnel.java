@@ -54,8 +54,6 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.ArrowUtils;
 import com.aliyun.odps.commons.util.IOUtils;
-import com.aliyun.odps.commons.util.RetryExceedLimitException;
-import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.ArrowRecordReader;
 import com.aliyun.odps.data.ArrowRecordWriter;
@@ -66,7 +64,6 @@ import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.impl.ConfigurationImpl;
 import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 import com.aliyun.odps.tunnel.impl.UpsertSessionImpl;
 import com.aliyun.odps.tunnel.io.ArrowTunnelRecordReader;
@@ -77,7 +74,7 @@ import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
-import com.aliyun.odps.tunnel.io.TunnelRetryStrategy;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.ConnectionWatcher;
@@ -167,7 +164,7 @@ public class TableTunnel {
     long generateVersion(long blockId);
   }
 
-  private final ConfigurationImpl config;
+  private final Configuration config;
   private final Random random = new Random();
   private final Odps odps;
 
@@ -179,7 +176,12 @@ public class TableTunnel {
    */
   public TableTunnel(Odps odps) {
     this.odps = odps;
-    this.config = new ConfigurationImpl(odps);
+    this.config = new Configuration(odps);
+  }
+
+  public TableTunnel(Odps odps, Configuration config) {
+    this.odps = odps;
+    this.config = config;
   }
 
   public Odps getOdps() {
@@ -1303,8 +1305,6 @@ public class TableTunnel {
        */
       UpsertSession.Builder setReadTimeout(long timeout);
 
-      UpsertSession.Builder setRetryStrategy(TunnelRetryStrategy retryStrategy);
-
       UpsertSession build() throws TunnelException, IOException;
     }
   }
@@ -1369,7 +1369,7 @@ public class TableTunnel {
     private UploadStatus status = UploadStatus.UNKNOWN;
     private String quotaName;
 
-    private ConfigurationImpl conf;
+    private Configuration conf;
 
     private RestClient tunnelServiceClient;
 
@@ -1433,10 +1433,27 @@ public class TableTunnel {
       this.fetchBlockId = fetchBlockId;
 
       tunnelServiceClient = conf.newRestClient(projectName);
-      if (id == null) {
-        initiate();
-      } else {
-        reload();
+
+      initiateOrReload();
+    }
+
+    private void initiateOrReload() throws TunnelException {
+      TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
+      try {
+        retryHandler.executeWithRetry(
+            () -> {
+              if (this.id == null) {
+                initiate();
+              } else {
+                reload();
+              }
+              return null;
+            }
+        );
+      } catch (TunnelException | RuntimeException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new TunnelException(e.getMessage(), e);
       }
     }
 
@@ -1556,27 +1573,38 @@ public class TableTunnel {
 
     private void writeBlockInternal(long blockId, RecordPack pack, long timeout, long blockVersion)
         throws IOException {
-      Connection conn = null;
+      TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
       try {
-        if (pack instanceof ProtobufRecordPack) {
-          ProtobufRecordPack protoPack = (ProtobufRecordPack) pack;
-          conn = getConnection(blockId, protoPack.getCompressOption(), blockVersion);
-          sendBlock(protoPack, conn, timeout);
-        } else {
-          RecordWriter writer = openRecordWriter(blockId);
-          RecordReader reader = pack.getRecordReader();
-          Record record;
-          while ((record = reader.read()) != null) {
-            writer.write(record);
+        retryHandler.executeWithRetry(() -> {
+          Connection conn = null;
+          try {
+            if (pack instanceof ProtobufRecordPack) {
+              ProtobufRecordPack protoPack = (ProtobufRecordPack) pack;
+              conn = getConnection(blockId, protoPack.getCompressOption(), blockVersion);
+              sendBlock(protoPack, conn, timeout);
+            } else {
+              RecordWriter writer = openRecordWriter(blockId);
+              RecordReader reader = pack.getRecordReader();
+              Record record;
+              while ((record = reader.read()) != null) {
+                writer.write(record);
+              }
+              writer.close();
+            }
+          } finally {
+            if (conn != null) {
+              try {
+                conn.disconnect();
+              } catch (IOException e) {
+              }
+            }
           }
-          writer.close();
-        }
-      } catch (OdpsException e) {
+          return null;
+        });
+      } catch (RuntimeException re) {
+        throw re;
+      } catch (Exception e) {
         throw new IOException(e.getMessage(), e);
-      } finally {
-        if (null != conn) {
-          conn.disconnect();
-        }
       }
     }
 
@@ -1669,28 +1697,33 @@ public class TableTunnel {
     }
 
     private RecordWriter openRecordWriterInternal(long blockId, CompressOption compress, long blockVersion)
-        throws TunnelException,
-        IOException {
-
-      TunnelRecordWriter writer = null;
-      Connection conn = null;
+        throws TunnelException {
+      TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
       try {
-        conn = getConnection(blockId, compress, blockVersion);
-        writer =
-            new TunnelRecordWriter(schema, conn, compress);
-        writer.setTransform(shouldTransform);
-      } catch (IOException e) {
-        if (conn != null) {
-          conn.disconnect();
-        }
-        throw new TunnelException(e.getMessage(), e.getCause());
-      } catch (TunnelException e) {
-        throw e;
-      } catch (OdpsException e) {
+        return retryHandler.executeWithRetry(() -> {
+          Connection conn = null;
+          try {
+            TunnelRecordWriter writer = null;
+            conn = getConnection(blockId, compress, blockVersion);
+            writer =
+                new TunnelRecordWriter(schema, conn, compress);
+            writer.setTransform(shouldTransform);
+            return writer;
+          } catch (IOException e) {
+            if (conn != null) {
+              try {
+                conn.disconnect();
+              } catch (IOException ignored) {
+              }
+            }
+            throw e;
+          }
+        });
+      } catch (RuntimeException re) {
+        throw re;
+      } catch (Exception e) {
         throw new TunnelException(e.getMessage(), e);
       }
-
-      return writer;
     }
 
     /**
@@ -1951,35 +1984,35 @@ public class TableTunnel {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
 
-      RetryStrategy retryStrategy = new RetryStrategy(tunnelServiceClient.getRetryTimes(), RETRY_SLEEP_SECONDS);
-      while (true) {
-        Connection conn = null;
-        try {
-          conn = tunnelServiceClient.connect(getResource(), "POST", params, headers);
-          Response resp = conn.getResponse();
-
-          if (resp.isOK()) {
-            loadFromJson(conn.getInputStream());
-            break;
-          } else {
-            throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(),
-                                      resp.getStatus());
-          }
-        } catch (TunnelException e) {
+      TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
+      try {
+        retryHandler.executeWithRetry(() -> {
+          Connection conn = null;
           try {
-            retryStrategy.onFailure(e);
-          } catch (RetryExceedLimitException ignore) {
-            throw e;
-          } catch (InterruptedException ignore) {
-            throw e;
+            conn = tunnelServiceClient.connect(getResource(), "POST", params, headers);
+            Response resp = conn.getResponse();
+
+            if (resp.isOK()) {
+              loadFromJson(conn.getInputStream());
+              return null;
+            } else {
+              throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
+                                        conn.getInputStream(),
+                                        resp.getStatus());
+            }
+          } finally {
+            if (conn != null) {
+              try {
+                conn.disconnect();
+              } catch (IOException ignored) {
+              }
+            }
           }
-        } catch (OdpsException e) {
-          throw new TunnelException(e.getMessage(), e);
-        } finally {
-          if (conn != null) {
-            conn.disconnect();
-          }
-        }
+        });
+      } catch (TunnelException | RuntimeException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new TunnelException(e.getMessage(), e);
       }
     }
 
@@ -2062,7 +2095,7 @@ public class TableTunnel {
       return blocks.toArray(new Long[0]);
     }
 
-    private String getResource() {
+    public String getResource() {
       return conf.getResource(projectName, schemaName, tableName);
     }
 
@@ -2151,7 +2184,7 @@ public class TableTunnel {
     private TableSchema schema = new TableSchema();
     private DownloadStatus status = DownloadStatus.UNKNOWN;
     private String quotaName;
-    private ConfigurationImpl conf;
+    private Configuration conf;
 
     /**
      * tunnel下载行级权限表（RAP）会按照行级权限规则起sql进行过滤处理，

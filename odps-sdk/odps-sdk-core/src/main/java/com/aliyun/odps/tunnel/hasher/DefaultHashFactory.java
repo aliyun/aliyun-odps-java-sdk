@@ -1,5 +1,7 @@
 package com.aliyun.odps.tunnel.hasher;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -44,6 +46,7 @@ class DefaultHashFactory implements HasherFactory {
     factoryMap.put(OdpsType.BINARY, new BinaryHasher());
     factoryMap.put(OdpsType.TIMESTAMP, new TimestampHasher());
     factoryMap.put(OdpsType.INTERVAL_DAY_TIME, new IntervalDayTimeHasher());
+    factoryMap.put(OdpsType.DECIMAL, new DecimalHasher());
   }
 
 
@@ -364,6 +367,117 @@ class DefaultHashFactory implements HasherFactory {
       totalSec <<= 30;
       totalSec |= nanos;
       return basicLongHasher(totalSec);
+    }
+  }
+
+  /**
+   * Decimal type hash
+   * for apsara::odps::RuntimeDecimalVal
+   */
+  private static class DecimalHasher implements OdpsHasher<DecimalHashObject> {
+
+    @Override
+    public int hash(DecimalHashObject obj) {
+      if (obj == null) {
+        return 0;
+      }
+      BigDecimal val = obj.val();
+      int precision = obj.precision();
+      int scale = obj.scale();
+      BigInteger bi = castBigDecimal2BigInteger(val.toString(), precision, scale);
+      if (isDecimal128(precision)) {
+        // Reference to task/sql_task/execution_engine/ir/hash_ir.cpp:HashInt1284Row
+        return basicLongHasher(bi.longValue()) + basicLongHasher(bi.shiftRight(64).longValue());
+      }
+      return basicLongHasher(bi.longValue());
+    }
+
+    // Reference to include/runtime_decimal_val.h:isDecimal128
+    private boolean isDecimal128(int precision) {
+      return precision > 18;
+    }
+
+    // Reference to the code in common/util/runtime_decimal_val_funcs.cpp::RuntimeDecimalValFuncs::doCastTo.
+    // This function converts decimal into an int128_t variable (= 16 Bytes).
+    private BigInteger castBigDecimal2BigInteger(String input, int resultPrecision, int resultScale)
+        throws IllegalArgumentException {
+      // trim
+      input = input.trim();
+      int len = input.length();
+      int ptr = 0;
+
+      // check negative
+      boolean isNegative = false;
+      if (len > 0) {
+        if (input.charAt(ptr) == '-') {
+          isNegative = true;
+          ptr++;
+          len--;
+        } else if (input.charAt(ptr) == '+') {
+          ptr++;
+          len--;
+        }
+      }
+
+      // ignore leading zeros
+      while (len > 0 && input.charAt(ptr) == '0') {
+        ptr++;
+        len--;
+      }
+
+      // check decimal format and analyze precison and scale
+      int valueScale = 0;
+      boolean foundDot = false;
+      boolean foundExponent = false;
+      for (int i = 0; i < len; i++) {
+        char c = input.charAt(ptr + i);
+        if (Character.isDigit(c)) {
+          if (foundDot) {
+            valueScale++;
+          }
+        } else if (c == '.' && !foundDot) {
+          foundDot = true;
+        } else if ((c == 'e' || c == 'E') && i + 1 < len) {
+          foundExponent = true;
+          int exponent = Integer.parseInt(input.substring(ptr + i + 1));
+          valueScale -= exponent;
+          len = ptr + i;
+          break;
+        } else {
+          throw new IllegalArgumentException("Invalid decimal format: " + input);
+        }
+      }
+
+      // get result value
+      String
+          numberWithoutExponent =
+          foundExponent ? input.substring(ptr, len) : input.substring(ptr);
+      if (foundDot) {
+        numberWithoutExponent = numberWithoutExponent.replace(".", "");
+      }
+      if (numberWithoutExponent.isEmpty()) {
+        return BigInteger.ZERO;
+      }
+      BigInteger tmpResult = new BigInteger(numberWithoutExponent);
+      if (valueScale > resultScale) {
+        tmpResult = tmpResult.divide(BigInteger.TEN.pow(valueScale - resultScale));
+        if (numberWithoutExponent.charAt(
+            numberWithoutExponent.length() - (valueScale - resultScale)) >= '5') {
+          tmpResult = tmpResult.add(BigInteger.ONE);
+        }
+      } else if (valueScale < resultScale) {
+        tmpResult = tmpResult.multiply(BigInteger.TEN.pow(resultScale - valueScale));
+      }
+      if (isNegative) {
+        tmpResult = tmpResult.negate();
+      }
+
+      // TODO: check overflow
+      // if (tmpResult.toString().length() - (isNegative ? 1 : 0) > resultPrecision) {
+      //     throw new IllegalArgumentException("Result precision overflow.");
+      // }
+
+      return tmpResult;
     }
   }
 }

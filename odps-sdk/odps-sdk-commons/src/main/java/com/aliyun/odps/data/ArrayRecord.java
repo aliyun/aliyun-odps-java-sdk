@@ -22,6 +22,7 @@ package com.aliyun.odps.data;
 import static com.aliyun.odps.data.OdpsTypeTransformer.getCompatibleType;
 import static com.aliyun.odps.data.OdpsTypeTransformer.transformAndValidate;
 
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -47,7 +48,8 @@ import com.aliyun.odps.type.TypeInfoFactory;
  *
  * @see Record
  */
-public class ArrayRecord implements Record {
+public class ArrayRecord implements Record, Serializable {
+  private static final long serialVersionUID = 1L;
   private static final Long DEFAULT_FIELD_MAX_SIZE = 8 * 1024 * 1024L;
   private static final String DEFAULT_CHARSET = "utf-8";
 
@@ -58,7 +60,7 @@ public class ArrayRecord implements Record {
       .build();
 
   private Column[] columns;
-  private final Object[] values;
+  private final Serializable[] values;
   private HashMap<String, Integer> nameMap = new HashMap<>();
 
   /**
@@ -90,7 +92,7 @@ public class ArrayRecord implements Record {
       this.fieldMaxSize = fieldMaxSize;
     }
 
-    values = new Object[columns.length];
+    values = new Serializable[columns.length];
 
     for (int i = 0; i < columns.length; i++) {
       nameMap.put(columns[i].getName(), i);
@@ -1139,7 +1141,7 @@ public class ArrayRecord implements Record {
    * set record column value directly without type validation
    * unsafe: caller must ensure correct type and do validation check externally when necessary
    */
-  public void setWithoutValidation(int idx, Object o){
+  public void setWithoutValidation(int idx, Serializable o){
     this.values[idx] = o;
   }
 

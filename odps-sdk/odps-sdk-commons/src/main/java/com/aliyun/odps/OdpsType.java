@@ -19,12 +19,13 @@
 
 package com.aliyun.odps;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
  * ODPS表支持的字段类型
  */
-public enum OdpsType {
+public enum OdpsType implements Serializable {
   /**
    * 8字节有符号整型
    */

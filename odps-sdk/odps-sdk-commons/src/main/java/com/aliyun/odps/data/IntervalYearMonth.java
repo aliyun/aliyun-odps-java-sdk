@@ -1,12 +1,14 @@
 package com.aliyun.odps.data;
 
+import java.io.Serializable;
+
 /**
  * Interval Year Month 类型对应的数据类
  *
  * Created by zhenhong.gzh on 16/12/12.
  */
 
-public class IntervalYearMonth implements Comparable<IntervalYearMonth> {
+public class IntervalYearMonth implements Comparable<IntervalYearMonth>, Serializable {
   private final static int MONTHS_PER_YEAR = 12;
   private final static int MAX_YEARS = 9999;
 

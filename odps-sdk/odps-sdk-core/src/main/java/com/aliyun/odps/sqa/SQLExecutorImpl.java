@@ -49,6 +49,7 @@ import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 import com.aliyun.odps.sqa.commandapi.utils.SqlParserUtil;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
+import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.CSVRecordParser;
@@ -1206,9 +1207,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet getOfflineResultSet()
       throws OdpsException, IOException {
-    queryInfo.getInstance().waitForSuccess();
-    Map<String, String> results = queryInfo.getInstance().getTaskResults();
-    String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+    String selectResult = queryInfo.getInstance().waitForTerminatedAndGetResult();
     if (!StringUtils.isNullOrEmpty(selectResult)) {
       if (queryInfo.isSelect()) {
         CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(selectResult);
@@ -1233,7 +1232,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet getOfflineResultSetByInstanceTunnel(Long limit)
       throws OdpsException, IOException {
-    queryInfo.getInstance().waitForSuccess();
+    queryInfo.getInstance().waitForTerminated(1000);
     // getResultSet will use instance tunnel, which do not support non-select query
     if (queryInfo.isSelect()) {
       URI tunnelEndpoint = null;
@@ -1244,9 +1243,20 @@ class SQLExecutorImpl implements SQLExecutor {
           throw new RuntimeException("tunnel endpoint syntax error, please check again.");
         }
       }
-      return SQLTask
-          .getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
-              limit, false, tunnelEndpoint);
+      try {
+        return SQLTask
+            .getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
+                          limit, false, tunnelEndpoint);
+      } catch (TunnelException tunnelException) {
+        // Tunnel may throw the following exceptions when task failed. In this case, we should
+        // get the error message by API
+        if (TunnelConstants.INSTANCE_NOT_TERMINATED.equals(tunnelException.getErrorCode())
+            || TunnelConstants.TASK_FAILED.equals(tunnelException.getErrorCode())) {
+          return getOfflineResultSet();
+        } else {
+          throw tunnelException;
+        }
+      }
     } else {
       Map<String, String> results = queryInfo.getInstance().getTaskResults();
       String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
@@ -1260,7 +1270,6 @@ class SQLExecutorImpl implements SQLExecutor {
           new OfflineRecordSetIterator(records),
           schema,
           records.size());
-
     }
   }
 

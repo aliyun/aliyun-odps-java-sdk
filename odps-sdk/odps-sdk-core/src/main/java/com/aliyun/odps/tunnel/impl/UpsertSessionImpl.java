@@ -17,18 +17,21 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.commons.transport.HttpStatus;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.io.CompressOption;
-import com.aliyun.odps.tunnel.io.TunnelRetryStrategy;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.utils.FixedNettyChannelPool;
+import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -86,7 +89,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         this.connectTimeout = config.getSocketConnectTimeout() * 1000L;
         this.readTimeout = config.getSocketTimeout() * 1000L;
         this.id = builder.getUpsertId();
-        this.tunnelRetryStrategy = builder.retryStrategy;
+        this.tunnelRetryHandler = new TunnelRetryHandler(config);
         if (id == null) {
             initiate();
         } else {
@@ -113,26 +116,37 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
     @Override
     public UpsertStream.Builder buildUpsertStream() {
-        return new UpsertStreamImpl.Builder().setSession(this).setListener(
-            new UpsertStream.Listener() {
-                @Override
-                public void onFlush(UpsertStream.FlushResult result) {
-                    // do nothing
-                }
+        return new UpsertStreamImpl.Builder().setSession(this)
+            .setCompressOption(config.getCompressOption()).setListener(
+                new DefaultUpsertSteamListener(this));
+    }
 
-                @Override
-                public boolean onFlushFail(Exception error, int retry) {
+    public static class DefaultUpsertSteamListener implements UpsertStream.Listener {
+        UpsertSessionImpl session;
+
+        public DefaultUpsertSteamListener(UpsertSessionImpl session) {
+            this.session = session;
+        }
+        @Override
+        public void onFlush(UpsertStream.FlushResult result) {
+            // do nothing
+        }
+
+        @Override
+        public boolean onFlushFail(Exception error, int retry) {
+            if (error instanceof TunnelException) {
+                int errorStatus = ((TunnelException) error).getStatus();
+                if (errorStatus == HttpStatus.BAD_GATEWAY
+                    || errorStatus == HttpStatus.GATEWAY_TIMEOUT) {
                     try {
-                        if (tunnelRetryStrategy == null) {
-                          return false;
-                        }
-                        tunnelRetryStrategy.onFailure(error);
-                        return true;
-                    } catch (Exception e) {
+                        session.reload(false);
+                    } catch (TunnelException e) {
                         return false;
                     }
                 }
-            });
+            }
+            return session.getTunnelRetryHandler().onFailure(error, retry);
+        }
     }
 
     @Override
@@ -379,7 +393,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         }
     }
 
-    public static Bootstrap generateNettyBootstrap(ConfigurationImpl configuration,
+    public static Bootstrap generateNettyBootstrap(Configuration configuration,
                                                    EventLoopGroup group) {
         Bootstrap bootstrap = new Bootstrap();
         Odps odps = configuration.getOdps();
@@ -404,6 +418,19 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,
                          configuration.getSocketConnectTimeout() * 1000);
         return bootstrap;
+    }
+
+    void updateBuckets(int bucketId, String newSlotServer) throws TunnelException {
+        if (StringUtils.isNullOrEmpty(newSlotServer)) {
+            reload(false);
+        } else {
+            try {
+                readLock.lock();
+                buckets.get(bucketId).setServer(newSlotServer);
+            } finally {
+                readLock.unlock();
+            }
+        }
     }
 
     Request buildRequest(String method,
@@ -505,8 +532,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         int threadNum = 1;
         private long slotNum = 1;
         private long commitTimeout = 120 * 1000;
-        ConfigurationImpl config;
-        TunnelRetryStrategy retryStrategy;
+        Configuration config;
 
         public String getUpsertId() {
             return upsertId;
@@ -567,11 +593,11 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
             return this;
         }
 
-        public ConfigurationImpl getConfig() {
+        public Configuration getConfig() {
             return config;
         }
 
-        public UpsertSessionImpl.Builder setConfig(ConfigurationImpl config) {
+        public UpsertSessionImpl.Builder setConfig(Configuration config) {
             if (config == null) {
                 throw new IllegalArgumentException("config can not be null!");
             }
@@ -618,12 +644,6 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 throw new IllegalArgumentException("timeout value must be positive");
             }
             config.setSocketTimeout((int) (timeout / 1000));
-            return this;
-        }
-
-        @Override
-        public UpsertSessionImpl.Builder setRetryStrategy(TunnelRetryStrategy retryStrategy) {
-            this.retryStrategy = retryStrategy;
             return this;
         }
 

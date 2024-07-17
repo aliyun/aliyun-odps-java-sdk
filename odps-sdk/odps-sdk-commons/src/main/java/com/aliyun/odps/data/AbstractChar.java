@@ -1,6 +1,8 @@
 package com.aliyun.odps.data;
 
-public abstract class  AbstractChar<T extends AbstractChar> {
+import java.io.Serializable;
+
+public abstract class  AbstractChar<T extends AbstractChar> implements Serializable {
   protected String value;
 
   AbstractChar(String value) {

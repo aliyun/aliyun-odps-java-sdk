@@ -129,6 +129,12 @@ public class SecurityConfiguration extends LazyLoad {
     @Element(name = "GrammarVersion", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String grammarVersion;
+
+    @Element(name = "EnableTenantResourceAccessControl", required = false)
+    boolean tenantResourceAccessControl;
+
+    @Element(name = "EnableRAMResourceAccessControl", required = false)
+    boolean ramResourceAccessControl;
   }
 
   private SecurityConfigurationModel model;
@@ -388,5 +394,29 @@ public class SecurityConfiguration extends LazyLoad {
 
   public String getGrammarVersion() {
     return this.model.grammarVersion;
+  }
+
+  public boolean ramResourceAccessControl() {
+    return this.model.ramResourceAccessControl;
+  }
+
+  public void enableRamResourceAccessControl() {
+    this.model.ramResourceAccessControl = true;
+  }
+
+  public void disableRamResourceAccessControl() {
+    this.model.ramResourceAccessControl = false;
+  }
+
+  public boolean tenantResourceAccessControl() {
+    return this.model.tenantResourceAccessControl;
+  }
+
+  public void enableTenantResourceAccessControl() {
+    this.model.tenantResourceAccessControl = true;
+  }
+
+  public void disableTenantResourceAccessControl() {
+    this.model.tenantResourceAccessControl = false;
   }
 }

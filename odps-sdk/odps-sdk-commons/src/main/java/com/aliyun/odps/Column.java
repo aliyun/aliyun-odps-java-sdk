@@ -19,8 +19,10 @@
 
 package com.aliyun.odps;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
@@ -30,8 +32,8 @@ import com.aliyun.odps.type.TypeInfoFactory;
 /**
  * Column表示ODPS中表的列定义
  */
-public final class Column {
-
+public final class Column implements Serializable {
+  private static final long serialVersionUID = 1L;
   private String name;
   private OdpsType type;
   private TypeInfo typeInfo;
@@ -41,7 +43,6 @@ public final class Column {
   private String defaultValue = null;
   private boolean isNullable = true;
   private boolean hasDefaultValue = false;
-  private boolean primaryKey = false;
 
   private List<OdpsType> genericOdpsTypeList;
   private List<String> extendedLabels;
@@ -114,7 +115,6 @@ public final class Column {
     this(columnBuilder.name, columnBuilder.typeInfo, columnBuilder.comment, columnBuilder.label,
          columnBuilder.extendedLabels);
     this.isNullable = !columnBuilder.notNull;
-    this.primaryKey = columnBuilder.primaryKey;
   }
 
   /**
@@ -380,8 +380,30 @@ public final class Column {
     return hasDefaultValue;
   }
 
-  public boolean isPrimaryKey() {
-    return primaryKey;
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Column column = (Column) o;
+    return isNullable == column.isNullable && hasDefaultValue == column.hasDefaultValue
+           && Objects.equals(name, column.name)
+           && type == column.type && Objects.equals(typeInfo, column.typeInfo)
+           && Objects.equals(comment, column.comment) && Objects.equals(label,
+                                                                        column.label)
+           && Objects.equals(defaultValue, column.defaultValue) && Objects.equals(
+        genericOdpsTypeList, column.genericOdpsTypeList) && Objects.equals(extendedLabels,
+                                                                           column.extendedLabels);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(name, type, typeInfo, comment, label, defaultValue, isNullable,
+                        hasDefaultValue, genericOdpsTypeList, extendedLabels);
   }
 
   public static class ColumnBuilder {
@@ -392,7 +414,6 @@ public final class Column {
     private String label;
     private List<String> extendedLabels;
     private boolean notNull = false;
-    private boolean primaryKey = false;
 
     private ColumnBuilder(String name, TypeInfo typeInfo) {
       this.name = name;
@@ -415,12 +436,6 @@ public final class Column {
     }
 
     public ColumnBuilder notNull() {
-      this.notNull = true;
-      return this;
-    }
-
-    public ColumnBuilder primaryKey() {
-      this.primaryKey = true;
       this.notNull = true;
       return this;
     }

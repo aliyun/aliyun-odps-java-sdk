@@ -8,6 +8,7 @@ import com.aliyun.odps.OdpsType;
  * Created by zhenhong.gzh on 16/7/12.
  */
 public class VarcharTypeInfo extends AbstractCharTypeInfo {
+  private static final long serialVersionUID = 1L;
   static final int MAX_VARCHAR_LENGTH = 0xffff;
   /**
    * 创建 varchar 类型

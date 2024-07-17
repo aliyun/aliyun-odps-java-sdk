@@ -1,5 +1,6 @@
 package com.aliyun.odps.data;
 
+import java.io.Serializable;
 import java.util.List;
 
 import com.aliyun.odps.type.TypeInfo;
@@ -9,7 +10,7 @@ import com.aliyun.odps.type.TypeInfo;
  *
  * Created by zhenhong.gzh on 16/8/22.
  */
-public interface Struct {
+public interface Struct extends Serializable {
   int getFieldCount();
   String getFieldName(int index);
   TypeInfo getFieldTypeInfo(int index);

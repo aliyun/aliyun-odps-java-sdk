@@ -1,5 +1,17 @@
 package com.aliyun.odps.tunnel.impl;
 
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TableSchema;
@@ -8,21 +20,20 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.tunnel.*;
-import com.aliyun.odps.tunnel.io.*;
+import com.aliyun.odps.tunnel.Configuration;
+import com.aliyun.odps.tunnel.HttpHeaders;
+import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.tunnel.TunnelConstants;
+import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.tunnel.io.StreamRecordPackImpl;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.utils.ConnectionWatcher;
 import com.aliyun.odps.utils.StringUtils;
-import com.google.gson.*;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.net.SocketTimeoutException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.*;
-
-import static com.aliyun.odps.commons.transport.Headers.TUNNEL_RECORD_COUNT;
-import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
 public class StreamUploadSessionImpl extends StreamSessionBase implements TableTunnel.StreamUploadSession {
     public static class Builder extends TableTunnel.StreamUploadSession.Builder {
@@ -31,7 +42,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         private CompressOption compressOption = new CompressOption();
         private boolean p2pMode = false;
         private List<Column> zorderColumns;
-        private ConfigurationImpl config;
+        private Configuration config;
 
         public String getProjectName() {
             return projectName;
@@ -69,11 +80,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             return this;
         }
 
-        public ConfigurationImpl getConfig() {
+        public Configuration getConfig() {
             return config;
         }
 
-        public StreamUploadSessionImpl.Builder setConfig(ConfigurationImpl config) {
+        public StreamUploadSessionImpl.Builder setConfig(Configuration config) {
             this.config = config;
             return this;
         }
@@ -95,7 +106,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     private boolean p2pMode = false;
     private List<Column> columns;
 
-    public StreamUploadSessionImpl(ConfigurationImpl conf,
+    public StreamUploadSessionImpl(Configuration conf,
                                    String projectName,
                                    String schemaName,
                                    String tableName,
@@ -317,17 +328,29 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
      */
     public String writeBlock(ProtobufRecordPack pack, long timeout)
             throws IOException {
-        Connection conn = null;
+        TunnelRetryHandler tunnelRetryHandler = new TunnelRetryHandler(config);
         try {
-            Slot slot = slots.iterator().next();
-            conn = getConnection(pack.getCompressOption(), slot, pack.getTotalBytes(), pack.getSize());
-            return sendBlock(pack, conn, slot, timeout);
-        } catch (OdpsException e) {
+            return tunnelRetryHandler.executeWithRetry(() -> {
+                Connection conn = null;
+                try {
+                    Slot slot = slots.iterator().next();
+                    conn =
+                        getConnection(pack.getCompressOption(), slot, pack.getTotalBytes(),
+                                      pack.getSize());
+                    return sendBlock(pack, conn, slot, timeout);
+                } finally {
+                    if (conn != null) {
+                        try {
+                            conn.disconnect();
+                        } catch (IOException e) {
+                        }
+                    }
+                }
+            });
+        } catch (RuntimeException re) {
+            throw re;
+        } catch (Exception e) {
             throw new IOException(e.getMessage(), e);
-        } finally {
-            if (null != conn) {
-                conn.disconnect();
-            }
         }
     }
 
@@ -421,6 +444,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
     }
 
+    // abort does not support retry
     public void abort() throws TunnelException {
         HashMap<String, String> params = new HashMap<String, String>();
 

@@ -10,11 +10,12 @@ import com.aliyun.odps.OdpsType;
  * Created by zhenhong.gzh on 16/7/7.
  */
 public class DecimalTypeInfo extends AbstractPrimitiveTypeInfo {
+  private static final long serialVersionUID = 1L;
   static final int DEFAULT_PRECISION = 54;
   static final int DEFAULT_SCALE = 18;
 
-  private int precision;
-  private int scale;
+  private final int precision;
+  private final int scale;
 
   DecimalTypeInfo() {
     this(DEFAULT_PRECISION, DEFAULT_SCALE);

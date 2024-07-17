@@ -19,17 +19,19 @@
 
 package com.aliyun.odps;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
 import com.aliyun.odps.type.TypeInfoFactory;
 
 /**
  * TableSchema表示ODPS中表的定义
  */
-public class TableSchema {
-
+public class TableSchema implements Serializable {
+  private static final long serialVersionUID = 1L;
   private ArrayList<Column> columns = new ArrayList<Column>();
   private ArrayList<Column> partitionColumns = new ArrayList<Column>();
 
@@ -269,6 +271,25 @@ public class TableSchema {
       }
     }
     return true;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    TableSchema that = (TableSchema) o;
+    return Objects.equals(columns, that.columns) && Objects.equals(
+        partitionColumns, that.partitionColumns) && Objects.equals(nameMap, that.nameMap)
+           && Objects.equals(partitionNameMap, that.partitionNameMap);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(columns, partitionColumns, nameMap, partitionNameMap);
   }
 
   public static class Builder {
