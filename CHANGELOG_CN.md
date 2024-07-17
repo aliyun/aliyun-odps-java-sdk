@@ -1,5 +1,26 @@
 # 更新日志
 
+## [0.48.6-public] - 2024-07-17
+
+### 新增
+- **支持序列化**：
+  - 主要数据类型如 `ArrayRecord`、`Column`、`TableSchema` 和 `TypeInfo` 现在支持序列化和反序列化，能够进行缓存和进程间通信。
+- **谓词下推**：
+  - 新增 `Attribute` 类型的谓词，用于指定列名。
+
+### 变更
+- **Tunnel 接口重构**：
+  - 重构了 Tunnel 相关接口，加入了无感知的重试逻辑，大大增强了稳定性和鲁棒性。
+  - 删除了 `TunnelRetryStrategy` 和 `ConfigurationImpl` 类，分别被 `TunnelRetryHandler` 和 `Configuration` 所取代。
+
+### 优化
+- **SQLExecutor 优化**：
+  - 在使用 `SQLExecutor` 接口执行离线 SQL 作业时进行优化，减少每个作业获取结果时的一次网络请求，从而减少端到端延时。
+
+### 修复
+- **Table.read Decimal 读取**：
+  - 修复了 `Table.read` 接口在读取 `decimal` 类型时，后面补零不符合预期的问题。
+
 ## [0.48.5-public] - 2024-06-17
 
 ### 新增

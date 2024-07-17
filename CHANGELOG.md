@@ -1,4 +1,27 @@
 # Changelog
+
+## [0.48.6-public] - 2024-07-17
+
+### Added
+- **Serializable Support**:
+  - Key data types like `ArrayRecord`, `Column`, `TableSchema`, and `TypeInfo` now support serialization and deserialization, enabling caching and inter-process communication.
+- **Predicate Pushdown**:
+  - Introduced `Attribute` type predicates to specify column names.
+
+### Changed
+- **Tunnel Interface Refactoring**:
+  - Refactored Tunnel-related interfaces to include seamless retry logic, greatly enhancing stability and robustness.
+  - Removed `TunnelRetryStrategy` and `ConfigurationImpl` classes, which are now replaced by `TunnelRetryHandler` and `Configuration` respectively.
+
+### Improve
+- **SQLExecutor Optimization**:
+  - Improved performance when executing offline SQL jobs through the `SQLExecutor` interface, reducing one network request per job to fetch results, thereby decreasing end-to-end latency.
+
+### Fixed
+- **Decimal Read in Table.read**:
+  - Fixed issue where trailing zeroes in the `decimal` type were not as expected in the `Table.read` interface.
+
+
 ## [0.48.5-public] - 2024-06-17
 ### Added
 - Added the `getPartitionSpecs` method to the `Table` interface. Compared to the `getPartitions` method, this method does not require fetching detailed partition information, resulting in faster execution.
