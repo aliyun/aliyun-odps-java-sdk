@@ -81,6 +81,9 @@ public class TunnelRetryHandler {
     }
 
     private RetryPolicy getRetryPolicy(Integer errorCode) {
+        if (errorCode == null) {
+            return defaultRetryPolicy;
+        }
         if (errorCode == HttpStatus.SLOT_REASSIGNMENT || errorCode == HttpStatus.FLOW_EXCEEDED) {
             return InfiniteExponentialWaitRetryPolicy.INSTANCE;
         } else if (HttpStatus.isServerError(errorCode)) {

@@ -1,25 +1,63 @@
 # 更新日志
 
+## [0.48.7-public] - 2024-08-07
+
+### 增强
+
+- **TableTunnel 配置优化**：引入 `tags` 属性至 `TableTunnel Configuration`
+  ，旨在允许用户为隧道相关操作附上自定义标签。这些标签会被记录在租户层级的 `information schema`
+  中，便于日志追踪与管理。
+
+```java
+Odps odps;
+    Configuration configuration=
+    Configuration.builder(odps)
+    .withTags(Arrays.asList("tag1","tag2")) // 使用 Arrays.asList 以提升代码规范性
+    .build();
+    TableTunnel tableTunnel=odps.tableTunnel(configuration);
+// 继续执行隧道相关操作
+```
+
+- **Instance 增强**：在 `Instance` 类中新增 `waitForTerminatedAndGetResult` 方法，此方法整合了 0.48.6
+  及 0.48.7 版本中对 `SQLExecutor`
+  接口的优化策略，提升了操作效率。使用方式可参考 `com.aliyun.odps.sqa.SQLExecutorImpl.getOfflineResultSet`
+  方法。
+
+### 优化
+
+- **SQLExecutor 离线作业处理优化**：显著减少了端到端延迟，通过改进使得由 `SQLExecutor`
+  执行的离线作业能在关键处理阶段完成后即刻获取结果，无需等待作业全部完成，提高了响应速度和资源利用率。
+
+### 修复
+
+- **TunnelRetryHandler NPE修复**：修正了 `getRetryPolicy` 方法中在错误码 (`error code`) 为 `null`
+  的情况下潜在空指针异常问题。
+
 ## [0.48.6-public] - 2024-07-17
 
 ### 新增
+
 - **支持序列化**：
-  - 主要数据类型如 `ArrayRecord`、`Column`、`TableSchema` 和 `TypeInfo` 现在支持序列化和反序列化，能够进行缓存和进程间通信。
+    - 主要数据类型如 `ArrayRecord`、`Column`、`TableSchema` 和 `TypeInfo` 现在支持序列化和反序列化，能够进行缓存和进程间通信。
 - **谓词下推**：
-  - 新增 `Attribute` 类型的谓词，用于指定列名。
+    - 新增 `Attribute` 类型的谓词，用于指定列名。
 
 ### 变更
+
 - **Tunnel 接口重构**：
-  - 重构了 Tunnel 相关接口，加入了无感知的重试逻辑，大大增强了稳定性和鲁棒性。
-  - 删除了 `TunnelRetryStrategy` 和 `ConfigurationImpl` 类，分别被 `TunnelRetryHandler` 和 `Configuration` 所取代。
+    - 重构了 Tunnel 相关接口，加入了无感知的重试逻辑，大大增强了稳定性和鲁棒性。
+    - 删除了 `TunnelRetryStrategy` 和 `ConfigurationImpl` 类，分别被 `TunnelRetryHandler`
+      和 `Configuration` 所取代。
 
 ### 优化
+
 - **SQLExecutor 优化**：
-  - 在使用 `SQLExecutor` 接口执行离线 SQL 作业时进行优化，减少每个作业获取结果时的一次网络请求，从而减少端到端延时。
+    - 在使用 `SQLExecutor` 接口执行离线 SQL 作业时进行优化，减少每个作业获取结果时的一次网络请求，从而减少端到端延时。
 
 ### 修复
+
 - **Table.read Decimal 读取**：
-  - 修复了 `Table.read` 接口在读取 `decimal` 类型时，后面补零不符合预期的问题。
+    - 修复了 `Table.read` 接口在读取 `decimal` 类型时，后面补零不符合预期的问题。
 
 ## [0.48.5-public] - 2024-06-17
 

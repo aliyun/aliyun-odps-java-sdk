@@ -239,6 +239,10 @@ public class VolumeTunnel {
 
       HashMap<String, String> headers = new HashMap<String, String>();
       headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       HashMap<String, String> params = new HashMap<String, String>();
       params.put(TunnelConstants.TYPE, "volumefile");
@@ -320,6 +324,10 @@ public class VolumeTunnel {
       headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
       headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION,
                   String.valueOf(TunnelConstants.VERSION));
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       if (compress) {
         if (conf.getCompressOption().algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZLIB)) {
@@ -698,6 +706,10 @@ public class VolumeTunnel {
 
       HashMap<String, String> headers = new HashMap<String, String>();
       headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       HashMap<String, String> params = new HashMap<String, String>();
       params.put(TunnelConstants.TYPE, "volumefile");
@@ -824,6 +836,10 @@ public class VolumeTunnel {
 
       headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION,
                   String.valueOf(TunnelConstants.VERSION));
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       if (compress) {
         if (conf.getCompressOption().algorithm

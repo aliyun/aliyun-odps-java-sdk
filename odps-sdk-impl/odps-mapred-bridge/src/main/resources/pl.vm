@@ -71,9 +71,9 @@ $!{ctx.FunctionCreateText}
         #end
         #if(${ctx.isNoInputTableInfos()})
         #if(!${ctx.mapOnly()})
-        SELECT mr2sql_mapper_${ctx.Id}_${nodeId}() as (${node.IntermediateColsJoinedMapOut}) FROM values('') _t (_c)
+        SELECT mr2sql_mapper_${ctx.Id}_${nodeId}() as (${node.IntermediateColsJoinedMapOut}) FROM values('') _t (_c) where false
         #else
-        SELECT mr2sql_mapper_${ctx.Id}_${nodeId}() as (${ctx.PackagedColsJoined}) FROM values('') _t (_c)
+        SELECT mr2sql_mapper_${ctx.Id}_${nodeId}() as (${ctx.PackagedColsJoined}) FROM values('') _t (_c) where false
         #end##
         #end
         ) open_mr_alias_${nodeId}_1

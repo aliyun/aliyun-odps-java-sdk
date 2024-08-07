@@ -1232,7 +1232,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet getOfflineResultSetByInstanceTunnel(Long limit)
       throws OdpsException, IOException {
-    queryInfo.getInstance().waitForTerminated(1000);
+    queryInfo.getInstance().waitForTerminated(1000, true);
     // getResultSet will use instance tunnel, which do not support non-select query
     if (queryInfo.isSelect()) {
       URI tunnelEndpoint = null;

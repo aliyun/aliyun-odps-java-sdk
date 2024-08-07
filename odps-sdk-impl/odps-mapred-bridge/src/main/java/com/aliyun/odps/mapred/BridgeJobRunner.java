@@ -296,6 +296,7 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
       OutputUtils.setTables(infos, job);
     }
 
+    getProjectModeConf();
     processTempResources();
 
     // Adding jobconf jar.
@@ -384,6 +385,16 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
       metaExplorer.deleteResource(resource);
     }
     isClean = true;
+  }
+
+  private void getProjectModeConf(){
+    try {
+      String mode = metaExplorer.getProjectProperty(SessionState.MR_EXECUTION_MODE);
+      if (mode != null) {
+        job.set("odps.mr.project.conf", mode);
+      }
+    } catch (OdpsException ignore) {
+    }
   }
 
   abstract protected Instance submitInternal() throws OdpsException;

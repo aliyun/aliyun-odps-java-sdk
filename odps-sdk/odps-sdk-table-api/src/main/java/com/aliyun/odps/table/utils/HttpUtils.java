@@ -22,6 +22,8 @@ package com.aliyun.odps.table.utils;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.table.configuration.RestOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
+import com.aliyun.odps.tunnel.HttpHeaders;
+import com.aliyun.odps.tunnel.TunnelConstants;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,10 +31,22 @@ import java.util.Optional;
 
 public class HttpUtils {
 
-    public static Map<String, String> createCommonHeader() {
+    public static Map<String, String> createCommonHeader(EnvironmentSettings settings) {
         Map<String, String> headers = new HashMap<>();
         headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+        if (settings != null && settings.getTags().isPresent()) {
+            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS,
+                        String.join(",", settings.getTags().get()));
+        }
         return headers;
+    }
+
+    public static Map<String, String> createCommonParams(EnvironmentSettings settings) {
+        Map<String, String> params = new HashMap<>();
+        if (settings != null && settings.getQuotaName().isPresent()) {
+            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
+        }
+        return params;
     }
 
     public static long getAsyncIntervalInMills(EnvironmentSettings settings) {

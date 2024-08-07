@@ -178,6 +178,12 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
                 throw new TunnelException("invalid compression option.");
             }
         }
+        Configuration conf = tableSession.getConfig();
+        List<String> tags = conf.getTags();
+        if (tags != null) {
+            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+        }
+
         if (columns != null && columns.size() != 0) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < columns.size(); ++i) {
@@ -201,7 +207,6 @@ public class ArrowTunnelRecordReader implements ArrowRecordReader {
 
         params.put(TunnelConstants.PARAM_ARROW, "");
 
-        Configuration conf = tableSession.getConfig();
         if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
             params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
         }

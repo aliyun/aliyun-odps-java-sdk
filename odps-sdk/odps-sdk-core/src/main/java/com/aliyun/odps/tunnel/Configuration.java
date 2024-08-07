@@ -21,6 +21,7 @@ package com.aliyun.odps.tunnel;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -43,6 +44,7 @@ public class Configuration extends GeneralConfiguration {
 
   private CompressOption compressOption = new CompressOption();
   private String quotaName = "";
+  private List<String> tags;
   private TunnelRetryHandler.RetryPolicy retryPolicy;
   private RestClient.RetryLogger retryLogger;
 
@@ -56,6 +58,7 @@ public class Configuration extends GeneralConfiguration {
     this.quotaName = builder.quotaName;
     this.compressOption = builder.compressOption;
     this.retryLogger = builder.retryLogger;
+    this.tags = builder.tags;
   }
 
   public static Builder builder(Odps odps) {
@@ -102,6 +105,10 @@ public class Configuration extends GeneralConfiguration {
     return quotaName;
   }
 
+  public List<String> getTags() {
+    return tags;
+  }
+
   public TunnelRetryHandler.RetryPolicy getRetryPolicy() {
     return retryPolicy;
   }
@@ -142,6 +149,7 @@ public class Configuration extends GeneralConfiguration {
 
     private final Odps odps;
     private String quotaName = "";
+    private List<String> tags;
     private CompressOption compressOption = new CompressOption();
     private TunnelRetryHandler.RetryPolicy retryPolicy;
     private RestClient.RetryLogger retryLogger;
@@ -152,6 +160,11 @@ public class Configuration extends GeneralConfiguration {
 
     public Builder withQuotaName(String quotaName) {
       this.quotaName = quotaName;
+      return this;
+    }
+
+    public Builder withTags(List<String> tags) {
+      this.tags = tags;
       return this;
     }
 

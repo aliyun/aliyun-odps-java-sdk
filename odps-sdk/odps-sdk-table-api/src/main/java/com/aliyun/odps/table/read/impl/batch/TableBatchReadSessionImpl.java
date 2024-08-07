@@ -62,6 +62,7 @@ import com.aliyun.odps.table.utils.HttpUtils;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.table.utils.SchemaUtils;
 import com.aliyun.odps.table.utils.SessionUtils;
+import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.google.gson.Gson;
@@ -122,14 +123,11 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
     protected void planInputSplits() throws IOException {
         ensureClientInitialized();
 
-        Map<String, String> headers = HttpUtils.createCommonHeader();
+        Map<String, String> headers = HttpUtils.createCommonHeader(settings);
         headers.put(Headers.CONTENT_TYPE, "application/json");
 
-        Map<String, String> params = new HashMap<>();
+        Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
-        if (settings != null && settings.getQuotaName().isPresent()) {
-            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
-        }
 
         try {
             String request = generateReadSessionRequest();
@@ -217,13 +215,10 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
         Preconditions.checkString(sessionId, "Table read session id");
 
-        Map<String, String> headers = HttpUtils.createCommonHeader();
+        Map<String, String> headers = HttpUtils.createCommonHeader(settings);
 
-        Map<String, String> params = new HashMap<>();
+        Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
-        if (settings != null && settings.getQuotaName().isPresent()) {
-            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
-        }
 
         Connection conn = null;
         try {

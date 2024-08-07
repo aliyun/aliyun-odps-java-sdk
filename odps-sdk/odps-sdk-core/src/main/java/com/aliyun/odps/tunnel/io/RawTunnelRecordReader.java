@@ -89,6 +89,12 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       }
     }
 
+    Configuration conf = session.getConfig();
+    List<String> tags = conf.getTags();
+    if (tags != null) {
+      headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+    }
+
     if (columns != null && columns.size() != 0) {
       StringBuilder sb = new StringBuilder();
       for (int i = 0; i < columns.size(); ++i) {
@@ -104,7 +110,6 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       params.put(TunnelConstants.INSTANCE_TUNNEL_LIMIT_ENABLED, null);
     }
 
-    Configuration conf = session.getConfig();
     if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
       params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
     }
@@ -273,6 +278,11 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
         }
       }
     }
+    Configuration conf = session.getConfig();
+    List<String> tags = conf.getTags();
+    if (tags != null) {
+      headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+    }
 
     if (columns != null && columns.size() != 0) {
       StringBuilder sb = new StringBuilder();
@@ -295,7 +305,6 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
       params.put(TunnelConstants.RES_PARTITION, partitionSpec);
     }
 
-    Configuration conf = session.getConfig();
     if (!StringUtils.isNullOrEmpty(conf.getQuotaName())) {
       params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
     }

@@ -20,6 +20,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.aliyun.odps.Odps;
@@ -85,6 +86,10 @@ public class VolumeFSTunnel {
         throw new TunnelException("Not Support compress option:" + compressOption.algorithm.name());
       }
     }
+    List<String> tags = this.conf.getTags();
+    if (tags != null) {
+      headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+    }
     if (conf.availableQuotaName()) {
       params.put(TunnelConstants.PARAM_QUOTA_NAME, conf.getQuotaName());
     }
@@ -147,6 +152,11 @@ public class VolumeFSTunnel {
     headers.put(Headers.CONTENT_TYPE, STREAM_CONTENT_TYPE);
     headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
     headers.put(HttpHeaders.HEADER_ODPS_VOLUME_FS_PATH, path);
+
+    List<String> tags = this.conf.getTags();
+    if (tags != null) {
+      headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+    }
 
     boolean compress = false;
     if (compressOption != null) {

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.48.7-public] - 2024-08-07
+### Enhancements
+- **TableTunnel Configuration Optimization**: Introduced the `tags` attribute to `TableTunnel Configuration`, enabling users to attach custom tags to tunnel operations for enhanced logging and management. These tags are recorded in the tenant-level `information schema`.
+```java
+Odps odps;
+Configuration configuration =
+    Configuration.builder(odps)
+                 .withTags(Arrays.asList("tag1", "tag2")) // Utilize Arrays.asList for code standardization
+                 .build();
+TableTunnel tableTunnel = odps.tableTunnel(configuration);
+// Proceed with tunnel operations
+```
+- **Instance Enhancement**: Added the `waitForTerminatedAndGetResult` method to the `Instance` class, integrating optimization strategies from versions 0.48.6 and 0.48.7 for the `SQLExecutor` interface, enhancing operational efficiency. Refer to `com.aliyun.odps.sqa.SQLExecutorImpl.getOfflineResultSet` for usage.
+
+### Improve
+- **SQLExecutor Offline Job Processing Optimization**: Significantly reduced end-to-end latency by enabling immediate result retrieval after critical processing stages of offline jobs executed by `SQLExecutor`, without waiting for the job to fully complete, thus boosting response speed and resource utilization.
+### Fixes
+- **TunnelRetryHandler NPE Fix**: Rectified a potential null pointer exception issue in the `getRetryPolicy` method when the error code (`error code`) was `null`.
+
 ## [0.48.6-public] - 2024-07-17
 
 ### Added

@@ -16,8 +16,7 @@ public class BinaryPredicate extends Predicate {
     GREATER_THAN(">"),
     LESS_THAN("<"),
     GREATER_THAN_OR_EQUAL(">="),
-    LESS_THAN_OR_EQUAL("<="),
-    LIKE("LIKE");
+    LESS_THAN_OR_EQUAL("<=");
 
     private final String description;
 
@@ -65,10 +64,6 @@ public class BinaryPredicate extends Predicate {
   public static BinaryPredicate lessThanOrEqual(Serializable leftOperand,
                                                 Serializable rightOperand) {
     return new BinaryPredicate(Operator.LESS_THAN_OR_EQUAL, leftOperand, rightOperand);
-  }
-
-  public static BinaryPredicate like(Serializable leftOperand, Serializable rightOperand) {
-    return new BinaryPredicate(Operator.LIKE, leftOperand, rightOperand);
   }
 
   public Operator getOperator() {

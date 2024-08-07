@@ -19,11 +19,11 @@
 
 package com.aliyun.odps.table.enviroment;
 
+import java.util.List;
+import java.util.Optional;
+
 import com.aliyun.odps.table.configuration.RestOptions;
 import com.aliyun.odps.table.utils.Preconditions;
-
-import java.io.Serializable;
-import java.util.Optional;
 
 /**
  * Environment settings for table read/write
@@ -33,6 +33,7 @@ public class EnvironmentSettings {
     private final ExecutionMode executionMode;
 
     private final String quotaName;
+    private final List<String> tags;
 
     private final Credentials credentials;
 
@@ -53,6 +54,7 @@ public class EnvironmentSettings {
     private EnvironmentSettings(Builder builder) {
         this.executionMode = builder.executionMode;
         this.quotaName = builder.quotaName;
+        this.tags = builder.tags;
         this.credentials = builder.credentials;
         this.defaultProject = builder.defaultProject;
         this.defaultSchema = builder.defaultSchema;
@@ -72,6 +74,10 @@ public class EnvironmentSettings {
 
     public Optional<String> getQuotaName() {
         return Optional.ofNullable(quotaName);
+    }
+
+    public Optional<List<String>> getTags() {
+        return Optional.ofNullable(tags);
     }
 
     public Optional<String> getDefaultProject() {
@@ -114,6 +120,7 @@ public class EnvironmentSettings {
         private String defaultProject;
         private String defaultSchema;
         private String quotaName;
+        private List<String> tags;
         private String serviceEndPoint;
         private String tunnelEndpoint;
         private RestOptions restOptions;
@@ -166,6 +173,11 @@ public class EnvironmentSettings {
 
         public Builder withQuotaName(String quotaName) {
             this.quotaName = quotaName;
+            return this;
+        }
+
+        public Builder withTags(List<String> tags) {
+            this.tags = tags;
             return this;
         }
 

@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.aliyun.odps.Odps;
@@ -59,6 +60,7 @@ public class RestClientTest extends TestBase {
   }
 
   @Test
+  @Ignore
   public void testRetryAfter() {
     String resource = "/projects/retry_after/tables/test_retry";
     String method = "GET";

@@ -486,6 +486,11 @@ public class InstanceTunnel {
       HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = TableTunnel.getCommonHeader();
 
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
+
       params.put(TunnelConstants.DOWNLOADS, null);
 
       if (this.conf.availableQuotaName()) {
@@ -540,8 +545,15 @@ public class InstanceTunnel {
     private void reload() throws TunnelException {
       HashMap<String, String> params = new HashMap<String, String>();
       HashMap<String, String> headers = TableTunnel.getCommonHeader();
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       params.put(TunnelConstants.DOWNLOADID, id);
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
 
       Connection conn = null;
       try {

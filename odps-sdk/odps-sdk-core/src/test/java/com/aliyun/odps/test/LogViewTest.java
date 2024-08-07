@@ -19,20 +19,30 @@
 
 package com.aliyun.odps.test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.Iterator;
 
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.LogView;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
+import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.tunnel.TunnelException;
 
 public class LogViewTest extends TestBase {
+
+  @BeforeClass
+  public static void setup() throws TunnelException, OdpsException, IOException {
+    // skip run in 5ktest env
+    Assume.assumeFalse(OdpsTestUtils.getEnv() == OdpsTestUtils.Env._5ktest);
+  }
 
   @Test
   public void testLogView() throws OdpsException {

@@ -45,9 +45,6 @@ import com.aliyun.odps.pipeline.Pipeline;
 public class SqlGenerator {
 
   public static String generate(JobConf job, String id, MetaExplorer metaExplorer, Map<String, String> aliasToTempResource) {
-    if(!isSqlMode(job, metaExplorer)) {
-      return null;
-    }
     createFunction((BridgeJobConf) job, id, aliasToTempResource);
     Properties p = new Properties();
     p.setProperty("resource.loader", "class");
@@ -103,6 +100,13 @@ public class SqlGenerator {
       resouceText.append(s).append(",");
     }
     if (job.isStreamJob()) {
+      if (job.getResources() != null && aliasToTempResource != null) {
+        for (String s : job.getResources()) {
+          if (!aliasToTempResource.containsKey(s)) {
+            resouceText.append(s).append(",");
+          }
+        }
+      }
       resouceText.deleteCharAt(resouceText.lastIndexOf(","));
       createText.append(String.format("set %s=", SessionState.MR_EXECUTION_SESSION_RESOURCES));
       if (job.get(SessionState.MR_EXECUTION_SESSION_RESOURCES) != null) {

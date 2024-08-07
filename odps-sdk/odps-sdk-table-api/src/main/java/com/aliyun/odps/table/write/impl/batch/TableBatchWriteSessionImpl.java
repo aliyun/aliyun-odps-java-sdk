@@ -66,6 +66,7 @@ import com.aliyun.odps.table.write.BatchWriter;
 import com.aliyun.odps.table.write.TableWriteCapabilities;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
+import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.google.gson.Gson;
@@ -105,14 +106,11 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
     protected void initSession() throws IOException {
         ensureInitialized();
 
-        Map<String, String> headers = HttpUtils.createCommonHeader();
+        Map<String, String> headers = HttpUtils.createCommonHeader(settings);
         headers.put(Headers.CONTENT_TYPE, "application/json");
 
-        Map<String, String> params = new HashMap<>();
+        Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
-        if (settings != null && settings.getQuotaName().isPresent()) {
-            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
-        }
 
         try {
             String req = generateWriteSessionRequest();
@@ -156,13 +154,10 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
         Preconditions.checkString(this.sessionId, "Table write session id");
 
-        Map<String, String> headers = HttpUtils.createCommonHeader();
+        Map<String, String> headers = HttpUtils.createCommonHeader(settings);
 
-        Map<String, String> params = new HashMap<>();
+        Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
-        if (settings != null && settings.getQuotaName().isPresent()) {
-            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
-        }
 
         Connection conn = null;
         try {
@@ -238,14 +233,11 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         }
 
         Preconditions.checkString(sessionId, "Table write session id");
-        Map<String, String> headers = HttpUtils.createCommonHeader();
+        Map<String, String> headers = HttpUtils.createCommonHeader(settings);
         headers.put(Headers.CONTENT_TYPE, "application/json");
 
-        Map<String, String> params = new HashMap<String, String>();
+        Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_ID, sessionId);
-        if (settings != null && settings.getQuotaName().isPresent()) {
-            params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
-        }
 
         try {
             String commitRequest = generateCommitRequest(messages);

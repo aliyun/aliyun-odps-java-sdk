@@ -4,6 +4,7 @@ import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.aliyun.odps.OdpsException;
@@ -13,6 +14,7 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.Configuration;
+import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
@@ -95,7 +97,12 @@ public abstract class SessionBase {
     }
 
     protected HashMap<String, String> getCommonHeaders() {
-        return Util.getCommonHeader();
+        HashMap<String, String> commonHeaders = Util.getCommonHeader();
+        List<String> tags = config.getTags();
+        if (tags != null) {
+            commonHeaders.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+        }
+        return commonHeaders;
     }
 
     protected HashMap<String, String> getCommonParams() {

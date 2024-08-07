@@ -337,7 +337,7 @@ public class SQLTaskTest extends TestBase {
     dropTableIfExists(tempTable);
 
     executeSQL("create table " + tempTable
-               + " (id int not null, primary key(id)) tblproperties (\"transactional\"=\"true\");");
+               + " (id bigint not null, primary key(id)) tblproperties (\"transactional\"=\"true\");");
     // upload some data
     executeSQL("insert into table " + tempTable + " values (1);");
     // evolve the schema

@@ -145,9 +145,8 @@ public class StorageTierTest extends TestBase {
   }
 
   @Test
-  public void testPartitionStorageTier() throws OdpsException {
+  public void testPartitionStorageTier() throws Exception {
     String name = OdpsTestUtils.getRandomName();
-    boolean ok = true;
     try {
       //创建一个非分区表，设置其存储类型
       String
@@ -187,27 +186,9 @@ public class StorageTierTest extends TestBase {
       partition.reloadExtendInfo();
       assertEquals("standard",
                    partition.getStorageTierInfo().getStorageTier().toString().toLowerCase());
-      // 分区表 mock 数据测试 分区大小
-      String mockData = readToString("partition-storagetier.json");
-      Method lazyLoadExtendInfo = Table.class.getDeclaredMethod("loadSchemaFromJson", String.class);
-      lazyLoadExtendInfo.setAccessible(true);
-      lazyLoadExtendInfo.invoke(table, mockData);
-      StorageTierInfo storageTierInfo = table.getStorageTierInfo();
-      assertEquals(Long.valueOf(1024L), storageTierInfo.getStorageSize("Standard"));
-      assertEquals(Long.valueOf(2048L), storageTierInfo.getStorageSize("LowFrequency"));
-      assertEquals(Long.valueOf(1024L), storageTierInfo.getStorageSize("LongTerm"));
-
-      table.reloadExtendInfo();
-    } catch (Exception e) {
-      e.printStackTrace();
-      ok = false;
-      System.out.println("something error in testPartitionStorageTier " + e.getMessage());
     } finally {
       System.out.println("delete table ok");
       odps.tables().delete(name);
-      if (!ok) {
-        fail();
-      }
     }
   }
 

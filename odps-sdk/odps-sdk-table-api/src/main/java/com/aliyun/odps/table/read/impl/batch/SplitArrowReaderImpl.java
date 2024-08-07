@@ -122,18 +122,15 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
         RestClient restClient = ExecutionEnvironment.create(options.getSettings())
                 .createHttpClient(identifier.getProject());
 
-        Map<String, String> headers = HttpUtils.createCommonHeader();
+        Map<String, String> headers = HttpUtils.createCommonHeader(options.getSettings());
         if (options.getCompressionCodec().equals(CompressionCodec.ZSTD)) {
             headers.put(Headers.ACCEPT_ENCODING, CompressionCodec.ZSTD.toString());
         } else if (options.getCompressionCodec().equals(CompressionCodec.LZ4_FRAME)) {
             headers.put(Headers.ACCEPT_ENCODING, CompressionCodec.LZ4_FRAME.toString());
         }
 
-        Map<String, String> params = new HashMap<String, String>();
+        Map<String, String> params = HttpUtils.createCommonParams(options.getSettings());
         params.put(ConfigConstants.SESSION_ID, split.getSessionId());
-        if (options.getSettings() != null && options.getSettings().getQuotaName().isPresent()) {
-            params.put(TunnelConstants.PARAM_QUOTA_NAME, options.getSettings().getQuotaName().get());
-        }
 
         if (split instanceof InputSplitWithRowRange) {
             InputSplitWithRowRange rowRangeInputSplit = (InputSplitWithRowRange) split;

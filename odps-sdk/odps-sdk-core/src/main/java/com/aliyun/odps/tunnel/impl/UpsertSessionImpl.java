@@ -450,6 +450,10 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         HashMap<String, String> headers = Util.getCommonHeader();
         headers.put(Headers.CONTENT_LENGTH, String.valueOf(contentLength));
         headers.put(HttpHeaders.HEADER_ODPS_ROUTED_SERVER, slot.getServer());
+        List<String> tags = config.getTags();
+        if (tags != null) {
+            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+        }
         params.put(TunnelConstants.RECORD_COUNT, String.valueOf(recordCount));
 
         switch (compressOption.algorithm) {

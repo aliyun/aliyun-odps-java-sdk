@@ -903,7 +903,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    *     Instance失败
    */
   public void waitForSuccess(long interval) throws OdpsException {
-    waitForTerminated(interval);
+    waitForTerminated(interval, false);
 
     if (!isSuccessful()) {
       for (Entry<String, TaskStatus> e : getTaskStatus().entrySet()) {
@@ -921,9 +921,14 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    *
    * @param interval
    *     内部轮询间隔
+   * @param isBlock
+   *     是否阻塞,
+   *     不开启 block，将在客户端长轮询，直到作业结束
+   *     开启 block 请求将会在服务端等待一段时间（每次请求等待5s，直到作业结束。long-polling），
+   *     block 模式能够跳过 instance post running 阶段（key-path-end optimize）
    */
-  public void waitForTerminated(long interval) {
-    while (!isTerminated()) {
+  public void waitForTerminated(long interval, boolean isBlock) {
+    while (getStatus(isBlock) != Instance.Status.TERMINATED) {
       try {
         Thread.sleep(interval);
       } catch (InterruptedException e) {
@@ -937,7 +942,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * 该方法仅适用于离线作业（1个Instance对应1个Task）
    */
   public String waitForTerminatedAndGetResult() throws OdpsException {
-    waitForTerminated(1000);
+    waitForTerminated(1000, true);
 
     TaskResult taskResult = getRawTaskResults().get(0);
     String resultStr = taskResult.getResult().getString();

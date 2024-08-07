@@ -1461,6 +1461,11 @@ public class TableTunnel {
     private void initiate() throws TunnelException {
       HashMap<String, String> headers = getCommonHeader();
 
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
+
       HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.UPLOADS, null);
       if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
@@ -1870,6 +1875,10 @@ public class TableTunnel {
           throw new TunnelException("invalid compression option.");
         }
       }
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       HashMap<String, String> params = new HashMap<>();
       if (blockVersion > 0) {
@@ -1892,6 +1901,10 @@ public class TableTunnel {
 
     private void reload() throws TunnelException {
       HashMap<String, String> headers = getCommonHeader();
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.UPLOADID, id);
@@ -1899,6 +1912,9 @@ public class TableTunnel {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
       }
       params.put(TunnelConstants.GET_BLOCK_ID, String.valueOf(fetchBlockId));
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
 
       Connection conn = null;
       try {
@@ -1977,11 +1993,18 @@ public class TableTunnel {
 
     private void completeUpload() throws TunnelException, IOException {
       HashMap<String, String> headers = getCommonHeader();
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.UPLOADID, id);
       if (partitionSpec != null && partitionSpec.length() > 0) {
         params.put(TunnelConstants.RES_PARTITION, partitionSpec);
+      }
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
       }
 
       TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
@@ -2407,6 +2430,11 @@ public class TableTunnel {
     // initiate a new download session
     private void initiate(boolean async, boolean wait) throws TunnelException {
       HashMap<String, String> headers = getCommonHeader();
+
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
 
       HashMap<String, String> params = new HashMap<>();
       params.put(TunnelConstants.DOWNLOADS, null);

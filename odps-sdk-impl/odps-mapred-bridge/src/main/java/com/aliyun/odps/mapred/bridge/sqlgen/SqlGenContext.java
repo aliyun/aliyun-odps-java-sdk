@@ -201,11 +201,7 @@ public class SqlGenContext {
   public String getMapStreamProcessor() {
     String cmd = job.getStreamProcessor("map");
     if (cmd != null) {
-      try {
-        return URLDecoder.decode(cmd, "UTF-8");
-      } catch (UnsupportedEncodingException e) {
-        e.printStackTrace();
-      }
+      return decodeStreamProcessor(cmd);
     }
     return null;
   }
@@ -213,13 +209,22 @@ public class SqlGenContext {
   public String getReduceStreamProcessor() {
     String cmd = job.getStreamProcessor("reduce");
     if (cmd != null) {
-      try {
-        return URLDecoder.decode(cmd, "UTF-8");
-      } catch (UnsupportedEncodingException e) {
-        e.printStackTrace();
-      }
+      return decodeStreamProcessor(cmd);
     }
     return null;
+  }
+
+  String decodeStreamProcessor(String cmd) {
+    String result = null;
+    try {
+      result = URLDecoder.decode(cmd, "UTF-8");
+      if (result.contains("'")) {
+        result = result.replaceAll("'", "\\\\'");
+      }
+    } catch (UnsupportedEncodingException e) {
+      e.printStackTrace();
+    }
+    return result;
   }
 
   public String getFunctionCreateText() {

@@ -371,6 +371,7 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
           this.pipeIndex = this.pipeIndex < 0 ? 0 :this.pipeIndex;
         }
       }
+      resolveSqlModeNodeIndex(exeMode, tid);
       this.pipeNode = pipeline.getNode(pipeIndex);
     }
 
@@ -385,6 +386,42 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
       }
     } else {
       reducerNum = conf.getNumReduceTasks();
+    }
+  }
+
+  private void resolveSqlModeNodeIndex(String exeMode, String tid) {
+    if (exeMode != null && exeMode.equalsIgnoreCase("lot")) {
+      return;
+    }
+    TableInfo[] infos = InputUtils.getTables(conf);
+    if (infos == null || infos.length < 2) {
+      return;
+    }
+    String projectConfMode = "";
+    if (conf.get("odps.mr.project.conf") != null) {
+      projectConfMode = conf.get("odps.mr.project.conf").toLowerCase();
+    }
+    if (projectConfMode.equals("lot")) {
+      return;
+    }
+    if (tid.startsWith("M")) {
+      this.pipeIndex = 0;
+    } else {
+      int pipePrefix = Integer.parseInt(tid.split("_")[0].substring(1));
+      String taskIdPrefix = "R" + pipePrefix;
+      int prefixLength = pipePrefix > 9 ? 9 : pipePrefix;
+      for (int i = 1; i < prefixLength; i++) {
+        taskIdPrefix += "_" + i;
+      }
+      if (tid.startsWith(taskIdPrefix)) {
+        this.pipeIndex = 1;
+      } else if (tid.startsWith("R3_2_")) {
+        this.pipeIndex = 2;
+      } else if (this.pipeIndex > 2 &&
+              (projectConfMode.equals("sql") || projectConfMode.equals("hybrid"))) {
+        this.pipeIndex = pipePrefix - infos.length;
+        this.pipeIndex = this.pipeIndex < 0 ? 0 : this.pipeIndex;
+      }
     }
   }
 

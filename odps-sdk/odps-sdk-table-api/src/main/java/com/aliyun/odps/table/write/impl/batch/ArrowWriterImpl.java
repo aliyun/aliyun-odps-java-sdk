@@ -37,11 +37,12 @@ import com.aliyun.odps.table.metrics.Metrics;
 import com.aliyun.odps.table.metrics.count.BytesCount;
 import com.aliyun.odps.table.metrics.count.RecordCount;
 import com.aliyun.odps.table.utils.ConfigConstants;
+import com.aliyun.odps.table.utils.HttpUtils;
 import com.aliyun.odps.table.utils.SchemaUtils;
 import com.aliyun.odps.table.write.BatchWriter;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
-import com.aliyun.odps.tunnel.TunnelConstants;
+import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -182,18 +183,21 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
         Map<String, String> headers = new HashMap<>();
         headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
         headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
+        if (writerOptions.getSettings() != null && writerOptions.getSettings().getTags()
+            .isPresent()) {
+            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS,
+                        String.join(",", writerOptions.getSettings().getTags().get()));
+        }
         // TODO: compress
 
-        Map<String, String> params = new HashMap<>();
+        Map<String, String> params = HttpUtils.createCommonParams(writerOptions.getSettings());
         params.put(ConfigConstants.BLOCK_NUMBER, Long.toString(blockNumber));
         params.put(ConfigConstants.ATTEMPT_NUMBER, Integer.toString(attemptId.getAttemptNumber()));
         params.put(ConfigConstants.DATA_FORMAT_TYPE,
                 writerOptions.getDataFormat().getType().toString());
         params.put(ConfigConstants.DATA_FORMAT_VERSION,
                 writerOptions.getDataFormat().getVersion().toString());
-        if (writerOptions.getSettings() != null && writerOptions.getSettings().getQuotaName().isPresent()) {
-            params.put(TunnelConstants.PARAM_QUOTA_NAME, writerOptions.getSettings().getQuotaName().get());
-        }
+
         String resource = ResourceBuilder.buildTableSessionDataResource(
                 VERSION_1,
                 identifier.getProject(),

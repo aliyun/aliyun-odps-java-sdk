@@ -48,31 +48,43 @@ ${entry.Key} = "${entry.Value}" #if(${foreach.hasNext}) AND #end
 
 $!{ctx.functionCreateText}
 @sub_query_mapper :=
-    FROM
-    (
+    select * FROM (
     #foreach ( $input_table in ${ctx.InputTableInfos} )
-    SELECT #selist($input_table ${ctx.InputTableInfos[0].Cols}) FROM #tblname($input_table)
-        #if (${input_table.PartSpec} && ${input_table.PartSpec.size()} > 0)
-        WHERE #partfilter($input_table)
+        FROM (SELECT * FROM #tblname($input_table)
+                #if (${input_table.PartSpec} && ${input_table.PartSpec.size()} > 0)
+                WHERE #partfilter($input_table)
+                #end##
+        )
+        MAP #collist($input_table) $!{ctx.mapInputSeparator}
+        USING '$!{ctx.MapStreamProcessor}'
+        #if(!${ctx.mapOnly()})
+        AS ${ctx.IntermediateColsJoinedMapOut} $!{ctx.mapOutputSeparator}
+        #else
+        AS #outputColsJoined() $!{ctx.mapOutputSeparator}
         #end##
-        #if(${foreach.hasNext})UNION ALL#end##
+        #if(${foreach.hasNext})UNION ALL
+        #end##
     #end##
     #if(${ctx.isNoInputTableInfos()})
-    select _c from values('') _t (_c)
+        FROM (select _c from values('') _t (_c) where false)
+        MAP '' $!{ctx.mapInputSeparator}
+        USING '$!{ctx.MapStreamProcessor}'
+        #if(!${ctx.mapOnly()})
+        AS ${ctx.IntermediateColsJoinedMapOut} $!{ctx.mapOutputSeparator}
+        #else
+        AS #outputColsJoined() $!{ctx.mapOutputSeparator}
+        #end##
     #end
     ) open_mr_alias1
-    MAP #inputColsJoined()
-    USING '$!{ctx.MapStreamProcessor}' $!{ctx.mapInputSeparator}
 #if(!${ctx.mapOnly()})
-    AS ${ctx.IntermediateColsJoined} $!{ctx.mapOutputSeparator};
-#else
-    AS #outputColsJoined() $!{ctx.mapOutputSeparator};
-#end##
+DISTRIBUTE BY ${ctx.PartitionColsJoined} SORT BY ${ctx.SortColsJoined}
+#end
+;
 #if(!${ctx.mapOnly()})
 
 @sub_query_reducer :=
-    REDUCE ${ctx.IntermediateColsJoined}
-    USING '$!{ctx.ReduceStreamProcessor}' $!{ctx.reduceInputSeparator}
+    REDUCE ${ctx.IntermediateColsJoined} $!{ctx.reduceInputSeparator}
+    USING '$!{ctx.ReduceStreamProcessor}'
     AS #outputColsJoined() $!{ctx.reduceOutputSeparator}
     FROM @sub_query_mapper;
 #end##

@@ -267,6 +267,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slots.getSlotNum()));
 
+        List<String> tags = config.getTags();
+        if (tags != null) {
+            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+        }
+
         if (!StringUtils.isNullOrEmpty(config.getQuotaName())) {
             params.put(TunnelConstants.PARAM_QUOTA_NAME, config.getQuotaName());
         }
@@ -455,6 +460,10 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         }
 
         HashMap<String, String> headers = Util.getCommonHeader();
+        List<String> tags = config.getTags();
+        if (tags != null) {
+            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+        }
         Slot slot = slots.iterator().next();
         headers.put(HttpHeaders.HEADER_ODPS_ROUTED_SERVER, slot.getServer());
 

@@ -130,7 +130,7 @@ public class ResourcesTest extends TestBase {
     Odps testOdps = OdpsTestUtils.newListResourcesOdps();
     try {
       // assume the project exists
-      testOdps.projects().get();
+      testOdps.projects().get().reload();
     } catch (OdpsException e) {
       return;
     }
@@ -152,7 +152,7 @@ public class ResourcesTest extends TestBase {
     Odps testOdps = OdpsTestUtils.newListResourcesOdps();
     try {
       // assume the project exists
-      testOdps.projects().get();
+      testOdps.projects().get().reload();
     } catch (OdpsException e) {
       return;
     }
