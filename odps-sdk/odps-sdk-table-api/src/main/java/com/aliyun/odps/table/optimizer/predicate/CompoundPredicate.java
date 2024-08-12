@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.aliyun.odps.utils.StringUtils;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -41,8 +40,7 @@ public class CompoundPredicate extends Predicate {
   public CompoundPredicate(Operator logicalOperator, List<Predicate> predicates) {
     super(PredicateType.COMPOUND);
     this.logicalOperator = logicalOperator;
-    this.predicates =
-        predicates.stream().filter(this::validatePredicate).collect(Collectors.toList());
+    this.predicates = predicates;
     if (logicalOperator == Operator.NOT && predicates.size() > 1) {
       throw new IllegalArgumentException("NOT operator should only have one operand");
     }
@@ -63,9 +61,7 @@ public class CompoundPredicate extends Predicate {
   }
 
   public void addPredicate(Predicate predicate) {
-    if (validatePredicate(predicate)) {
-      predicates.add(predicate);
-    }
+    predicates.add(predicate);
   }
 
   @Override
@@ -79,8 +75,11 @@ public class CompoundPredicate extends Predicate {
 
     // 对于 NOT 运算符，我们确保只有一个操作数
     if (logicalOperator == Operator.NOT) {
-      sb.append(opStr).append(" ");
       Predicate predicate = predicates.get(0);
+      if (!validatePredicate(predicate)) {
+        return Predicate.NO_PREDICATE.toString();
+      }
+      sb.append(opStr).append(" ");
       if (predicate instanceof CompoundPredicate) {
         sb.append('(').append(predicate).append(')');
       } else {
@@ -91,6 +90,17 @@ public class CompoundPredicate extends Predicate {
 
     for (int i = 0; i < predicates.size(); i++) {
       Predicate currentPredicate = predicates.get(i);
+      if (!validatePredicate(currentPredicate)) {
+        if (logicalOperator == Operator.OR) {
+          // A or true = true
+          // 对于 or 谓词，如果有任意谓词是 true，则结果为 true
+          return Predicate.NO_PREDICATE.toString();
+        } else {
+          // A and true = A
+          // 对于 and 谓词，跳过子谓词为 true 的谓词
+          continue;
+        }
+      }
       if (currentPredicate instanceof CompoundPredicate
           && ((CompoundPredicate) currentPredicate).logicalOperator != this.logicalOperator) {
         sb.append('(').append(currentPredicate).append(')');

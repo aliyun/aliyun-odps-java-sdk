@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.48.8-public] - 2024-08-12
+
+### Enhancement
+- Introduced internal validation of compound predicate expressions, fixed logic when handling
+  invalid or always true/false predicates, enhanced test coverage, and ensured stability and
+  accuracy in complex query optimization.
+
 ## [0.48.7-public] - 2024-08-07
 ### Enhancements
 - **TableTunnel Configuration Optimization**: Introduced the `tags` attribute to `TableTunnel Configuration`, enabling users to attach custom tags to tunnel operations for enhanced logging and management. These tags are recorded in the tenant-level `information schema`.
