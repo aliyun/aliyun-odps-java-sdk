@@ -1,0 +1,8 @@
+{
+  "label": "Tunnel 数据通道",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "api of table tunnel"
+  }
+}
