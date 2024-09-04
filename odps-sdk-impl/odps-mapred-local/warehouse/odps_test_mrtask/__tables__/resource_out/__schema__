@@ -1,3 +1,0 @@
-project=odps_test_mrtask
-table=resource_out
-columns=key:STRING,cnt:BIGINT

@@ -1,3 +1,0 @@
-project=pipe
-table=pipe_plresource_out
-columns=key:STRING,value:BIGINT

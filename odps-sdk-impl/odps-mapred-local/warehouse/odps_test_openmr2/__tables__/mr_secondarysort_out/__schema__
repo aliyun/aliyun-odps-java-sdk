@@ -1,3 +1,0 @@
-project=odps_test_openmr2
-table=mr_secondarysort_out
-columns=key:BIGINT,value:BIGINT

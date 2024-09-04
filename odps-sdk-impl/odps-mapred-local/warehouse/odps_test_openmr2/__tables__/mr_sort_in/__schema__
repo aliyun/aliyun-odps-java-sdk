@@ -1,3 +1,0 @@
-project=odps_test_openmr2
-table=mr_sort_in
-columns=key:BIGINT,value:BIGINT

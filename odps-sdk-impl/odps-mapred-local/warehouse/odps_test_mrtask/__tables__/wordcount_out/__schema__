@@ -1,4 +1,0 @@
-project=odps_test_mrtask
-table=wordcount_out
-columns=key:STRING,cnt:BIGINT
-partitions=p1:STRING,p2:STRING

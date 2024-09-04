@@ -1,3 +1,0 @@
-project=pipe
-table=l_ss
-columns=key:STRING,value:STRING

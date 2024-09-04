@@ -1,9 +1,0 @@
-package apsara.odps.lot;
-
-option java_outer_classname = "ViewSourceProtos";
-
-message ViewSource
-{
-    required string Project = 1;
-    required string View = 2;
-}

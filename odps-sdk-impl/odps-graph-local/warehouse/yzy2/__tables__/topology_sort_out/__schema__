@@ -1,3 +1,0 @@
-project=yzy2
-table=topology_sort_out
-columns=supstep:BIGINT,vertexid:BIGINT

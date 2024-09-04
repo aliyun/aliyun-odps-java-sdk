@@ -1,3 +1,0 @@
-project=yzy2
-table=connected_components_out
-columns=vid:BIGINT,cid:BIGINT

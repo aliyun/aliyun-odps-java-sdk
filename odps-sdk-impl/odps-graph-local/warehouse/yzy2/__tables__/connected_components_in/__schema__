@@ -1,3 +1,0 @@
-project=yzy2
-table=connected_components_in
-columns=v:BIGINT,es:STRING

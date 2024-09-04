@@ -1,3 +1,0 @@
-project=bug
-table=fill_partition_out
-columns=a1:string,b1:bigint

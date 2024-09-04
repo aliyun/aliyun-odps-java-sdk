@@ -1,3 +1,0 @@
-project=pipe
-table=pipe_plcounter_in
-columns=key:STRING,value:STRING

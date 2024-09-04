@@ -1,3 +1,0 @@
-project=pipe
-table=pipe_multiinout_in1
-columns=key:STRING,value:STRING

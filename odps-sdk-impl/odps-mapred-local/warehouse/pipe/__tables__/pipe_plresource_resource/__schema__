@@ -1,3 +1,0 @@
-project=pipe
-table=pipe_plresource_resource
-columns=key:STRING,value:STRING

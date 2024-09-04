@@ -1,5 +1,0 @@
-project=odps_test_mrtask
-table=multipleInOut_out
-columns=cola:STRING,colb:BIGINT
-partitions=p1:STRING,p2:STRING
-

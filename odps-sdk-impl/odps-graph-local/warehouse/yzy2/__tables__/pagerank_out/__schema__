@@ -1,3 +1,0 @@
-project=yzy2
-table=pagerank_out
-columns=vertex_id:STRING,vertex_value:DOUBLE

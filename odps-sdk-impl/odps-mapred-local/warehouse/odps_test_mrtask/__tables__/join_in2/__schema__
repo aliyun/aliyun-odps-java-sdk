@@ -1,3 +1,0 @@
-project=odps_test_mrtask
-table=join_in2
-columns=col1:BIGINT,col2:STRING

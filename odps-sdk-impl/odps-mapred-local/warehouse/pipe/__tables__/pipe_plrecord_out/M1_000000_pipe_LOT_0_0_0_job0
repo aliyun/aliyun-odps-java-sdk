@@ -1,7 +1,0 @@
-map.setup,11,true,1.0E-4
-one,1,true,1.2
-two,2,false,2.1
-map.cleanup,12,false,2.0E-4
-map.cleanup,13,false,2.0E-4
-map.cleanup,14,true,3.0E-4
-map.cleanup,15,true,4.0E-4

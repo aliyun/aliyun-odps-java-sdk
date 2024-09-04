@@ -1,3 +1,0 @@
-project=project_name
-table=max_compute_basic_types
-columns=a_tinyint:TINYINT,a_smallint:SMALLINT,a_int:INT,a_bigint:BIGINT,a_float:FLOAT,a_double:DOUBLE,a_decimal:DECIMAL,a_vachar:VARCHAR(10),a_string:STRING,a_datetime:DATETIME,a_timestamp:TIMESTAMP,a_binary:BINARY,a_boolean:BOOLEAN

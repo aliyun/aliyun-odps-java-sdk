@@ -1,3 +1,0 @@
-project=odps_test_bridgejob
-table=table_test
-columns=c1:BIGINT

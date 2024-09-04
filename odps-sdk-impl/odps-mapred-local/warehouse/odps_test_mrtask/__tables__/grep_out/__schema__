@@ -1,3 +1,0 @@
-project=odps_test_mrtask
-table=grep_out
-columns=count:BIGINT,word:STRING

@@ -1,3 +1,0 @@
-project=pipe
-table=pipe_plrecord_out
-columns=_c_str:STRING,_c_int:BIGINT,_c_bool:BOOLEAN,_c_d:DOUBLE

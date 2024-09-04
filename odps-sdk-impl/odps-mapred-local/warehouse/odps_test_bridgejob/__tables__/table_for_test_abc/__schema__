@@ -1,4 +1,0 @@
-project=odps_test_bridgejob
-table=table_for_test_abc
-columns=c1:BIGINT
-partitions=pt:STRING

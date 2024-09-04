@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkodps_sdk_doc=self.webpackChunkodps_sdk_doc||[]).push([[9661],{1892:(s,e,d)=>{d.r(e),d.d(e,{default:()=>n});d(7294);var r=d(512),c=d(1944),u=d(5281),a=d(8790),o=d(7293),k=d(5893);function n(s){return(0,k.jsx)(c.FG,{className:(0,r.Z)(u.k.wrapper.docsPages),children:(0,k.jsx)(o.Z,{children:(0,a.H)(s.route.routes)})})}}}]);

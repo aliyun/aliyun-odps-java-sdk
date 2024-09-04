@@ -1,3 +1,0 @@
-project=odps_test_mrtask
-table=join_out_left
-columns=key:BIGINT,cola:STRING,colb:STRING

@@ -1,3 +1,0 @@
-project=project_name
-table=wc_out
-columns=word:STRING,cnt:BIGINT

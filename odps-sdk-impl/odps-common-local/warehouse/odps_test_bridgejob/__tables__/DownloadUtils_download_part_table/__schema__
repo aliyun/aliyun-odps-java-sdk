@@ -1,4 +1,0 @@
-project=odps_test_bridgejob
-table=DownloadUtils_download_part_table
-columns=c1:STRING,c2:BIGINT,c3:DOUBLE,c4:BOOLEAN,c5:DATETIME
-partitions=p1:STRING,p2:STRING

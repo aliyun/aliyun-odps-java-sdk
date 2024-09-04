@@ -1,3 +1,0 @@
-project=project_name
-table=ads_log
-columns=AdId:BIGINT,Rand:DOUBLE,AdvertiserName:STRING,Comment:STRING

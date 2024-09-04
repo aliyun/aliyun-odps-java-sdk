@@ -1,3 +1,0 @@
-project=pipe
-table=pipe_wordcount_in
-columns=key:STRING,value:STRING

@@ -1,9 +1,0 @@
-package apsara.odps;
-
-option java_outer_classname = "LanguageProtos";
-
-enum Language
-{
-    Java = 1;
-    Python = 2;
-}

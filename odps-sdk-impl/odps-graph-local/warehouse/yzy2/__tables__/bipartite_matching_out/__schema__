@@ -1,3 +1,0 @@
-project=yzy2
-table=bipartite_matching_out
-columns=v:STRING,matchinfo:STRING
