@@ -74,7 +74,12 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'docs',
             position: 'left',
-            label: 'Documentation',
+            label: '文档',
+          },
+          {
+            href: 'https://github.com/aliyun/aliyun-odps-jdbc',
+            position: 'right',
+            label: '使用 JDBC 链接 MaxCompute',
           },
 //          {
 //            type: 'docsVersionDropdown',
