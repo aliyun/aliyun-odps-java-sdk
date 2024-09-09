@@ -1,17 +1,19 @@
 package com.aliyun.odps.data.converter;
 
-import com.aliyun.odps.Column;
-import com.aliyun.odps.Instance;
-import com.aliyun.odps.OdpsType;
-import com.aliyun.odps.data.ArrayRecord;
-import com.aliyun.odps.data.Record;
+import static com.aliyun.odps.data.converter.ConverterConstant.COMPLEX_TYPE_FORMAT_JSON;
+import static com.aliyun.odps.data.converter.ConverterConstant.COMPLEX_TYPE_FORMAT_JSON_STR;
+import static com.aliyun.odps.data.converter.ConverterConstant.COMPLEX_TYPE_OUTPUT_FORMAT_HUMAN_READABLE;
 
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import static com.aliyun.odps.data.converter.ConverterConstant.*;
+import com.aliyun.odps.Column;
+import com.aliyun.odps.Instance;
+import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.data.ArrayRecord;
+import com.aliyun.odps.data.Record;
 
 /**
  * Use this builder to construct a {@link OdpsRecordConverter} instance when you need to set configuration
@@ -49,13 +51,43 @@ public class OdpsRecordConverterBuilder {
         String binaryFormat = ConverterConstant.BINARY_FORMAT_DEFAULT;
         String nullFormat = ConverterConstant.NULL_OUTPUT_FORMAT_DEFAULT;
         boolean enableNullParse = false;
-        boolean legacyTimeType = false;
+        boolean strictMode = true;
+        boolean quoteStrings = false;
+        boolean useSqlFormat = false;
     }
 
     private Function<Column[], Record> recordProvider;
     private final Map<OdpsType, OdpsObjectConverter> formatterMap = new HashMap<>();
 
     OdpsRecordConverterBuilder() {
+    }
+
+
+    /**
+     * Configure OdpsRecordConverter to enable SQL format mode.
+     * <p>
+     * After enabling this mode, the converter will convert data types such as dates into string formats that comply with SQL statement standards.
+     * For example, convert date to 'DATE'YYYY-MM-DD' so that it can be used directly to construct SQL statements.
+     *
+     * @return this     */
+    public OdpsRecordConverterBuilder enableSqlStandardFormat() {
+        this.config.useSqlFormat = true;
+        this.config.quoteStrings = true;
+        this.config.binaryFormat = ConverterConstant.BINARY_FORMAT_SQL_FORMAT;
+        return this;
+    }
+
+    /**
+     * Configure OdpsRecordConverter to enable string quoting mode.
+     * <p>
+     * When this mode is enabled, the converter automatically adds single quotes around string data types when processing them.
+     * For example, the original string "a" will be converted to "'a'" to ensure correct parsing as a string literal in the SQL statement.
+     *
+     * @return this
+     */
+    public OdpsRecordConverterBuilder enableQuoteString() {
+        this.config.quoteStrings = true;
+        return this;
     }
 
     /**
@@ -325,6 +357,16 @@ public class OdpsRecordConverterBuilder {
     }
 
     /**
+     * Configures OdpsRecordConverter to format/parse {@link OdpsType#BINARY} in hex encoding
+     *
+     * @return this
+     */
+    public OdpsRecordConverterBuilder binaryFormatHex() {
+        this.config.binaryFormat = ConverterConstant.BINARY_FORMAT_HEX;
+        return this;
+    }
+
+    /**
      * Configures OdpsRecordConverter to format/parse null object using provided format
      *
      * @return this
@@ -354,16 +396,26 @@ public class OdpsRecordConverterBuilder {
         return this;
     }
 
-    /**
-     * Configures OdpsRecordConverter use legacy time type
-     * DATETIME java.util.Date
-     * DATE java.sql.Date
-     * TIMESTAMP java.sql.Timestamp
+    /** Let OdpsRecordConverter no longer strictly check the incoming data type,
+     * but perform type conversion operations as much as possible,
+     * and then report an error when conversion cannot be performed.
+     * <p>
+     * This method replaces the useLegacyTimeType method, because when using this method,
+     * the old type will be automatically converted to the new type.
      *
      * @return this
      */
+    public OdpsRecordConverterBuilder setStrictMode(boolean strictMode) {
+        this.config.strictMode = strictMode;
+        return this;
+    }
+
+    /**
+     * @deprecated since 0.50.0, will be removed in 0.51.0. use setStrictMode(false) instead.
+     */
+    @Deprecated
     public OdpsRecordConverterBuilder useLegacyTimeType() {
-        this.config.legacyTimeType = true;
+        setStrictMode(false);
         return this;
     }
 

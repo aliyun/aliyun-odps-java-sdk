@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -192,6 +193,7 @@ public class Table extends LazyLoad {
     TableType type;
 
     Date lastMetaModifiedTime;
+    Date lastMajorCompactTime;
     boolean isVirtualView;
     boolean isMaterializedViewRewriteEnabled;
     boolean isMaterializedViewOutdated;
@@ -1154,6 +1156,16 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * @return 最后一次major compact的时间
+   */
+  public Date getLastMajorCompactTime() {
+    if (model.lastMajorCompactTime == null) {
+      lazyLoadExtendInfo();
+    }
+    return model.lastMajorCompactTime;
+  }
+
+  /**
    * 读取表内的数据
    *
    * @param limit 最多读取的记录行数
@@ -1166,8 +1178,7 @@ public class Table extends LazyLoad {
 
   /**
    * 读取表内的数据 <br />
-   * 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。<br />
-   * 另外，读取的数据大小不能超过 10MB，否则将抛出异常。<br />
+   * 读取数据时，最多返回 1w 条记录 (project read 默认值），若超过，数据将被截断。<br />
    *
    * @param partition 表的分区{@link PartitionSpec}。如不指定分区可传入null。
    * @param columns   所要读取的列名的列表。如果读取全表可传入null
@@ -1496,6 +1507,10 @@ public class Table extends LazyLoad {
 
     // load table lifecycle configuration
     model.tableLifecycleConfig = TableLifecycleConfig.parse(reservedJson);
+
+    model.lastMajorCompactTime =
+        reservedJson.has("LastMajorCompactionTime") ? Date.from(Instant.ofEpochMilli(Long.parseLong(
+            reservedJson.get("LastMajorCompactionTime").getAsString()) * 1000)) : null;
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {

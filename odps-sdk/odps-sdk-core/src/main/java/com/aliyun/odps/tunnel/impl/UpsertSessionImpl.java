@@ -135,9 +135,10 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         @Override
         public boolean onFlushFail(Exception error, int retry) {
             if (error instanceof TunnelException) {
-                int errorStatus = ((TunnelException) error).getStatus();
-                if (errorStatus == HttpStatus.BAD_GATEWAY
-                    || errorStatus == HttpStatus.GATEWAY_TIMEOUT) {
+                Integer errorStatus = ((TunnelException) error).getStatus();
+                if (errorStatus != null &&
+                    (errorStatus == HttpStatus.BAD_GATEWAY
+                     || errorStatus == HttpStatus.GATEWAY_TIMEOUT)) {
                     try {
                         session.reload(false);
                     } catch (TunnelException e) {

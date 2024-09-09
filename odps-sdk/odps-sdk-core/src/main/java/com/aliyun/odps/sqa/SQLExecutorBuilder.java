@@ -38,6 +38,7 @@ public class SQLExecutorBuilder {
   private int tunnelReadTimeout = -1;
 
   private boolean sessionSupportNonSelect = false;
+  private Integer offlineJobPriority = null;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -49,7 +50,8 @@ public class SQLExecutorBuilder {
                                useInstanceTunnel, pool, recoverInstance, runningCluster,
                                tunnelGetResultMaxRetryTime,
                                useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema,
-                               tunnelSocketTimeout, tunnelReadTimeout, sessionSupportNonSelect);
+                               tunnelSocketTimeout, tunnelReadTimeout, sessionSupportNonSelect,
+                               offlineJobPriority);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -150,6 +152,11 @@ public class SQLExecutorBuilder {
 
   public SQLExecutorBuilder sessionSupportNonSelect(boolean sessionSupportNonSelect) {
     this.sessionSupportNonSelect = sessionSupportNonSelect;
+    return this;
+  }
+
+  public SQLExecutorBuilder offlineJobPriority(Integer offlineJobPriority) {
+    this.offlineJobPriority = offlineJobPriority;
     return this;
   }
 }

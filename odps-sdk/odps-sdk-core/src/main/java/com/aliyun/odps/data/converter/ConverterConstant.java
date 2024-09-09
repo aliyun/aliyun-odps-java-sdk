@@ -32,6 +32,8 @@ class ConverterConstant {
      */
     static final String BINARY_FORMAT_UTF8 = "utf8";
     static final String BINARY_FORMAT_BASE64 = "base64";
+    static final String BINARY_FORMAT_HEX = "hex";
+    static final String BINARY_FORMAT_SQL_FORMAT = "sql";
     static final String BINARY_FORMAT_QUOTED_PRINTABLE = "quoted_printable";
     static final String BINARY_FORMAT_DEFAULT = BINARY_FORMAT_QUOTED_PRINTABLE;
 

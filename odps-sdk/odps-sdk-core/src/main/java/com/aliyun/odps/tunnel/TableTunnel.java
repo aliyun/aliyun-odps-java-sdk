@@ -25,6 +25,7 @@ import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
@@ -1209,7 +1210,7 @@ public class TableTunnel {
     }
   }
 
-  public interface UpsertSession {
+  public interface UpsertSession extends Closeable {
 
     /**
      * 获取Session ID

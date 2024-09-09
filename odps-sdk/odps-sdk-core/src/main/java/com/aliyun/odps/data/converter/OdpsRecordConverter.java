@@ -46,7 +46,7 @@ public class OdpsRecordConverter {
     // not working for complex type
     final String nullFormat;
     final boolean enableNullParse;
-    final boolean isLegacyTimeType;
+    final boolean strictMode;
     Function<Column[], Record> recordProvider;
     Map<OdpsType, OdpsObjectConverter> objectConverterMap;
 
@@ -55,7 +55,7 @@ public class OdpsRecordConverter {
                         Map<OdpsType, OdpsObjectConverter> objectConverterMap) {
         this.nullFormat = config.nullFormat;
         this.enableNullParse = config.enableNullParse;
-        this.isLegacyTimeType = config.legacyTimeType;
+        this.strictMode = config.strictMode;
         this.recordProvider = recordProvider;
         this.objectConverterMap = objectConverterMap;
     }
@@ -89,24 +89,24 @@ public class OdpsRecordConverter {
         if (null == object) {
             return nullFormat;
         }
-        Class expectClass;
-        if (isLegacyTimeType) {
-            expectClass = OdpsTypeTransformer.odpsTypeToJavaType(ODPS_TYPE_MAPPER, typeInfo.getOdpsType());
-        } else {
-            expectClass = OdpsTypeTransformer.odpsTypeToJavaType(ODPS_TYPE_MAPPER_V2, typeInfo.getOdpsType());
-        }
-        try {
-            if (typeInfo.getOdpsType() == OdpsType.STRING && object instanceof byte[]) {
-                object = new String((byte[]) object, StandardCharsets.UTF_8);
-            } else {
-                object = expectClass.cast(object);
+        if (strictMode) {
+            Class
+                expectClass =
+                OdpsTypeTransformer.odpsTypeToJavaType(ODPS_TYPE_MAPPER_V2, typeInfo.getOdpsType());
+            try {
+                if (typeInfo.getOdpsType() == OdpsType.STRING && object instanceof byte[]) {
+                    object = new String((byte[]) object, StandardCharsets.UTF_8);
+                } else {
+                    object = expectClass.cast(object);
+                }
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException("Cannot format " + object
+                                                   + "(" + object.getClass() + ") to ODPS type: "
+                                                   + typeInfo.getOdpsType()
+                                                   + ", expect java class: "
+                                                   + expectClass.getName(), e);
             }
-        } catch (ClassCastException e) {
-            throw new IllegalArgumentException("Cannot format " + object
-                    + "(" + object.getClass() + ") to ODPS type: " + typeInfo.getOdpsType()
-                                               + ", expect java class: " + expectClass.getName(), e);
         }
-
         return objectConverterMap.get(typeInfo.getOdpsType())
                 .format(object, typeInfo, this);
     }

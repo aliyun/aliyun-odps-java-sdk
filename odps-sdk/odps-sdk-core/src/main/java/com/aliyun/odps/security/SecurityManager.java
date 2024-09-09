@@ -844,9 +844,6 @@ public class SecurityManager {
     return run(query, jsonOutput, supervisionToken, settings).waitForSuccess();
   }
 
-  /**
-   * @param policy 参考文档: <a href="https://help.aliyun.com/zh/maxcompute/user-guide/policy-based-access-control-1">Policy权限控制</a>
-   */
   public String generateAuthorizationToken(String policy, String type)
       throws OdpsException {
     if ("Bearer".equalsIgnoreCase(type)) {

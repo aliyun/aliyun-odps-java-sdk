@@ -438,6 +438,11 @@ public class Resource extends LazyLoad {
     model.volumePath = headers.get(Headers.ODPS_COPY_FILE_SOURCE);
     model.contentMD5 = headers.get(Headers.CONTENT_MD5);
 
+    String isTempResourceString = headers.get(Headers.ODPS_RESOURCE_IS_TEMP);
+    if (!StringUtils.isNullOrEmpty(isTempResourceString)) {
+      model.isTempResource = Boolean.parseBoolean(isTempResourceString);
+    }
+
     setLoaded(true);
   }
 

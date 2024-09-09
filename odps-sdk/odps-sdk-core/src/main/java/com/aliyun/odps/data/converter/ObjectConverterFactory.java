@@ -1,5 +1,40 @@
 package com.aliyun.odps.data.converter;
 
+import static com.aliyun.odps.data.converter.ConverterConstant.BINARY_FORMAT_BASE64;
+import static com.aliyun.odps.data.converter.ConverterConstant.BINARY_FORMAT_HEX;
+import static com.aliyun.odps.data.converter.ConverterConstant.BINARY_FORMAT_QUOTED_PRINTABLE;
+import static com.aliyun.odps.data.converter.ConverterConstant.BINARY_FORMAT_SQL_FORMAT;
+import static com.aliyun.odps.data.converter.ConverterConstant.BINARY_FORMAT_UTF8;
+import static com.aliyun.odps.data.converter.ConverterConstant.COMPLEX_TYPE_FORMAT_JSON;
+import static com.aliyun.odps.data.converter.ConverterConstant.COMPLEX_TYPE_FORMAT_JSON_STR;
+import static com.aliyun.odps.data.converter.ConverterConstant.COMPLEX_TYPE_OUTPUT_FORMAT_HUMAN_READABLE;
+import static com.aliyun.odps.data.converter.ConverterConstant.DECIMAL_OUTPUT_FORMAT_NORMAL;
+import static com.aliyun.odps.data.converter.ConverterConstant.DECIMAL_OUTPUT_FORMAT_ZERO_PADDING;
+import static com.aliyun.odps.data.converter.ConverterConstant.FLOATING_NUMBER_OUTPUT_FORMAT_SQL_COMPATIBLE;
+import static com.aliyun.odps.data.converter.ConverterConstant.FLOATING_NUMBER_OUTPUT_FORMAT_TO_STRING;
+import static java.time.temporal.ChronoField.NANO_OF_SECOND;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
+import java.time.temporal.ChronoField;
+import java.util.Base64;
+
+import org.apache.commons.codec.binary.Hex;
+
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.Char;
@@ -7,28 +42,6 @@ import com.aliyun.odps.data.SimpleJsonValue;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.type.DecimalTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
-
-import java.io.UnsupportedEncodingException;
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
-import java.sql.Date;
-import java.sql.Timestamp;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.format.DateTimeParseException;
-import java.time.format.ResolverStyle;
-import java.time.temporal.ChronoField;
-import java.util.Base64;
-
-import static com.aliyun.odps.data.converter.ConverterConstant.*;
-import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 
 class ObjectConverterFactory {
 
@@ -251,16 +264,23 @@ class ObjectConverterFactory {
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            BigDecimal decimal = (BigDecimal) object;
-            if (padding) {
-                DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) typeInfo;
-                decimal = decimal.setScale(decimalTypeInfo.getScale(), RoundingMode.HALF_DOWN);
-                return decimal.toPlainString();
+            if (object instanceof BigDecimal) {
+                BigDecimal decimal = (BigDecimal) object;
+                if (padding) {
+                    DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) typeInfo;
+                    decimal = decimal.setScale(decimalTypeInfo.getScale(), RoundingMode.HALF_DOWN);
+                    return decimal.toPlainString();
+                }
+                // https://stackoverflow.com/questions/18721771/java-removing-zeros-after-decimal-point-in-bigdecimal
+                // 200.000 stripTrailingZeros => 2E+2
+                // 200.000 stripTrailingZeros.toPlainString => 200
+                return decimal.stripTrailingZeros().toPlainString();
+            } else if (object instanceof Number) {
+                return object.toString();
+            } else {
+                throw new IllegalArgumentException(
+                    "Unsupported DECIMAL object type: " + object.getClass());
             }
-            // https://stackoverflow.com/questions/18721771/java-removing-zeros-after-decimal-point-in-bigdecimal
-            // 200.000 stripTrailingZeros => 2E+2
-            // 200.000 stripTrailingZeros.toPlainString => 200
-            return decimal.stripTrailingZeros().toPlainString();
         }
 
         @Override
@@ -284,11 +304,28 @@ class ObjectConverterFactory {
     }
 
     private enum CharConverter implements OdpsObjectConverter {
-        INSTANCE;
+        INSTANCE(false),
+        QUOTE_INSTANCE(true);
+        private final boolean quoteStrings;
+
+        CharConverter(boolean quoteStrings) {
+            this.quoteStrings = quoteStrings;
+        }
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            return object.toString();
+            String str;
+            if (object instanceof byte[]) {
+                str = new String((byte[]) object, StandardCharsets.UTF_8);
+            } else {
+                str = object.toString();
+            }
+            if (quoteStrings) {
+                String escapedString = str.replace("'", "\\'");
+                return "'" + escapedString + "'";
+            } else {
+                return str;
+            }
         }
 
         @Override
@@ -299,11 +336,28 @@ class ObjectConverterFactory {
     }
 
     private enum VarcharConverter implements OdpsObjectConverter {
-        INSTANCE;
+        INSTANCE(false),
+        QUOTE_INSTANCE(true);
+        private final boolean quoteStrings;
+
+        VarcharConverter(boolean quoteStrings) {
+            this.quoteStrings = quoteStrings;
+        }
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            return object.toString();
+            String str;
+            if (object instanceof byte[]) {
+                str = new String((byte[]) object, StandardCharsets.UTF_8);
+            } else {
+                str = object.toString();
+            }
+            if (quoteStrings) {
+                String escapedString = str.replace("'", "\\'");
+                return "'" + escapedString + "'";
+            } else {
+                return str;
+            }
         }
 
         @Override
@@ -314,14 +368,27 @@ class ObjectConverterFactory {
     }
 
     private enum StringConverter implements OdpsObjectConverter {
-        INSTANCE;
+        INSTANCE(false),
+        QUOTE_INSTANCE(true);
+        private final boolean quoteStrings;
+
+        StringConverter(boolean quoteStrings) {
+            this.quoteStrings = quoteStrings;
+        }
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
+            String str;
             if (object instanceof byte[]) {
-                return new String((byte[]) object, StandardCharsets.UTF_8);
+                str = new String((byte[]) object, StandardCharsets.UTF_8);
             } else {
-                return (String) object;
+                str = (String) object;
+            }
+            if (quoteStrings) {
+                String escapedString = str.replace("'", "\\'");
+                return "'" + escapedString + "'";
+            } else {
+                return str;
             }
         }
 
@@ -349,6 +416,8 @@ class ObjectConverterFactory {
 
     private enum BinaryConverter implements OdpsObjectConverter {
         BASE64(BINARY_FORMAT_BASE64),
+        HEX(BINARY_FORMAT_HEX),
+        SQL_FORMAT(BINARY_FORMAT_SQL_FORMAT),
         UTF8(BINARY_FORMAT_UTF8),
         QUOTED_PRINTABLE(BINARY_FORMAT_QUOTED_PRINTABLE);
 
@@ -360,15 +429,27 @@ class ObjectConverterFactory {
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            Binary binary = (Binary) object;
-            byte[] bytes = binary.data();
+            byte[] bytes;
+            if (object instanceof Binary) {
+                Binary binary = (Binary) object;
+                bytes = binary.data();
+            } else if (object instanceof byte[]) {
+                bytes = (byte[]) object;
+            } else {
+                throw new IllegalArgumentException(
+                    "Unsupported BINARY object type: " + object.getClass());
+            }
             switch (type) {
                 case BINARY_FORMAT_UTF8:
                     return new String(bytes, StandardCharsets.UTF_8);
                 case BINARY_FORMAT_BASE64:
                     return Base64.getEncoder().encodeToString(bytes);
                 case BINARY_FORMAT_QUOTED_PRINTABLE:
-                    return binary.toString();
+                    return new Binary(bytes).toString();
+                case BINARY_FORMAT_HEX:
+                    return new String(Hex.encodeHex(bytes));
+                case BINARY_FORMAT_SQL_FORMAT:
+                    return "X'" + new String(Hex.encodeHex(bytes)) + "'";
                 default:
                     throw new RuntimeException("Unsupported binary encode type: " + type);
             }
@@ -381,6 +462,13 @@ class ObjectConverterFactory {
                     return str.getBytes(StandardCharsets.UTF_8);
                 case ConverterConstant.BINARY_FORMAT_BASE64:
                     return Base64.getDecoder().decode(str);
+                case ConverterConstant.BINARY_FORMAT_HEX:
+                    try {
+                        return Hex.decodeHex(str.toCharArray());
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException(
+                            String.format("InvalidData: invalid hex string %s", str));
+                    }
                 default:
                     throw new IllegalArgumentException();
             }
@@ -408,69 +496,82 @@ class ObjectConverterFactory {
         // use uuuu to support year 0000
 
         // sql is yyyy-MM-dd
-        private final static String DEFAULT_OUTPUT_PATTERN = "uuuu-MM-dd";
+        private static final String DEFAULT_OUTPUT_PATTERN = "uuuu-MM-dd";
         // sql is yyyy-M-d
-        private final static String DEFAULT_PARSE_PATTERN = "uuuu-M-d";
+        private static final String DEFAULT_PARSE_PATTERN = "uuuu-M-d";
 
         private DateTimeFormatter outputFormatter;
         private DateTimeFormatter parseFormatter;
         private SimpleDateFormat legacyOutputFormatter;
-        private SimpleDateFormat legacyParseFormatter;
-        private boolean isLegacyType;
+        private ZoneId zoneId;
+        private final boolean strictMode;
+        private final boolean useSqlFormat;
 
 
-        DateConverter(String outputPattern, String parsePattern, boolean isLegacyType) {
-            this.isLegacyType = isLegacyType;
+        DateConverter(OdpsRecordConverterBuilder.Config config) {
+            this.strictMode = config.strictMode;
+            this.useSqlFormat = config.useSqlFormat;
+            this.zoneId = config.timezone;
+
+            String outputPattern = config.dateOutputFormat;
             if (null == outputPattern) {
                 outputPattern = DEFAULT_OUTPUT_PATTERN;
             }
+            String parsePattern = config.dateParseFormat;
             if (null == parsePattern) {
                 parsePattern = DEFAULT_PARSE_PATTERN;
             }
-            if (isLegacyType) {
+            if (!strictMode) {
                 legacyOutputFormatter = getLegacyDateTimeFormatter(outputPattern, OdpsType.DATE);
-                legacyParseFormatter = getLegacyDateTimeFormatter(parsePattern, OdpsType.DATE);
-            } else {
-                outputFormatter = getDateTimeFormatter(outputPattern, null, OdpsType.DATE);
-                parseFormatter = getDateTimeFormatter(parsePattern, null, OdpsType.DATE);
             }
+            outputFormatter = getDateTimeFormatter(outputPattern, null, OdpsType.DATE);
+            parseFormatter = getDateTimeFormatter(parsePattern, null, OdpsType.DATE);
         }
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            if (isLegacyType) {
-                Date date = (Date) object;
-                synchronized (legacyOutputFormatter) {
-                    return legacyOutputFormatter.format(date);
-                }
-            } else {
+            String formattedStr;
+            if (object instanceof LocalDate) {
                 LocalDate localDate = (LocalDate) object;
-                return localDate.format(outputFormatter);
+                formattedStr = localDate.format(outputFormatter);
+            } else if (object instanceof ZonedDateTime) {
+                ZonedDateTime zdt = (ZonedDateTime) object;
+                formattedStr = zdt.format(outputFormatter);
+            } else if (object instanceof java.util.Date) {
+                java.util.Date date = (java.util.Date) object;
+                synchronized (legacyOutputFormatter) {
+                    formattedStr = legacyOutputFormatter.format(date);
+                }
+            } else if (object instanceof LocalDateTime) {
+                LocalDateTime localDateTime = (LocalDateTime) object;
+                formattedStr = localDateTime.format(outputFormatter);
+            } else if (object instanceof Instant) {
+                Instant instant = (Instant) object;
+                formattedStr = instant.atZone(zoneId).format(outputFormatter);
+            } else {
+                throw new IllegalArgumentException(
+                    "Unsupported DATE object type: " + object.getClass());
+            }
+            if (useSqlFormat) {
+                return "DATE'" + formattedStr + "'";
+            } else {
+                return formattedStr;
             }
         }
 
         @Override
         public Object parse(String str, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            if (isLegacyType) {
-                try {
-                    java.util.Date date = legacyParseFormatter.parse(str);
-                    return new Date(date.getTime());
-                } catch (ParseException e) {
-                    throw new DateTimeParseException(null, str, 0, e);
-                }
-            } else {
-                return LocalDate.parse(str, parseFormatter);
-            }
+            return LocalDate.parse(str, parseFormatter);
         }
     }
 
     private static class DatetimeConverter implements OdpsObjectConverter {
 
         // SQL is yyyy-MM-dd HH:mm:ss
-        private final static String DEFAULT_OUTPUT_PATTERN = "uuuu-MM-dd HH:mm:ss";
+        private static final String DEFAULT_OUTPUT_PATTERN = "uuuu-MM-dd HH:mm:ss";
 
-        private final static String DEFAULT_PARSE_PATTERN = "uuuu-M-d H:m:s";
-        private final static DateTimeFormatter DEFAULT_PARSER = new DateTimeFormatterBuilder()
+        private static final String DEFAULT_PARSE_PATTERN = "uuuu-M-d H:m:s";
+        private static final DateTimeFormatter DEFAULT_PARSER = new DateTimeFormatterBuilder()
                 .appendPattern(DEFAULT_PARSE_PATTERN)
                 .optionalStart()
                 .appendFraction(NANO_OF_SECOND, 0, 9, true)
@@ -480,56 +581,63 @@ class ObjectConverterFactory {
         private DateTimeFormatter outputFormatter;
         private DateTimeFormatter parseFormatter;
         private SimpleDateFormat legacyOutputFormatter;
-        private SimpleDateFormat legacyParseFormatter;
-        private boolean isLegacyType;
+        private final boolean strictMode;
+        private final boolean useSqlFormat;
 
-        DatetimeConverter(String outputPattern, String parsePattern, ZoneId zoneId,
-                          boolean isLegacyType) {
-            this.isLegacyType = isLegacyType;
+        DatetimeConverter(OdpsRecordConverterBuilder.Config config) {
+            this.strictMode = config.strictMode;
+            this.useSqlFormat = config.useSqlFormat;
+
+            String outputPattern = config.datetimeOutputFormat;
             if (null == outputPattern) {
                 outputPattern = DEFAULT_OUTPUT_PATTERN;
             }
+            String parsePattern = config.datetimeParseFormat;
             if (null == parsePattern) {
-                parsePattern = DEFAULT_PARSE_PATTERN;
-                parseFormatter = DEFAULT_PARSER.withZone(zoneId);
+                parseFormatter = DEFAULT_PARSER.withZone(config.timezone);
             } else {
-                parseFormatter = getDateTimeFormatter(parsePattern, zoneId, OdpsType.DATETIME);
+                parseFormatter = getDateTimeFormatter(parsePattern, config.timezone, OdpsType.DATETIME);
             }
-            if (isLegacyType) {
+            if (!strictMode) {
                 legacyOutputFormatter = getLegacyDateTimeFormatter(outputPattern, OdpsType.DATETIME);
-                legacyParseFormatter = getLegacyDateTimeFormatter(parsePattern, OdpsType.DATETIME);
-            } else {
-                outputFormatter = getDateTimeFormatter(outputPattern, zoneId, OdpsType.DATETIME);
             }
+            outputFormatter = getDateTimeFormatter(outputPattern, config.timezone, OdpsType.DATETIME);
         }
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            if (isLegacyType) {
+            String formattedStr;
+            if (object instanceof ZonedDateTime) {
+                ZonedDateTime zdt = (ZonedDateTime) object;
+                formattedStr = zdt.format(outputFormatter);
+            } else if (object instanceof java.util.Date) {
                 java.util.Date date = (java.util.Date) object;
                 synchronized (legacyOutputFormatter) {
-                    return legacyOutputFormatter.format(date);
+                    formattedStr = legacyOutputFormatter.format(date);
                 }
+            } else if (object instanceof LocalDateTime) {
+                LocalDateTime localDateTime = (LocalDateTime) object;
+                formattedStr = localDateTime.format(outputFormatter);
+            } else if (object instanceof Instant) {
+                Instant instant = (Instant) object;
+                formattedStr = instant.atZone(outputFormatter.getZone()).format(outputFormatter);
             } else {
-                ZonedDateTime zdt = (ZonedDateTime) object;
-                return zdt.format(outputFormatter);
+                throw new IllegalArgumentException(
+                    "Unsupported DATETIME object type: " + object.getClass());
+            }
+            if (useSqlFormat) {
+                return "DATETIME'" + formattedStr + "'";
+            } else {
+                return formattedStr;
             }
         }
 
         @Override
         public Object parse(String str, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            if (isLegacyType) {
-                try {
-                    return legacyParseFormatter.parse(str);
-                } catch (ParseException e) {
-                    throw new DateTimeParseException(null, str, 0, e);
-                }
-            } else {
-                ZonedDateTime zdt = ZonedDateTime.parse(str, parseFormatter);
-                Instant instant = zdt.toInstant();
-                instant = instant.minusNanos(instant.getNano() % 1000000);
-                return ZonedDateTime.ofInstant(instant, parseFormatter.getZone());
-            }
+            ZonedDateTime zdt = ZonedDateTime.parse(str, parseFormatter);
+            Instant instant = zdt.toInstant();
+            instant = instant.minusNanos(instant.getNano() % 1000000);
+            return ZonedDateTime.ofInstant(instant, parseFormatter.getZone());
         }
     }
 
@@ -553,53 +661,80 @@ class ObjectConverterFactory {
     }
 
     private static class TimestampConverter extends AbstractTimestampFormatter {
+        private final boolean useSqlFormat;
 
-        private boolean isLegacyType;
-
-        TimestampConverter(String outputPattern, String parsePattern, ZoneId timezone, boolean isLegacyType) {
-            this.isLegacyType = isLegacyType;
+        TimestampConverter(OdpsRecordConverterBuilder.Config config) {
+            this.useSqlFormat = config.useSqlFormat;
+            String outputPattern = config.timestampOutputFormat;
             if (outputPattern != null) {
-                outputFormatter = getDateTimeFormatter(outputPattern, timezone, OdpsType.TIMESTAMP);
+                outputFormatter =
+                    getDateTimeFormatter(outputPattern, config.timezone, OdpsType.TIMESTAMP);
             } else {
-                outputFormatter = outputFormatter.withZone(timezone);
+                outputFormatter = outputFormatter.withZone(config.timezone);
             }
 
+            String parsePattern = config.timestampParseFormat;
             if (parsePattern != null) {
-                parseFormatter = getDateTimeFormatter(parsePattern, timezone, OdpsType.TIMESTAMP);
+                parseFormatter =
+                    getDateTimeFormatter(parsePattern, config.timezone, OdpsType.TIMESTAMP);
             } else {
-                parseFormatter = parseFormatter.withZone(timezone);
+                parseFormatter = parseFormatter.withZone(config.timezone);
             }
-
         }
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            if (isLegacyType) {
+            String formattedStr;
+            if (object instanceof Instant) {
+                Instant i = (Instant) object;
+                formattedStr = outputFormatter.format(i);
+            } else if (object instanceof Timestamp) {
                 Timestamp timestamp = (Timestamp) object;
-                String output = timestamp.toString();
-                return timestamp.getNanos() == 0 ? output.substring(0, output.length() - 2) : output;
+                formattedStr =
+                    timestamp.getNanos() == 0 ? timestamp.toString().substring(0, 19)
+                                              : timestamp.toString();
+            } else if (object instanceof LocalDateTime) {
+                LocalDateTime localDateTime = (LocalDateTime) object;
+                formattedStr = localDateTime.format(outputFormatter);
+            } else if (object instanceof ZonedDateTime) {
+                ZonedDateTime zdt = (ZonedDateTime) object;
+                formattedStr = zdt.format(outputFormatter);
+            } else {
+                throw new IllegalArgumentException(
+                    "Unsupported TIMESTAMP object type: " + object.getClass());
             }
-            Instant i = (Instant) object;
-            return outputFormatter.format(i);
+            if (useSqlFormat) {
+                return "TIMESTAMP'" + formattedStr + "'";
+            } else {
+                return formattedStr;
+            }
         }
 
         @Override
         public Object parse(String str, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            if (isLegacyType) {
-                return Timestamp.valueOf(str);
-            } else {
-                return ZonedDateTime.parse(str, parseFormatter).toInstant();
-            }
+            return ZonedDateTime.parse(str, parseFormatter).toInstant();
         }
     }
 
     private static class TimestampNtzConverter extends AbstractTimestampFormatter {
 
-        TimestampNtzConverter(String outputPattern, String parsePattern) {
+        private final boolean useSqlFormat;
+
+        /**
+         * note that although timestamp_ntz is of no time zone type,
+         * the purpose of using zoneId here is to format the time zone type data passed in by the user, such as Instant
+         */
+        private final ZoneId zoneId;
+
+        TimestampNtzConverter(OdpsRecordConverterBuilder.Config config) {
+            this.useSqlFormat = config.useSqlFormat;
+            this.zoneId = config.timezone;
+
+            String outputPattern = config.timestampNtzOutputFormat;
             if (outputPattern != null) {
                 outputFormatter = getDateTimeFormatter(outputPattern, null, OdpsType.TIMESTAMP_NTZ);
-
             }
+            String parsePattern = config.timestampNtzParseFormat;
             if (parsePattern != null) {
                 parseFormatter = getDateTimeFormatter(outputPattern, null, OdpsType.TIMESTAMP_NTZ);
             }
@@ -607,8 +742,30 @@ class ObjectConverterFactory {
 
         @Override
         public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
-            LocalDateTime localDateTime = (LocalDateTime) object;
-            return localDateTime.format(outputFormatter);
+            String formattedStr;
+            if (object instanceof Instant) {
+                Instant i = (Instant) object;
+                formattedStr = i.atZone(zoneId).format(outputFormatter);
+            } else if (object instanceof Timestamp) {
+                Timestamp timestamp = (Timestamp) object;
+                formattedStr =
+                    timestamp.getNanos() == 0 ? timestamp.toString().substring(0, 19)
+                                              : timestamp.toString();
+            } else if (object instanceof LocalDateTime) {
+                LocalDateTime localDateTime = (LocalDateTime) object;
+                formattedStr = localDateTime.format(outputFormatter);
+            } else if (object instanceof ZonedDateTime) {
+                ZonedDateTime zdt = (ZonedDateTime) object;
+                formattedStr = zdt.format(outputFormatter);
+            } else {
+                throw new IllegalArgumentException(
+                    "Unsupported TIMESTAMP_NTZ object type: " + object.getClass());
+            }
+            if (useSqlFormat) {
+                return "TIMESTAMP_NTZ'" + formattedStr + "'";
+            } else {
+                return formattedStr;
+            }
         }
 
         @Override
@@ -628,11 +785,13 @@ class ObjectConverterFactory {
             case BIGINT:
                 return BigIntConverter.INSTANCE;
             case CHAR:
-                return CharConverter.INSTANCE;
+                return config.quoteStrings ? CharConverter.QUOTE_INSTANCE : CharConverter.INSTANCE;
             case VARCHAR:
-                return VarcharConverter.INSTANCE;
+                return config.quoteStrings ? VarcharConverter.QUOTE_INSTANCE
+                                           : VarcharConverter.INSTANCE;
             case STRING:
-                return StringConverter.INSTANCE;
+                return config.quoteStrings ? StringConverter.QUOTE_INSTANCE
+                                           : StringConverter.INSTANCE;
             case FLOAT:
                 switch (config.floatingNumberOutputFormat) {
                     case FLOATING_NUMBER_OUTPUT_FORMAT_TO_STRING:
@@ -665,14 +824,13 @@ class ObjectConverterFactory {
                         throw new IllegalArgumentException("unsupported decimal format type");
                 }
             case DATE:
-                return new DateConverter(config.dateOutputFormat, config.dateParseFormat, config.legacyTimeType);
+                return new DateConverter(config);
             case DATETIME:
-                return new DatetimeConverter(config.datetimeOutputFormat, config.datetimeParseFormat, config.timezone, config.legacyTimeType);
+                return new DatetimeConverter(config);
             case TIMESTAMP:
-                return new TimestampConverter(config.timestampOutputFormat, config.timestampParseFormat,
-                        config.timezone, config.legacyTimeType);
+                return new TimestampConverter(config);
             case TIMESTAMP_NTZ:
-                return new TimestampNtzConverter(config.timestampNtzOutputFormat, config.timestampNtzParseFormat);
+                return new TimestampNtzConverter(config);
             case BINARY:
                 switch (config.binaryFormat) {
                     case BINARY_FORMAT_BASE64:
@@ -681,6 +839,10 @@ class ObjectConverterFactory {
                         return BinaryConverter.UTF8;
                     case BINARY_FORMAT_QUOTED_PRINTABLE:
                         return BinaryConverter.QUOTED_PRINTABLE;
+                    case BINARY_FORMAT_HEX:
+                        return BinaryConverter.HEX;
+                    case BINARY_FORMAT_SQL_FORMAT:
+                        return BinaryConverter.SQL_FORMAT;
                 }
             case ARRAY:
             case MAP:

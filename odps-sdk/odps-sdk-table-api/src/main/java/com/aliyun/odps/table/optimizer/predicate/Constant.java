@@ -1,8 +1,11 @@
 package com.aliyun.odps.table.optimizer.predicate;
 
 import java.io.Serializable;
-import java.time.temporal.Temporal;
 import java.util.Objects;
+
+import com.aliyun.odps.data.converter.OdpsRecordConverter;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.utils.OdpsCommonUtils;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
@@ -10,33 +13,47 @@ import java.util.Objects;
 public class Constant extends Predicate {
 
   private final Serializable value;
+  private final TypeInfo typeInfo;
+  private static final OdpsRecordConverter formatter;
+
+  static {
+    formatter = OdpsRecordConverter.builder()
+        .setStrictMode(false)
+        .timezone("UTC")
+        .enableSqlStandardFormat()
+        .build();
+  }
 
   public Constant(Object value) {
+    this(value, OdpsCommonUtils.indicateTypeFromClass(value));
+  }
+
+  public Constant(Object value, TypeInfo typeInfo) {
     super(PredicateType.CONSTANT);
     this.value = (Serializable) value;
+    this.typeInfo = typeInfo;
   }
 
   public static Constant of(Object value) {
     return new Constant(value);
   }
 
-  private boolean isStringType() {
-    return value instanceof String || value instanceof Character;
+  public static Constant of(Object value, TypeInfo typeInfo) {
+    return new Constant(value, typeInfo);
   }
-
-  private boolean isTimeType() {
-    return value instanceof java.util.Date || value instanceof Temporal;
-  }
-
 
   @Override
   public String toString() {
-    if (isStringType() || isTimeType()) {
-      return "'" + value + "'";
+    try {
+      return formatter.formatObject(value, typeInfo);
+    } catch (Exception e) {
+      throw new IllegalArgumentException(
+          "Invalid constant value: " + value.toString() + "[" + value.getClass().getName() + "]"
+          + " for type " + typeInfo.getTypeName()
+          + ". You can use RawPredicate to handle constant manually if you think this method does not handle your input appropriately. ",
+          e);
     }
-    return value.toString();
   }
-
 
   @Override
   public boolean equals(Object o) {
@@ -50,7 +67,7 @@ public class Constant extends Predicate {
       return false;
     }
     Constant constant = (Constant) o;
-    return Objects.equals(value, constant.value);
+    return Objects.equals(value, constant.value) && Objects.equals(typeInfo, constant.typeInfo);
   }
 
   @Override

@@ -72,6 +72,7 @@ class SQLExecutorImpl implements SQLExecutor {
   private String fallbackQuota;
   private int tunnelGetResultMaxRetryTime;
   private int tunnelGetResultRetryCount = 0;
+  private Integer offlineJobPriority;
   private static final long cacheSize = 1000;
   private static final int durationSeconds = 900;
   private static TunnelEndpointLocalCache cache = new TunnelEndpointLocalCache(cacheSize,
@@ -149,7 +150,8 @@ class SQLExecutorImpl implements SQLExecutor {
       boolean odpsNamespaceSchema,
       int tunnelSocketTimeout,
       int tunnelReadTimeout,
-      boolean sessionSupportNonSelect) throws OdpsException {
+      boolean sessionSupportNonSelect,
+      Integer offlineJobPriority) throws OdpsException {
     this.properties.putAll(properties);
     this.serviceName = serviceName;
     this.taskName = taskName;
@@ -166,6 +168,7 @@ class SQLExecutorImpl implements SQLExecutor {
     this.fallbackQuota = quotaName;
     this.commandApi = new CommandApi(odps);
     this.sessionSupportNonSelect = sessionSupportNonSelect;
+    this.offlineJobPriority = offlineJobPriority;
     if (timeout != null) {
       this.attachTimeout = timeout;
     }
@@ -1310,7 +1313,8 @@ class SQLExecutorImpl implements SQLExecutor {
         queryInfo.getSql(),
         SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
         queryInfo.getHint(),
-        null);
+        null,
+        offlineJobPriority);
 
     queryInfo.setInstance(instance, ExecuteMode.OFFLINE,
         new LogView(odps).generateLogView(instance, 7 * 24), rerunMsg);

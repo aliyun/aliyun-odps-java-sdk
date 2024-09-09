@@ -120,9 +120,12 @@ public class Instances implements Iterable<Instance> {
    * @throws OdpsException
    */
   public Instance create(Job job) throws OdpsException {
-    return create(getDefaultProjectName(), job);
+    return create(job, false);
   }
 
+  public Instance create(Job job, boolean tryWait) throws OdpsException {
+    return create(getDefaultProjectName(), job, tryWait);
+  }
   /**
    * 为给定的{@link Task}创建{@link Instance}
    *
@@ -338,6 +341,9 @@ public class Instances implements Iterable<Instance> {
     JobModel job;
   }
 
+  Instance create(String project, Job job) throws OdpsException {
+    return create(project, job, false);
+  }
   /**
    * 使用给定的{@link Job}定义在给定的project内创建Instance
    *
@@ -348,7 +354,7 @@ public class Instances implements Iterable<Instance> {
    * @return {@link Instance}对象
    * @throws OdpsException
    */
-  Instance create(String project, Job job) throws OdpsException {
+  Instance create(String project, Job job, Boolean tryWait) throws OdpsException {
     if (StringUtils.isNullOrEmpty(project)) {
       throw new IllegalArgumentException("project required.");
     }
@@ -391,8 +397,13 @@ public class Instances implements Iterable<Instance> {
     HashMap<String, String> headers = new HashMap<String, String>();
     headers.put(Headers.CONTENT_TYPE, "application/xml");
 
+    HashMap<String, String> params = new HashMap<String, String>();
+
     String resource = ResourceBuilder.buildInstancesResource(project);
-    Response resp = client.stringRequest(resource, "POST", null, headers, xml);
+    if (tryWait) {
+      params.put("tryWait", null);
+    }
+    Response resp = client.stringRequest(resource, "POST", params, headers, xml);
 
     String location = resp.getHeaders().get(Headers.LOCATION);
     if (location == null || location.trim().length() == 0) {

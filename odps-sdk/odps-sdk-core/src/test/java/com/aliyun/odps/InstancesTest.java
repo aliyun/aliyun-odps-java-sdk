@@ -22,7 +22,10 @@ package com.aliyun.odps;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+
+import com.aliyun.odps.Instance.InstanceResultModel;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -33,13 +36,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.aliyun.odps.Instance.InstanceResultModel;
 import com.aliyun.odps.Instance.Result;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.task.SQLTask;
@@ -53,9 +54,6 @@ public class InstancesTest extends TestBase {
 
   @BeforeClass
   public static void setup() throws TunnelException, OdpsException, IOException {
-    // skip run in 5ktest env
-    Assume.assumeFalse(OdpsTestUtils.getEnv() == OdpsTestUtils.Env._5ktest);
-
     OdpsTestUtils.createTableForTest(TABLE_NAME);
     OdpsTestUtils.createBigTableForTest(odps, TABLE_NAME_1);
   }

@@ -34,7 +34,6 @@ public interface UpsertStream {
    */
   public void close() throws IOException, TunnelException;
 
-
   /**
    * 关闭UpsertStream, 调用后数据和状态将被清空重置
    */
