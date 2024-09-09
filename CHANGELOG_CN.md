@@ -1,4 +1,31 @@
 # 更新日志
+## [0.49.0-public] - 2024-09-09
+
+### 功能
+
+- **OdpsRecordConverter 功能增强**：现在支持将数据转换为 SQL 兼容格式，比如对于 `LocalDate`
+  类型，数据可以转换为 `"DATE 'yyyy-mm-dd'"` 格式。同时对于 `Binary` 类型，现在支持了 hex 表示格式。
+
+- **开放存储谓词下推常量增强**：改进了 `Constant` 类行为，新增了 `Constant.of(Object, TypeInfo)`
+  方法。现在当设定或识别出类型为时间类型时，可以正确转变为 SQL
+  兼容格式（也就是可以正确下推时间类型了）。同时修复了一些其他类型的问题，当无法转换成 SQL
+  兼容模式时，会在创建 `Session` 的时候抛出 `IllegalArgumentException`。
+
+- **UpsertSession 实现 Closable 方法**：提醒用户应当正确释放 UpsertSession 的本地资源。
+
+- **SQLExecutorBuilder 新增方法** `offlineJobPriority`：用来设置当作业发生回退时，离线作业的优先级。
+
+- **Table 类新增方法** `getLastMajorCompactTime`：用来获取表最后一次 major compact 的时间。
+
+- **Instance 类新增方法** `create(Job job, boolean tryWait)`：当用户执行 `tryWait` 为 `true`
+  时，作业会尝试在服务端等待一段时间，以更快获取结果。
+
+- **Resource 类增强**：现在能够判断对应的资源是否属于临时资源。
+
+### 修复
+
+- **UpsertStream NPE 修复**：修复了在 flush 时，当发生本地错误时抛出 NPE 而无法正确重试的问题。
+
 ## [0.48.8-public] - 2024-08-12
 ### 增强
 - 引入了对复合谓词表达式的内部验证，修复了处理无效或总是真/假谓词时的逻辑，增强了测试覆盖，确保了在复杂查询优化中的稳定性和准确性。

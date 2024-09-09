@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.49.0-public] - 2024-09-09
+
+### Features
+
+- **OdpsRecordConverter Enhancement**: Now supports converting data to SQL-compatible formats. For
+  example, for the `LocalDate` type, data can be converted to `"DATE 'yyyy-mm-dd'"` format.
+  Additionally, for the `Binary` type, hex representation format is now supported.
+
+- **Enhanced Predicate Pushdown for Storage Constants**: Improved the behavior of the `Constant`
+  class and added the `Constant.of(Object, TypeInfo)` method. Now, when setting or identifying types
+  as time types, the conversion to SQL-compatible format can be done correctly (enabling correct
+  pushdown of time types). Other type conversion issues have been fixed;
+  an `IllegalArgumentException` will be thrown during session creation when conversion to
+  SQL-compatible mode is not possible.
+
+- **UpsertSession Implements Closable Interface**: Notifies users to properly release local
+  resources of the UpsertSession.
+
+- **SQLExecutorBuilder New Method** `offlineJobPriority`: Allows setting the priority of offline
+  jobs when a job rolls back.
+
+- **New Method in Table Class** `getLastMajorCompactTime`: Used to retrieve the last time the table
+  underwent major compaction.
+
+- **New Method in Instance Class** `create(Job job, boolean tryWait)`: When the `tryWait` parameter
+  is true, the job will attempt to wait on the server for a period of time to obtain results more
+  quickly.
+
+- **Resource Class Enhancement**: Now able to determine if the corresponding resource is a temporary
+  resource.
+
+### Fixes
+
+- **UpsertStream NPE Fix**: Fixed an issue where an NPE was thrown during flush when a local error
+  occurred, preventing a proper retry.
+
+
 ## [0.48.8-public] - 2024-08-12
 
 ### Enhancement

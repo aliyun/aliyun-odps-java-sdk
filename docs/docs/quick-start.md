@@ -16,7 +16,7 @@ MaxCompute的Java SDK为开发者提供了丰富的Java编程语言接口，允�
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-core</artifactId>
-    <version>0.48.8-public</version>
+    <version>0.49.0-public</version>
 </dependency>
 ```
 请确保您使用的是[Maven Central Repository](https://mvnrepository.com/artifact/com.aliyun.odps/odps-sdk-core)或[阿里云Maven仓库](https://developer.aliyun.com/mvn/)中可用的最新稳定版本。
