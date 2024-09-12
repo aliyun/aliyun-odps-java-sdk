@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.49.0-public] - 2024-09-09
+## [0.49.0-public] - 2024-09-12
 
 ### Features
 
