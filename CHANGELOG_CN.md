@@ -22,9 +22,13 @@
 
 - **Resource 类增强**：现在能够判断对应的资源是否属于临时资源。
 
+- **CreateProjectParma 类增强** 新增`defaultCtrlService`参数，用来指定项目的默认控制集群。
+
 ### 修复
 
 - **UpsertStream NPE 修复**：修复了在 flush 时，当发生本地错误时抛出 NPE 而无法正确重试的问题。
+
+- **Varchar/Char 类型修复**：修复了 `Varchar/Char` 类型获取其长度时，当遇到中文符号或表情等特殊字符，会错误的计算两次的问题。
 
 ## [0.48.8-public] - 2024-08-12
 ### 增强

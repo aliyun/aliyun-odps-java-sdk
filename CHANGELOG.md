@@ -31,11 +31,16 @@
 - **Resource Class Enhancement**: Now able to determine if the corresponding resource is a temporary
   resource.
 
+- **CreateProjectParma class enhancement** Added `defaultCtrlService` parameter to specify the default control cluster of the project.
+
 ### Fixes
 
 - **UpsertStream NPE Fix**: Fixed an issue where an NPE was thrown during flush when a local error
   occurred, preventing a proper retry.
 
+- **Varchar/Char type fix**: Fixed the problem that when the `Varchar/Char` type obtains its length
+  and encounters special characters such as Chinese symbols or emoticons, it will be incorrectly
+  calculated twice.
 
 ## [0.48.8-public] - 2024-08-12
 
