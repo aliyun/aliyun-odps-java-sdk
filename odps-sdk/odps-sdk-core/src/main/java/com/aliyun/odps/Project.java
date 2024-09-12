@@ -29,7 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -180,6 +179,8 @@ public class Project extends LazyLoad {
      */
     StorageTierInfo storageTierInfo;
 
+    @Element(name = "DefaultCtrlService", required = false)
+    String defaultCtrlService;
   }
 
   public static class ExternalProjectProperties {

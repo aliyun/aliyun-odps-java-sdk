@@ -875,4 +875,23 @@ public class ArrayRecordTest {
 
   }
 
+  @Test
+  public void testVarcharOverFlow() {
+    // make sure count char but not count length in varchar and char
+    TableSchema tableSchema = new TableSchema();
+    tableSchema.addColumn(new Column("varchar", TypeInfoFactory.getVarcharTypeInfo(11)));
+    tableSchema.addColumn(new Column("char", TypeInfoFactory.getCharTypeInfo(11)));
+
+    ArrayRecord r = new ArrayRecord(tableSchema);
+    String str = "184了776991\uD873\uDC56";
+    Assert.assertEquals(11, new Varchar(str).length());
+
+    String str2 = "184了776991\uD83D\uDD3A";
+    Assert.assertEquals(11, new Char(str2).length());
+
+    r.set(0, new Varchar(str));
+    r.set(1, new Char(str2));
+
+    System.out.println(r);
+  }
 }

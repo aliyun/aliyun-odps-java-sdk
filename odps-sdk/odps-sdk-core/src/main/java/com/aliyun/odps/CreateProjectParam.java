@@ -140,6 +140,11 @@ public class CreateProjectParam {
     return this;
   }
 
+  public CreateProjectParam defaultCtrlService(String defaultCtrlService) {
+    this.projectModel.defaultCtrlService = defaultCtrlService;
+    return this;
+  }
+
   Project.ProjectModel getProjectModel() {
     return this.projectModel;
   }

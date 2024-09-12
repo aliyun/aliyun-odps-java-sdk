@@ -60,6 +60,6 @@ public abstract class  AbstractChar<T extends AbstractChar> implements Serializa
   }
 
   public int length() {
-    return value.length();
+    return value.codePointCount(0, value.length());
   }
 }

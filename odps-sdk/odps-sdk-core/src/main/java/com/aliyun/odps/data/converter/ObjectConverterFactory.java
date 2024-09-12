@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.util.Base64;
+import java.util.TimeZone;
 
 import org.apache.commons.codec.binary.Hex;
 
@@ -522,10 +523,11 @@ class ObjectConverterFactory {
                 parsePattern = DEFAULT_PARSE_PATTERN;
             }
             if (!strictMode) {
-                legacyOutputFormatter = getLegacyDateTimeFormatter(outputPattern, OdpsType.DATE);
+                legacyOutputFormatter =
+                    getLegacyDateTimeFormatter(outputPattern, config.timezone, OdpsType.DATE);
             }
-            outputFormatter = getDateTimeFormatter(outputPattern, null, OdpsType.DATE);
-            parseFormatter = getDateTimeFormatter(parsePattern, null, OdpsType.DATE);
+            outputFormatter = getDateTimeFormatter(outputPattern, config.timezone, OdpsType.DATE);
+            parseFormatter = getDateTimeFormatter(parsePattern, config.timezone, OdpsType.DATE);
         }
 
         @Override
@@ -599,7 +601,7 @@ class ObjectConverterFactory {
                 parseFormatter = getDateTimeFormatter(parsePattern, config.timezone, OdpsType.DATETIME);
             }
             if (!strictMode) {
-                legacyOutputFormatter = getLegacyDateTimeFormatter(outputPattern, OdpsType.DATETIME);
+                legacyOutputFormatter = getLegacyDateTimeFormatter(outputPattern, config.timezone, OdpsType.DATETIME);
             }
             outputFormatter = getDateTimeFormatter(outputPattern, config.timezone, OdpsType.DATETIME);
         }
@@ -662,9 +664,10 @@ class ObjectConverterFactory {
 
     private static class TimestampConverter extends AbstractTimestampFormatter {
         private final boolean useSqlFormat;
-
+        private final ZoneId timezone;
         TimestampConverter(OdpsRecordConverterBuilder.Config config) {
             this.useSqlFormat = config.useSqlFormat;
+            this.timezone = config.timezone;
             String outputPattern = config.timestampOutputFormat;
             if (outputPattern != null) {
                 outputFormatter =
@@ -672,7 +675,6 @@ class ObjectConverterFactory {
             } else {
                 outputFormatter = outputFormatter.withZone(config.timezone);
             }
-
             String parsePattern = config.timestampParseFormat;
             if (parsePattern != null) {
                 parseFormatter =
@@ -690,9 +692,7 @@ class ObjectConverterFactory {
                 formattedStr = outputFormatter.format(i);
             } else if (object instanceof Timestamp) {
                 Timestamp timestamp = (Timestamp) object;
-                formattedStr =
-                    timestamp.getNanos() == 0 ? timestamp.toString().substring(0, 19)
-                                              : timestamp.toString();
+                formattedStr = outputFormatter.format(timestamp.toInstant().atZone(timezone));
             } else if (object instanceof LocalDateTime) {
                 LocalDateTime localDateTime = (LocalDateTime) object;
                 formattedStr = localDateTime.format(outputFormatter);
@@ -732,11 +732,11 @@ class ObjectConverterFactory {
 
             String outputPattern = config.timestampNtzOutputFormat;
             if (outputPattern != null) {
-                outputFormatter = getDateTimeFormatter(outputPattern, null, OdpsType.TIMESTAMP_NTZ);
+                outputFormatter = getDateTimeFormatter(outputPattern, ZoneId.of("UTC"), OdpsType.TIMESTAMP_NTZ);
             }
             String parsePattern = config.timestampNtzParseFormat;
             if (parsePattern != null) {
-                parseFormatter = getDateTimeFormatter(outputPattern, null, OdpsType.TIMESTAMP_NTZ);
+                parseFormatter = getDateTimeFormatter(outputPattern, ZoneId.of("UTC"), OdpsType.TIMESTAMP_NTZ);
             }
         }
 
@@ -747,10 +747,8 @@ class ObjectConverterFactory {
                 Instant i = (Instant) object;
                 formattedStr = i.atZone(zoneId).format(outputFormatter);
             } else if (object instanceof Timestamp) {
-                Timestamp timestamp = (Timestamp) object;
-                formattedStr =
-                    timestamp.getNanos() == 0 ? timestamp.toString().substring(0, 19)
-                                              : timestamp.toString();
+                Instant i = ((Timestamp) object).toInstant();
+                formattedStr = i.atZone(zoneId).format(outputFormatter);
             } else if (object instanceof LocalDateTime) {
                 LocalDateTime localDateTime = (LocalDateTime) object;
                 formattedStr = localDateTime.format(outputFormatter);
@@ -872,12 +870,18 @@ class ObjectConverterFactory {
         }
     }
 
-    private static SimpleDateFormat getLegacyDateTimeFormatter(String pattern, OdpsType odpsType) {
+    private static SimpleDateFormat getLegacyDateTimeFormatter(String pattern, ZoneId zoneId,
+                                                               OdpsType odpsType) {
         try {
             pattern = pattern.replace("u", "y");
-            return new SimpleDateFormat(pattern);
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+            if (zoneId != null) {
+                simpleDateFormat.setTimeZone(TimeZone.getTimeZone(zoneId));
+            }
+            return simpleDateFormat;
         } catch (Exception e) {
-            throw new IllegalArgumentException("DateTime format for " + odpsType + " illegal: " + pattern);
+            throw new IllegalArgumentException(
+                "DateTime format for " + odpsType + " illegal: " + pattern);
         }
     }
 

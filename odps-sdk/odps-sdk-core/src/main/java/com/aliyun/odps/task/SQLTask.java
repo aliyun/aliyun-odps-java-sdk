@@ -700,7 +700,7 @@ public class SQLTask extends Task {
    */
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
-                             Map<String, String> aliases, int priority) throws OdpsException {
+                             Map<String, String> aliases, Integer priority) throws OdpsException {
     return run(odps, project, sql, taskName, hints, aliases, priority, "sql");
   }
 
