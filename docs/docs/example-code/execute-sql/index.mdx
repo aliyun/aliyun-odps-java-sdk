@@ -1,0 +1,40 @@
+---
+slug: /execute-sql
+sidebar_position: 2
+---
+# 如何在MaxCompute中执行SQL
+
+向MaxCompute提交SQL作业是odps-sdk的核心功能。本文将介绍如何选择作业类型和提交作业的方式。
+
+## 选择作业类型
+
+MaxCompute支持三种类型的SQL作业。用户应根据具体的使用场景选择合适的作业类型，以优化性能和效率：
+
+- **离线作业**
+- **MCQA 1.0**
+- **MCQA 2.0（邀测中）**
+
+### 离线作业
+
+离线作业是MaxCompute的主要作业类型，专用于处理海量数据（如GB、TB、EB级别）的离线批量计算场景。提交MaxCompute作业后，会经历几十秒到数分钟不等的排队调度，这使得该类型特别适合一次性提交并处理海量数据的批量作业。
+
+### MCQA 1.0
+
+MCQA（MaxCompute Query Acceleration）是一项SQL查询加速服务，主要用于中、小数据量查询作业的加速优化。其目标是将执行时间为分钟级的查询作业缩减至秒级，提高查询效率。
+
+### MCQA 2.0
+
+MCQA 2.0是在MCQA 1.0的基础上进行的功能增强，通过引入Virtual Warehouse技术，允许用户调用独享的计算资源以执行SQL查询。这种模式显著减少了因资源消耗限制导致的加速失败问题。目前，该版本仍处于邀测阶段。
+
+## 提交作业
+
+由于不同类型的作业支持的参数各异，提交方式也有所区别。odps-sdk开发了统一的提交接口 `SQLExecutor`，具体的提交方式和注意事项请参考对应作业类型的文档。
+
+import DocCardList from '@theme/DocCardList';
+
+<DocCardList />
+
+## 参考文档
+
+- [MaxCompute SQL概述](https://help.aliyun.com/zh/maxcompute/user-guide/overview-of-maxcompute-sql): 提供MaxCompute SQL的基本理解和使用方法。
+- [查询加速（MCQA）](https://help.aliyun.com/zh/maxcompute/user-guide/maxcompute-query-acceleration): 详细介绍MCQA的功能和使用场景。

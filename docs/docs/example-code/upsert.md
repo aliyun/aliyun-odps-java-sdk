@@ -100,6 +100,9 @@ public class UpsertDeltaTableDemo {
 ## 注意事项
 - 由于主键表的写入特性，我们在并发写入同一张表（分区）时，应当谨慎地控制写入逻辑。如果存在多个并发，同时对同一主键进行写入，则可能发生不可预期的行为。
   常用的方案是使用 shuffle by pk 操作，将相同主键的记录分配到同一个线程中进行写入。
+- 尽管 MaxCompute 服务端具备异步Compaction能力，UpsertSession 的 commit
+  频率不应当过高（推荐commit间隔每分区不低于一分钟），否则会产生大量小文件，影响查询，还有可能触发服务端限流错误。
+- 数据只有在 commit 后才可见。记得调用 close 方法，来进行资源清理。每个 Session 只能被 commit 一次，继续写入需要重建 Session。
 
 ## 相关链接
 - [UpsertSession API 参考](../api-reference/tunnel/UpsertSession.md)
