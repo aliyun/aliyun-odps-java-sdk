@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.table.utils.Preconditions;
 
 /**
  * Created by dongxiao on 2020/3/17.
@@ -38,6 +39,7 @@ public class SQLExecutorBuilder {
   private int tunnelReadTimeout = -1;
 
   private boolean sessionSupportNonSelect = false;
+  private boolean useMcqaV2 = false;
   private Integer offlineJobPriority = null;
 
   public static SQLExecutorBuilder builder() {
@@ -45,6 +47,14 @@ public class SQLExecutorBuilder {
   }
 
   public SQLExecutor build() throws OdpsException {
+    if (useMcqaV2) {
+      // taskName
+      // properties
+      Preconditions.checkArgument(executeMode == ExecuteMode.INTERACTIVE,
+                                  "offline executeMode is not supported in mcqa");
+
+      return new com.aliyun.odps.sqa.v2.SQLExecutorImpl(this);
+    }
     return new SQLExecutorImpl(odps, serviceName, taskName, tunnelEndpoint,
                                properties, executeMode, fallbackPolicy, enableReattach,
                                useInstanceTunnel, pool, recoverInstance, runningCluster,
@@ -155,8 +165,101 @@ public class SQLExecutorBuilder {
     return this;
   }
 
+  public SQLExecutorBuilder enableMcqaV2(boolean mcqaV2) {
+    this.useMcqaV2 = mcqaV2;
+    return this;
+  }
+
   public SQLExecutorBuilder offlineJobPriority(Integer offlineJobPriority) {
     this.offlineJobPriority = offlineJobPriority;
     return this;
+  }
+
+  public ExecuteMode getExecuteMode() {
+    return executeMode;
+  }
+
+  public boolean isEnableReattach() {
+    return enableReattach;
+  }
+
+  public boolean isUseInstanceTunnel() {
+    return useInstanceTunnel;
+  }
+
+  public Odps getOdps() {
+    return odps;
+  }
+
+  public Map<String, String> getProperties() {
+    return properties;
+  }
+
+  public String getTaskName() {
+    return taskName;
+  }
+
+  public String getServiceName() {
+    return serviceName;
+  }
+
+  public String getTunnelEndpoint() {
+    return tunnelEndpoint;
+  }
+
+  public String getQuotaName() {
+    return quotaName;
+  }
+
+  public SQLExecutorPool getPool() {
+    return pool;
+  }
+
+  public FallbackPolicy getFallbackPolicy() {
+    return fallbackPolicy;
+  }
+
+  public int getTunnelGetResultMaxRetryTime() {
+    return tunnelGetResultMaxRetryTime;
+  }
+
+  public Long getAttachTimeout() {
+    return attachTimeout;
+  }
+
+  public String getRunningCluster() {
+    return runningCluster;
+  }
+
+  public Instance getRecoverInstance() {
+    return recoverInstance;
+  }
+
+  public boolean isUseCommandApi() {
+    return useCommandApi;
+  }
+
+  public boolean isOdpsNamespaceSchema() {
+    return odpsNamespaceSchema;
+  }
+
+  public int getTunnelSocketTimeout() {
+    return tunnelSocketTimeout;
+  }
+
+  public int getTunnelReadTimeout() {
+    return tunnelReadTimeout;
+  }
+
+  public boolean isSessionSupportNonSelect() {
+    return sessionSupportNonSelect;
+  }
+
+  public boolean isUseMcqaV2() {
+    return useMcqaV2;
+  }
+
+  public Integer getOfflineJobPriority() {
+    return offlineJobPriority;
   }
 }

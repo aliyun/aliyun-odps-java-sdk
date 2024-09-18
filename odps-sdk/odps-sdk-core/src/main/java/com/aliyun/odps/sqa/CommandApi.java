@@ -20,7 +20,7 @@ import com.aliyun.odps.sqa.commandapi.RecordIter;
 import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 
 
-class CommandApi {
+public class CommandApi {
 
   Odps odps;
 

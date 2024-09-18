@@ -196,7 +196,7 @@ public class SQLTask extends Task {
     return getResultByInstanceTunnel(instance, taskName, limit, true);
   }
 
-  private static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
+  public static List<Record> getResultByInstanceTunnel(Instance instance, String taskName,
                                                        Long limit, boolean limitEnabled)
       throws OdpsException, IOException {
 

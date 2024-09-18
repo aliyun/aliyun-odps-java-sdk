@@ -46,6 +46,9 @@ public class HttpUtils {
         if (settings != null && settings.getQuotaName().isPresent()) {
             params.put(TunnelConstants.PARAM_QUOTA_NAME, settings.getQuotaName().get());
         }
+        if (settings != null && settings.getSharingQuotaToken().isPresent()) {
+            params.put(TunnelConstants.PARAM_SHARING_QUOTA_TOKEN, settings.getSharingQuotaToken().get());
+        }
         return params;
     }
 

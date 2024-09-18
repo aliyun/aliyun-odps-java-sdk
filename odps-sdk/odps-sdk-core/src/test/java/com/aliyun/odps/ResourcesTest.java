@@ -78,6 +78,8 @@ public class ResourcesTest extends TestBase {
     assertTrue(r instanceof FileResource);
     assertTrue(r.getName().endsWith("resource.txt"));
     assertEquals(r.getType(), Resource.Type.FILE);
+    r.reload();
+    assertTrue(r.getIsTempResource());
   }
 
   @Test(expected = IllegalArgumentException.class)

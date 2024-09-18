@@ -1306,6 +1306,13 @@ public class TableTunnel {
        */
       UpsertSession.Builder setReadTimeout(long timeout);
 
+      long getLifecycle();
+
+      /**
+       * Session生命周期，单位 小时，有效值域为 1 - 24，指定有效值域以外的值该参数会被忽略，使用服务端默认值
+       */
+      UpsertSession.Builder setLifecycle(long lifecycle);
+
       UpsertSession build() throws TunnelException, IOException;
     }
   }

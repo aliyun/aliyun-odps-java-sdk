@@ -145,6 +145,7 @@ public class RestClient {
 
   private String defaultProject;
   private String currentSchema;
+  private String prefix = "";
 
   private static final String
       USER_AGENT_PREFIX =
@@ -596,6 +597,14 @@ public class RestClient {
     return endpoint;
   }
 
+  public void setPrefix(String prefix) {
+    this.prefix = prefix;
+  }
+
+  public String getPrefix() {
+    return prefix;
+  }
+
   @Survey
   public Transport getTransport() {
     return transport;
@@ -610,6 +619,13 @@ public class RestClient {
                                  Map<String, String> headers, String endpoint) {
     if (resource == null || !resource.startsWith("/")) {
       throw new IllegalArgumentException("Invalid resource: " + resource);
+    }
+    if (!StringUtils.isNullOrEmpty(prefix)) {
+      if (prefix.startsWith("/")) {
+        resource = prefix + resource;
+      } else {
+        throw new IllegalArgumentException("Invalid prefix: " + prefix + ", should start with '/'");
+      }
     }
 
     if (endpoint == null) {
@@ -829,6 +845,6 @@ public class RestClient {
     return this.proxy;
   }
 
-  private Map<String, String> userDefinedHeaders = new HashMap<>();
+  private final Map<String, String> userDefinedHeaders = new HashMap<>();
 
 }

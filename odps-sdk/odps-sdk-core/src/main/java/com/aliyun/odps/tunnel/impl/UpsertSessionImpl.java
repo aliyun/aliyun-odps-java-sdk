@@ -63,6 +63,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     private long connectTimeout;
     private long readTimeout;
     private boolean supportPartialUpdate = false;
+    private long lifecycle = 0;
 
     // netty
     private EventLoopGroup group;
@@ -90,6 +91,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         this.readTimeout = config.getSocketTimeout() * 1000L;
         this.id = builder.getUpsertId();
         this.tunnelRetryHandler = new TunnelRetryHandler(config);
+        this.lifecycle = builder.getLifecycle();
         if (id == null) {
             initiate();
         } else {
@@ -256,6 +258,10 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         HashMap<String, String> params = getCommonParams();
 
         params.put(TunnelConstants.SLOT_NUM, String.valueOf(this.slotNum));
+
+        if (lifecycle > 0 && lifecycle <=24) {
+            params.put(TunnelConstants.LIFECYCLE, String.valueOf(this.lifecycle));
+        }
 
         HashMap<String, String> headers = getCommonHeaders();
 
@@ -537,6 +543,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         int threadNum = 1;
         private long slotNum = 1;
         private long commitTimeout = 120 * 1000;
+        private long lifecycle = 0;
         Configuration config;
 
         public String getUpsertId() {
@@ -649,6 +656,15 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 throw new IllegalArgumentException("timeout value must be positive");
             }
             config.setSocketTimeout((int) (timeout / 1000));
+            return this;
+        }
+
+        public long getLifecycle() {
+            return lifecycle;
+        }
+
+        public UpsertSessionImpl.Builder setLifecycle(long lifecycle) {
+            this.lifecycle = lifecycle;
             return this;
         }
 

@@ -75,6 +75,7 @@ public class Headers {
    */
   public static final String ODPS_START_TIME = "x-odps-start-time";
   public static final String ODPS_END_TIME = "x-odps-end-time";
+  public static final String ODPS_MCQA_QUERY_COOKIE = "x-odps-mcqa-query-cookie";
 
   /**
    * Used by Quota
@@ -96,6 +97,8 @@ public class Headers {
   public static final String ALI_DATA_AUTH_METHOD = "x-ali-data-auth-method";
 
   public static final String ODPS_INSTSNCE_TOKEN = "x-odps-instance-token";
+
+  public static final String ODPS_MCQA_CONN = "x-odps-mcqa-conn";
 
   public static final Map<String, String>
       LOWER_CASE_HEADER_NAME_TO_HEADER_NAME =
@@ -145,6 +148,7 @@ public class Headers {
         put(ALI_DATA_AUTH_SIGNATURE_TYPE.toLowerCase(), ALI_DATA_AUTH_SIGNATURE_TYPE);
         put(ALI_DATA_AUTH_METHOD.toLowerCase(), ALI_DATA_AUTH_METHOD);
         put(ODPS_RETRY_AFTER.toLowerCase(),ODPS_RETRY_AFTER);
+        put(ODPS_MCQA_QUERY_COOKIE.toLowerCase(),ODPS_MCQA_QUERY_COOKIE);
       }};
 
   public static String toCaseSensitiveHeaderName(String headerName) {

@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Attribute;
 import com.aliyun.odps.simpleframework.xml.Element;
@@ -60,6 +61,7 @@ import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+
 
 /**
  * Instance表示ODPS中计算任务的一个运行实例
@@ -126,7 +128,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   }
 
   private String project;
-  private Map<String, Result> results;
+  private Map<String, TaskResult> results;
   private boolean isSync = false;
 
   private TaskStatusModel model;
@@ -139,10 +141,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
   private static Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 
-  Instance(String project, TaskStatusModel model, Map<String, Result> results, Odps odps) {
+  Instance(String project, TaskStatusModel model, Map<String, TaskResult> results, Odps odps) {
     this.project = project;
     this.model = model;
-    this.results = results;
+    this.results = results == null ? new HashMap<>() : results;
 
     if (model.status != null) {
       this.status = Status.valueOf(model.status.toUpperCase());
@@ -158,11 +160,14 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   }
 
   @Root(name = "Instance", strict = false)
-  private static class InstanceStatusModel {
+  static class InstanceStatusModel {
 
     @Element(name = "Status", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String status;
+
+    @ElementList(name = "Tasks", entry = "Task", required = false)
+    List<TaskResult> taskResults;
   }
 
   @Root(strict = false)
@@ -292,7 +297,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       params.put("instancestatus", null);
     }
 
-    Response resp = client.request(getResource(), "GET", params, null, null);
+    Response resp = client.request(getResource(), "GET", params, userDefinedHeaders, null);
     model.owner = resp.getHeaders().get(Headers.ODPS_OWNER);
     String startTimeStr = resp.getHeaders().get(Headers.ODPS_START_TIME);
     String endTimeStr = resp.getHeaders().get(Headers.ODPS_END_TIME);
@@ -311,6 +316,14 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     try {
       InstanceStatusModel sm = SimpleXmlUtils.unmarshal(resp, InstanceStatusModel.class);
       status = Status.valueOf(sm.status.toUpperCase());
+
+      // mcqa 2.0 task will return result when get instance status
+      if (sm.taskResults != null && !status.equals(Status.RUNNING)) {
+        for (TaskResult r : sm.taskResults) {
+          results.put(r.name, r);
+        }
+        isSync = !results.isEmpty();
+      }
     } catch (Exception e) {
       throw new OdpsException("Invalid instance status response.", e);
     }
@@ -329,8 +342,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     sm.status = "Terminated";
     try {
       String ret = SimpleXmlUtils.marshal(sm);
-      HashMap<String, String> headers = new HashMap<String, String>();
-      headers.put(Headers.CONTENT_TYPE, "application/xml");
+      Map<String, String> headers = getCommonHeaders();
       client.stringRequest(getResource(), "PUT", null, headers, ret);
     } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
@@ -344,14 +356,16 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @throws OdpsException
    */
   public Map<String, Result> getTaskResultsWithFormat() throws OdpsException {
-    if (isSync) {
-      return results;
+    if (!isSync) {
+      for (TaskResult r : getRawTaskResults()) {
+        results.put(r.name, r);
+      }
     }
-    results = new HashMap<>();
-    for (TaskResult r : getRawTaskResults()) {
-      results.put(r.name, r.result);
+    Map<String, Result> taskResultWithFormat = new HashMap<>();
+    for (Entry<String, TaskResult> entry : results.entrySet()) {
+      taskResultWithFormat.put(entry.getKey(), entry.getValue().result);
     }
-    return results;
+    return taskResultWithFormat;
   }
 
   /**
@@ -377,10 +391,13 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @throws OdpsException
    */
   public List<TaskResult> getRawTaskResults() throws OdpsException {
+    if (isSync) {
+      return new ArrayList<>(results.values());
+    }
     Map<String, String> params = new HashMap<>();
     params.put("result", null);
     InstanceResultModel instanceResult = client
-        .request(InstanceResultModel.class, getResource(), "GET", params);
+        .request(InstanceResultModel.class, getResource(), "GET", params, userDefinedHeaders, null);
 
     return instanceResult.taskResults;
   }
@@ -400,12 +417,12 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     results = new HashMap<>();
     for (TaskResult r : instanceResult.taskResults) {
-      results.put(r.name, r.result);
+      results.put(r.name, r);
     }
     taskName = taskName + "_" + subqueryId;
     String ret;
     try {
-      ret = results.get(taskName).getString();
+      ret = results.get(taskName).getResult().getString();
     } catch (NullPointerException e)
     {
       throw new OdpsException("Task result not found, please run query again.");
@@ -591,8 +608,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     sm.value = infoValue;
     try {
       String kv = SimpleXmlUtils.marshal(sm);
-      HashMap<String, String> headers = new HashMap<String, String>();
-      headers.put(Headers.CONTENT_TYPE, "application/xml");
+      Map<String, String> headers = getCommonHeaders();
       Response result = client.stringRequest(getResource(), "PUT", params, headers, kv);
       return new String(result.getBody(), "utf-8");
     } catch (Exception e) {
@@ -623,8 +639,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     Response result = null;
     try {
       String kv = SimpleXmlUtils.marshal(sm);
-      HashMap<String, String> headers = new HashMap<String, String>();
-      headers.put(Headers.CONTENT_TYPE, "application/xml");
+      Map<String, String> headers = getCommonHeaders();
       result = client.stringRequest(getResource(), "PUT", params, headers, kv);
       Type type = new TypeToken<SetInformationResult>(){}.getType();
       SetInformationResult setInformationResult = gson.fromJson(new String(result.getBody(), "utf-8"), type);
@@ -939,14 +954,21 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
   /**
    * 直接获取作业结果，无需调用 waitForSuccess 方法
-   * 该方法仅适用于离线作业（1个Instance对应1个Task）
+   * 该方法仅适用于一个 Instance 对应一个 Task 的作业
    */
   public String waitForTerminatedAndGetResult() throws OdpsException {
-    waitForTerminated(1000, true);
+    waitForTerminated(100, true);
+    TaskResult taskResult;
+    if (isSync) {
+      taskResult = results.values().iterator().next();
+    } else {
+      taskResult = getRawTaskResults().get(0);
+    }
+    throwExceptionIfTaskFailed(taskResult);
+    return taskResult.getResult().getString();
+  }
 
-    TaskResult taskResult = getRawTaskResults().get(0);
-    String resultStr = taskResult.getResult().getString();
-
+  private void throwExceptionIfTaskFailed(TaskResult taskResult) throws OdpsException {
     TaskStatus.Status taskStatus = TaskStatus.Status.SUCCESS;
     if (!StringUtils.isNullOrEmpty(taskResult.getStatus())) {
       taskStatus = TaskStatus.Status.valueOf(taskResult.getStatus().toUpperCase());
@@ -956,12 +978,13 @@ public class Instance extends com.aliyun.odps.LazyLoad {
         taskStatus = e.getValue().getStatus();
       }
     }
+    String resultStr = taskResult.getResult().getString();
     if (taskStatus == TaskStatus.Status.FAILED) {
       throw new OdpsException(resultStr);
     } else if (taskStatus != TaskStatus.Status.SUCCESS) {
-      throw new OdpsException(taskResult.getName() + ", Status=" + taskStatus + ", Result=" + resultStr);
+      throw new OdpsException(
+          taskResult.getName() + ", Status=" + taskStatus + ", Result=" + resultStr);
     }
-    return resultStr;
   }
 
   // SysTask
@@ -1481,8 +1504,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     try {
       String body = SimpleXmlUtils.marshal(model);
-      HashMap<String, String> headers = new HashMap<String, String>();
-      headers.put(Headers.CONTENT_TYPE, "application/xml");
+      Map<String, String> headers = getCommonHeaders();
 
       Response resp = client.stringRequest(getResource() + "/debug", "POST", null, headers, body);
       return new String(resp.getBody());
@@ -1708,5 +1730,26 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     Gson gson = GsonObjectBuilder.get();
     JsonObject object = gson.fromJson(new String(resp.getBody()), JsonObject.class);
     return new InstanceQueueingInfo(object);
+  }
+
+  private Map<String, String> userDefinedHeaders;
+
+  /**
+   * 设置自定义的 headers, 将被添加到请求的 headers 中
+   */
+  public void addUserDefinedHeaders(Map<String, String> headers) {
+    if (userDefinedHeaders == null) {
+      userDefinedHeaders = new HashMap<>();
+    }
+    userDefinedHeaders.putAll(headers);
+  }
+
+  private Map<String, String> getCommonHeaders() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put(Headers.CONTENT_TYPE, "application/xml");
+    if (userDefinedHeaders != null) {
+      headers.putAll(userDefinedHeaders);
+    }
+    return headers;
   }
 }

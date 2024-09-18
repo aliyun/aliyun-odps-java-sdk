@@ -292,7 +292,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
       offset += 1;
       return record;
     } catch (IOException e) {
-      if (++retryCount > retryTimes || offset > count /* no more data */ || !needRetry()) {
+      if (++retryCount > retryTimes || offset >= count /* no more data */ || !needRetry()) {
         throw e;
       }
       createNewReader();

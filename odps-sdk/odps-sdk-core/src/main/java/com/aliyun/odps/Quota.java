@@ -1,7 +1,12 @@
 package com.aliyun.odps;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Params;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.ResourceBuilder;
@@ -220,7 +225,8 @@ public class Quota extends LazyLoad {
 
   public enum ResourceSystemType {
     FUXI_OFFLINE,
-    FUXI_ONLINE
+    FUXI_ONLINE,
+    FUXI_VW
   }
 
   public static class BillingPolicy {
@@ -391,15 +397,21 @@ public class Quota extends LazyLoad {
   public static class AffinityRule extends HashMap<String, AffinityRuleItem> {}
 
   static final String VERSION = "wlm";
-
+  static final String MCQA_VERSION = "mcqaVersion";
   private Odps odps;
   private QuotaModel model;
+  private String mcqaConnHeader;
 
   Quota(Odps odps, String regionId, String name) {
+    this(odps, regionId, name, null);
+  }
+
+  Quota(Odps odps, String regionId, String name, String tenantId) {
     this.odps = odps;
     model = new QuotaModel();
     model.regionId = regionId;
     model.nickname = name;
+    model.tenantId = tenantId;
   }
 
   Quota(Odps odps, QuotaModel model) {
@@ -582,6 +594,24 @@ public class Quota extends LazyLoad {
     return model.billingPolicy;
   }
 
+  public boolean isInteractiveQuota() {
+    lazyLoad();
+    if (model.resourceSystemType != null && model.resourceSystemType.equalsIgnoreCase(
+        ResourceSystemType.FUXI_VW.name())) {
+      // current mcqa 1.5 type is also fuxi_vw
+      if (model.userDefinedTag != null && model.userDefinedTag.containsKey(MCQA_VERSION)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  public String getMcqaConnHeader() {
+    lazyLoad();
+    return mcqaConnHeader;
+  }
+
   public Map<String, String> getProperties() {
     lazyLoad();
     if (model.properties != null) {
@@ -604,9 +634,13 @@ public class Quota extends LazyLoad {
     if (!StringUtils.isNullOrEmpty(model.regionId)) {
       params.put(Params.ODPS_QUOTA_REGION_ID, model.regionId);
     }
+    if (!StringUtils.isNullOrEmpty(model.tenantId)) {
+      params.put(Params.ODPS_QUOTA_TENANT_ID, model.tenantId);
+    }
     Response resp = odps.getRestClient().request(resource, "GET", params, null, null);
     try {
       model = SimpleXmlUtils.unmarshal(resp, QuotaModel.class);
+      mcqaConnHeader = resp.getHeader(Headers.ODPS_MCQA_CONN);
     } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + QuotaModel.class, e);
     }

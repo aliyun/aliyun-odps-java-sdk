@@ -569,7 +569,6 @@ public class SQLExecutorTest extends TestBase {
     sqlExecutor.run(sql, hint);
     try {
       String queryId = sqlExecutor.getQueryId();
-      Assert.assertNull(queryId);
 
       List<Record> records = sqlExecutor.getResult();
       Assert.assertEquals(records.size(), recordCount);
@@ -810,7 +809,6 @@ public class SQLExecutorTest extends TestBase {
     try {
       String queryId = sqlExecutor.getQueryId();
       System.out.println(sqlExecutor.getLogView());
-      Assert.assertNull(queryId);
       Assert.assertTrue(sqlExecutor.isActive());
 
       List<Record> records = sqlExecutor.getResult();
@@ -839,7 +837,6 @@ public class SQLExecutorTest extends TestBase {
     try {
       String queryId = sqlExecutor.getQueryId();
       System.out.println(sqlExecutor.getLogView());
-      Assert.assertNull(queryId);
       Assert.assertTrue(sqlExecutor.isActive());
 
       ResultSet resultSet = sqlExecutor.getResultSet();
@@ -1867,7 +1864,6 @@ public class SQLExecutorTest extends TestBase {
     try {
       String queryId = sqlExecutor.getQueryId();
       System.out.println(sqlExecutor.getLogView());
-      Assert.assertNull(queryId);
       Assert.assertFalse(sqlExecutor.isActive());
 
       ResultSet resultSet = sqlExecutor.getResultSet();

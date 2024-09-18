@@ -47,6 +47,7 @@ import com.aliyun.odps.sqa.commandapi.CommandInfo;
 import com.aliyun.odps.sqa.commandapi.RecordIter;
 import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 import com.aliyun.odps.sqa.commandapi.utils.SqlParserUtil;
+import com.aliyun.odps.sqa.v2.InMemoryRecordIterator;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelConstants;
@@ -55,7 +56,7 @@ import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
 
-class SQLExecutorImpl implements SQLExecutor {
+public class SQLExecutorImpl implements SQLExecutor {
 
   private String id = null;
 
@@ -294,9 +295,14 @@ class SQLExecutorImpl implements SQLExecutor {
    * @return
    * @throws
    */
+  @Override
   public String getQueryId() {
-    if (queryInfo != null && queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE)) {
-      return queryInfo.getInstance().getId() + "_" + queryInfo.getId();
+    if (queryInfo != null) {
+      if (queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE)) {
+        return queryInfo.getInstance().getId() + "_" + queryInfo.getId();
+      } else {
+        return queryInfo.getInstance().getId();
+      }
     }
     return null;
   }
@@ -316,7 +322,7 @@ class SQLExecutorImpl implements SQLExecutor {
       }
       try {
         return new LogView(odps).generateLogView(queryInfo.getCommandInfo().getInstance(), 7 * 24);
-      } catch (OdpsException e) {
+      } catch (Exception e) {
         return null;
       }
     }
@@ -335,14 +341,14 @@ class SQLExecutorImpl implements SQLExecutor {
         } else {
           return new LogView(odps).generateLogView(queryInfo.getInstance(), 7 * 24);
         }
-      } catch (OdpsException e) {
+      } catch (Exception e) {
         return null;
       }
     } else if (session != null) {
       try {
         // no query running, return session logview if have
         return session.getLogView();
-      } catch (OdpsException e) {
+      } catch (Exception e) {
         return null;
       }
     }
@@ -906,7 +912,7 @@ class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet newEmptyResultSet() {
     return new ResultSet(
-        new OfflineRecordSetIterator(new ArrayList<>()),
+        new InMemoryRecordIterator(new ArrayList<>()),
         new TableSchema(),
         0
     );
@@ -1013,7 +1019,7 @@ class SQLExecutorImpl implements SQLExecutor {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       } else {
-        return getOfflineResultByInstanceTunnel(countLimit);
+        return getOfflineResultByInstanceTunnel(countLimit, limitEnabled);
       }
     } else {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
@@ -1036,7 +1042,7 @@ class SQLExecutorImpl implements SQLExecutor {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       } else {
-        return getOfflineResultSetByInstanceTunnel(countLimit);
+        return getOfflineResultSetByInstanceTunnel(countLimit, limitEnabled);
       }
     } else {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
@@ -1127,12 +1133,28 @@ class SQLExecutorImpl implements SQLExecutor {
     return new ArrayList<>();
   }
 
-  private List<Record> getOfflineResultByInstanceTunnel(Long limit)
+  private List<Record> getOfflineResultByInstanceTunnel(Long limit, boolean limitEnabled)
       throws OdpsException, IOException {
     queryInfo.getInstance().waitForSuccess();
     if (queryInfo.isSelect()) {
-      return SQLTask.getResultByInstanceTunnel(queryInfo.getInstance(),
-          SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME, limit);
+      try {
+        return SQLTask.getResultByInstanceTunnel(queryInfo.getInstance(),
+                                                 SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
+                                                 limit, limitEnabled);
+      } catch (TunnelException tunnelException) {
+        boolean
+            isSelect =
+            checkIsSelect(tunnelException.getErrorCode(), tunnelException.getMessage());
+        // Tunnel may throw the following exceptions when task failed. In this case, we should
+        // get the error message by API
+        if (!isSelect || TunnelConstants.INSTANCE_NOT_TERMINATED.equals(
+            tunnelException.getErrorCode())
+            || TunnelConstants.TASK_FAILED.equals(tunnelException.getErrorCode())) {
+          return getOfflineResult();
+        } else {
+          throw tunnelException;
+        }
+      }
     } else {
       Map<String, String> results = queryInfo.getInstance().getTaskResults();
       String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
@@ -1159,7 +1181,7 @@ class SQLExecutorImpl implements SQLExecutor {
       return getResultSetInternal(null, null, null, true);
     }
     return new ResultSet(
-        new OfflineRecordSetIterator(result.getRecords()),
+        new InMemoryRecordIterator(result.getRecords()),
         result.getSchema(),
         result.getRecords().size());
   }
@@ -1216,7 +1238,7 @@ class SQLExecutorImpl implements SQLExecutor {
         CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(selectResult);
         List<Record> records = parseResult.getRecords();
         return new ResultSet(
-            new OfflineRecordSetIterator(records),
+            new InMemoryRecordIterator(records),
             parseResult.getSchema(),
             records.size());
       } else {
@@ -1224,7 +1246,7 @@ class SQLExecutorImpl implements SQLExecutor {
         TableSchema schema = new TableSchema();
         schema.setColumns(Arrays.asList(records.get(0).getColumns()));
         return new ResultSet(
-            new OfflineRecordSetIterator(records),
+            new InMemoryRecordIterator(records),
             schema,
             records.size());
       }
@@ -1233,9 +1255,9 @@ class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
-  private ResultSet getOfflineResultSetByInstanceTunnel(Long limit)
+  private ResultSet getOfflineResultSetByInstanceTunnel(Long limit, boolean limitEnabled)
       throws OdpsException, IOException {
-    queryInfo.getInstance().waitForTerminated(1000, true);
+    queryInfo.getInstance().waitForSuccess();
     // getResultSet will use instance tunnel, which do not support non-select query
     if (queryInfo.isSelect()) {
       URI tunnelEndpoint = null;
@@ -1249,11 +1271,13 @@ class SQLExecutorImpl implements SQLExecutor {
       try {
         return SQLTask
             .getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
-                          limit, false, tunnelEndpoint);
+                          limit, limitEnabled, tunnelEndpoint);
       } catch (TunnelException tunnelException) {
+        boolean isSelect = checkIsSelect(tunnelException.getErrorCode(), tunnelException.getMessage());
         // Tunnel may throw the following exceptions when task failed. In this case, we should
         // get the error message by API
-        if (TunnelConstants.INSTANCE_NOT_TERMINATED.equals(tunnelException.getErrorCode())
+        if (!isSelect || TunnelConstants.INSTANCE_NOT_TERMINATED.equals(
+            tunnelException.getErrorCode())
             || TunnelConstants.TASK_FAILED.equals(tunnelException.getErrorCode())) {
           return getOfflineResultSet();
         } else {
@@ -1270,7 +1294,7 @@ class SQLExecutorImpl implements SQLExecutor {
       TableSchema schema = new TableSchema();
       schema.setColumns(Arrays.asList(records.get(0).getColumns()));
       return new ResultSet(
-          new OfflineRecordSetIterator(records),
+          new InMemoryRecordIterator(records),
           schema,
           records.size());
     }
@@ -1475,32 +1499,5 @@ class SessionRecordSetIterator implements Iterator<Record> {
     } catch (IOException e) {
       throw new RuntimeException("Open reader failed: " + e.getMessage(), e);
     }
-  }
-}
-
-/**
- * class: OfflineRecordSetIterator It is used in getOfflineResultSet It passes a List to fake a
- * reader The record count in List is limited, so there is no memory problem
- */
-class OfflineRecordSetIterator implements Iterator<Record> {
-
-  private int cursor = 0;
-  private List<Record> buffer;
-
-  public OfflineRecordSetIterator(List<Record> buffer) {
-    this.buffer = buffer;
-  }
-
-  @Override
-  public boolean hasNext() {
-    if (buffer == null) {
-      return false;
-    }
-    return cursor < buffer.size();
-  }
-
-  @Override
-  public Record next() {
-    return buffer.get(cursor++);
   }
 }

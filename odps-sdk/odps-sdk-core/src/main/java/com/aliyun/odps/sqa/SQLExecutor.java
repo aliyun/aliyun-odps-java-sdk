@@ -54,7 +54,14 @@ public interface SQLExecutor {
   /**
    * 获取当前query ID
 
-   * @return -1表示Executor尚未初始化
+   * @return null表示Executor尚未初始化或非Interactive模式
+   */
+  public String getQueryId();
+
+  /**
+   * 获取当前query ID
+
+   * @return -1表示Executor尚未初始化或非Interactive模式
    * @throws
    */
   public int getSubqueryId();

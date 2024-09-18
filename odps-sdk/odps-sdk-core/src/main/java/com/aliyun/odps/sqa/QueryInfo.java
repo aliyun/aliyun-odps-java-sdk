@@ -27,7 +27,7 @@ public class QueryInfo {
 
   private CommandInfo commandInfo = null;
 
-  QueryInfo(String sql, Map<String, String> hint, ExecuteMode executeMode) {
+  public QueryInfo(String sql, Map<String, String> hint, ExecuteMode executeMode) {
     this.sql = sql;
     this.hint = hint;
     this.executeMode = executeMode;

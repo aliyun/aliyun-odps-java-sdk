@@ -24,7 +24,6 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
-import com.aliyun.odps.utils.StringUtils;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -41,6 +40,8 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.utils.StringUtils;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
@@ -412,7 +413,7 @@ public class Instances implements Iterable<Instance> {
 
     String instanceId = location.substring(location.lastIndexOf("/") + 1);
 
-    Map<String, Instance.Result> results = new HashMap<String, Instance.Result>();
+    Map<String, TaskResult> results = new HashMap<>();
 
     TaskStatusModel model = new TaskStatusModel();
     model.name = instanceId;
@@ -424,7 +425,7 @@ public class Instances implements Iterable<Instance> {
                                                          InstanceResultModel.class);
         for (TaskResult taskResult : result.taskResults) {
           model.tasks.add(createInstanceTaskModel(taskResult));
-          results.put(taskResult.name, taskResult.result);
+          results.put(taskResult.name, taskResult);
         }
       } catch (Exception e) {
         throw new OdpsException("Invalid create instance response.", e);
@@ -432,6 +433,13 @@ public class Instances implements Iterable<Instance> {
     }
 
     Instance instance = new Instance(project, model, results, odps);
+
+    // set mcqa 2.0 header
+    if (resp.getStatus() == 201 && (resp.getHeader(Headers.ODPS_MCQA_QUERY_COOKIE) != null)) {
+      instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_QUERY_COOKIE,
+                                                     resp.getHeader(
+                                                         Headers.ODPS_MCQA_QUERY_COOKIE)));
+    }
 
     instance.setOdpsHooks(hooks);
 

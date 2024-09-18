@@ -518,13 +518,13 @@ public class XFlows implements Iterable<XFlow> {
 
     String instanceId = location.substring(location.lastIndexOf("/") + 1);
 
-    Map<String, Instance.Result> results = new HashMap<String, Instance.Result>();
+    Map<String, TaskResult> results = new HashMap<>();
 
     if (resp.getStatus() == 200 && resp.getBody() != null && resp.getBody().length > 0) {
       try {
         InstanceResultModel result = SimpleXmlUtils.unmarshal(resp, InstanceResultModel.class);
         for (TaskResult r : result.taskResults) {
-          results.put(r.name, r.result);
+          results.put(r.name, r);
         }
       } catch (Exception e) {
         throw new OdpsException("Invalid create instance response.", e);

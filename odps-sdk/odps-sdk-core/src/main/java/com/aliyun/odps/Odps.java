@@ -158,7 +158,14 @@ public class Odps {
     setUserAgent(odps.getUserAgent());
     setEndpoint(odps.getEndpoint());
     setLogViewHost(odps.getLogViewHost());
+    setTunnelEndpoint(odps.tunnelEndpoint);
+    setCurrentSchema(odps.getCurrentSchema());
+    setAccountFormat(odps.getAccountFormat());
+    setGlobalSettings(odps.getGlobalSettings());
     client.setIgnoreCerts(odps.getRestClient().isIgnoreCerts());
+    client.setPrefix(odps.getRestClient().getPrefix());
+    odps.getRestClient().getUserDefinedHeaders()
+        .forEach((k, v) -> client.addUserDefinedHeader(k, v));
     if (odps.getRestClient().getProxy() != null) {
       client.setProxy(odps.getRestClient().getProxy());
     }

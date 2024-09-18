@@ -83,6 +83,7 @@ public interface TunnelConstants {
   public static String SESSION_STATUS_CRITICAL = "critical";
   public static String SESSION_STATUS_ABORTED = "aborted";
   public static String PARAM_QUOTA_NAME= "quotaName";
+  public static String PARAM_SHARING_QUOTA_TOKEN= "sharingQuotaToken";
   public static String PARAM_BLOCK_VERSION = "block_version";
   public static String ENABLE_PARTIAL_UPDATE = "enable_partial_update";
   public static String SCHEMA_VERSION = "schema_version";
@@ -90,4 +91,5 @@ public interface TunnelConstants {
   public static String GET_BLOCK_ID = "getblockid";
   static final String INSTANCE_NOT_TERMINATED = "InstanceNotTerminate";
   static final String TASK_FAILED = "TaskFailed";
+  public static String LIFECYCLE = "lifecycle";
 }

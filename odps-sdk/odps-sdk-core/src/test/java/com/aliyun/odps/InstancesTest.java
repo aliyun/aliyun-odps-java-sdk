@@ -120,7 +120,6 @@ public class InstancesTest extends TestBase {
       i.getStartTime();
       i.getProject();
       i.getTaskStatus();
-      i.getTaskResults();
       --max;
       if (max < 0) {
         break;
@@ -259,6 +258,27 @@ public class InstancesTest extends TestBase {
   }
 
   @Test
+  public void testCreateJobTryWait() throws OdpsException {
+    SQLTask task = new SQLTask();
+    task.setQuery("select count(*) from " + TABLE_NAME + ";");
+    task.setName("testsqlcase");
+    Job job = new Job();
+    job.addTask(task);
+    gi = odps.instances().create(job, true);
+
+    assertTrue(gi.isSync());
+    assertTrue(gi.isSuccessful());
+    assertFalse(gi.getTaskResults().isEmpty());
+
+    String result = gi.getTaskResults().get("testsqlcase");
+    assertNotNull(result);
+    System.out.println(result);
+
+    gi.getTaskDetailJson("testsqlcase");
+    Assert.assertNull(gi.getJobName());
+  }
+
+  @Test
   public void testCreateJobName() throws OdpsException {
     SQLTask task = new SQLTask();
     task.setQuery("select count(*) from " + TABLE_NAME + ";");
@@ -313,7 +333,6 @@ public class InstancesTest extends TestBase {
   }
 
   @Test
-  @Ignore
   public void testIteratorQueueing() throws Exception {
     SQLTask task = new SQLTask();
     task.setQuery("select (t2.c1 + 2) from " + TABLE_NAME + " t1 join " + TABLE_NAME_1 + " t2 on t1.c1 == t2.c1;");

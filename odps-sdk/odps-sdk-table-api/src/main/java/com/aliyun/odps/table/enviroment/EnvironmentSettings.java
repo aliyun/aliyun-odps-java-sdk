@@ -33,6 +33,7 @@ public class EnvironmentSettings {
     private final ExecutionMode executionMode;
 
     private final String quotaName;
+    private final String sharingQuotaToken;
     private final List<String> tags;
 
     private final Credentials credentials;
@@ -54,6 +55,7 @@ public class EnvironmentSettings {
     private EnvironmentSettings(Builder builder) {
         this.executionMode = builder.executionMode;
         this.quotaName = builder.quotaName;
+        this.sharingQuotaToken = builder.sharingQuotaToken;
         this.tags = builder.tags;
         this.credentials = builder.credentials;
         this.defaultProject = builder.defaultProject;
@@ -74,6 +76,10 @@ public class EnvironmentSettings {
 
     public Optional<String> getQuotaName() {
         return Optional.ofNullable(quotaName);
+    }
+
+    public Optional<String> getSharingQuotaToken() {
+        return Optional.ofNullable(sharingQuotaToken);
     }
 
     public Optional<List<String>> getTags() {
@@ -120,6 +126,7 @@ public class EnvironmentSettings {
         private String defaultProject;
         private String defaultSchema;
         private String quotaName;
+        private String sharingQuotaToken;
         private List<String> tags;
         private String serviceEndPoint;
         private String tunnelEndpoint;
@@ -173,6 +180,10 @@ public class EnvironmentSettings {
 
         public Builder withQuotaName(String quotaName) {
             this.quotaName = quotaName;
+            return this;
+        }
+        public Builder withSharingQuotaToken(String sharingQuotaToken) {
+            this.sharingQuotaToken = sharingQuotaToken;
             return this;
         }
 
