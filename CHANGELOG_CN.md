@@ -1,4 +1,29 @@
 # 更新日志
+## [0.50.0-rc0] - 2024-09-18
+
+### 功能
+- **SQLExecutor** 支持提交 MCQA 2.0 作业
+  - SQLExecutorBuilder 新增方法 `enableMcqaV2`
+  - SQLExecutorBuilder 新增对字段的 getter 方法
+- SQLExecutor 新增 `getQueryId` 方法：
+  - 对于离线作业和 MCQA 2.0 作业，会返回当前执行的作业 InstanceId
+  - 对于 MCQA 1.0 作业，会返回 InstanceId 和 SubQueryId
+- **TableAPI** `EnvironmentSettings` 新增 `SharingQuotaToken` 参数，以支持提交作业时携带Quota资源共享临时凭证
+- **Quotas** 新增 `getWlmQuota` 方法：
+  - 能够根据 projectName 和 quotaNickName 获取到 quota 的详细信息，比如是否属于交互式 quota
+- **Quota 类**新增 `isInteractiveQuota` 方法，用来判断 quota 是否属于交互式 quota（适用于 MCQA 2.0）
+- 新增 `getResultByInstanceTunnel(Instance instance, String taskName, Long limit, boolean limitEnabled)` 方法：
+  - 用来无限制地通过 instanceTunnel 获取结果（解除限制需要更高的权限）
+- **UpsertSession.Builder** 新增 `setLifecycle` 方法，用来配置 Session 生命周期
+
+### 修复
+- 修复了使用 SQLExecutor 执行离线作业时，指定 `limitEnabled` 取结果但不生效的问题
+- 修改了 SQLExecutor 执行离线作业时，`getQueryId` 方法会返回作业的 instanceID 而非 null
+- 修复了 SQLExecutor 执行离线作业时，当遇到非 select 语句时，使用 instanceTunnel 取结果不再抛出异常，而是回退到非 tunnel 逻辑
+- 修复了使用 DownloadSession 下载数据时，发生错误且读取数量刚好等于要读取记录的数量 - 1 时重建漏掉一条数据的问题
+- **Odps 类**的 `clone` 方法现在能正确克隆包括 `tunnelEndpoint` 等其他字段
+- **Instance** 的 `getRawTaskResults` 方法现在在处理同步作业时不会多次发起请求
+
 ## [0.49.0-public] - 2024-09-12
 
 ### 功能

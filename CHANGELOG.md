@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.50.0-rc0] - 2024-09-18
+
+### Features
+- **SQLExecutor** supports submitting MCQA 2.0 jobs
+  - SQLExecutorBuilder adds method `enableMcqaV2`
+  - SQLExecutorBuilder adds getter methods for fields
+- SQLExecutor adds `getQueryId` method:
+  - For offline jobs and MCQA 2.0 jobs, it returns the currently executing job's InstanceId
+  - For MCQA 1.0 jobs, it returns the InstanceId and SubQueryId
+- **TableAPI** adds `SharingQuotaToken` parameter in `EnvironmentSettings` to support sharing quota resources during job submission
+- **Quotas** introduces `getWlmQuota` method:
+  - Allows retrieval of detailed quota information based on projectName and quotaNickName, including whether it belongs to interactive quotas
+- **Quota class** adds `isInteractiveQuota` method to determine if a quota belongs to interactive quotas (suitable for MCQA 2.0)
+- Adds `getResultByInstanceTunnel(Instance instance, String taskName, Long limit, boolean limitEnabled)` method:
+  - Allows unlimited retrieval of results via instanceTunnel (lifting restrictions requires higher permissions)
+- **UpsertSession.Builder** adds `setLifecycle` method to configure the session lifecycle
+
+### Fixes
+- Fixed the issue where using SQLExecutor to execute offline jobs with `limitEnabled` specified resulted in no effect
+- Modified the SQLExecutor so that `getQueryId` method returns the job's instanceID instead of null when executing offline jobs
+- Fixed the issue where using instanceTunnel to retrieve results on encountering non-select statements no longer throws exceptions, instead falling back to non-tunnel logic
+- Fixed the problem of missing one data entry when using DownloadSession to download data and an error occurred while the read count equaled the number of records to be read minus one
+- The `clone` method of the **Odps class** now correctly clones other fields, including `tunnelEndpoint`
+- The **Instance**'s `getRawTaskResults` method now does not make multiple requests when processing synchronous jobs
+
 ## [0.49.0-public] - 2024-09-12
 
 ### Features
