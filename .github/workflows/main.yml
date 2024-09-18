@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*public"
+      - "v*rc*"
       - "v*SNAPSHOT"
 
   # Allows you to run this workflow manually from the Actions tab
