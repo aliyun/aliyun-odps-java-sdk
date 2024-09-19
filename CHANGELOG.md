@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.50.0-rc1] - 2024-09-19
+
+### Features
+- **SQLExecutor** added `isUseInstanceTunnel` method:
+  - Used to determine whether to use instanceTunnel to obtain results
+### Fix
+- Fixed an issue where when using SQLExecutor to execute MCQA 2.0 jobs, executing the CommandApi task would affect the next job, causing NPE to be thrown when retrieving results.
+
 ## [0.50.0-rc0] - 2024-09-18
 
 ### Features

@@ -1,4 +1,11 @@
 # 更新日志
+## [0.50.0-rc1] - 2024-09-19
+### 功能
+- **SQLExecutor** 新增 `isUseInstanceTunnel` 方法：
+  - 用来判断是否使用 instanceTunnel 取结果
+### 修复
+- 修复了使用 SQLExecutor 执行 MCQA 2.0 作业时，执行 CommandApi 任务会影响下一次作业，导致取结果时抛出NPE的问题。
+
 ## [0.50.0-rc0] - 2024-09-18
 
 ### 功能
