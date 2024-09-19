@@ -129,6 +129,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         return;
       }
     }
+    parseSuccess = false;
     Instance currentInstance =
         SQLTask.run(mcqaOdps, mcqaOdps.getDefaultProject(), sql, taskName, hint,
                     null);
@@ -632,6 +633,11 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (pool != null) {
       pool.releaseExecutor(this);
     }
+  }
+
+  @Override
+  public boolean isUseInstanceTunnel() {
+    return useInstanceTunnel;
   }
 
   public boolean isSelect(String sql) throws OdpsException {

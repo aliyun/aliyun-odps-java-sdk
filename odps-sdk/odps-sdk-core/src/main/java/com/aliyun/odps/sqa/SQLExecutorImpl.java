@@ -1407,6 +1407,11 @@ public class SQLExecutorImpl implements SQLExecutor {
     return queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE);
   }
 
+  @Override
+  public boolean isUseInstanceTunnel() {
+    return useInstanceTunnel;
+  }
+
   public boolean isSelect(String sql) throws OdpsException {
     try {
       return SqlParserUtil.isSelect(sql);

@@ -290,4 +290,10 @@ public interface SQLExecutor {
    */
   public boolean isRunningInInteractiveMode();
 
+  /**
+   * 判断当前 SQLExecutor 是否使用 Instance Tunnel 取结果
+   *
+   * @return
+   */
+  boolean isUseInstanceTunnel();
 }
