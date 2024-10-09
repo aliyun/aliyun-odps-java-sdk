@@ -20,6 +20,7 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.exceptions.SchemaMismatchException;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -98,13 +99,15 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                     isCreatePartition(),
                     getSlotNum(),
                     zorderColumns,
-                    getSchemaVersion());
+                    getSchemaVersion(),
+                    allowSchemaMismatch);
         }
     }
 
     protected StreamUploadSessionImpl.Slots slots;
     private boolean p2pMode = false;
     private List<Column> columns;
+    private boolean checkLatestSchema;
 
     public StreamUploadSessionImpl(Configuration conf,
                                    String projectName,
@@ -114,7 +117,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                                    boolean cretaPartition,
                                    long slotNum,
                                    List<Column> zorderColumns,
-                                   String schemaVersion) throws TunnelException {
+                                   String schemaVersion,
+                                   boolean allowSchemaMismatch) throws TunnelException {
         this.config = conf;
         this.projectName = projectName;
         this.schemaName = schemaName;
@@ -123,6 +127,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         this.columns = zorderColumns;
         this.httpClient = Util.newRestClient(conf, projectName);
         this.schemaVersion = schemaVersion;
+        this.checkLatestSchema = !allowSchemaMismatch;
         initiate(slotNum, cretaPartition);
     }
 
@@ -275,6 +280,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         if (!StringUtils.isNullOrEmpty(config.getQuotaName())) {
             params.put(TunnelConstants.PARAM_QUOTA_NAME, config.getQuotaName());
         }
+        params.put(TunnelConstants.PARAM_CHECK_LATEST_SCHEMA, String.valueOf(checkLatestSchema));
 
         switch (compress.algorithm) {
             case ODPS_RAW: {
@@ -352,7 +358,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                     }
                 }
             });
-        } catch (RuntimeException re) {
+        } catch (RuntimeException | IOException re) {
             throw re;
         } catch (Exception e) {
             throw new IOException(e.getMessage(), e);
@@ -385,9 +391,15 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             }
         }
         if (!response.isOK()) {
-            TunnelException exception =
-                    new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(),
-                            response.getStatus());
+            TunnelException exception = new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID),
+                                                      conn.getInputStream(),
+                                                      response.getStatus());
+            if (exception.getErrorCode().equals("SchemaModified") &&
+                exception.getStatus().equals(412)) {
+                throw new SchemaMismatchException("SchemaModified",
+                                                  response.getHeader(
+                                                      HttpHeaders.HEADER_ODPS_TUNNEL_LATEST_SCHEMA_VERSION));
+            }
             throw new IOException(exception.getMessage(), exception);
         }
 

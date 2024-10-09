@@ -113,7 +113,9 @@ public class TunnelRetryHandler {
                 if (!policy.shouldRetry(e, attempt)) {
                     throw e;
                 }
-                retryLogger.onRetryLog(e, attempt, policy.getRetryWaitTime(attempt));
+                if (retryLogger != null) {
+                    retryLogger.onRetryLog(e, attempt, policy.getRetryWaitTime(attempt));
+                }
                 try {
                     policy.waitForNextRetry(attempt);
                     if (errorCodeHandler != null && e instanceof TunnelException) {

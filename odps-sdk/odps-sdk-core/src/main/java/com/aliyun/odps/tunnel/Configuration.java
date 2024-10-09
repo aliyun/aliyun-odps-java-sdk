@@ -50,6 +50,9 @@ public class Configuration extends GeneralConfiguration {
 
   public Configuration(Odps odps) {
     super(odps);
+    if (!StringUtils.isNullOrEmpty(odps.getTunnelEndpoint())) {
+      endpoint = URI.create(odps.getTunnelEndpoint());
+    }
   }
 
   public Configuration(Builder builder) {

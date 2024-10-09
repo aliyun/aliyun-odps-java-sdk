@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.50.0-public] - 2024-10-09
+
+### Features
+- Added `SchemaMismatchException`: This exception will be thrown when using `StreamUploadSession` if the Record structure uploaded by the user does not match the table structure. This exception will additionally carry the latest schema version to assist users in rebuilding the Session and performing retry operations.
+- Added `allowSchemaMismatch` method in `StreamUploadSession.Builder`: This method specifies whether to tolerate mismatches between the user's uploaded Record structure and the table structure without throwing an exception. The default value is `true`.
+
+### Fixes
+- Fixed an issue where specifying `tunnelEndpoint` in Odps was ineffective when using `StreamUploadSession`.
+- Fixed a potential NPE issue in `TunnelRetryHandler`.
+
 ## [0.50.0-rc1] - 2024-09-19
 
 ### Features

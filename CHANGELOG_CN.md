@@ -1,4 +1,15 @@
 # 更新日志
+## [0.50.0-public] - 2024-10-09
+
+### 功能
+- 新增 `SchemaMismatchException` 异常：当使用 `StreamUploadSession` 时，如果用户上传的 Record 结构与表结构不匹配，将抛出该异常。此异常将额外携带最新的 schema version，方便用户重建 Session 并进行重试操作。
+- 在 `StreamUploadSession.Builder` 中新增 `allowSchemaMismatch` 方法，用于指定是否容忍用户上传的 Record 结构与表结构不匹配时是否抛出异常。默认值为 `true`。
+
+### 修复
+- 修复了在 Odps 中指定 `tunnelEndpoint` 时，使用 `StreamUploadSession` 无法生效的问题。
+- 修复了 `TunnelRetryHandler` 潜在的 NPE 问题。
+
+
 ## [0.50.0-rc1] - 2024-09-19
 ### 功能
 - **SQLExecutor** 新增 `isUseInstanceTunnel` 方法：

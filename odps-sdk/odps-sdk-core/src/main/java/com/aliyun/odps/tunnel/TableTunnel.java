@@ -1156,6 +1156,7 @@ public class TableTunnel {
       private long slotNum = 0;
       private boolean createPartition = false;
       private String schemaVersion;
+      protected boolean allowSchemaMismatch = true;
       public String getSchemaName() {
         return schemaName;
       }
@@ -1203,6 +1204,11 @@ public class TableTunnel {
 
       public Builder setCreatePartition(boolean createPartition) {
         this.createPartition = createPartition;
+        return this;
+      }
+
+      public Builder allowSchemaMismatch(boolean allowSchemaMismatch) {
+        this.allowSchemaMismatch = allowSchemaMismatch;
         return this;
       }
 
