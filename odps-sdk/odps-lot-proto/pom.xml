@@ -6,12 +6,12 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.48.8-public</version>
+        <version>0.48.9-public</version>
     </parent>
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-lot-proto</artifactId>
-    <version>0.48.8-public</version>
+    <version>0.48.9-public</version>
     <packaging>jar</packaging>
 
     <name>odps-lot-proto</name>
