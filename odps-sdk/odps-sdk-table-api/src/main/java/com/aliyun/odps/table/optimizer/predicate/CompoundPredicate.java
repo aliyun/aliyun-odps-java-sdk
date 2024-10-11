@@ -101,18 +101,16 @@ public class CompoundPredicate extends Predicate {
           continue;
         }
       }
+      if (sb.length() != 0) {
+        sb.append(" ").append(opStr).append(" ");
+      }
       if (currentPredicate instanceof CompoundPredicate
           && ((CompoundPredicate) currentPredicate).logicalOperator != this.logicalOperator) {
         sb.append('(').append(currentPredicate).append(')');
       } else {
         sb.append(currentPredicate.toString());
       }
-
-      if (i < predicates.size() - 1) {
-        sb.append(" ").append(opStr).append(" ");
-      }
     }
-
     return sb.toString();
   }
 }

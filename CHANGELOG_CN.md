@@ -1,4 +1,15 @@
 # 更新日志
+
+## [0.48.9-public] - 2024-10-11
+
+### 修复
+
+-  **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，拿到了`ArrayRecord`无法正确`toString`的问题。
+-  **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，如果`Split`对应的`Record`数量为0，在`get`
+   操作时会抛出数组越界异常的问题。
+-  **TableAPI** 修复了复合谓词`CompositePredicate`在遇到空谓词时，可能额外增加一次操作符的问题。
+
+
 ## [0.48.8-public] - 2024-08-12
 ### 增强
 - 引入了对复合谓词表达式的内部验证，修复了处理无效或总是真/假谓词时的逻辑，增强了测试覆盖，确保了在复杂查询优化中的稳定性和准确性。

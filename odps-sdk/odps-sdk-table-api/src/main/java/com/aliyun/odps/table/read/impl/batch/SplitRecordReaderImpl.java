@@ -19,6 +19,10 @@
 
 package com.aliyun.odps.table.read.impl.batch;
 
+import java.io.IOException;
+
+import org.apache.arrow.vector.VectorSchemaRoot;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.table.DataSchema;
@@ -26,9 +30,6 @@ import com.aliyun.odps.table.configuration.ReaderOptions;
 import com.aliyun.odps.table.metrics.Metrics;
 import com.aliyun.odps.table.read.SplitReader;
 import com.aliyun.odps.table.record.ColumnarBatchRecord;
-import org.apache.arrow.vector.VectorSchemaRoot;
-
-import java.io.IOException;
 
 public class SplitRecordReaderImpl implements SplitReader<ArrayRecord> {
 
@@ -51,15 +52,19 @@ public class SplitRecordReaderImpl implements SplitReader<ArrayRecord> {
 
     @Override
     public boolean hasNext() throws IOException {
-        if (nextRow >= rowsInBatch) {
-            boolean moreRows = arrowBatchReader.hasNext();
+        if (nextRow < rowsInBatch) {
+            return true;
+        }
+        nextRow = 0;
+        boolean moreRows;
+        do {
+            moreRows = arrowBatchReader.hasNext();
             if (moreRows) {
-                nextRow = 0;
                 rowsInBatch = fillRows();
             }
-            return moreRows;
-        }
-        return true;
+            // If we filled rows, we can break out of the loop
+        } while (moreRows && rowsInBatch == 0);
+        return moreRows;
     }
 
     @Override
