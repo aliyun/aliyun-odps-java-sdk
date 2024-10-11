@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.50.1-public] - 2024-10-11
+
+### Fixes
+- **TableAPI** Fixed an issue where `ArrayRecord` could not correctly invoke `toString` when using `SplitRecordReaderImpl` to retrieve results.
+- **TableAPI** Fixed an issue where a `get` operation would throw an array index out of bounds exception when the number of `Records` corresponding to a `Split` is 0 while using `SplitRecordReaderImpl` to retrieve results.
+- **TableAPI** Fixed an issue with composite predicates `CompositePredicate` that could lead to an additional operator being added when encountering an empty predicate.
+
+
 ## [0.50.0-public] - 2024-10-09
 
 ### Features

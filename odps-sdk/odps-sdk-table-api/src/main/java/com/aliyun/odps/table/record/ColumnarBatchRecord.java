@@ -19,6 +19,15 @@
 
 package com.aliyun.odps.table.record;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
+
 import com.aliyun.odps.Column;
 import com.aliyun.odps.data.AbstractChar;
 import com.aliyun.odps.data.ArrayRecord;
@@ -26,15 +35,6 @@ import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.table.arrow.accessor.ArrowVectorAccessor;
 import com.aliyun.odps.table.record.accessor.ArrowToRecordConverter;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class ColumnarBatchRecord extends ArrayRecord {
 
@@ -205,5 +205,24 @@ public class ColumnarBatchRecord extends ArrayRecord {
             throw new IllegalArgumentException("No such column:" + name);
         }
         return idx;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (int index = 0; index < getColumnCount(); index++) {
+            Object o = get(index);
+            if (o == null) {
+                sb.append("null").append(",");
+            } else if (o instanceof byte[]) {
+                sb.append(bytesToString((byte[]) o)).append(",");
+            } else {
+                sb.append(o).append(",");
+            }
+        }
+        if (sb.length() > 0) {
+            sb.setLength(sb.length() - 1);
+        }
+        return sb.toString();
     }
 }
