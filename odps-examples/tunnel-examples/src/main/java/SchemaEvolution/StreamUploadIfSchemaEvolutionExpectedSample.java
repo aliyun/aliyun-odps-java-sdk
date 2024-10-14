@@ -1,7 +1,10 @@
 package SchemaEvolution;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -108,7 +111,8 @@ public class StreamUploadIfSchemaEvolutionExpectedSample {
           // IllegalArgumentException will throw when the data is not compatible with the session schema
           // then should rebuild the session
           recordPack.flush();
-          rebuildSessionUtilSchemaEvolution(odps, null);
+          session = rebuildSessionUtilSchemaEvolution(odps, null);
+          recordPack = session.newRecordPack();
         }
         // Append the record to the record pack for uploading
         recordPack.append(record);
@@ -146,8 +150,11 @@ public class StreamUploadIfSchemaEvolutionExpectedSample {
                 .setPartitionSpec(partition == null ? null : new PartitionSpec(partition))
                 .allowSchemaMismatch(false)
                 .build();
-      } while (!odps.tables().get(project, table).getSchema()
-          .basicallyEquals(session.getSchema()));
+        System.out.println("Session Schema: " + debugString(session.getSchema()));
+        System.out.println("Table Schema: " + debugString(odps.tables().get(project, table).getSchema()));
+
+      } while (!basicallyEquals(odps.tables().get(project, table).getSchema()
+          , session.getSchema()));
       return session;
     }
   }
@@ -178,5 +185,31 @@ public class StreamUploadIfSchemaEvolutionExpectedSample {
     // print logview to check the progress of schema evolution
     System.out.println(getOdps().logview().generateLogView(instance, 24));
     instance.waitForSuccess();
+  }
+
+  private static String debugString(TableSchema schema) {
+    return schema.getAllColumns().stream()
+        .map(column -> column.getName() + "(" + column.getTypeInfo().getTypeName() + ")")
+        .collect(Collectors.joining(", "));
+  }
+
+  /**
+   * Check if two schemas are basically equal
+   */
+  private static boolean basicallyEquals(TableSchema a, TableSchema b) {
+    List<Column> columnsA = a.getAllColumns();
+    List<Column> columnsB = b.getAllColumns();
+    if (columnsA.size() != columnsB.size()) {
+      return false;
+    }
+    for (int i = 0; i < columnsA.size(); i++) {
+      Column columnA = columnsA.get(i);
+      Column columnB = columnsB.get(i);
+      if (!columnA.getName().equals(columnB.getName()) || !columnA.getTypeInfo().getTypeName()
+          .equals(columnB.getTypeInfo().getTypeName())) {
+        return false;
+      }
+    }
+    return true;
   }
 }
