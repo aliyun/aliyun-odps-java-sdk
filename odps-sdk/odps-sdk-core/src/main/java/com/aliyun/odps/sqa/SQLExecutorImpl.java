@@ -830,34 +830,15 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
-  private ExecuteMode handleSessionException(String errorMessage) throws OdpsException {
-    if (errorMessage.indexOf(SQLExecutorConstants.sessionReattachFlag) != -1) {
+  private ExecuteMode handleSessionException(String errorCode, String errorMessage)
+      throws OdpsException {
+    if (errorMessage.contains(SQLExecutorConstants.sessionReattachFlag)) {
       reattach(errorMessage);
       return ExecuteMode.INTERACTIVE;
-    } else if (errorMessage.indexOf(SQLExecutorConstants.sessionJobCancelledComplierFlag) != -1 ||
-               errorMessage.indexOf(SQLExecutorConstants.sessionJobCancelledFlag) != -1) {
+    } else if (errorMessage.contains(SQLExecutorConstants.sessionJobCancelledComplierFlag) ||
+               errorMessage.contains(SQLExecutorConstants.sessionJobCancelledFlag)) {
       throw new OdpsException(errorMessage);
-    } else if (fallbackPolicy.isFallback4UnsupportedFeature()
-        && errorMessage.indexOf(SQLExecutorConstants.sessionUnsupportedFeatureFlag) != -1) {
-      return ExecuteMode.OFFLINE;
-    } else if (fallbackPolicy.isFallback4Upgrading()
-        && errorMessage.indexOf(SQLExecutorConstants.sessionUnavailableFlag) != -1) {
-      return ExecuteMode.OFFLINE;
-    } else if (fallbackPolicy.isFallback4Upgrading()
-        && errorMessage.indexOf(SQLExecutorConstants.sessionAccessDenyFlag) != -1) {
-      return ExecuteMode.OFFLINE;
-    } else if (fallbackPolicy.isFallback4ResourceNotEnough()
-        && errorMessage.indexOf(SQLExecutorConstants.sessionResourceNotEnoughFlag) != -1) {
-      return ExecuteMode.OFFLINE;
-    } else if (fallbackPolicy.isFallback4RunningTimeout()
-        && (errorMessage.indexOf(SQLExecutorConstants.sessionQueryTimeoutFlag) != -1 ||
-            errorMessage.indexOf(SQLExecutorConstants.sessionTunnelTimeoutMessage) != -1 ||
-              errorMessage.indexOf(SQLExecutorConstants.sessionTunnelGetSelectDescTimeoutMessage) != -1)) {
-      return ExecuteMode.OFFLINE;
-    } else if (fallbackPolicy.isFallback4UnknownError()
-        && errorMessage.indexOf(SQLExecutorConstants.sessionExceptionFlag) != -1) {
-      return ExecuteMode.OFFLINE;
-    } else if (fallbackPolicy.isAlwaysFallBack()) {
+    } else if (fallbackPolicy.shouldFallback(errorCode, errorMessage)) {
       return ExecuteMode.OFFLINE;
     } else {
       throw new OdpsException(errorMessage);
@@ -1063,7 +1044,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         result = session.getRawSubQueryResult(queryInfo.getId());
       }
     } catch (OdpsException e) {
-      ExecuteMode executeMode = handleSessionException(e.getMessage());
+      ExecuteMode executeMode = handleSessionException(e.getErrorCode(), e.getMessage());
       runQueryInternal(executeMode, e.getMessage(), true);
       return getResultInternal(null, null, null, true);
     }
@@ -1108,7 +1089,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         runQueryInternal(ExecuteMode.OFFLINE, retryInfo.errMsg, true);
         return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
       } else {
-        ExecuteMode executeMode = handleSessionException(retryInfo.errMsg);
+        ExecuteMode executeMode = handleSessionException(retryInfo.errCode, retryInfo.errMsg);
         runQueryInternal(executeMode, retryInfo.errMsg, true);
         return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
       }
@@ -1176,7 +1157,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         result = session.getRawSubQueryResult(queryInfo.getId());
       }
     } catch (OdpsException e) {
-      ExecuteMode executeMode = handleSessionException(e.getMessage());
+      ExecuteMode executeMode = handleSessionException(e.getErrorCode(), e.getMessage());
       runQueryInternal(executeMode, e.getMessage(), true);
       return getResultSetInternal(null, null, null, true);
     }
@@ -1217,7 +1198,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         runQueryInternal(ExecuteMode.OFFLINE, retryInfo.errMsg, true);
         return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
       } else {
-        ExecuteMode executeMode = handleSessionException(retryInfo.errMsg);
+        ExecuteMode executeMode = handleSessionException(retryInfo.errCode, retryInfo.errMsg);
         runQueryInternal(executeMode, retryInfo.errMsg, true);
         return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
       }
@@ -1306,7 +1287,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         session.runSubQuery(queryInfo.getSql(), queryInfo.getHint());
     if (subQueryInfo.status.equals(Session.SubQueryInfo.kOKCode)) {
       if (subQueryInfo.queryId == -1) {
-        ExecuteMode executeMode = handleSessionException(subQueryInfo.result);
+        ExecuteMode executeMode = handleSessionException(subQueryInfo.result, subQueryInfo.result);
         runQueryInternal(executeMode, subQueryInfo.result, true);
       } else {
         // submit success, do not generate logview now
