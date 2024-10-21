@@ -163,7 +163,7 @@ public class StreamUploadIfSchemaEvolutionUnexpectedSample {
                 .build();
         System.out.println("Session Schema: " + debugString(session.getSchema()));
         System.out.println("Table Schema: " + debugString(odps.tables().get(project, table).getSchema()));
-
+        TimeUnit.SECONDS.sleep(5);
       } while (!basicallyEquals(odps.tables().get(project, table).getSchema()
           , session.getSchema()));
       return session;
