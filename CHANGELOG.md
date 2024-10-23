@@ -1,4 +1,8 @@
 # Changelog
+## [0.50.3-public] - 2024-10-23
+### Features
+- **SQLExecutor** In MCQA 1.0 mode, it is allowed to add custom fallback policies, add subclass `FallbackPolicy.UserDefinedFallbackPolicy`.
+
 ## [0.50.2-public] - 2024-10-23
 ### Features
 - **SQLExecutor** Enhanced MCQA 2.0 functionality:

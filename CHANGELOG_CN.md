@@ -1,4 +1,7 @@
 # 更新日志
+## [0.50.3-public] - 2024-10-23
+### 功能
+- **SQLExecutor** 在 MCQA 1.0 模式下，允许增加自定义回退策略，新增类`FallbackPolicy.UserDefinedFallbackPolicy`。
 
 ## [0.50.2-public] - 2024-10-23
 ### 功能
