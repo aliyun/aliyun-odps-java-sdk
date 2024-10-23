@@ -1,4 +1,27 @@
 # Changelog
+## [0.50.2-public] - 2024-10-23
+### Features
+- **SQLExecutor** Enhanced MCQA 2.0 functionality:
+    - `isActive` will return false, indicating that there are no active Sessions in MCQA 2.0 mode.
+    - Added a `cancel` method to terminate ongoing jobs.
+    - `getExecutionLog` now returns a deep copy of the current log and clears the current log,
+      preventing duplicates.
+    - New `quota` method in `SQLExecutorBuilder` allows reusing already loaded `Quota`, reducing
+      load times.
+    - New `regionId` method in `SQLExecutorBuilder` allows specifying the region where the quota is
+      located.
+- **Quotas** Added `getWlmQuota` method with `regionId` parameter to fetch quota for a specified regionId.
+- **Quota** Introduced `setMcqaConnHeader` method to allow users to override quota using a custom
+    McqaConnHeader, supporting MCQA 2.0.
+- **Instances** Added `get` method applicable for MCQA 2.0 jobs, requiring additional parameters for QuotaName
+    and RegionId.
+- **Instance** Further adapted for MCQA 2.0 jobs.
+- **TableSchema** `basicallyEquals` method will no longer strictly check for identical Class types.
+### Optimization
+- **SQLExecutor** The `run` method's hints will now be deep-copied, preserving the user-provided Map and
+    supporting immutable types (e.g., `ImmutableMap`).
+### Fixes
+- **Stream** Fixed potential SQL syntax errors in the `create` method.
 
 ## [0.50.1-public] - 2024-10-11
 

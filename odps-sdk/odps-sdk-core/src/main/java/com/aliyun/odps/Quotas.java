@@ -92,6 +92,10 @@ public class Quotas implements Iterable<Quota> {
   }
 
   public Quota getWlmQuota(String project, String name) throws OdpsException {
+    return getWlmQuota(project, name, null);
+  }
+
+  public Quota getWlmQuota(String project, String name, String regionId) throws OdpsException {
     if (StringUtils.isNullOrEmpty(name)) {
       throw new IllegalArgumentException("Argument 'name' cannot be null or empty");
     }
@@ -99,7 +103,7 @@ public class Quotas implements Iterable<Quota> {
       throw new IllegalArgumentException("Argument 'project' cannot be null or empty");
     }
     String tenantId = odps.projects().get(project).getTenantId();
-    return new Quota(odps, null, name, tenantId);
+    return new Quota(odps, regionId, name, tenantId);
   }
 
   public Quota get(String name) {

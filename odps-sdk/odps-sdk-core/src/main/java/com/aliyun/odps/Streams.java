@@ -130,7 +130,7 @@ public class Streams implements Iterable<Stream> {
     StringBuilder sql = new StringBuilder();
     sql.append("CREATE STREAM ");
     if (ifNotExists) {
-      sql.append("IF NOTEXISTS ");
+      sql.append("IF NOT EXISTS ");
     }
     sql.append(identifier).append(" ON TABLE ");
     sql.append(refTable);
@@ -140,7 +140,7 @@ public class Streams implements Iterable<Stream> {
     if (version != null) {
       sql.append(" VERSION AS OF ").append(version);
     }
-    sql.append(" STMPROPERTIES(\"read_mode\"=\"").append(readMode.name().toLowerCase())
+    sql.append(" STRMPROPERTIES(\"read_mode\"=\"").append(readMode.name().toLowerCase())
         .append("\")");
     if (StringUtils.isNotBlank(comment)) {
       sql.append(" COMMENT ").append(comment);

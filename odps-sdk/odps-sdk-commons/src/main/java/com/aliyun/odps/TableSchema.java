@@ -253,7 +253,7 @@ public class TableSchema implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof TableSchema)) {
       return false;
     }
     TableSchema that = (TableSchema) o;

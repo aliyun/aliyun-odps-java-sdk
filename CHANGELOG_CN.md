@@ -1,5 +1,23 @@
 # 更新日志
 
+## [0.50.2-public] - 2024-10-23
+### 功能
+- **SQLExecutor** 增强 MCQA 2.0 功能：
+  - `isActive` 将返回 false，指示在 MCQA 2.0 模式下没有活跃的 Session。
+  - 新增 `cancel` 方法，用于中止正在执行的作业。
+  - `getExecutionLog` 现在返回当前日志的深拷贝并清空当前日志，避免重复获取。
+  - 在 `SQLExecutorBuilder` 新增 `quota` 方法，支持复用已加载的 `Quota`，减少加载时间。
+  - 在 `SQLExecutorBuilder` 新增 `regionId` 方法，允许指定 quota 所在的 region。
+- **Quotas** 新增带 `regionId` 参数的 `getWlmQuota` 方法，用于获取指定 regionId 的 quota。
+- **Quota** 新增 `setMcqaConnHeader` 方法，支持用户通过自定义的 McqaConnHeader 重载 quota，以适配 MCQA 2.0。
+- **Instances** 新增适用于 MCQA 2.0 的 `get` 方法，需额外传入 MCQA 2.0 的 QuotaName 和 RegionId。
+- **Instance** 进一步适配 MCQA 2.0 作业。
+- **TableSchema** `basicallyEquals` 方法将不再严格检查两个类的 Class 类型一致性。
+### 优化
+- **SQLExecutor** `run` 方法中的 hints 现在会进行深拷贝，保护用户传入的 Map，支持不可变类型（如 `ImmutableMap`）。
+### 修复
+- **Stream** 修复 `create` 方法中的潜在 SQL 语法错误。
+
 ## [0.50.1-public] - 2024-10-11
 
 ### 修复

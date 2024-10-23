@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.Quota;
 import com.aliyun.odps.table.utils.Preconditions;
 
 /**
@@ -41,6 +42,8 @@ public class SQLExecutorBuilder {
   private boolean sessionSupportNonSelect = false;
   private boolean useMcqaV2 = false;
   private Integer offlineJobPriority = null;
+  private String regionId = null;
+  private Quota quota = null;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -87,6 +90,12 @@ public class SQLExecutorBuilder {
 
   public SQLExecutorBuilder tunnelEndpoint(String tunnelEndpoint) {
     this.tunnelEndpoint = tunnelEndpoint;
+    return this;
+  }
+
+  public SQLExecutorBuilder quota(Quota quota) {
+    this.quota = quota;
+    this.quotaName = quota.getNickname();
     return this;
   }
 
@@ -175,6 +184,11 @@ public class SQLExecutorBuilder {
     return this;
   }
 
+  public SQLExecutorBuilder regionId(String regionId) {
+    this.regionId = regionId;
+    return this;
+  }
+
   public ExecuteMode getExecuteMode() {
     return executeMode;
   }
@@ -209,6 +223,10 @@ public class SQLExecutorBuilder {
 
   public String getQuotaName() {
     return quotaName;
+  }
+
+  public Quota getQuota() {
+    return quota;
   }
 
   public SQLExecutorPool getPool() {
@@ -261,5 +279,9 @@ public class SQLExecutorBuilder {
 
   public Integer getOfflineJobPriority() {
     return offlineJobPriority;
+  }
+
+  public String getRegionId() {
+    return regionId;
   }
 }

@@ -85,7 +85,11 @@ public class SQLExecutorImpl implements SQLExecutor {
     // each executor has a uuid
     this.id = UUID.randomUUID().toString();
     mcqaOdps.getRestClient().setPrefix(MCQA_PREFIX);
-    Quota quota = odps.quotas().getWlmQuota(odps.getDefaultProject(), quotaNickName);
+    Quota quota = builder.getQuota();
+    if (quota == null) {
+      quota = odps.quotas()
+          .getWlmQuota(odps.getDefaultProject(), quotaNickName, builder.getRegionId());
+    }
     String mcqaConnectionHeader = quota.getMcqaConnHeader();
 
     if (!quota.isInteractiveQuota()) {
@@ -113,6 +117,8 @@ public class SQLExecutorImpl implements SQLExecutor {
   public void run(String sql, Map<String, String> hint) throws OdpsException {
     if (hint == null) {
       hint = new HashMap<>();
+    } else {
+      hint = new HashMap<>(hint);
     }
     queryInfo = new QueryInfo(sql, hint, ExecuteMode.INTERACTIVE);
     queryInfo.setCommandInfo(new CommandInfo(sql, hint));
@@ -133,8 +139,10 @@ public class SQLExecutorImpl implements SQLExecutor {
     Instance currentInstance =
         SQLTask.run(mcqaOdps, mcqaOdps.getDefaultProject(), sql, taskName, hint,
                     null);
+    currentInstance.setMcqaV2(true);
     queryInfo.setInstance(currentInstance, ExecuteMode.INTERACTIVE, null, null);
     queryInfo.setSelect(isSelect(sql));
+    log.add("Successfully submitted MCQA 2.0 Job, ID: " + currentInstance.getId());
   }
 
   @Override
@@ -174,12 +182,19 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   @Override
   public boolean isActive() {
-    return true;
+    // in mcqa 1.0, this method will check session status,
+    // however, in mcqa 2.0, no session is created, and this method will always return false.
+    return false;
   }
 
   @Override
   public void cancel() throws OdpsException {
-    // do nothing in mcqa2.0
+    if (queryInfo != null) {
+      Instance instance = queryInfo.getInstance();
+      if (instance.getStatus() == Instance.Status.RUNNING) {
+        instance.stop();
+      }
+    }
   }
 
   @Override
@@ -202,7 +217,9 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   @Override
   public List<String> getExecutionLog() {
-    return log;
+    List<String> executionLog = new ArrayList<>(log);
+    log.clear();
+    return executionLog;
   }
 
   @Override

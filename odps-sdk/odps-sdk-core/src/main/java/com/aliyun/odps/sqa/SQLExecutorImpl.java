@@ -779,6 +779,8 @@ public class SQLExecutorImpl implements SQLExecutor {
   public void run(String sql, Map<String, String> hint) throws OdpsException {
     if (hint == null) {
       hint = new HashMap<>();
+    } else {
+      hint = new HashMap<>(hint);
     }
     queryInfo = new QueryInfo(sql, hint, executeMode);
     queryInfo.setCommandInfo(new CommandInfo(sql, hint));

@@ -130,6 +130,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   private String project;
   private Map<String, TaskResult> results;
   private boolean isSync = false;
+  private boolean isMcqaV2 = false;
 
   private TaskStatusModel model;
 
@@ -157,6 +158,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     this.odps = odps;
     this.client = odps.getRestClient();
+
+    if (getId().endsWith("_mcqa")) {
+      setMcqaV2(true);
+    }
   }
 
   @Root(name = "Instance", strict = false)
@@ -297,7 +302,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       params.put("instancestatus", null);
     }
 
-    Response resp = client.request(getResource(), "GET", params, userDefinedHeaders, null);
+    String resource = isMcqaV2 ? "/mcqa" + getResource() : getResource();
+    Response resp = client.request(resource, "GET", params, userDefinedHeaders, null);
     model.owner = resp.getHeaders().get(Headers.ODPS_OWNER);
     String startTimeStr = resp.getHeaders().get(Headers.ODPS_START_TIME);
     String endTimeStr = resp.getHeaders().get(Headers.ODPS_END_TIME);
@@ -670,7 +676,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     params.put("instancesummary", null);
     params.put("taskname", taskName);
     Response result = client.request(getResource(), "GET", params, null, null);
-
+    System.out.println(new String(result.getBody()));
     TaskSummary summary = null;
     try {
       Gson gson = GsonObjectBuilder.get();
@@ -855,6 +861,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   }
 
   private boolean hasTaskStatus(TaskStatusModel model) {
+    if (model.tasks == null || model.tasks.isEmpty()) {
+      return false;
+    }
     for (InstanceTaskModel taskModel : model.tasks) {
       TaskStatus status = new TaskStatus(taskModel);
       if (status.model.status == null) {
@@ -1391,6 +1400,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
   /* Un-document */
   public String getTaskDetailJson(String taskName) throws OdpsException {
+    if (isMcqaV2) {
+      return getTaskDetailJson2(taskName);
+    }
     Map<String, String> params = new HashMap<String, String>();
     params.put("instancedetail", null);
     params.put("taskname", taskName);
@@ -1422,7 +1434,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     Map<String, String> params = new HashMap<String, String>();
     params.put("detail", null);
     params.put("taskname", taskName);
-    Response result = client.request(getResource(), "GET", params, null, null);
+    String resource = isMcqaV2 ? "/mcqa" + getResource() : getResource();
+    Response result = client.request(resource, "GET", params, null, null);
     return new String(result.getBody());
   }
 
@@ -1723,7 +1736,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @throws OdpsException
    */
   public InstanceQueueingInfo getQueueingInfo() throws OdpsException {
-    Map<String, String> params = new HashMap<String, String>();
+    Map<String, String> params = new HashMap<>();
     params.put("cached", null);
 
     Response resp = client.request(getResource(), "GET", params, null, null);
@@ -1742,6 +1755,12 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       userDefinedHeaders = new HashMap<>();
     }
     userDefinedHeaders.putAll(headers);
+  }
+
+  public void setMcqaV2(boolean mcqaV2) {
+    isMcqaV2 = mcqaV2;
+    client = odps.clone().getRestClient();
+    client.setPrefix("");
   }
 
   private Map<String, String> getCommonHeaders() {

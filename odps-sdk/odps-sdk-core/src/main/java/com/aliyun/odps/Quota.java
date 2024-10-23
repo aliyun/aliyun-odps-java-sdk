@@ -612,6 +612,18 @@ public class Quota extends LazyLoad {
     return mcqaConnHeader;
   }
 
+  public void setMcqaConnHeader(String mcqaConnHeader) {
+    if (StringUtils.isNullOrEmpty(mcqaConnHeader)) {
+      throw new IllegalArgumentException("McqaConnHeader cannot be null or empty.");
+    }
+    setLoaded(true);
+    if (model == null) {
+      model = new QuotaModel();
+    }
+    this.model.resourceSystemType = ResourceSystemType.FUXI_VW.name();
+    this.mcqaConnHeader = mcqaConnHeader;
+  }
+
   public Map<String, String> getProperties() {
     lazyLoad();
     if (model.properties != null) {

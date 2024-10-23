@@ -197,6 +197,35 @@ public class Instances implements Iterable<Instance> {
     return new Instance(projectName, model, null, odps);
   }
 
+  /**
+   * 获取指定Instance（适用于 MCQA2.0）
+   *
+   * @param projectName
+   *     {@link Instance}所在的{@link Project}名称
+   * @param id
+   *     Instance ID
+   * @param quotaName
+   *     指定的交互式quota
+   * @param regionId
+   *     指定的region，如果为null，则使用project的region
+   * @return {@link Instance}对象
+   * @throws OdpsException
+   */
+  public Instance get(String projectName, String id, String quotaName, String regionId) throws OdpsException {
+    Instance instance = get(projectName, id);
+    if (id.endsWith("_mcqa") && StringUtils.isNullOrEmpty(quotaName)) {
+      throw new IllegalArgumentException("quotaName cannot be null when get MCQA 2.0 instance");
+    }
+    if (!StringUtils.isNullOrEmpty(quotaName)) {
+      Quota quota = odps.quotas().getWlmQuota(projectName, quotaName, regionId);
+      if (quota.isInteractiveQuota()) {
+        String mcqaConnHeader = quota.getMcqaConnHeader();
+        instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_CONN, mcqaConnHeader));
+      }
+    }
+    return instance;
+  }
+
 
   /**
    * 判断指定 Instance 是否存在
