@@ -3,7 +3,8 @@ title: UploadSession 上传会话
 sidebar_position: 4
 ---
 
-UploadSession 作为 TableTunnel 的核心组件，专为用户提供了一种高效、灵活的手段来应对数据上传挑战，贯穿从初始化、数据写入到完成上传的整个生命周期管理。
+UploadSession 作为 TableTunnel 的核心组件，是Batch Tunnel组件的一员部分。
+专为用户提供了一种高效、灵活的手段来应对数据上传挑战，贯穿从初始化、数据写入到完成上传的整个生命周期管理。
 本文档详尽解析了UploadSession的使用方法，包括如何初始化新会话或获取现有会话、运用RecordWriter与TunnelBufferedWriter实现数据写入操作、完成数据上传的提交流程，
 以及探索RecordPack和Apache Arrow格式的进阶应用，旨在帮助开发者充分利用MaxCompute的高性能数据上传能力。
 通过深入理解并实践这些指南，用户能够针对不同场景定制最合适的上传策略，确保数据传输既高效又可靠。
@@ -97,13 +98,13 @@ UploadSession 作为 TableTunnel 的核心组件，专为用户提供了一种�
 和当前实例的唯一标识 (`shareId`)：
 
 ```java
-TableTunnel.UploadSession sharedSession=tableTunnel.getUploadSession(projectName,tableName,sessionId,shares,shareId);
+TableTunnel.UploadSession sharedSession = tableTunnel.getUploadSession(projectName,tableName,sessionId,shares,shareId);
 ```
 
 对于分区表，同样适用：
 
 ```java
-TableTunnel.UploadSession sharedSession=tableTunnel.getUploadSession(projectName,tableName,partitionSpec,sessionId,shares,shareId);
+TableTunnel.UploadSession sharedSession = tableTunnel.getUploadSession(projectName,tableName,partitionSpec,sessionId,shares,shareId);
 ```
 
 ### 注意事项
@@ -134,7 +135,7 @@ TunnelRecordWriter 与服务端维护一个长链接，每次调用`write(record
 如果你不需要对上传数据进行压缩，可以使用以下方法打开 `RecordWriter`：
 
 ```java
-RecordWriter writer=uploadSession.openRecordWriter(blockId);
+RecordWriter writer = uploadSession.openRecordWriter(blockId);
 ```
 
 其中，`blockId` 是用户自定义的一个0到19999之间的数字，用于标识本次上传的数据块。
@@ -144,14 +145,14 @@ RecordWriter writer=uploadSession.openRecordWriter(blockId);
 若希望在数据传输过程中进行压缩，可以指定压缩参数：
 
 ```java
-RecordWriter writer=uploadSession.openRecordWriter(blockId,true);
+RecordWriter writer = uploadSession.openRecordWriter(blockId,true);
 ```
 
 或者更具体地指定压缩算法：
 
 ```java
-CompressOption compressOption=new CompressOption(CompressOption.CompressAlgorithm.GZIP,0,0);
-    RecordWriter writer=uploadSession.openRecordWriter(blockId,compressOption);
+CompressOption compressOption = new CompressOption(CompressOption.CompressAlgorithm.GZIP,0,0);
+RecordWriter writer = uploadSession.openRecordWriter(blockId,compressOption);
 ```
 
 ### 使用 TunnelBufferedWriter
@@ -166,20 +167,20 @@ CompressOption compressOption=new CompressOption(CompressOption.CompressAlgorith
 **基础使用**
 
 ```java
-RecordWriter bufferedWriter=uploadSession.openBufferedWriter();
+RecordWriter bufferedWriter = uploadSession.openBufferedWriter();
 ```
 
 **启用压缩**
 
 ```java
-RecordWriter bufferedWriter=uploadSession.openBufferedWriter(true);
+RecordWriter bufferedWriter = uploadSession.openBufferedWriter(true);
 ```
 
 或指定压缩选项：
 
 ```java
-CompressOption compressOption=new CompressOption(CompressOption.CompressAlgorithm.SNAPPY,0,0);
-    RecordWriter bufferedWriter=uploadSession.openBufferedWriter(compressOption);
+CompressOption compressOption = new CompressOption(CompressOption.CompressAlgorithm.SNAPPY,0,0);
+RecordWriter bufferedWriter = uploadSession.openBufferedWriter(compressOption);
 ```
 
 **设置超时**
@@ -188,7 +189,7 @@ CompressOption compressOption=new CompressOption(CompressOption.CompressAlgorith
 推荐值: `(BufferSizeInMB / UploadBandwidthInMB) * 1000 * 120%`
 
 ```java
-long timeout=(1024/100)*1000*1.2; // 示例超时计算，假设缓冲区大小1MB，上传带宽100MB/s
+long timeout = (1024/100)*1000*1.2; // 示例超时计算，假设缓冲区大小1MB，上传带宽100MB/s
 public RecordWriter openBufferedWriter(CompressOption compressOption,long timeout)
 ```
 
@@ -197,9 +198,9 @@ public RecordWriter openBufferedWriter(CompressOption compressOption,long timeou
 为了更好地控制上传过程，可以设置超时时间和自定义Block版本控制逻辑：
 
 ```java
-long timeout=(1024/100)*1000*1.2; // 示例超时计算，假设缓冲区大小1MB，上传带宽100MB/s
-    BlockVersionProvider versionProvider=new CustomBlockVersionProvider(); // 自定义版本提供逻辑
-    RecordWriter bufferedWriter=uploadSession.openBufferedWriter(compressOption,timeout,versionProvider);
+long timeout = (1024/100)*1000*1.2; // 示例超时计算，假设缓冲区大小1MB，上传带宽100MB/s
+BlockVersionProvider versionProvider = new CustomBlockVersionProvider(); // 自定义版本提供逻辑
+RecordWriter bufferedWriter = uploadSession.openBufferedWriter(compressOption,timeout,versionProvider);
 ```
 
 #### 注意事项

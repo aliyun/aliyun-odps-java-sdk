@@ -27,7 +27,7 @@ MaxCompute(ODPS) SDK for Java 允许开发者将他们的Java应用程序与阿�
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-core</artifactId>
-    <version>0.49.0-public</version>
+    <version>0.50.3-public</version>
 </dependency>
 ```
 

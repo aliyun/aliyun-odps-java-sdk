@@ -55,7 +55,7 @@ public class SQLExecutorExample {
 
     SQLExecutor sqlExecutor = null;
     try {
-      // 创建一个默认执行离线SQL的Executor。
+      // 创建一个使用 MCQA 1.0 的Executor。
       sqlExecutor = builder.odps(odps).executeMode(ExecuteMode.INTERACTIVE).build();
 
       // 如果需要的话可以传入查询的特殊设置。
@@ -102,3 +102,8 @@ public class SQLExecutorExample {
   }
 }
 ```
+
+### 回退策略
+对于 MCQA 1.0 加速失败的作业，默认会回退到离线作业进行查询。用户可以通过参数来调整回退策略。
+
+待完善...

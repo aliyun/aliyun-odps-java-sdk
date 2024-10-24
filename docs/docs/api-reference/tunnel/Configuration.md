@@ -1,6 +1,6 @@
 ---
 title: Configuration 配置类
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # Configuration 配置类

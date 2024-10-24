@@ -327,7 +327,17 @@ long fileNum = table.getFileNum();
 ClusterInfo clusterInfo = table.getClusterInfo();
 ```
 
+### 查看 CDC 信息
+
+```java
+long cdcSize = table.getCdcSize();
+long cdcRecordNum = table.getCdcRecordNum();
+long cdcLatestVersion = table.getCdcLatestVersion();
+Date cdcLatestTimestamp = table.getCdcLatestTimestamp();
+```
+
 ## 物化视图操作
+
 ### 查看是否能够应用物化视图重写
 ```java
 boolean flag = table.isMaterializedViewRewriteEnabled();

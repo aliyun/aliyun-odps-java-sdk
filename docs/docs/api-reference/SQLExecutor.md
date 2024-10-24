@@ -38,7 +38,7 @@ public SQLExecutor build()throws OdpsException
 **示例代码**：
 
 ```java
-SQLExecutor executor=SQLExecutorBuilder.builder()
+SQLExecutor executor = SQLExecutorBuilder.builder()
     .odps(odps)
     .taskName("my_task")
     .build();
@@ -51,7 +51,7 @@ SQLExecutor executor=SQLExecutorBuilder.builder()
 #### 设置ODPS对象（必选）
 
 使用`odps`
-方法可以设置ODPS对象。构建ODPS对象的方式请参考[构建 ODPS 客户端](../example-code/init-odps-client.md)。
+方法可以设置ODPS对象。构建ODPS对象的方式请参考[构建 ODPS 客户端](../core-concept/init-odps-client.md)。
 
 ```java
 public SQLExecutorBuilder odps(Odps odps)
@@ -235,7 +235,7 @@ public SQLExecutorBuilder fallbackPolicy(FallbackPolicy fallbackPolicy)
 #### 启用或禁用重新连接Session功能（仅MCQA1.0）
 
 在MCQA1.0模式下，当发生当前链接找不到`Session`时（可能是`Session`被停止或超时），是否启用重新连接功能。
-`Session` 是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../example-code/execute-sql/mcqav1.md)。
+`Session` 是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../core-concept/execute-sql/mcqav1.md)。
 
 ```java
 public SQLExecutorBuilder enableReattach(boolean enableReattach)
@@ -260,7 +260,7 @@ public SQLExecutorBuilder properties(Map<String, String> properties)
 #### 设置服务名称（仅MCQA1.0）
 
 使用`serviceName`方法可以设置使用MCQA1.0时，链接的`Session`名称。
-`Session` 是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../example-code/execute-sql/mcqav1.md)。
+`Session` 是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../core-concept/execute-sql/mcqav1.md)。
 
 ```java
 public SQLExecutorBuilder serviceName(String serviceName)
@@ -283,7 +283,7 @@ public SQLExecutorBuilder sessionSupportNonSelect(boolean sessionSupportNonSelec
 #### 设置附加超时时间（仅MCQA1.0）
 
 使用`attachTimeout`方法可以设置当使用MCQA1.0时，链接`Session`时的超时时间。`Session`
-是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../example-code/execute-sql/mcqav1.md)。
+是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../core-concept/execute-sql/mcqav1.md)。
 
 ```java
 public SQLExecutorBuilder attachTimeout(Long timeout)
@@ -303,6 +303,26 @@ public SQLExecutorBuilder runningCluster(String runningCluster)
 
 - **参数**：`runningCluster` - 字符串，表示运行集群的名称。
 
+#### 设置Quota（仅MCQA2.0）
+
+与[设置Quota名称](#设置quota名称)相比，这个方法可以配置一个已经获取好的Quota示例，这可以避免通过quotaName从服务端获取Quota的过程，使通过缓存Quota来提高性能成为可能。
+
+```java
+public SQLExecutorBuilder quota(Quota quota)
+```
+
+- **参数**：`quota` - Quota 实例，通过 `Quotas#getWlmQuota` 获得，或通过 `Quota#setMcqaConnHeader(String)` 方法加载。
+
+#### 设置RegionId（仅MCQA2.0）
+
+MCQA 2.0 作业会通过 [设置Quota名称](#设置quota名称) 获取的 quotaName 来从服务端获取 Quota，这使用的是 Project 所在的 RegionId，
+然而，我们允许用户通过这个方法，指定 Quota 所在的 RegionId，尽管像其他 region 的 Quota 提及作业有可能失败。
+```java
+public SQLExecutorBuilder regionId(String regionId)
+```
+
+- **参数**：`regionId` - 区域名，表示 Quota 所在的区域，通常不需要设置。
+
 ## 执行SQL查询
 
 SQLExecutor 的 run 方法可以用来运行 SQL 查询。
@@ -310,21 +330,21 @@ SQLExecutor 的 run 方法可以用来运行 SQL 查询。
 ### 方法
 
 ```java
-void run(String sql,Map<String, String> hint)throws OdpsException;
+void run(String sql, Map<String, String> hint) throws OdpsException;
 ```
 
 **参数**:
 
 - `sql`: SQL语句。
-- `hint`: 查询所需的提示参数。比如：`odps.sql.type.system.odps2=true`等。
+- `hint`: 查询所需的提示参数。比如：`odps.sql.type.system.odps2 = true`等。
 
 ### 示例
 
 ```java
-SQLExecutor executor=...; // 实例化 SQLExecutor
-    String sql="SELECT * FROM table_name";
-    Map<String, String> hint=new HashMap<>();
-    executor.run(sql,hint);
+SQLExecutor executor = ...; // 实例化 SQLExecutor
+String sql = "SELECT * FROM table_name";
+Map<String, String> hint = new HashMap<>();
+executor.run(sql, hint);
 ```
 
 ## 获取查询结果
@@ -340,13 +360,13 @@ SQLExecutor executor=...; // 实例化 SQLExecutor
 这组接口，返回的结果为一个`ArrayRecord`列表。程序会将结果全部读到内存里，所以如果结果量太大的话，可能会导致内存溢出。
 
 ```java
-List<Record> getResult()throws OdpsException,IOException;
+List<Record> getResult() throws OdpsException, IOException;
 
-    List<Record> getResult(Long countLimit)throws OdpsException,IOException;
+List<Record> getResult(Long countLimit) throws OdpsException, IOException;
 
-    List<Record> getResult(Long offset,Long countLimit,Long sizeLimit)throws OdpsException,IOException;
+List<Record> getResult(Long offset, Long countLimit, Long sizeLimit) throws OdpsException, IOException;
 
-    List<Record> getResult(Long offset,Long countLimit,Long sizeLimit,boolean limitEnabled)throws OdpsException,IOException;
+List<Record> getResult(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled) throws OdpsException, IOException;
 ```
 
 **参数**：
@@ -363,13 +383,13 @@ List<Record> getResult()throws OdpsException,IOException;
 程序会将结果分批读到内存里，减少了内存溢出的可能。
 
 ```java
-ResultSet getResultSet()throws OdpsException,IOException;
+ResultSet getResultSet() throws OdpsException, IOException;
 
-    ResultSet getResultSet(Long countLimit)throws OdpsException,IOException;
+ResultSet getResultSet(Long countLimit) throws OdpsException, IOException;
 
-    ResultSet getResultSet(Long offset,Long countLimit,Long sizeLimit)throws OdpsException,IOException;
+ResultSet getResultSet(Long offset, Long countLimit, Long sizeLimit) throws OdpsException, IOException;
 
-    ResultSet getResultSet(Long offset,Long countLimit,Long sizeLimit,boolean limitEnabled)throws OdpsException,IOException;
+ResultSet getResultSet(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled) throws OdpsException, IOException;
 ```
 
 **参数**：
@@ -442,7 +462,7 @@ Instance getInstance();
 
 离线查询模式，该接口永远返回`false`。
 MCQA1.0查询模式，该接口返回的是`Session`状态。
-MCQA2.0查询模式，该接口永远返回`true`。
+MCQA2.0查询模式，该接口永远返回`false`。
 
 ```java
 boolean isActive();
@@ -451,13 +471,13 @@ boolean isActive();
 ### 取消当前查询
 
 ```java
-void cancel()throws OdpsException;
+void cancel() throws OdpsException;
 ```
 
 ### 获取当前查询的进度信息
 
 ```java
-List<Instance.StageProgress>getProgress()throws OdpsException;
+List<Instance.StageProgress> getProgress() throws OdpsException;
 ```
 
 ### 获取当前查询的执行日志
@@ -469,7 +489,7 @@ List<String> getExecutionLog();
 ### 获取当前查询的概要信息
 
 ```java
-String getSummary()throws OdpsException;
+String getSummary() throws OdpsException;
 ```
 
 ### 判断当前执行的SQL在语法结构上是否具备结果集
