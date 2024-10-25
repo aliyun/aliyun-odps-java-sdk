@@ -193,8 +193,8 @@ public class SQLExecutorImpl implements SQLExecutor {
           attachSuccess = true;
         }
       } catch (OdpsException e) {
-        if (fallbackPolicy.isAlwaysFallBack()) {
-          // ignore attach failed if fallback for alwaysFallback
+        if (fallbackPolicy.isAlwaysFallBack() || fallbackPolicy.isFallback4AttachError()) {
+          // ignore attach failed if fallback for alwaysFallback or fallback4AttachError
         } else {
           throw e;
         }
@@ -823,7 +823,7 @@ public class SQLExecutorImpl implements SQLExecutor {
                     runningCluster, taskName);
         attachSuccess = true;
       } catch (OdpsException e) {
-        if (!fallbackPolicy.isAlwaysFallBack()) {
+        if (!fallbackPolicy.isAlwaysFallBack() && !fallbackPolicy.isFallback4AttachError()) {
           throw new OdpsException(errorMessage);
         }
       }
@@ -1335,8 +1335,8 @@ public class SQLExecutorImpl implements SQLExecutor {
         queryInfo.incRetry();
       }
       // INTERACTIVE mode and attach failed and always fallback, try to attach session
-      if (executeMode == ExecuteMode.INTERACTIVE && !attachSuccess && fallbackPolicy
-          .isAlwaysFallBack() && !forceRunInOffline) {
+      if (executeMode == ExecuteMode.INTERACTIVE && !attachSuccess && (fallbackPolicy
+          .isAlwaysFallBack() || fallbackPolicy.isFallback4AttachError()) && !forceRunInOffline) {
         try {
           session =
               Session.attach(odps, serviceName, properties,
