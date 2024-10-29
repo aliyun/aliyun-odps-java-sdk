@@ -1,4 +1,19 @@
 # Changelog
+## [0.50.4-public] - 2024-10-29
+
+### Features
+- **PartitionSpec** Added a new constructor `(String, boolean)` that uses a boolean parameter to specify whether to trim partition values. This caters to scenarios (such as using char type as a partition field) where users may not want to trim partition values.
+
+### Changes
+- **Instance** The OdpsException thrown when calling the stop method will no longer be wrapped a second time.
+
+### Fixes
+- **SQLExecutor**
+  - Fixed an issue in MCQA 1.0 mode where the user-specified `fallbackPolicy.isFallback4AttachError` did not take effect correctly.
+  - Fixed an issue in MCQA 2.0 mode where the `cancel` method threw an exception when the job failed.
+  - Fixed an issue in MCQA 2.0 mode where using instanceTunnel to fetch results resulted in an error when the isSelect check was incorrect.
+- **Table** Fixed an issue with the `getPartitionSpecs` method that trimmed partition values, causing the retrieval of non-existing partitions.
+
 ## [0.50.3-public] - 2024-10-23
 ### Features
 - **SQLExecutor** In MCQA 1.0 mode, it is allowed to add custom fallback policies, add subclass `FallbackPolicy.UserDefinedFallbackPolicy`.

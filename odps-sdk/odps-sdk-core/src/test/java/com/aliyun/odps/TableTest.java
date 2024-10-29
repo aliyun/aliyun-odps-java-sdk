@@ -63,6 +63,7 @@ import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.org.apache.xml.internal.utils.URI;
@@ -263,6 +264,30 @@ public class TableTest extends TestBase {
     Assert.assertEquals(count, limit);
   }
 
+  @Test
+  public void testListPartitionSpecsWithoutTrim() throws OdpsException {
+    String tableName = "testListPartitionSpecsWithoutTrim";
+    odps.tables().newTableCreator(tableName,
+                                  TableSchema.builder().withBigintColumn("id")
+                                      .withPartitionColumn(Column.newBuilder("char1", TypeInfoFactory.getCharTypeInfo(10)).build())
+                                      .withPartitionColumn(Column.newBuilder("char2", TypeInfoFactory.getCharTypeInfo(10)).build())
+        .build()).ifNotExists().withHints(ImmutableMap.of("odps.sql.type.system.odps2", "true")).debug().create();
+
+    Table table = odps.tables().get(tableName);
+
+    table.createPartition(new PartitionSpec("char1=' 1 ',char2=' bar '", false), true);
+
+    table.getPartitionSpecs().forEach(p -> {
+      System.out.println(p.toString());
+      try {
+        Assert.assertTrue(table.hasPartition(p));
+      } catch (OdpsException e) {
+        throw new RuntimeException(e);
+      }
+    });
+  }
+
+  /* BEGIN: opensource removal */
   @Test
   public void testColumnLabel() throws OdpsException {
     Table table = odps.tables().get(TABLE_NAME);

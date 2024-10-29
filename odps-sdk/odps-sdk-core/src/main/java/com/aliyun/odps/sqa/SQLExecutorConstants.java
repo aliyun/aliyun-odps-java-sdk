@@ -3,7 +3,7 @@ package com.aliyun.odps.sqa;
 /**
  * Created by dongxiao on 2020/3/16.
  */
-class SQLExecutorConstants {
+public class SQLExecutorConstants {
   public static final String DEFAULT_TASK_NAME = "console_sqlrt_task";
   public static final String DEFAULT_SERVICE = "public.default";
   public static final String DEFAULT_OFFLINE_TASKNAME = "sqlrt_fallback_task";

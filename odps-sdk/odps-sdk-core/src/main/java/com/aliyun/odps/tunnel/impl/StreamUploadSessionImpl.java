@@ -272,11 +272,6 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slots.getSlotNum()));
 
-        List<String> tags = config.getTags();
-        if (tags != null) {
-            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
-        }
-
         if (!StringUtils.isNullOrEmpty(config.getQuotaName())) {
             params.put(TunnelConstants.PARAM_QUOTA_NAME, config.getQuotaName());
         }
@@ -459,51 +454,5 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     @Override
     public Record newRecord() {
         return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
-    }
-
-    // abort does not support retry
-    public void abort() throws TunnelException {
-        HashMap<String, String> params = new HashMap<String, String>();
-
-        params.put(TunnelConstants.UPLOADID, id);
-
-        if (this.partitionSpec != null && this.partitionSpec.length() > 0) {
-            params.put(TunnelConstants.RES_PARTITION, partitionSpec);
-        }
-
-        HashMap<String, String> headers = Util.getCommonHeader();
-        List<String> tags = config.getTags();
-        if (tags != null) {
-            headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
-        }
-        Slot slot = slots.iterator().next();
-        headers.put(HttpHeaders.HEADER_ODPS_ROUTED_SERVER, slot.getServer());
-
-        Connection conn = null;
-        String requestId = null;
-        try {
-            conn = httpClient.connect(getResource(), "POST", params, headers);
-            Response resp = conn.getResponse();
-            requestId = resp.getHeader(HEADER_ODPS_REQUEST_ID);
-
-            if (!resp.isOK()) {
-                throw new TunnelException(requestId, conn.getInputStream(), resp.getStatus());
-            }
-        } catch (IOException e) {
-            throw new TunnelException(requestId, "Failed abort upload session with tunnel endpoint "
-                    + httpClient.getEndpoint(), e);
-        } catch (TunnelException e) {
-            // Do not delete here! TunnelException extends from OdpsException.
-            throw e;
-        } catch (OdpsException e) {
-            throw new TunnelException("not available", e.getMessage(), e);
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.disconnect();
-                } catch (IOException e) {
-                }
-            }
-        }
     }
 }

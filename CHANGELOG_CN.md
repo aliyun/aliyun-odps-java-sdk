@@ -1,4 +1,20 @@
 # 更新日志
+## [0.50.4-public] - 2024-10-29
+
+### 功能
+- **PartitionSpec** 新增`(String, boolean)`构造方法，通过布尔参数指定是否对分区值进行trim操作，以满足某些场景（如使用char类型作为分区字段）用户不希望trim的需求。
+
+### 变更
+- **Instance** 在调用stop方法时，抛出的OdpsException将不再被二次包装。
+
+### 修复
+- **SQLExecutor**
+  - 修复了在MCQA 1.0模式下，用户指定`fallbackPolicy.isFallback4AttachError`时未正确生效的问题。
+  - 修复了在MCQA 2.0模式下，作业失败时`cancel`方法抛出异常的问题。
+  - 修复了在MCQA 2.0模式下，当isSelect判断错误时，通过instanceTunnel取结果报错的问题。
+- **Table** 修复了`getPartitionSpecs`方法会trim分区值，导致无法获取存在的分区的问题。
+
+
 ## [0.50.3-public] - 2024-10-23
 ### 功能
 - **SQLExecutor** 在 MCQA 1.0 模式下，允许增加自定义回退策略，新增类`FallbackPolicy.UserDefinedFallbackPolicy`。

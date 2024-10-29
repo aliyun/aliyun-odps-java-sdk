@@ -26,6 +26,7 @@ import com.aliyun.odps.sqa.ExecuteMode;
 import com.aliyun.odps.sqa.QueryInfo;
 import com.aliyun.odps.sqa.SQLExecutor;
 import com.aliyun.odps.sqa.SQLExecutorBuilder;
+import com.aliyun.odps.sqa.SQLExecutorConstants;
 import com.aliyun.odps.sqa.SQLExecutorPool;
 import com.aliyun.odps.sqa.commandapi.Command;
 import com.aliyun.odps.sqa.commandapi.CommandInfo;
@@ -35,6 +36,7 @@ import com.aliyun.odps.sqa.commandapi.utils.SqlParserUtil;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
+import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
@@ -191,8 +193,13 @@ public class SQLExecutorImpl implements SQLExecutor {
   public void cancel() throws OdpsException {
     if (queryInfo != null) {
       Instance instance = queryInfo.getInstance();
-      if (instance.getStatus() == Instance.Status.RUNNING) {
+      try {
         instance.stop();
+      } catch (OdpsException e) {
+        // stop will throw exception when instance is not running, so we check here.
+        if (!"InvalidStateSetting".equals(e.getErrorCode())) {
+          throw e;
+        }
       }
     }
   }
@@ -580,7 +587,12 @@ public class SQLExecutorImpl implements SQLExecutor {
         downloadSession =
             instanceTunnel.createDownloadSession(odps.getDefaultProject(), queryInfo.getInstance().getId(),
                                          limitEnabled);
-      } catch (OdpsException e) {
+      } catch (TunnelException e) {
+        if (e.getErrorCode().equals(SQLExecutorConstants.sessionNotSelectException)
+            || e.getErrorMsg().contains(SQLExecutorConstants.sessionNotSelectMessage)) {
+          queryInfo.setSelect(false);
+          return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
+        }
         if (e.getErrorCode().equals("TaskFailed")) {
           // wait for success will check task status and throw exception
           queryInfo.getInstance().waitForSuccess();

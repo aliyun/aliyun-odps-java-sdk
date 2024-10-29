@@ -49,6 +49,10 @@ public class PartitionSpec implements Serializable {
    * 分区定义字符串，分区列之间可以用逗号 (",") 或斜线 ("/") 分隔. 例如: "pt1=foo/pt2=1" 或 "pt1=foo,pt2=1"
    */
   public PartitionSpec(String spec) {
+    this(spec, true);
+  }
+
+  public PartitionSpec(String spec, boolean trim) {
     if (spec == null) {
       throw new IllegalArgumentException("Argument \'spec\' cannot be null");
     }
@@ -59,8 +63,10 @@ public class PartitionSpec implements Serializable {
         throw new IllegalArgumentException("Invalid partition spec.");
       }
 
-      String k = kv[0].trim();
-      String v = kv[1].trim().replaceAll("'", "").replaceAll("\"", "");
+      String k = trim ? kv[0].trim() : kv[0];
+      String v = (trim ? kv[1].trim() : kv[1])
+          .replaceAll("'", "")
+          .replaceAll("\"", "");
       if (k.length() == 0 || v.length() == 0) {
         throw new IllegalArgumentException("Invalid partition spec.");
       }

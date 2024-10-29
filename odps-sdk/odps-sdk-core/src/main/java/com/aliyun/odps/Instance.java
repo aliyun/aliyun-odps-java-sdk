@@ -350,6 +350,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       String ret = SimpleXmlUtils.marshal(sm);
       Map<String, String> headers = getCommonHeaders();
       client.stringRequest(getResource(), "PUT", null, headers, ret);
+    } catch (OdpsException e) {
+      throw e;
     } catch (Exception e) {
       throw new OdpsException(e.getMessage(), e);
     }

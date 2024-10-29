@@ -1690,7 +1690,7 @@ public class Table extends LazyLoad {
                                                      "GET",
                                                      params);
     for (PartitionSpecModel partitionSpecModel : resp.partitionSpecs) {
-      partitionSpecs.add(new PartitionSpec(partitionSpecModel.partitionSpec));
+      partitionSpecs.add(new PartitionSpec(partitionSpecModel.partitionSpec, false));
     }
 
     return partitionSpecs;

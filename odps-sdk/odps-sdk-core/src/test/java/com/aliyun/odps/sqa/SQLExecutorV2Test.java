@@ -43,6 +43,24 @@ public class SQLExecutorV2Test {
     odps.setDefaultProject("vw2");
     return odps;
   }
+
+
+  @Test
+  public void testCancelJobTest() throws OdpsException, IOException {
+    executor.run("select 1;", hints);
+    executor.getResultSet().forEach(System.out::println);
+    executor.cancel();
+    try {
+      executor.getInstance().stop();
+    } catch (OdpsException e) {
+      System.out.println(e.getErrorCode());
+      if (e.getErrorCode().equals("InvalidStateSetting")) {
+        System.out.println("good");
+      }
+    }
+  }
+
+
   @Test
   public void testGetTenantId() throws OdpsException {
     System.out.println(odps.projects().get("three_schema_project").getTenantId());
