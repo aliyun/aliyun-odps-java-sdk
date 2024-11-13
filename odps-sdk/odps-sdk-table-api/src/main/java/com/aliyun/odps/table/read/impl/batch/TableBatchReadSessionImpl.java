@@ -24,7 +24,6 @@ import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,12 +33,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
-import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
@@ -57,14 +53,14 @@ import com.aliyun.odps.table.read.SplitReader;
 import com.aliyun.odps.table.read.split.InputSplit;
 import com.aliyun.odps.table.read.split.impl.IndexedInputSplitAssigner;
 import com.aliyun.odps.table.read.split.impl.RowRangeInputSplitAssigner;
-import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.table.utils.HttpUtils;
 import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.table.utils.ConfigConstants;
+import com.aliyun.odps.table.utils.TableRetryHandler;
 import com.aliyun.odps.table.utils.SchemaUtils;
 import com.aliyun.odps.table.utils.SessionUtils;
-import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -77,6 +73,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
     private static final Logger logger = LoggerFactory.getLogger(TableBatchReadSessionImpl.class.getName());
 
     private transient RestClient restClient;
+    private transient TunnelRetryHandler retryHandler;
 
     public TableBatchReadSessionImpl(TableIdentifier identifier,
                                      String sessionId,
@@ -137,14 +134,15 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                         + "%s", identifier.toString(), request));
             }
 
-            Response resp = restClient.stringRequest(
+            Response resp = retryHandler.executeWithRetry(() -> restClient.stringRequest(
                     ResourceBuilder.buildTableSessionResource(
                             ConfigConstants.VERSION_1,
                             identifier.getProject(),
                             identifier.getSchema(),
                             identifier.getTable(),
                             null),
-                    "POST", params, headers, request);
+                    "POST", params, headers, request));
+
             String response;
             if (resp.isOK()) {
                 response = new String(resp.getBody());
@@ -220,35 +218,28 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
 
-        Connection conn = null;
         try {
-            conn = restClient.connect(ResourceBuilder.buildTableSessionResource(
-                    ConfigConstants.VERSION_1,
-                    identifier.getProject(),
-                    identifier.getSchema(),
-                    identifier.getTable(),
-                    sessionId),
-                    "GET", params, headers);
-
-            Response resp = conn.getResponse();
-
+            Response resp = restClient.request(
+                    ResourceBuilder.buildTableSessionResource(
+                            ConfigConstants.VERSION_1,
+                            identifier.getProject(),
+                            identifier.getSchema(),
+                            identifier.getTable(),
+                            sessionId),
+                    "GET", params, headers, null);
             if (resp.isOK()) {
-                String response = IOUtils.readStreamAsString(conn.getInputStream());
+                String response = new String(resp.getBody());
                 loadResultFromJson(response);
                 return response;
             } else {
                 throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
-                        conn.getInputStream(), resp.getStatus());
+                        new ByteArrayInputStream(resp.getBody()), resp.getStatus());
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new IOException("Failed to reload table read session with endpoint: "
                     + restClient.getEndpoint(), e);
-        } catch (OdpsException e) {
-            throw new IOException(e);
         } finally {
-            if (conn != null) {
-                conn.disconnect();
-            }
+            // nothing
         }
     }
 
@@ -256,6 +247,18 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         if (this.restClient == null) {
             this.restClient = ExecutionEnvironment.create(settings)
                     .createHttpClient(identifier.getProject());
+            this.restClient.setRetryLogger(new RestClient.RetryLogger() {
+                @Override
+                public void onRetryLog(Throwable e, long retryCount, long retrySleepTime) {
+                    logger.warn(String.format("Start retry for table read: %s, " +
+                                    "retryCount: %d, will retry in %d seconds.",
+                            identifier.toString(), retryCount, retrySleepTime / 1000), e);
+                }
+            });
+        }
+
+        if (this.retryHandler == null) {
+            this.retryHandler = new TableRetryHandler(restClient);
         }
     }
 

@@ -39,7 +39,10 @@ public class RestOptions implements Serializable {
     private Integer asyncTimeoutInSeconds;
 
     private Integer upsertConcurrentNum;
+
     private Integer upsertNetworkNum;
+
+    private Integer retryWaitTimeInSeconds;
 
     private RestOptions() {
     }
@@ -71,6 +74,7 @@ public class RestOptions implements Serializable {
     public Optional<Integer> getUpsertConcurrentNum() {
         return Optional.ofNullable(upsertConcurrentNum);
     }
+
     public Optional<Integer> getUpsertNetworkNum() {
         return Optional.ofNullable(upsertNetworkNum);
     }
@@ -81,6 +85,10 @@ public class RestOptions implements Serializable {
 
     public Optional<Integer> getAsyncTimeoutInSeconds() {
         return Optional.ofNullable(asyncTimeoutInSeconds);
+    }
+
+    public Optional<Integer> getRetryWaitTimeInSeconds() {
+        return Optional.ofNullable(retryWaitTimeInSeconds);
     }
 
     public static class Builder {
@@ -130,8 +138,14 @@ public class RestOptions implements Serializable {
             this.restOptions.upsertConcurrentNum = upsertConcurrentNum;
             return this;
         }
+
         public Builder withUpsertNetworkNum(int upsertNetworkNum) {
             this.restOptions.upsertNetworkNum = upsertNetworkNum;
+            return this;
+        }
+
+        public Builder withRetryWaitTimeInSeconds(int retryWaitTimeInSeconds) {
+            this.restOptions.retryWaitTimeInSeconds = retryWaitTimeInSeconds;
             return this;
         }
 

@@ -53,6 +53,7 @@ import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
 import com.aliyun.odps.table.StreamIdentifier;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
@@ -1246,7 +1247,17 @@ public class Table extends LazyLoad {
       throw new OdpsException("ODPS-0420061: Invalid parameter in HTTP request - 'linenum' must be bigger than zero!");
     }
     TableSchema schema = getSchema();
-    TableTunnel tableTunnel = new TableTunnel(odps);
+
+    // apply odps network settings to table tunnel
+    int readTimeout = odps.getRestClient().getReadTimeout();
+    int connectTimeout = odps.getRestClient().getConnectTimeout();
+    int socketRetryTimes = odps.getRestClient().getRetryTimes();
+    Configuration tunnelConfig = new Configuration(odps);
+    tunnelConfig.setSocketTimeout(readTimeout);
+    tunnelConfig.setSocketConnectTimeout(connectTimeout);
+    tunnelConfig.setSocketRetryTimes(socketRetryTimes);
+
+    TableTunnel tableTunnel = new TableTunnel(odps, tunnelConfig);
     if (!StringUtils.isNullOrEmpty(tunnelEndpoint)) {
       tableTunnel.setEndpoint(tunnelEndpoint);
     }

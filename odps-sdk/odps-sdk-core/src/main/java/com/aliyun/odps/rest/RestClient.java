@@ -329,8 +329,13 @@ public class RestClient {
       }
     }
 
-    long retryWaitTime = getConnectTimeout() + getReadTimeout();
-    FixedBackOffStrategy backOffStrategy = new FixedBackOffStrategy(retryWaitTime);
+    long waitTime;
+    if (retryWaitTime > 0) {
+      waitTime = retryWaitTime;
+    } else {
+      waitTime = getConnectTimeout() + getReadTimeout();
+    }
+    FixedBackOffStrategy backOffStrategy = new FixedBackOffStrategy(waitTime);
     RetryStrategy retryStrategy = new RestRetryStrategy(retryTimes, backOffStrategy);
 
     while (true) {
@@ -814,6 +819,26 @@ public class RestClient {
 
   public int getChunkSize() {
     return chunkSize;
+  }
+
+  int retryWaitTime = -1;
+
+  /**
+   * 设置网络重试等待时间
+   *
+   * @param retryWaitTime 重试等待时间，单位秒
+   */
+  public void setRetryWaitTime(int retryWaitTime) {
+    this.retryWaitTime = retryWaitTime;
+  }
+
+  /**
+   * 获取网络重试等待时间
+   *
+   * @return 重试等待时间，单位秒
+   */
+  public int getRetryWaitTime() {
+    return retryWaitTime;
   }
 
   public void enableDeprecatedLogger() {

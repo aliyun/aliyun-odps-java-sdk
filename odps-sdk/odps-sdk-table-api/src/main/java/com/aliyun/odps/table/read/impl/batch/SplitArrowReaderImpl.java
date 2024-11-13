@@ -20,7 +20,6 @@
 package com.aliyun.odps.table.read.impl.batch;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -45,9 +44,10 @@ import com.aliyun.odps.table.read.split.InputSplitWithIndex;
 import com.aliyun.odps.table.read.split.InputSplitWithRowRange;
 import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.table.utils.HttpUtils;
+import com.aliyun.odps.table.utils.TableRetryHandler;
 import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,9 +96,7 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
             if (reader != null) {
                 reader.close();
             }
-            if (connection != null) {
-                connection.disconnect();
-            }
+            disconnect();
             isClosed = true;
         }
     }
@@ -121,6 +119,16 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                                       ReaderOptions options) throws IOException {
         RestClient restClient = ExecutionEnvironment.create(options.getSettings())
                 .createHttpClient(identifier.getProject());
+        restClient.setRetryLogger(new RestClient.RetryLogger() {
+            @Override
+            public void onRetryLog(Throwable e, long retryCount, long retrySleepTime) {
+                logger.warn(String.format("Reader retry for session: %s, " +
+                                "retryCount: %d, will retry in %d seconds.",
+                        split.getSessionId(), retryCount, retrySleepTime / 1000), e);
+            }
+        });
+
+        TunnelRetryHandler retryHandler = new TableRetryHandler(restClient);
 
         Map<String, String> headers = HttpUtils.createCommonHeader(options.getSettings());
         if (options.getCompressionCodec().equals(CompressionCodec.ZSTD)) {
@@ -155,7 +163,6 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                 options.getDataFormat().getType().toString());
         params.put(ConfigConstants.DATA_FORMAT_VERSION,
                 options.getDataFormat().getVersion().toString());
-        Connection conn;
         try {
             String resource = ResourceBuilder.buildTableDataResource(
                     ConfigConstants.VERSION_1,
@@ -163,22 +170,32 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                     identifier.getSchema(),
                     identifier.getTable());
 
-            conn = restClient.connect(resource, "GET", params, headers);
+            Response resp = retryHandler.executeWithRetry(() -> {
+                try {
+                    connection = restClient.connect(resource, "GET", params, headers);
+                    return connection.getResponse();
+                } catch (Exception e) {
+                    disconnect();
+                    throw e;
+                }
+            });
 
-            Response resp = conn.getResponse();
             if (!resp.isOK()) {
-                TunnelException err = new TunnelException(conn.getInputStream());
+                TunnelException err = new TunnelException(connection.getInputStream());
                 err.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
                 throw err;
             }
-            this.connection = conn;
             this.requestId = resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID);
         } catch (Exception e) {
-            if (connection != null) {
-                connection.disconnect();
-            }
+            disconnect();
             logger.error("Open split reader failed", e);
             throw new IOException(e.getMessage(), e);
+        }
+    }
+
+    private void disconnect() throws IOException {
+        if (connection != null) {
+            connection.disconnect();
         }
     }
 }

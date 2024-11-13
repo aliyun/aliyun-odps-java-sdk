@@ -49,11 +49,18 @@ public class GeneralConfiguration {
    */
   public static int DEFAULT_SOCKET_TIMEOUT = 300;// seconds
 
+  /**
+   * 底层网络重试次数, 对应 {@link com.aliyun.odps.rest.RestClient#retryTimes}
+   * 仅对 GET 请求，网络相关报错生效
+   */
+  public static int DEFAULT_SOCKET_RETRY_TIMES = 4;
+
   protected Odps odps;
 
   private int chunkSize = DEFAULT_CHUNK_SIZE;
   private int socketConnectTimeout = DEFAULT_SOCKET_CONNECT_TIMEOUT;
   private int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
+  private int socketRetryTimes = DEFAULT_SOCKET_RETRY_TIMES;
 
   // Server endpoint
   protected URI endpoint;
@@ -240,6 +247,25 @@ public class GeneralConfiguration {
    */
   public void setSocketTimeout(int timeout) {
     this.socketTimeout = timeout;
+  }
+
+  /**
+   * 取得当前配置的网络IO重试次数
+   *
+   * @return 重试次数
+   */
+  public int getSocketRetryTimes() {
+    return socketRetryTimes;
+  }
+
+  /**
+   * 设置网络IO重试次数，仅对 GET 请求，网络相关报错生效
+   *
+   * @param retryTimes
+   *   重试次数
+   */
+  public void setSocketRetryTimes(int retryTimes) {
+    this.socketRetryTimes = retryTimes;
   }
 
   /**

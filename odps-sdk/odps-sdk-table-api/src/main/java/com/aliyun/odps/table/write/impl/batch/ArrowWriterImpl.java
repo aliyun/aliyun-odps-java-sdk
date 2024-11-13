@@ -19,7 +19,6 @@
 
 package com.aliyun.odps.table.write.impl.batch;
 
-import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -39,19 +38,24 @@ import com.aliyun.odps.table.metrics.count.RecordCount;
 import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.table.utils.HttpUtils;
 import com.aliyun.odps.table.utils.SchemaUtils;
+import com.aliyun.odps.table.utils.TableRetryHandler;
 import com.aliyun.odps.table.write.BatchWriter;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,6 +63,8 @@ import static com.aliyun.odps.table.utils.ConfigConstants.VERSION_1;
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
 public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ArrowWriterImpl.class.getName());
 
     private boolean isClosed;
     private final long blockNumber;
@@ -105,9 +111,9 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
         }
 
         if (batchWriter == null) {
-            openWriterConnection(sessionId, identifier, blockNumber, attemptId);
             batchWriter = ArrowWriterFactory.getRecordBatchWriter(
-                    connection.getOutputStream(), writerOptions);
+                    openWriterConnection(sessionId, identifier, blockNumber, attemptId),
+                    writerOptions);
         }
         try {
             batchWriter.writeBatch(root);
@@ -175,18 +181,18 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
         this.metrics.register(recordCount);
     }
 
-    private void openWriterConnection(String sessionId,
-                                      TableIdentifier identifier,
-                                      long blockNumber,
-                                      WriterAttemptId attemptId)
+    private OutputStream openWriterConnection(String sessionId,
+                                              TableIdentifier identifier,
+                                              long blockNumber,
+                                              WriterAttemptId attemptId)
             throws IOException {
         Map<String, String> headers = new HashMap<>();
         headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
         headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
         if (writerOptions.getSettings() != null && writerOptions.getSettings().getTags()
-            .isPresent()) {
+                .isPresent()) {
             headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS,
-                        String.join(",", writerOptions.getSettings().getTags().get()));
+                    String.join(",", writerOptions.getSettings().getTags().get()));
         }
         // TODO: compress
 
@@ -209,9 +215,29 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
             RestClient restClient = ExecutionEnvironment.create(writerOptions.getSettings())
                     .createHttpClient(identifier.getProject());
             restClient.setChunkSize(writerOptions.getChunkSize());
-            this.connection = restClient.connect(resource, "POST", params, headers);
-        } catch (IOException | OdpsException e) {
+            restClient.setRetryLogger(new RestClient.RetryLogger() {
+                @Override
+                public void onRetryLog(Throwable e, long retryCount, long retrySleepTime) {
+                    logger.warn(String.format("Writer retry for session: %s, " +
+                                    "retryCount: %d, will retry in %d seconds.",
+                            sessionId, retryCount, retrySleepTime / 1000), e);
+                }
+            });
+
+            TunnelRetryHandler retryHandler = new TableRetryHandler(restClient);
+
+            return retryHandler.executeWithRetry(() -> {
+                try {
+                    this.connection = restClient.connect(resource, "POST", params, headers);
+                    return connection.getOutputStream();
+                } catch (Exception e) {
+                    disconnect();
+                    throw e;
+                }
+            });
+        } catch (Exception e) {
             disconnect();
+            logger.error("Open writer failed", e);
             throw new IOException(e.getMessage(), e);
         }
     }

@@ -1,90 +1,148 @@
 # 更新日志
+
+## [0.50.5-public] - 2024-11-13
+
+### 功能
+
+- **TableAPI**
+  为可以安全重试的网络请求类型的报错增加了相应的重试逻辑，从而提高了接口的稳定性。在 `RestOptions`
+  中增加了 `retryWaitTimeInSeconds` 配置项，用于设置重试等待时间。
+- **SQLTask** 新增了 `run` 方法的重载，支持传入 `mcqaConnHeader` 参数，以便提交 MCQA 2.0 作业。
+- **SQLExecutor** 支持通过指定 `hints` 中的 `odps.task.wlm.quota` 来设置提交 MCQA 2.0 作业时的
+  interactive quota。
+- **RestClient** 新增了 `retryWaitTime` 参数，以及相应的 getter 和 setter 方法，以配置网络请求的重试等待时间。
+- **Configuration** 新增了 `socketRetryTimes` 参数以及相应的 getter 和 setter 方法，用于配置 Tunnel
+  网络请求的重试等待时间。如果未设置，则使用 `RestClient` 中的配置，否则使用此配置。
+
+### 变更
+
+- **Instances** 移除了 `get`
+  的重载方法 `get(String projectName, String id, String quotaName, String regionId)`
+  ，该方法在 `0.50.2-public` 版本中新增，用于获取 MCQA 2.0 实例。现在，用户在使用 `get` 方法时无须区分作业是否为
+  MCQA 2.0 作业，因此移除该方法可以直接使用 `get(String projectName, String id)` 方法来获取实例。
+
+### 修复
+
+- **Table.read()** 修复了在数据预览时，配置的网络相关参数（如超时时间、重试逻辑）无法正确生效的问题。
+- **Streams** 修复了 `create` 方法中，如果指定了 `version` 会报错的问题。同时增加了 `version`
+  的默认值（1），表示表的初始版本。
+
 ## [0.50.4-public] - 2024-10-29
 
 ### 功能
-- **PartitionSpec** 新增`(String, boolean)`构造方法，通过布尔参数指定是否对分区值进行trim操作，以满足某些场景（如使用char类型作为分区字段）用户不希望trim的需求。
+
+- **PartitionSpec** 新增`(String, boolean)`
+  构造方法，通过布尔参数指定是否对分区值进行trim操作，以满足某些场景（如使用char类型作为分区字段）用户不希望trim的需求。
 
 ### 变更
+
 - **Instance** 在调用stop方法时，抛出的OdpsException将不再被二次包装。
 
 ### 修复
+
 - **SQLExecutor**
-  - 修复了在MCQA 1.0模式下，用户指定`fallbackPolicy.isFallback4AttachError`时未正确生效的问题。
-  - 修复了在MCQA 2.0模式下，作业失败时`cancel`方法抛出异常的问题。
-  - 修复了在MCQA 2.0模式下，当isSelect判断错误时，通过instanceTunnel取结果报错的问题。
+    - 修复了在MCQA 1.0模式下，用户指定`fallbackPolicy.isFallback4AttachError`时未正确生效的问题。
+    - 修复了在MCQA 2.0模式下，作业失败时`cancel`方法抛出异常的问题。
+    - 修复了在MCQA 2.0模式下，当isSelect判断错误时，通过instanceTunnel取结果报错的问题。
 - **Table** 修复了`getPartitionSpecs`方法会trim分区值，导致无法获取存在的分区的问题。
 
-
 ## [0.50.3-public] - 2024-10-23
+
 ### 功能
-- **SQLExecutor** 在 MCQA 1.0 模式下，允许增加自定义回退策略，新增类`FallbackPolicy.UserDefinedFallbackPolicy`。
+
+- **SQLExecutor** 在 MCQA 1.0
+  模式下，允许增加自定义回退策略，新增类`FallbackPolicy.UserDefinedFallbackPolicy`。
 
 ## [0.50.2-public] - 2024-10-23
+
 ### 功能
+
 - **SQLExecutor** 增强 MCQA 2.0 功能：
-  - `isActive` 将返回 false，指示在 MCQA 2.0 模式下没有活跃的 Session。
-  - 新增 `cancel` 方法，用于中止正在执行的作业。
-  - `getExecutionLog` 现在返回当前日志的深拷贝并清空当前日志，避免重复获取。
-  - 在 `SQLExecutorBuilder` 新增 `quota` 方法，支持复用已加载的 `Quota`，减少加载时间。
-  - 在 `SQLExecutorBuilder` 新增 `regionId` 方法，允许指定 quota 所在的 region。
+    - `isActive` 将返回 false，指示在 MCQA 2.0 模式下没有活跃的 Session。
+    - 新增 `cancel` 方法，用于中止正在执行的作业。
+    - `getExecutionLog` 现在返回当前日志的深拷贝并清空当前日志，避免重复获取。
+    - 在 `SQLExecutorBuilder` 新增 `quota` 方法，支持复用已加载的 `Quota`，减少加载时间。
+    - 在 `SQLExecutorBuilder` 新增 `regionId` 方法，允许指定 quota 所在的 region。
 - **Quotas** 新增带 `regionId` 参数的 `getWlmQuota` 方法，用于获取指定 regionId 的 quota。
-- **Quota** 新增 `setMcqaConnHeader` 方法，支持用户通过自定义的 McqaConnHeader 重载 quota，以适配 MCQA 2.0。
+- **Quota** 新增 `setMcqaConnHeader` 方法，支持用户通过自定义的 McqaConnHeader 重载 quota，以适配 MCQA
+  2.0。
 - **Instances** 新增适用于 MCQA 2.0 的 `get` 方法，需额外传入 MCQA 2.0 的 QuotaName 和 RegionId。
 - **Instance** 进一步适配 MCQA 2.0 作业。
 - **TableSchema** `basicallyEquals` 方法将不再严格检查两个类的 Class 类型一致性。
+
 ### 优化
-- **SQLExecutor** `run` 方法中的 hints 现在会进行深拷贝，保护用户传入的 Map，支持不可变类型（如 `ImmutableMap`）。
+
+- **SQLExecutor** `run` 方法中的 hints 现在会进行深拷贝，保护用户传入的
+  Map，支持不可变类型（如 `ImmutableMap`）。
+
 ### 修复
+
 - **Stream** 修复 `create` 方法中的潜在 SQL 语法错误。
 
 ## [0.50.1-public] - 2024-10-11
 
 ### 修复
 
--  **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，拿到了`ArrayRecord`无法正确`toString`的问题。
--  **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，如果`Split`对应的`Record`数量为0，在`get`
+- **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，拿到了`ArrayRecord`无法正确`toString`的问题。
+- **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，如果`Split`对应的`Record`数量为0，在`get`
   操作时会抛出数组越界异常的问题。
--  **TableAPI** 修复了复合谓词`CompositePredicate`在遇到空谓词时，可能额外增加一次操作符的问题。
+- **TableAPI** 修复了复合谓词`CompositePredicate`在遇到空谓词时，可能额外增加一次操作符的问题。
 
 ## [0.50.0-public] - 2024-10-09
 
 ### 功能
-- 新增 `SchemaMismatchException` 异常：当使用 `StreamUploadSession` 时，如果用户上传的 Record 结构与表结构不匹配，将抛出该异常。此异常将额外携带最新的 schema version，方便用户重建 Session 并进行重试操作。
-- 在 `StreamUploadSession.Builder` 中新增 `allowSchemaMismatch` 方法，用于指定是否容忍用户上传的 Record 结构与表结构不匹配时是否抛出异常。默认值为 `true`。
+
+- 新增 `SchemaMismatchException` 异常：当使用 `StreamUploadSession` 时，如果用户上传的 Record
+  结构与表结构不匹配，将抛出该异常。此异常将额外携带最新的 schema version，方便用户重建 Session
+  并进行重试操作。
+- 在 `StreamUploadSession.Builder` 中新增 `allowSchemaMismatch` 方法，用于指定是否容忍用户上传的
+  Record 结构与表结构不匹配时是否抛出异常。默认值为 `true`。
 
 ### 修复
+
 - 修复了在 Odps 中指定 `tunnelEndpoint` 时，使用 `StreamUploadSession` 无法生效的问题。
 - 修复了 `TunnelRetryHandler` 潜在的 NPE 问题。
 
-
 ## [0.50.0-rc1] - 2024-09-19
+
 ### 功能
+
 - **SQLExecutor** 新增 `isUseInstanceTunnel` 方法：
-  - 用来判断是否使用 instanceTunnel 取结果
+    - 用来判断是否使用 instanceTunnel 取结果
+
 ### 修复
+
 - 修复了使用 SQLExecutor 执行 MCQA 2.0 作业时，执行 CommandApi 任务会影响下一次作业，导致取结果时抛出NPE的问题。
 
 ## [0.50.0-rc0] - 2024-09-18
 
 ### 功能
+
 - **SQLExecutor** 支持提交 MCQA 2.0 作业
-  - SQLExecutorBuilder 新增方法 `enableMcqaV2`
-  - SQLExecutorBuilder 新增对字段的 getter 方法
+    - SQLExecutorBuilder 新增方法 `enableMcqaV2`
+    - SQLExecutorBuilder 新增对字段的 getter 方法
 - SQLExecutor 新增 `getQueryId` 方法：
-  - 对于离线作业和 MCQA 2.0 作业，会返回当前执行的作业 InstanceId
-  - 对于 MCQA 1.0 作业，会返回 InstanceId 和 SubQueryId
+    - 对于离线作业和 MCQA 2.0 作业，会返回当前执行的作业 InstanceId
+    - 对于 MCQA 1.0 作业，会返回 InstanceId 和 SubQueryId
 - **TableAPI** `EnvironmentSettings` 新增 `SharingQuotaToken` 参数，以支持提交作业时携带Quota资源共享临时凭证
 - **Quotas** 新增 `getWlmQuota` 方法：
-  - 能够根据 projectName 和 quotaNickName 获取到 quota 的详细信息，比如是否属于交互式 quota
+    - 能够根据 projectName 和 quotaNickName 获取到 quota 的详细信息，比如是否属于交互式 quota
 - **Quota 类**新增 `isInteractiveQuota` 方法，用来判断 quota 是否属于交互式 quota（适用于 MCQA 2.0）
-- 新增 `getResultByInstanceTunnel(Instance instance, String taskName, Long limit, boolean limitEnabled)` 方法：
-  - 用来无限制地通过 instanceTunnel 获取结果（解除限制需要更高的权限）
+-
+
+新增 `getResultByInstanceTunnel(Instance instance, String taskName, Long limit, boolean limitEnabled)`
+方法：
+
+- 用来无限制地通过 instanceTunnel 获取结果（解除限制需要更高的权限）
+
 - **UpsertSession.Builder** 新增 `setLifecycle` 方法，用来配置 Session 生命周期
 
 ### 修复
+
 - 修复了使用 SQLExecutor 执行离线作业时，指定 `limitEnabled` 取结果但不生效的问题
 - 修改了 SQLExecutor 执行离线作业时，`getQueryId` 方法会返回作业的 instanceID 而非 null
-- 修复了 SQLExecutor 执行离线作业时，当遇到非 select 语句时，使用 instanceTunnel 取结果不再抛出异常，而是回退到非 tunnel 逻辑
+- 修复了 SQLExecutor 执行离线作业时，当遇到非 select 语句时，使用 instanceTunnel 取结果不再抛出异常，而是回退到非
+  tunnel 逻辑
 - 修复了使用 DownloadSession 下载数据时，发生错误且读取数量刚好等于要读取记录的数量 - 1 时重建漏掉一条数据的问题
 - **Odps 类**的 `clone` 方法现在能正确克隆包括 `tunnelEndpoint` 等其他字段
 - **Instance** 的 `getRawTaskResults` 方法现在在处理同步作业时不会多次发起请求
@@ -121,9 +179,10 @@
 - **Varchar/Char 类型修复**：修复了 `Varchar/Char` 类型获取其长度时，当遇到中文符号或表情等特殊字符，会错误的计算两次的问题。
 
 ## [0.48.8-public] - 2024-08-12
-### 增强
-- 引入了对复合谓词表达式的内部验证，修复了处理无效或总是真/假谓词时的逻辑，增强了测试覆盖，确保了在复杂查询优化中的稳定性和准确性。
 
+### 增强
+
+- 引入了对复合谓词表达式的内部验证，修复了处理无效或总是真/假谓词时的逻辑，增强了测试覆盖，确保了在复杂查询优化中的稳定性和准确性。
 
 ## [0.48.7-public] - 2024-08-07
 

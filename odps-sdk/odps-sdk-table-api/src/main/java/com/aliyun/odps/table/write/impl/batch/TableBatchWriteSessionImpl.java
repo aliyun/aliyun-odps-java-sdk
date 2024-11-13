@@ -25,7 +25,6 @@ import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -35,12 +34,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
-import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.table.DataFormat;
@@ -57,17 +53,17 @@ import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
 import com.aliyun.odps.table.order.NullOrdering;
 import com.aliyun.odps.table.order.SortDirection;
 import com.aliyun.odps.table.order.SortOrder;
-import com.aliyun.odps.table.utils.ConfigConstants;
-import com.aliyun.odps.table.utils.HttpUtils;
-import com.aliyun.odps.table.utils.Preconditions;
-import com.aliyun.odps.table.utils.SchemaUtils;
-import com.aliyun.odps.table.utils.SessionUtils;
 import com.aliyun.odps.table.write.BatchWriter;
 import com.aliyun.odps.table.write.TableWriteCapabilities;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
-import com.aliyun.odps.tunnel.HttpHeaders;
-import com.aliyun.odps.tunnel.TunnelConstants;
+import com.aliyun.odps.table.utils.HttpUtils;
+import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.table.utils.ConfigConstants;
+import com.aliyun.odps.table.utils.TableRetryHandler;
+import com.aliyun.odps.table.utils.SchemaUtils;
+import com.aliyun.odps.table.utils.SessionUtils;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -80,9 +76,9 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
     private static final Logger logger = LoggerFactory.getLogger(TableBatchWriteSessionImpl.class.getName());
 
-    private transient ExecutionEnvironment executionEnvironment;
-
     private transient RestClient restClient;
+
+    private transient TunnelRetryHandler retryHandler;
 
     public TableBatchWriteSessionImpl(TableIdentifier identifier,
                                       PartitionSpec partitionSpec,
@@ -120,14 +116,14 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                         + "%s", identifier.toString(), req));
             }
 
-            Response resp = restClient.stringRequest(
+            Response resp = retryHandler.executeWithRetry(() -> restClient.stringRequest(
                     ResourceBuilder.buildTableSessionResource(
                             ConfigConstants.VERSION_1,
                             identifier.getProject(),
                             identifier.getSchema(),
                             identifier.getTable(),
                             null),
-                    "POST", params, headers, req);
+                    "POST", params, headers, req));
 
             if (resp.isOK()) {
                 String response = new String(resp.getBody());
@@ -159,37 +155,27 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
 
-        Connection conn = null;
         try {
-            conn = restClient.connect(ResourceBuilder.buildTableSessionResource(
-                    ConfigConstants.VERSION_1,
-                    identifier.getProject(),
-                    identifier.getSchema(),
-                    identifier.getTable(),
-                    sessionId),
-                    "GET", params, headers);
-
-            Response resp = conn.getResponse();
+            Response resp = restClient.request(ResourceBuilder.buildTableSessionResource(
+                            ConfigConstants.VERSION_1,
+                            identifier.getProject(),
+                            identifier.getSchema(),
+                            identifier.getTable(),
+                            sessionId),
+                    "GET", params, headers, null);
             if (resp.isOK()) {
-                String response = IOUtils.readStreamAsString(conn.getInputStream());
+                String response = new String(resp.getBody());
                 loadResultFromJson(response);
                 return response;
             } else {
                 throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
-                        conn.getInputStream(), resp.getStatus());
+                        new ByteArrayInputStream(resp.getBody()), resp.getStatus());
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new IOException("Failed to reload table write session with endpoint: "
                     + restClient.getEndpoint(), e);
-        } catch (OdpsException e) {
-            throw new IOException(e);
         } finally {
-            if (conn != null) {
-                try {
-                    conn.disconnect();
-                } catch (IOException e) {
-                }
-            }
+            // nothing
         }
     }
 
@@ -247,12 +233,13 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                         + "%s", identifier.toString(), commitRequest));
             }
 
-            Response resp = restClient.stringRequest(ResourceBuilder.buildTableCommitResource(
-                    VERSION_1,
-                    identifier.getProject(),
-                    identifier.getSchema(),
-                    identifier.getTable()),
-                    "POST", params, headers, commitRequest);
+            Response resp = retryHandler.executeWithRetry(
+                    () -> restClient.stringRequest(ResourceBuilder.buildTableCommitResource(
+                                    VERSION_1,
+                                    identifier.getProject(),
+                                    identifier.getSchema(),
+                                    identifier.getTable()),
+                            "POST", params, headers, commitRequest));
 
             String response;
             if (!resp.isOK()) {
@@ -325,12 +312,21 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
     }
 
     private void ensureInitialized() {
-        if (this.executionEnvironment == null) {
-            this.executionEnvironment = ExecutionEnvironment.create(settings);
+        if (this.restClient == null) {
+            this.restClient = ExecutionEnvironment.create(settings)
+                    .createHttpClient(identifier.getProject());
+            this.restClient.setRetryLogger(new RestClient.RetryLogger() {
+                @Override
+                public void onRetryLog(Throwable e, long retryCount, long retrySleepTime) {
+                    logger.warn(String.format("Start retry for table write: %s, " +
+                                    "retryCount: %d, will retry in %d seconds.",
+                            identifier.toString(), retryCount, retrySleepTime / 1000), e);
+                }
+            });
         }
 
-        if (this.restClient == null) {
-            this.restClient = this.executionEnvironment.createHttpClient(identifier.getProject());
+        if (this.retryHandler == null) {
+            this.retryHandler = new TableRetryHandler(restClient);
         }
     }
 

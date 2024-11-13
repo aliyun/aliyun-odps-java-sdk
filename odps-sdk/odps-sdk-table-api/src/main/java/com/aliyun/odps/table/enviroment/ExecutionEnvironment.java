@@ -138,7 +138,7 @@ public abstract class ExecutionEnvironment {
     }
 
     private void setRestOptions(RestClient restClient) {
-        restClient.setUserAgent("");
+        restClient.setUserAgent("StorageAPI");
         settings.getDefaultProject().ifPresent(restClient::setDefaultProject);
         settings.getDefaultSchema().ifPresent(restClient::setCurrentSchema);
         settings.getRestOptions().ifPresent(restOptions -> {
@@ -146,6 +146,7 @@ public abstract class ExecutionEnvironment {
             restOptions.getReadTimeout().ifPresent(restClient::setReadTimeout);
             restOptions.getUserAgent().ifPresent(restClient::setUserAgent);
             restOptions.getRetryTimes().ifPresent(restClient::setRetryTimes);
+            restOptions.getRetryWaitTimeInSeconds().ifPresent(restClient::setRetryWaitTime);
             restOptions.isIgnoreCerts().ifPresent(restClient::setIgnoreCerts);
         });
     }

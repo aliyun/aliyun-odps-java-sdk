@@ -33,6 +33,7 @@ import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Project;
+import com.aliyun.odps.Quota;
 import com.aliyun.odps.Survey;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.Task;
@@ -701,13 +702,41 @@ public class SQLTask extends Task {
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
                              Map<String, String> aliases, Integer priority) throws OdpsException {
-    return run(odps, project, sql, taskName, hints, aliases, priority, "sql");
+    return run(odps, project, sql, taskName, hints, aliases, priority, "sql", null);
+  }
+
+  /**
+   * 运行SQL
+   *
+   * @param odps
+   *     {@link Odps}对象
+   * @param project
+   *     任务运行时所属的{@link Project}名称
+   * @param sql
+   *     需要运行的SQL查询
+   * @param taskName
+   *     任务名称
+   * @param hints
+   *     能够影响SQL执行的Set信息，例如：odps.mapred.map.split.size等
+   * @param aliases
+   *     Alias信息。详情请参考用户手册中alias命令的相关介绍
+   * @param priority
+   *     作业优先级 (注：公共云环境此参数无效)
+   * @param mcqaConnHeader
+   *     是否开启MCQA V2, 应当指定 MCQA 2.0 {@link Quota#getMcqaConnHeader()}
+   * @return 作业运行实例 {@link Instance}
+   * @throws OdpsException
+   */
+  public static Instance run(Odps odps, String project, String sql,
+                             String taskName, Map<String, String> hints,
+                             Map<String, String> aliases, Integer priority, String mcqaConnHeader) throws OdpsException {
+    return run(odps, project, sql, taskName, hints, aliases, priority, "sql", mcqaConnHeader);
   }
 
   private static Instance run(Odps odps, String project, String sql, String taskName,
                               Map<String, String> hints, Map<String, String> aliases,
                               Integer priority,
-                              String type) throws OdpsException {
+                              String type, String mcqaConnHeader) throws OdpsException {
     SQLTask task = new SQLTask();
     task.setQuery(sql);
     task.setName(taskName);
@@ -740,7 +769,9 @@ public class SQLTask extends Task {
       }
 
     }
-
+    if (StringUtils.isNotBlank(mcqaConnHeader)) {
+      return odps.instances().create(project, task, priority, null, null, mcqaConnHeader);
+    }
     if (priority != null) {
       return odps.instances().create(project, task, priority);
     } else {
@@ -751,7 +782,7 @@ public class SQLTask extends Task {
   static Instance run(Odps odps, String project, String sql,
                       String taskName, Map<String, String> hints, Map<String, String> aliases,
                       String type) throws OdpsException {
-    return run(odps, project, sql, taskName, hints, aliases, null, type);
+    return run(odps, project, sql, taskName, hints, aliases, null, type, null);
   }
 
 

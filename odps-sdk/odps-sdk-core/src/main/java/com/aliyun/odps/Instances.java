@@ -194,38 +194,12 @@ public class Instances implements Iterable<Instance> {
   public Instance get(String projectName, String id) {
     TaskStatusModel model = new TaskStatusModel();
     model.name = id;
-    return new Instance(projectName, model, null, odps);
-  }
-
-  /**
-   * 获取指定Instance（适用于 MCQA2.0）
-   *
-   * @param projectName
-   *     {@link Instance}所在的{@link Project}名称
-   * @param id
-   *     Instance ID
-   * @param quotaName
-   *     指定的交互式quota
-   * @param regionId
-   *     指定的region，如果为null，则使用project的region
-   * @return {@link Instance}对象
-   * @throws OdpsException
-   */
-  public Instance get(String projectName, String id, String quotaName, String regionId) throws OdpsException {
-    Instance instance = get(projectName, id);
-    if (id.endsWith("_mcqa") && StringUtils.isNullOrEmpty(quotaName)) {
-      throw new IllegalArgumentException("quotaName cannot be null when get MCQA 2.0 instance");
-    }
-    if (!StringUtils.isNullOrEmpty(quotaName)) {
-      Quota quota = odps.quotas().getWlmQuota(projectName, quotaName, regionId);
-      if (quota.isInteractiveQuota()) {
-        String mcqaConnHeader = quota.getMcqaConnHeader();
-        instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_CONN, mcqaConnHeader));
-      }
+    Instance instance = new Instance(projectName, model, null, odps);
+    if (id.endsWith("_mcqa")) {
+      instance.setMcqaV2(true);
     }
     return instance;
   }
-
 
   /**
    * 判断指定 Instance 是否存在
@@ -344,6 +318,30 @@ public class Instances implements Iterable<Instance> {
    */
   public Instance create(String projectName, Task task, Integer priority, String runningCluster,
                          String jobName) throws OdpsException {
+    return create(projectName, task, priority, runningCluster, jobName, null);
+  }
+
+
+  /**
+   * 为给定的{@link Task}创建Instance
+   *
+   * @param projectName
+   *     Instance运行的Project名称
+   * @param task
+   *     {@link Task}对象
+   * @param priority
+   *     指定的优先级
+   * @param runningCluster
+   *     指定的计算集群
+   * @param jobName
+   *     指定的作业名称
+   * @param mcqaConnHeader
+   *     指定 MCQA 2.0 {@link Quota#getMcqaConnHeader()}
+   * @return {@link Instance}对象
+   * @throws OdpsException
+   */
+  public Instance create(String projectName, Task task, Integer priority, String runningCluster,
+                         String jobName, String mcqaConnHeader) throws OdpsException {
     Job job = new Job();
     job.addTask(task);
     if (priority != null) {
@@ -357,8 +355,7 @@ public class Instances implements Iterable<Instance> {
     if (jobName != null) {
       job.setName(jobName);
     }
-
-    return create(projectName, job);
+    return create(projectName, job, false, mcqaConnHeader);
   }
 
   /*
@@ -374,6 +371,11 @@ public class Instances implements Iterable<Instance> {
   Instance create(String project, Job job) throws OdpsException {
     return create(project, job, false);
   }
+
+  Instance create(String project, Job job, boolean tryWait) throws OdpsException {
+    return create(project, job, tryWait, null);
+  }
+
   /**
    * 使用给定的{@link Job}定义在给定的project内创建Instance
    *
@@ -381,10 +383,14 @@ public class Instances implements Iterable<Instance> {
    *     Instance运行的project
    * @param job
    *     Job定义
+   * @param tryWait
+   *     是否尝试等待Instance执行完成
+   * @param mcqaConnHeader
+   *     是否使用 MCQA 2.0, 指定 MCQA 2.0 {@link Quota#getMcqaConnHeader()}
    * @return {@link Instance}对象
    * @throws OdpsException
    */
-  Instance create(String project, Job job, Boolean tryWait) throws OdpsException {
+  Instance create(String project, Job job, boolean tryWait, String mcqaConnHeader) throws OdpsException {
     if (StringUtils.isNullOrEmpty(project)) {
       throw new IllegalArgumentException("project required.");
     }
@@ -430,6 +436,10 @@ public class Instances implements Iterable<Instance> {
     HashMap<String, String> params = new HashMap<String, String>();
 
     String resource = ResourceBuilder.buildInstancesResource(project);
+    if (StringUtils.isNotBlank(mcqaConnHeader)) {
+      resource = "/mcqa" + resource;
+      headers.put(Headers.ODPS_MCQA_CONN, mcqaConnHeader);
+    }
     if (tryWait) {
       params.put("tryWait", null);
     }
@@ -468,6 +478,10 @@ public class Instances implements Iterable<Instance> {
       instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_QUERY_COOKIE,
                                                      resp.getHeader(
                                                          Headers.ODPS_MCQA_QUERY_COOKIE)));
+    }
+    if (StringUtils.isNotBlank(mcqaConnHeader)) {
+      instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_CONN, mcqaConnHeader));
+      instance.setMcqaV2(true);
     }
 
     instance.setOdpsHooks(hooks);

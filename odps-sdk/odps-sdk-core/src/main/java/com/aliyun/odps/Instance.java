@@ -158,10 +158,6 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     this.odps = odps;
     this.client = odps.getRestClient();
-
-    if (getId().endsWith("_mcqa")) {
-      setMcqaV2(true);
-    }
   }
 
   @Root(name = "Instance", strict = false)
@@ -304,6 +300,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     String resource = isMcqaV2 ? "/mcqa" + getResource() : getResource();
     Response resp = client.request(resource, "GET", params, userDefinedHeaders, null);
+    if (resp.getHeader(Headers.ODPS_MCQA_QUERY_COOKIE) != null) {
+      userDefinedHeaders.put(Headers.ODPS_MCQA_QUERY_COOKIE,
+                             resp.getHeader(Headers.ODPS_MCQA_QUERY_COOKIE));
+    }
     model.owner = resp.getHeaders().get(Headers.ODPS_OWNER);
     String startTimeStr = resp.getHeaders().get(Headers.ODPS_START_TIME);
     String endTimeStr = resp.getHeaders().get(Headers.ODPS_END_TIME);
@@ -349,7 +349,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     try {
       String ret = SimpleXmlUtils.marshal(sm);
       Map<String, String> headers = getCommonHeaders();
-      client.stringRequest(getResource(), "PUT", null, headers, ret);
+      String resource = isMcqaV2 ? "/mcqa" + getResource() : getResource();
+      client.stringRequest(resource, "PUT", null, headers, ret);
     } catch (OdpsException e) {
       throw e;
     } catch (Exception e) {
@@ -1760,9 +1761,11 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   }
 
   public void setMcqaV2(boolean mcqaV2) {
+    if (userDefinedHeaders == null) {
+      userDefinedHeaders = new HashMap<>();
+    }
+    userDefinedHeaders.computeIfAbsent(Headers.ODPS_MCQA_CONN, k -> "");
     isMcqaV2 = mcqaV2;
-    client = odps.clone().getRestClient();
-    client.setPrefix("");
   }
 
   private Map<String, String> getCommonHeaders() {

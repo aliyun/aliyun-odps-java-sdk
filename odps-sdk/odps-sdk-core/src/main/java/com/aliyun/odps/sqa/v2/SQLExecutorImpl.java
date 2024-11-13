@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.LogView;
@@ -17,7 +18,6 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Quota;
 import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
@@ -33,7 +33,6 @@ import com.aliyun.odps.sqa.commandapi.CommandInfo;
 import com.aliyun.odps.sqa.commandapi.RecordIter;
 import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 import com.aliyun.odps.sqa.commandapi.utils.SqlParserUtil;
-import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
@@ -49,14 +48,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class SQLExecutorImpl implements SQLExecutor {
 
   private static final String DEFAULT_TASK_NAME = "AnonymousMCQATask";
-  private static final String MCQA_PREFIX = "/mcqa";
-
   private final Odps odps;
-  private final Odps mcqaOdps;
   private InstanceTunnel instanceTunnel;
   private final List<String> log;
   private final boolean useInstanceTunnel;
   private final String id;
+  private String defaultQuotaName;
+  Map<String, String> quotaHeaderMap = new ConcurrentHashMap<>();
 
   // current query info
   QueryInfo queryInfo = null;
@@ -68,11 +66,10 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   public SQLExecutorImpl(SQLExecutorBuilder builder)
       throws OdpsException {
-    String quotaNickName = Preconditions.checkNotNull(builder.getQuotaName(), "quotaName");
+    this.defaultQuotaName = builder.getQuotaName();
 
     this.odps = builder.getOdps().clone();
     this.odps.setTunnelEndpoint(builder.getTunnelEndpoint());
-    this.mcqaOdps = this.odps.clone();
     this.useInstanceTunnel = builder.isUseInstanceTunnel();
     if (useInstanceTunnel) {
       this.instanceTunnel = new InstanceTunnel(odps);
@@ -86,19 +83,11 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.log = new ArrayList<>();
     // each executor has a uuid
     this.id = UUID.randomUUID().toString();
-    mcqaOdps.getRestClient().setPrefix(MCQA_PREFIX);
-    Quota quota = builder.getQuota();
-    if (quota == null) {
-      quota = odps.quotas()
-          .getWlmQuota(odps.getDefaultProject(), quotaNickName, builder.getRegionId());
-    }
-    String mcqaConnectionHeader = quota.getMcqaConnHeader();
 
-    if (!quota.isInteractiveQuota()) {
-      throw new OdpsException("Quota name: " + quotaNickName + " , is not interactive quota.");
+    if (StringUtils.isNotBlank(builder.getQuotaName())) {
+      loadQuota(defaultQuotaName, builder.getRegionId(), builder.getQuota());
     }
-    mcqaOdps.getRestClient().addUserDefinedHeader(Headers.ODPS_MCQA_CONN, mcqaConnectionHeader);
-    log.add("Init MCQA 2.0 successfully");
+    log.add("Init MCQA 2.0 successfully, default quota name: " + defaultQuotaName);
 
     this.odpsNamespaceSchema = builder.isOdpsNamespaceSchema();
     this.useCommandApi = builder.isUseCommandApi();
@@ -115,13 +104,42 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
+  private void loadQuota(String quotaNickName, String regionId, Quota quota)
+      throws OdpsException {
+    if (quotaHeaderMap.containsKey(quotaNickName)) {
+      return;
+    }
+    if (quota == null) {
+      quota = odps.quotas()
+          .getWlmQuota(odps.getDefaultProject(), quotaNickName, regionId);
+    }
+    if (!quota.isInteractiveQuota()) {
+      throw new OdpsException("Quota name: " + quotaNickName + " , is not interactive quota.");
+    }
+    String mcqaConnectionHeader = quota.getMcqaConnHeader();
+    quotaHeaderMap.put(quotaNickName, mcqaConnectionHeader);
+  }
+
   @Override
   public void run(String sql, Map<String, String> hint) throws OdpsException {
+    String useQuotaName = defaultQuotaName;
+
     if (hint == null) {
       hint = new HashMap<>();
     } else {
       hint = new HashMap<>(hint);
+      if (hint.containsKey(SQLExecutorConstants.WLM_QUOTA_FLAG)) {
+        useQuotaName = hint.get(SQLExecutorConstants.WLM_QUOTA_FLAG);
+        loadQuota(useQuotaName, null, null);
+      }
     }
+
+    if(useQuotaName == null || !quotaHeaderMap.containsKey(useQuotaName)) {
+      throw new IllegalArgumentException(
+          "Interactive quota must be set, you can use hint 'odps.task.wlm.quota=xxx' or init SQLExecutor with quota name.");
+    }
+
+    String mcqaQueryHeader = quotaHeaderMap.get(useQuotaName);
     queryInfo = new QueryInfo(sql, hint, ExecuteMode.INTERACTIVE);
     queryInfo.setCommandInfo(new CommandInfo(sql, hint));
 
@@ -139,12 +157,12 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
     parseSuccess = false;
     Instance currentInstance =
-        SQLTask.run(mcqaOdps, mcqaOdps.getDefaultProject(), sql, taskName, hint,
-                    null);
-    currentInstance.setMcqaV2(true);
+        SQLTask.run(odps, odps.getDefaultProject(), sql, taskName, hint,
+                    null, null, mcqaQueryHeader);
+
     queryInfo.setInstance(currentInstance, ExecuteMode.INTERACTIVE, null, null);
     queryInfo.setSelect(isSelect(sql));
-    log.add("Successfully submitted MCQA 2.0 Job, ID: " + currentInstance.getId());
+    log.add("Successfully submitted MCQA 2.0 Job, ID: " + currentInstance.getId() + ", Quota name: " + useQuotaName);
   }
 
   @Override
@@ -350,50 +368,14 @@ public class SQLExecutorImpl implements SQLExecutor {
   private List<Record> getResultByInstanceTunnel(Long offset, Long countLimit, Long sizeLimit,
                                                  boolean limitEnabled)
       throws OdpsException, IOException {
-    if (queryInfo.isSelect()) {
-      queryInfo.getInstance().waitForTerminated(100, true);
-      InstanceTunnel.DownloadSession downloadSession = null;
-      try {
-        downloadSession =
-            instanceTunnel.createDownloadSession(odps.getDefaultProject(), queryInfo.getInstance().getId(),
-                                         limitEnabled);
-      } catch (OdpsException e) {
-        if (e.getErrorCode().equals("TaskFailed")) {
-          // wait for success will check task status and throw exception
-          queryInfo.getInstance().waitForSuccess();
-        } else {
-          throw e;
-        }
-      }
-      List<Record> records = new ArrayList<>();
-      TunnelRecordReader
-          reader =
-          downloadSession
-              .openRecordReader(offset == null ? 0 : offset,
-                                countLimit == null ? downloadSession.getRecordCount() : countLimit,
-                                sizeLimit == null ? Long.MAX_VALUE : sizeLimit);
-      while (true) {
-        Record record = reader.read();
-        if (sizeLimit != null && sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
-          throw new RuntimeException(
-              "InvalidArgument: sizeLimit, fetched data is larger than limit size");
-        }
-        if (record == null) {
-          break;
-        } else {
-          records.add(record);
-        }
-      }
-      return records;
-    } else {
-      queryInfo.getInstance().waitForSuccess();
-      Map<String, String> results = queryInfo.getInstance().getTaskResults();
-      String selectResult = results.get(taskName);
-      if (StringUtils.isNullOrEmpty(selectResult)) {
-        return new ArrayList<>();
-      }
-      return CommandUtil.toRecord(selectResult, "Info");
+    ResultSet
+        resultSet =
+        getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
+    List<Record> records = new ArrayList<>();
+    while (resultSet.hasNext()) {
+      records.add(resultSet.next());
     }
+    return records;
   }
 
   private List<Record> getResultDirectly() throws OdpsException {
@@ -601,25 +583,31 @@ public class SQLExecutorImpl implements SQLExecutor {
         }
       }
       List<Record> records = new ArrayList<>();
-      TunnelRecordReader
-          reader =
-          downloadSession
-              .openRecordReader(offset == null ? 0 : offset,
-                                countLimit == null ? downloadSession.getRecordCount() : countLimit,
-                                sizeLimit == null ? Long.MAX_VALUE : sizeLimit);
-      while (true) {
-        Record record = reader.read();
-        if (sizeLimit != null && sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
-          throw new RuntimeException(
-              "InvalidArgument: sizeLimit, fetched data is larger than limit size");
-        }
-        if (record == null) {
-          break;
-        } else {
-          records.add(record);
+      TableSchema schema = downloadSession.getSchema();
+      if (downloadSession.getRecordCount() == 0) {
+        return new ResultSet(
+            new InMemoryRecordIterator(records),
+            schema, 0);
+      }
+      try (TunnelRecordReader reader =
+               downloadSession
+                   .openRecordReader(offset == null ? 0 : offset,
+                                     countLimit == null ? downloadSession.getRecordCount()
+                                                        : countLimit,
+                                     sizeLimit == null ? Long.MAX_VALUE : sizeLimit)) {
+        while (true) {
+          Record record = reader.read();
+          if (sizeLimit != null && sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
+            throw new IllegalArgumentException(
+                "InvalidArgument: sizeLimit, fetched data is larger than limit size");
+          }
+          if (record == null) {
+            break;
+          } else {
+            records.add(record);
+          }
         }
       }
-      TableSchema schema = downloadSession.getSchema();
       return new ResultSet(
           new InMemoryRecordIterator(records),
           schema,

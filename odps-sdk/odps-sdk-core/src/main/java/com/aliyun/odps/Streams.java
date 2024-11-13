@@ -101,13 +101,13 @@ public class Streams implements Iterable<Stream> {
   }
 
   /**
-   * 创建一个stream
+   * 创建一个stream，默认使用表的初始版本
    *
    * @param identifier stream信息{@link StreamIdentifier}
    * @param refTable   stream关联的ACID源表{@link TableIdentifier}
    */
   public void create(StreamIdentifier identifier, TableIdentifier refTable) throws OdpsException {
-    create(identifier, refTable, false, null, null, ReadMode.APPEND, null);
+    create(identifier, refTable, false, null, 1L, ReadMode.APPEND, null);
   }
 
   /**
@@ -123,9 +123,13 @@ public class Streams implements Iterable<Stream> {
   public void create(StreamIdentifier identifier, TableIdentifier refTable, boolean ifNotExists,
                      String timestamp, Long version, ReadMode readMode, String comment)
       throws OdpsException {
-    if (StringUtils.isBlank(timestamp) && version != null) {
+    if (StringUtils.isNotBlank(timestamp) && version != null) {
       throw new InvalidParameterException(
           "Both timestamp and version cannot be specified at the same time");
+    }
+    if (StringUtils.isBlank(timestamp) && version == null) {
+      throw new InvalidParameterException(
+          "Neither timestamp nor version can be null");
     }
     StringBuilder sql = new StringBuilder();
     sql.append("CREATE STREAM ");
