@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.51.0-public.rc0] - 2024-11-18
+
+### Features
+- **GenerateExpression** added support for generating expression lists for partition columns, along with the first generated expression `TruncTime`. For usage, please refer to [Example]()
+- **UpsertStream** supports writing values with primary keys of type `TIMESTAMP_NTZ`
+- **Table** added new methods for querying CDC-related data: `getCdcSize()`, `getCdcRecordNum()`, `getCdcLatestVersion()`, `getCdcLatestTimestamp()`
+- **SQLExecutor** MCQA 2.0 job supports retrieving InstanceProgress information
+
+### Changes
+- **Quote** added backticks for quoting names in Struct type TypeInfo and other methods that assemble SQL
+- **AutoClosable** to remind users to properly close resources, added corresponding `close()` methods to the following resource classes to prompt users to close resources correctly:
+  - `UpsertStream` in the `odps-sdk-core` package,
+  - `LocalOutputStreamSet`, `ReduceDriver.ReduceContextImpl`, `MapDriver.DirectMapContextImpl`, `LocalRecordWriter` in the `odps-sdk-impl` package
+  - `VectorizedOutputer`, `VectorizedExtractor`, `RecordWriter`, `RecordReader`, `Outputer`, `Extractor` in the `odps-sdk-udf` package
+
 ## [0.50.5-public] - 2024-11-13
 
 ### Features

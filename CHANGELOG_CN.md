@@ -8,7 +8,8 @@
 - **SQLExecutor** MCQA 2.0 作业支持获取 InstanceProgress 信息
 
 ### 变更
-- 为了提醒用户正确关闭资源，对下列资源类，增加了相应的 `close()` 方法，以提醒用户正确关闭资源。
+- **Quote** 对 Struct 类型的 TypeInfo，和其他拼装 SQL 的方法，使用反引号对名字进行 quote
+- **AutoClosable** 为了提醒用户正确关闭资源，对下列资源类，增加了相应的 `close()` 方法，以提醒用户正确关闭资源。
   - `odps-sdk-core` 包下的 `UpsertStream`，
   - `odps-sdk-impl` 包下的 `LocalOutputStreamSet`，`ReduceDriver.ReduceContextImpl`，`MapDriver.DirectMapContextImpl`，`LocalRecordWriter`
   - `odps-sdk-udf` 包下的 `VectorizedOutputer`，`VectorizedExtractor`，`RecordWriter`，`RecordReader`，`Outputer`，`Extractor`
