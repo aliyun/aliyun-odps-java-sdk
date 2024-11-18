@@ -7,7 +7,6 @@ import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.GenerateExpression;
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.expression.TruncTime;
 import com.aliyun.odps.task.SQLTask;
 import com.google.common.collect.ImmutableMap;
 
@@ -36,25 +35,34 @@ public class GenerateExpressionSample {
 
     // Get table schema and check the generate expression
     TableSchema schema = odps.tables().get("auto_pt").getSchema();
-    Column ptColumn = schema.getPartitionColumns().get(0);
-    GenerateExpression generateExpression = ptColumn.getGenerateExpression();
-
-    // GenerateExpression is an interface, you can cast it to a specific expression
-    TruncTime truncTime = (TruncTime) generateExpression;
-    System.out.println(truncTime);
 
     // For example, we now have a Record to be written
     Record record = new ArrayRecord(schema);
     record.set("a", 123L);
     record.set("d", Instant.now());
 
-    // We can use GenerateExpression to generate partition values from Record
-    String ptValue = generateExpression.generate(record);
-
-    // and then combined into actual partition
-    PartitionSpec partitionSpec = new PartitionSpec();
-    partitionSpec.set(ptColumn.getName(), ptValue);
-
+    PartitionSpec partitionSpec = getPartitionSpec(record, schema);
     System.out.println(partitionSpec);
+  }
+
+  /**
+   * Auto generate partitionSpec from record and schema
+   */
+  private static PartitionSpec getPartitionSpec(Record record, TableSchema schema) {
+    // And partition spec means where the record will be written to
+    PartitionSpec partitionSpec = new PartitionSpec();
+
+    // We iterate over all partition columns to combine partitions
+    for (Column column : schema.getPartitionColumns()) {
+      GenerateExpression generateExpression = column.getGenerateExpression();
+      if (generateExpression != null) {
+        System.out.println(generateExpression);  // trunc_time(d, 'day')
+        // We can use GenerateExpression to generate partition values from Record
+        String ptValue = generateExpression.generate(record);
+        // and then combined into actual partition
+        partitionSpec.set(column.getName(), ptValue);
+      }
+    }
+    return partitionSpec;
   }
 }
