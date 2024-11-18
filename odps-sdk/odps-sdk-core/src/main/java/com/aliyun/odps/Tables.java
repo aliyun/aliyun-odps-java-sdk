@@ -40,6 +40,7 @@ import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.utils.ExceptionUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
+import com.aliyun.odps.utils.OdpsCommonUtils;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
@@ -1213,7 +1214,7 @@ public class Tables implements Iterable<Table> {
         }
         sb.append(")");
       }
-      sb.append(" LOCATION '").append(location).append("'");
+      sb.append(" LOCATION ").append(OdpsCommonUtils.quoteStr(location));
       if (jars != null && !jars.isEmpty()) {
         sb.append(" USING '");
         int index = 0;
@@ -1300,7 +1301,7 @@ public class Tables implements Iterable<Table> {
 
         for (int i = 0; i < partitionColumns.size(); i++) {
           Column column = partitionColumns.get(i);
-          sql.append(column.getName()).append(" ").append(column.getTypeInfo().getTypeName());
+          sql.append("`").append(column.getName()).append("` ").append(column.getTypeInfo().getTypeName());
 
           if (column.getComment() != null) {
             sql.append(" COMMENT '").append(column.getComment()).append("'");

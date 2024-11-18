@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.utils.OdpsCommonUtils;
 
 /**
  * Identifier of stream object.
@@ -54,7 +55,7 @@ public class StreamIdentifier implements Serializable {
 
   @Override
   public String toString() {
-    return String.join(".", project, streamName);
+    return OdpsCommonUtils.quoteRef(project) + "." + OdpsCommonUtils.quoteRef(streamName);
   }
 
   @Override

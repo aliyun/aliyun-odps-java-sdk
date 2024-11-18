@@ -53,7 +53,7 @@ class SimpleStructTypeInfo implements StructTypeInfo {
       if (i > 0) {
         stringBuilder.append(",");
       }
-      stringBuilder.append(fieldNames.get(i));
+      stringBuilder.append("`").append(fieldNames.get(i)).append("`");
       stringBuilder.append(":");
       stringBuilder.append(fieldTypeInfos.get(i).getTypeName());
     }

@@ -11,9 +11,9 @@ public class NameSpaceSchemaUtilsTest extends TestCase {
 
     @Test
     public void testGetFullName() {
-        Assert.assertEquals("a.b.c", NameSpaceSchemaUtils.getFullName("a", "b", "c"));
-        Assert.assertEquals("a.c", NameSpaceSchemaUtils.getFullName("a", null, "c"));
-        Assert.assertEquals("a.c", NameSpaceSchemaUtils.getFullName("a", " ", "c"));
+        Assert.assertEquals("`a`.`b`.`c`", NameSpaceSchemaUtils.getFullName("a", "b", "c"));
+        Assert.assertEquals("`a`.`c`", NameSpaceSchemaUtils.getFullName("a", null, "c"));
+        Assert.assertEquals("`a`.`c`", NameSpaceSchemaUtils.getFullName("a", " ", "c"));
     }
 
     @Test

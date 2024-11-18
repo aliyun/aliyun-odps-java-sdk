@@ -23,7 +23,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import com.aliyun.odps.table.utils.Preconditions;
-import com.aliyun.odps.utils.StringUtils;
+import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 
 /**
  * Identifier of table.
@@ -68,11 +68,7 @@ public class TableIdentifier implements Serializable {
 
     @Override
     public String toString() {
-        if (StringUtils.isNullOrEmpty(schema)) {
-            return String.join(".", project, table);
-        } else {
-            return String.join(".", project, schema, table);
-        }
+        return NameSpaceSchemaUtils.getFullName(project, schema, table);
     }
 
     @Override
