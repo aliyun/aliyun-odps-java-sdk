@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.expression.GenerationExpressionParser;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoParser;
 import com.google.gson.JsonElement;
@@ -50,6 +51,12 @@ public class ColumnUtils {
       column.setDefaultValue(node.get("defaultValue").getAsString());
     }
 
+    if (node.has("hasGenerateExpression") && node.get("hasGenerateExpression").getAsBoolean()) {
+      if (node.has("generateExpression")) {
+        String generateExpressionStr = node.get("generateExpression").getAsString();
+        column.setGenerateExpression(GenerationExpressionParser.parse(generateExpressionStr));
+      }
+    }
     return column;
   }
 

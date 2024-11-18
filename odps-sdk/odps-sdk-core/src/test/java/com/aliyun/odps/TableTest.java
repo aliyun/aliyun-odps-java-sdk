@@ -242,26 +242,16 @@ public class TableTest extends TestBase {
     a.deletePartition(spec);
   }
 
-
   @Test
-  public void testIsExternalTable() throws OdpsException {
-    assertFalse(odps.tables().get(TABLE_NAME).isExternalTable());
-  }
+  public void testListPartitionSpecs() throws OdpsException {
+    Table partitionedTable = odps.tables().get(PARTITIONED_TABLE_NAME);
+    List<PartitionSpec> partitionSpecs = partitionedTable.getPartitionSpecs();
+    assertEquals(3, partitionSpecs.size());
 
-  @Test
-  public void testReadTable() throws OdpsException, IOException {
-    Table a = odps.tables().get(SOURCE_TABLE_NAME);
-    Record g;
-    int count = 0;
-    int limit = 5;
-    RecordReader rr = a.read(null, null, limit, null);
-    while ((g = rr.read()) != null) {
-      count++;
-      for (int i = 0; i < g.getColumnCount(); ++i) {
-        System.out.println(g.getColumns()[i].getName() + ":" + g.get(i));
-      }
-    }
-    Assert.assertEquals(count, limit);
+    // Should be ordered lexicographically
+    assertEquals("p1='1',p2='bar'", partitionSpecs.get(0).toString());
+    assertEquals("p1='1',p2='baz'", partitionSpecs.get(1).toString());
+    assertEquals("p1='1',p2='foo'", partitionSpecs.get(2).toString());
   }
 
   @Test
@@ -287,7 +277,28 @@ public class TableTest extends TestBase {
     });
   }
 
-  /* BEGIN: opensource removal */
+
+  @Test
+  public void testIsExternalTable() throws OdpsException {
+    assertFalse(odps.tables().get(TABLE_NAME).isExternalTable());
+  }
+
+  @Test
+  public void testReadTable() throws OdpsException, IOException {
+    Table a = odps.tables().get(SOURCE_TABLE_NAME);
+    Record g;
+    int count = 0;
+    int limit = 5;
+    RecordReader rr = a.read(null, null, limit, null);
+    while ((g = rr.read()) != null) {
+      count++;
+      for (int i = 0; i < g.getColumnCount(); ++i) {
+        System.out.println(g.getColumns()[i].getName() + ":" + g.get(i));
+      }
+    }
+    Assert.assertEquals(count, limit);
+  }
+
   @Test
   public void testColumnLabel() throws OdpsException {
     Table table = odps.tables().get(TABLE_NAME);

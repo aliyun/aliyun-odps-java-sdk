@@ -6,6 +6,7 @@ import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -38,6 +39,7 @@ class LegacyHashFactory implements HasherFactory {
     factoryMap.put(OdpsType.STRING, new LegacyHashFactory.StringHasher());
     factoryMap.put(OdpsType.BINARY, new LegacyHashFactory.BinaryHasher());
     factoryMap.put(OdpsType.TIMESTAMP, new LegacyHashFactory.TimestampHasher());
+    factoryMap.put(OdpsType.TIMESTAMP_NTZ, new LegacyHashFactory.TimestampHasher());
     factoryMap.put(OdpsType.INTERVAL_DAY_TIME, new LegacyHashFactory.IntervalDayTimeHasher());
     factoryMap.put(OdpsType.DECIMAL, new LegacyHashFactory.DecimalHasher());
   }
@@ -293,7 +295,9 @@ class LegacyHashFactory implements HasherFactory {
       if (value instanceof java.sql.Timestamp) {
         return ((Timestamp) value).toInstant();
       }
-
+      if (value instanceof LocalDateTime) {
+        return ((LocalDateTime) value).toInstant(ZoneOffset.UTC);
+      }
       return OdpsHasher.super.normalizeType(value);
     }
 

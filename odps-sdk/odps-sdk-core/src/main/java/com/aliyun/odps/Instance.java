@@ -1176,7 +1176,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     params.put("instanceprogress", taskName);
     params.put("taskname", taskName);
 
-    TaskProgress r = client.request(TaskProgress.class, getResource(), "GET", params);
+    String resource = isMcqaV2 ? "/mcqa" + getResource() : getResource();
+    TaskProgress r = client.request(TaskProgress.class, resource, "GET", params, userDefinedHeaders, null);
 
     return r.getStages();
   }

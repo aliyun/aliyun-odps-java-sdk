@@ -20,6 +20,8 @@
 package com.aliyun.odps.graph.local;
 
 import com.aliyun.odps.local.common.utils.TypeConvertUtils;
+
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -29,7 +31,7 @@ import com.aliyun.odps.io.Writable;
 import com.aliyun.odps.io.WritableRecord;
 import com.csvreader.CsvWriter;
 
-public class LocalRecordWriter {
+public class LocalRecordWriter implements Closeable {
 
   private CsvWriter writer;
   private boolean closed = false;

@@ -744,6 +744,8 @@ public class SQLTask extends Task {
     
     if (hints == null) {
       hints = defaultHints;
+    } else {
+      hints = new HashMap<>(hints);
     }
 
     if (hints != null) {

@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.mapred.local;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -45,7 +46,7 @@ import com.aliyun.odps.volume.FileSystem;
 
 public class ReduceDriver extends DriverBase {
 
-  class ReduceContextImpl extends LocalTaskContext implements TaskContext {
+  class ReduceContextImpl extends LocalTaskContext implements TaskContext, Closeable {
 
     private Record key;
     private Comparator<Object[]> keyGroupingComparator;

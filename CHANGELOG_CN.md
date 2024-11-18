@@ -1,4 +1,17 @@
 # 更新日志
+## [0.51.0-public.rc0] - 2024-11-18
+
+### 功能
+- **GenerateExpression** 增加对分区列的生成列表达式功能的支持，和第一个生成列表达式`TruncTime`，使用方式请参考[Example]()
+- **UpsertStream** 支持写入主键为 `TIMESTAMP_NTZ` 类型的值
+- **Table** 新增对 cdc 相关数据的查询，`getCdcSize()`，`getCdcRecordNum()`，`getCdcLatestVersion()`，`getCdcLatestTimestamp()`
+- **SQLExecutor** MCQA 2.0 作业支持获取 InstanceProgress 信息
+
+### 变更
+- 为了提醒用户正确关闭资源，对下列资源类，增加了相应的 `close()` 方法，以提醒用户正确关闭资源。
+  - `odps-sdk-core` 包下的 `UpsertStream`，
+  - `odps-sdk-impl` 包下的 `LocalOutputStreamSet`，`ReduceDriver.ReduceContextImpl`，`MapDriver.DirectMapContextImpl`，`LocalRecordWriter`
+  - `odps-sdk-udf` 包下的 `VectorizedOutputer`，`VectorizedExtractor`，`RecordWriter`，`RecordReader`，`Outputer`，`Extractor`
 
 ## [0.50.5-public] - 2024-11-13
 

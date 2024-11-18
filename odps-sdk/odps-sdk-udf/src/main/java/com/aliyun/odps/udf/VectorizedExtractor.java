@@ -2,9 +2,10 @@ package com.aliyun.odps.udf;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-public abstract class VectorizedExtractor {
+public abstract class VectorizedExtractor implements Closeable {
     public abstract void setup(ExecutionContext context, InputSplit inputSplit, DataAttributes parameters) throws IOException;
 
     public abstract void setRemainingPredicate(RowExpression expr);

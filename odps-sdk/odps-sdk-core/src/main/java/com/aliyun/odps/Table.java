@@ -237,6 +237,11 @@ public class Table extends LazyLoad {
     TableLifecycleConfig tableLifecycleConfig;
 
     List<ColumnMaskInfo> columnMaskInfoList;
+
+    long cdcSize = -1;
+    long cdcRecordNum = -1;
+    long cdcLatestVersion = -1;
+    Date cdcLatestTimestamp;
   }
 
   public static class ColumnMaskInfo {
@@ -1513,6 +1518,20 @@ public class Table extends LazyLoad {
         reservedJson.has("acid.data.retain.hours") ? Integer.parseInt(
             reservedJson.get("acid.data.retain.hours").getAsString()) : -1;
 
+    model.cdcSize = reservedJson.has("cdc_size") ? Long.parseLong(
+            reservedJson.get("cdc_size").getAsString()) : -1;
+
+    model.cdcRecordNum = reservedJson.has("cdc_record_num") ? Long.parseLong(
+        reservedJson.get("cdc_record_num").getAsString()) : -1;
+
+    model.cdcLatestVersion = reservedJson.has("cdc_latest_version") ? Long.parseLong(
+        reservedJson.get("cdc_latest_version").getAsString()) : -1;
+
+    if (reservedJson.has("cdc_latest_timestamp")) {
+        long ts = Long.parseLong(reservedJson.get("cdc_latest_timestamp").getAsString()) * 1000;
+        model.cdcLatestTimestamp = new Date(ts);
+    }
+
     // load storageTier info
     model.storageTierInfo = StorageTierInfo.getStorageTierInfo(reservedJson);
 
@@ -1973,6 +1992,26 @@ public class Table extends LazyLoad {
   public int getAcidDataRetainHours() {
     lazyLoadExtendInfo();
     return model.acidDataRetainHours;
+  }
+
+  public long getCdcSize() {
+    lazyLoadExtendInfo();
+    return model.cdcSize;
+  }
+
+  public long getCdcRecordNum() {
+    lazyLoadExtendInfo();
+    return model.cdcRecordNum;
+  }
+
+  public long getCdcLatestVersion() {
+    lazyLoadExtendInfo();
+    return model.cdcLatestVersion;
+  }
+
+  public Date getCdcLatestTimestamp() {
+    lazyLoadExtendInfo();
+    return model.cdcLatestTimestamp;
   }
 
   public Stream newStream(String streamName) throws OdpsException {

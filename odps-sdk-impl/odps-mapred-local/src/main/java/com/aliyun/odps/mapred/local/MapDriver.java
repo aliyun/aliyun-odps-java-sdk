@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.mapred.local;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -62,7 +63,7 @@ public class MapDriver extends DriverBase {
   MapOutputBuffer outputBuffer;
   private Counters counters;
 
-  class DirectMapContextImpl extends LocalTaskContext implements TaskContext {
+  class DirectMapContextImpl extends LocalTaskContext implements TaskContext,Closeable {
 
     int rowNumber = 1;
     protected RecordReader reader;

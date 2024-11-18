@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import com.aliyun.odps.data.GenerateExpression;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
@@ -46,6 +47,7 @@ public final class Column implements Serializable {
 
   private List<OdpsType> genericOdpsTypeList;
   private List<String> extendedLabels;
+  private GenerateExpression generateExpression;
 
   /**
    * Constructor of {@link Column}. Representing a column of a table.
@@ -380,6 +382,13 @@ public final class Column implements Serializable {
     return hasDefaultValue;
   }
 
+  public GenerateExpression getGenerateExpression() {
+    return generateExpression;
+  }
+
+  public void setGenerateExpression(GenerateExpression generateExpression) {
+    this.generateExpression = generateExpression;
+  }
 
   @Override
   public boolean equals(Object o) {

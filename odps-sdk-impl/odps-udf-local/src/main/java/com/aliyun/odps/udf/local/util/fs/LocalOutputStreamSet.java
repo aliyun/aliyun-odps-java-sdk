@@ -4,13 +4,14 @@ import com.aliyun.odps.io.OutputStreamSet;
 import com.aliyun.odps.io.SinkOutputStream;
 import org.apache.commons.io.FilenameUtils;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-public class LocalOutputStreamSet implements OutputStreamSet{
+public class LocalOutputStreamSet implements OutputStreamSet, Closeable {
   private File directory;
   Set<LocalOutputStream> outputStreams;
   public LocalOutputStreamSet(String path) throws IOException{

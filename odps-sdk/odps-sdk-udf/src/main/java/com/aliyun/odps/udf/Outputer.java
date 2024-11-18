@@ -4,12 +4,13 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.io.OutputStreamSet;
 import com.aliyun.odps.io.SinkOutputStream;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
  * Base outputer class, custom outputer shall extend from this class
  **/
-public abstract class Outputer{
+public abstract class Outputer implements Closeable {
 
   /** Interface for setting up the outputer
    * @param ctx: the ExecutionContext which contains context information that may be useful

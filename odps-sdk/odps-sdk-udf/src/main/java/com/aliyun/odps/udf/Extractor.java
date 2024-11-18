@@ -5,12 +5,13 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.exec.InputSplit;
 import com.aliyun.odps.io.InputStreamSet;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
  * Base extractor class, user-defined extractors shall extend from this class
  **/
-public abstract class Extractor {
+public abstract class Extractor implements Closeable {
 
   /**
    * Interface for setting up the extractor, implementation can be a no-op

@@ -3,8 +3,9 @@ package com.aliyun.odps.udf;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
 import java.io.IOException;
+import java.io.Closeable;
 
-public abstract class VectorizedOutputer {
+public abstract class VectorizedOutputer implements Closeable {
     public abstract void setup(ExecutionContext context, DataAttributes parameters) throws IOException;
 
     /**

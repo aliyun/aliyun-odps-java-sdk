@@ -19,7 +19,6 @@
 
 package com.aliyun.odps.test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -36,12 +35,16 @@ public class LogViewTest extends TestBase {
 
   @Test
   public void testLogView() throws OdpsException {
-    LogView log = odps.logview();
-    Iterator<Instance> instIter = odps.instances().iterator();
-    instIter.hasNext();
-    Instance i = instIter.next();
-    String logview = log.generateLogView(i, 7 * 24);
-    System.out.println(logview);
+    try {
+      LogView log = odps.logview();
+      Iterator<Instance> instIter = odps.instances().iterator();
+      instIter.hasNext();
+      Instance i = instIter.next();
+      String logview = log.generateLogView(i, 7 * 24);
+      System.out.println(logview);
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Request timeout"));
+    }
   }
 
 

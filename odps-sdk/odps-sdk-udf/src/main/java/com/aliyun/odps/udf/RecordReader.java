@@ -2,6 +2,7 @@ package com.aliyun.odps.udf;
 
 import com.aliyun.odps.io.Writable;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
@@ -10,7 +11,7 @@ import java.io.IOException;
  * by an implementation of {@link RecordSerDe} ). It thus assumes the responsibility of
  * processing record boundaries and presenting the tasks with record Writable
  */
-public interface RecordReader {
+public interface RecordReader extends Closeable {
   /**
    * Create an Writable of the appropriate type to be used as a record.
    * @return a new Writable object.
