@@ -30,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 
@@ -57,6 +58,7 @@ import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
+import com.aliyun.odps.utils.OdpsCommonUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.utils.TagUtils;
 import com.aliyun.odps.utils.TagUtils.OBJECT_TYPE;
@@ -216,6 +218,7 @@ public class Table extends LazyLoad {
     Shard shard;
 
     // for external table extended info
+    String schemaVersion;
     String storageHandler;
     String location;
     String resources;
@@ -264,16 +267,39 @@ public class Table extends LazyLoad {
   }
 
 
+  /**
+   * ClusterInfo is used to express the Shuffle and Sort properties of the table when creating a clustered table.
+   */
   public static class ClusterInfo {
+
+    enum ClusterType {
+      HASH,
+      RANGE
+    }
 
     long bucketNum = -1;
 
-    String clusterType;
+    ClusterType clusterType;
     List<String> clusterCols;
     List<SortColumn> sortCols;
 
+    ClusterInfo() {}
+
+    /**
+     * @param clusterType Clustering tables are divided into two types: Hash clustering tables and Range clustering tables.
+     * @param clusterCols Specify cluster by. MaxCompute will perform Hash/Range operations on the specified columns and distribute them to various Buckets.
+     * @param sortCols Specify the sorting method of fields in the Bucket. It is recommended that sorted by and clustered by be consistent to achieve better performance.
+     * @param bucketNum Specify the number of hash buckets. Required when using Hash Cluster.
+     */
+    public ClusterInfo(ClusterType clusterType, List<String> clusterCols, List<SortColumn> sortCols, long bucketNum) {
+      this.clusterType = clusterType;
+      this.clusterCols = clusterCols;
+      this.sortCols = sortCols;
+      this.bucketNum = bucketNum;
+    }
+
     public String getClusterType() {
-      return clusterType;
+      return clusterType.name();
     }
 
     public long getBucketNum() {
@@ -287,14 +313,48 @@ public class Table extends LazyLoad {
     public List<SortColumn> getSortCols() {
       return sortCols;
     }
+
+    @Override
+    public String toString() {
+      StringBuilder stringBuilder = new StringBuilder();
+      if (clusterType == ClusterType.HASH) {
+        stringBuilder.append(" CLUSTERED BY ");
+      } else {
+        stringBuilder.append(" RANGE CLUSTERED BY ");
+      }
+      stringBuilder.append("(").append(
+              clusterCols.stream().map(OdpsCommonUtils::quoteRef).collect(Collectors.joining(", ")))
+          .append(")");
+      if (sortCols != null && sortCols.size() > 0) {
+        stringBuilder.append(" SORTED BY ").append("(")
+            .append(sortCols.stream().map(Object::toString).collect(Collectors.joining(", ")))
+            .append(")");
+      }
+      if (bucketNum > 0) {
+        stringBuilder.append(" INTO ").append(bucketNum).append(" BUCKETS");
+      }
+      return stringBuilder.toString();
+    }
   }
 
+  /**
+   * Used in ClusterInfo to specify the sorting method of fields in the Bucket.
+   */
   public static class SortColumn {
+    enum Order {
+      ASC,
+      DESC
+    }
 
     private String name;
-    private String order;
+    private Order order;
 
     SortColumn(String name, String order) {
+      this.name = name;
+      this.order = Order.valueOf(order.toUpperCase());
+    }
+
+    public SortColumn(String name, Order order) {
       this.name = name;
       this.order = order;
     }
@@ -304,12 +364,12 @@ public class Table extends LazyLoad {
     }
 
     public String getOrder() {
-      return order;
+      return order.name();
     }
 
     @Override
     public String toString() {
-      return String.format("%s %s", name, order);
+      return String.format("%s %s", OdpsCommonUtils.quoteRef(name), order);
     }
   }
 
@@ -447,6 +507,12 @@ public class Table extends LazyLoad {
     }
 
     return model.tableExtendedLabels;
+  }
+
+  public String getSchemaVersion() {
+    // no cache
+    reloadExtendInfo();
+    return model.schemaVersion;
   }
 
   /**
@@ -1541,6 +1607,9 @@ public class Table extends LazyLoad {
     model.lastMajorCompactTime =
         reservedJson.has("LastMajorCompactionTime") ? Date.from(Instant.ofEpochMilli(Long.parseLong(
             reservedJson.get("LastMajorCompactionTime").getAsString()) * 1000)) : null;
+
+    model.schemaVersion =
+        reservedJson.has("schema_version") ? reservedJson.get("schema_version").getAsString() : null;
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {
@@ -1558,7 +1627,8 @@ public class Table extends LazyLoad {
 
     ClusterInfo clusterInfo = new ClusterInfo();
     clusterInfo.clusterType =
-        jsonObject.has("ClusterType") ? jsonObject.get("ClusterType").getAsString() : null;
+        jsonObject.has("ClusterType") ? ClusterInfo.ClusterType.valueOf(
+            jsonObject.get("ClusterType").getAsString().toUpperCase()) : null;
     clusterInfo.bucketNum =
         jsonObject.has("BucketNum") ? jsonObject.get("BucketNum").getAsLong() : 0L;
     JsonArray

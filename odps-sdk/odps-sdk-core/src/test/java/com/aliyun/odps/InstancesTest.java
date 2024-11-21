@@ -258,7 +258,7 @@ public class InstancesTest extends TestBase {
         }
       }
     } catch (Exception e) {
-      if (!e.getMessage().contains("Request timeout")) {
+      if (!e.getMessage().contains("Request timeout") && !e.getMessage().contains("Read timed out")) {
         throw e;
       }
     }

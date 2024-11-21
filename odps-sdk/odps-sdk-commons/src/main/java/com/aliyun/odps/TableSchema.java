@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
+import com.aliyun.odps.data.Record;
 import com.aliyun.odps.type.TypeInfoFactory;
 
 /**
@@ -170,7 +171,7 @@ public class TableSchema implements Serializable {
     return (List<Column>) columns.clone();
   }
 
-  public void setPartitionColumns(ArrayList<Column> partitionColumns) {
+  public void setPartitionColumns(List<Column> partitionColumns) {
     this.partitionNameMap.clear();
     this.partitionColumns.clear();
     for (Column column : partitionColumns) {
@@ -247,6 +248,18 @@ public class TableSchema implements Serializable {
       throw new IllegalArgumentException("idx out of range");
     }
     return partitionColumns.get(idx);
+  }
+
+  public PartitionSpec generatePartitionSpec(Record record) {
+    PartitionSpec spec = new PartitionSpec();
+    for (Column column : partitionColumns) {
+      if (column.getGenerateExpression() == null) {
+        throw new IllegalArgumentException(
+            "column " + column.getName() + " has no generate expression");
+      }
+      spec.set(column.getName(), column.getGenerateExpression().generate(record));
+    }
+    return spec;
   }
 
   public boolean basicallyEquals(Object o) {

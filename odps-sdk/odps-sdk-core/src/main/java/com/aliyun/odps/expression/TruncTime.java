@@ -39,9 +39,18 @@ public class TruncTime implements GenerateExpression {
     HOUR
   }
 
-  public TruncTime(String dateColumnName, String constant) {
+  public TruncTime(String dateColumnName, DatePart datePart) {
     Preconditions.checkString(dateColumnName, "dateColumnName in trunc_time expression");
-    Preconditions.checkString(constant, "constant in trunc_time expression");
+
+    this.dateColumnName = dateColumnName;
+    this.datePart = datePart;
+
+    initFormatter();
+  }
+
+  public TruncTime(String dateColumnName, String constant) {
+    Preconditions.checkString(constant, "dateColumnName in trunc_time expression");
+    Preconditions.checkString(dateColumnName, "dateColumnName in trunc_time expression");
 
     this.dateColumnName = dateColumnName;
     this.datePart = DatePart.valueOf(constant.toUpperCase());

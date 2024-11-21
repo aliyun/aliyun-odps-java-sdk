@@ -966,4 +966,21 @@ public class TableTest extends TestBase {
     // delete table
     odps.tables().delete(tableName);
   }
+
+  @Test
+  public void testGetSchemaVersion() throws OdpsException {
+    String tableName = "test_getSchemaVersion";
+    TableSchema testSchema = TableSchema.builder().withStringColumn("c1").build();
+    odps.tables().delete(tableName, true);
+    odps.tables().create(tableName, testSchema, false);
+
+    Table table = odps.tables().get(tableName);
+    String schemaVersion = table.getSchemaVersion();
+    System.out.println(schemaVersion);
+
+    SQLTask.run(odps, "alter table " + tableName + " add column newCol string;").waitForSuccess();
+
+    Assert.assertNotEquals(schemaVersion, table.getSchemaVersion());
+    odps.tables().delete(tableName, true);
+  }
 }

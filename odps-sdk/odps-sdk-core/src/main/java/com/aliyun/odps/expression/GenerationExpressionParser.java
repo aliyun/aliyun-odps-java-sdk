@@ -50,7 +50,7 @@ public class GenerationExpressionParser {
     FunctionCall functionCall = topLevelExpression.getFunctionCall();
     // We can parse the Expression into a tree later.
     // Since there are only a few simple Expressions now, we can just parse it with hard code.
-    if (functionCall != null && TruncTime.NAME.equals(functionCall.getName())) {
+    if (functionCall != null && TruncTime.NAME.equalsIgnoreCase(functionCall.getName())) {
       return new TruncTime(generateExpression.get(0).getLeafExprDesc().getReference().getName(),
                            generateExpression.get(1).getLeafExprDesc().getConstant());
     } else {

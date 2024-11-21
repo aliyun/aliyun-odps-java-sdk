@@ -1,4 +1,29 @@
 # 更新日志
+## [0.51.0-public.rc1] - 2024-11-22
+### 功能与变更
+- **Column** `ColumnBuilder` 新增 `withGenerateExpression` 方法，用于构造 auto-partition 列
+- **TableSchema**
+  - 新增 `generatePartitionSpec` 方法，用于从`Record`中生成分区信息
+  - `setPartitionColumns` 方法现在接收`List<Column>`，而不是`ArrayList<Column>`
+- **TableCreator**
+  - 新增对`GenerateExpression`的支持，新增方法`autoPartitionBy`，现在可以创建 AutoPartition 表了
+  - 新增对`ClusterInfo`的支持，现在可以创建 Hash/Range Cluster 表了
+  - 新增指定 `TableFormat`，现在可以指定创建`APPEND`,`TRANSACTION`,`DELTA`,`EXTERNAL`,`VIEW`格式的表
+  - 新增`selectStatement`参数，用于`create table as` 和 `create view as` 场景
+  - 新增`getSql`方法，用于获取创建表的 SQL 语句
+  - 现在会对所有的 `Comment` 参数进行 quote，以支持包含特殊字符的 `Comment` 参数
+  - 将 DataHub 相关的建表参数（`hubLifecycle`, `shardNum`) 整合为 `DataHubInfo` 
+  - 重命名`withJars`方法为`withResources`，以表示不仅可以使用JAR类型资源
+  - 重命名`withBucketNum`方法为`withDeltaTableBucketNum`，以表示该方法仅用于 Delta Table
+  - 修改了 `withHints`，`withAlias`，`withTblProperties`，`withSerdeProperties` 方法的逻辑，现在会覆盖之前设置的值，而不是合并
+  - 移除了`createExternal`方法，现在使用`create`方法即可
+- **Table** 新增 `getSchemaVersion` 方法，用户获取当前表结构的版本，用户每次进行 SchemaEvolution 都会更新版本号，目前该字段仅用于在创建 StreamTunnel 时指定
+- **StreamTunnel** 修改初始化逻辑，当指定 `allowSchemaMismatch` 为 `false` 时，会自动重试直到使用最新版本的表结构(超时时间为5min)
+
+### 修复
+- **GenerationExpression** 修复了当建表时`TruncTime`为大写，reload table 会抛出异常的问题
+- **TypeInfoParser** 能够正确处理 `Struct` 类型，字段被反引号quote的 `TypeInfo`了
+
 ## [0.51.0-public.rc0] - 2024-11-18
 
 ### 功能

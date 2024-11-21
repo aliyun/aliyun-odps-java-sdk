@@ -221,6 +221,23 @@ public class SchemasTest {
     Assert.assertTrue(find);
   }
 
+  @Test
+  public void testLongSchemaName() throws OdpsException {
+    // should support schema name size = 128 (S51), before is 32
+    StringBuilder stringBuilder = new StringBuilder();
+    for (int i = 0; i < 128; i++) {
+      stringBuilder.append("a");
+    }
+    String schemaName = stringBuilder.toString();
+    schemas.create(TEST_PROJECT_1, schemaName, "create by javaSDK", true);
+    if (schemas.get(TEST_PROJECT_1, schemaName).getName().equals(schemaName)) {
+      schemas.delete(TEST_PROJECT_1, schemaName);
+    } else {
+      Assert.fail("cannot get schema after create schema");
+    }
+  }
+
+
   private void testSchema(Schema schema, String projectName, String schemaName, String comment) {
     Assert.assertEquals(comment, schema.getComment());
     Assert.assertEquals(projectName, schema.getProjectName());

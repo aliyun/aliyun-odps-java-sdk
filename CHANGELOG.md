@@ -1,4 +1,29 @@
 # Changelog
+## [0.51.0-public.rc1] - 2024-11-22
+### Features and Changes
+- **Column** `ColumnBuilder` adds a new `withGenerateExpression` method for constructing auto-partition columns
+- **TableSchema**
+  - Added `generatePartitionSpec` method, used to generate partition information from `Record`
+  - The `setPartitionColumns` method now accepts `List<Column>` instead of `ArrayList<Column>`
+- **TableCreator**
+  - Added support for `GenerateExpression` and introduced the method `autoPartitionBy`, which allows for the creation of AutoPartition tables.
+  - Added support for `ClusterInfo`, enabling the creation of Hash/Range Cluster tables.
+  - Added the option to specify `TableFormat`, allowing for the creation of tables in `APPEND`, `TRANSACTION`, `DELTA`, `EXTERNAL`, and `VIEW` formats.
+  - Introduced the `selectStatement` parameter for `create table as` and `create view as` scenarios.
+  - Added the `getSql` method to obtain the SQL statement for table creation.
+  - Now quotes all `Comment` parameters to support those that contain special characters.
+  - Integrated DataHub-related table creation parameters (`hubLifecycle`, `shardNum`) into `DataHubInfo`.
+  - Renamed the `withJars` method to `withResources` to indicate it can use resources other than JAR files.
+  - Renamed the `withBucketNum` method to `withDeltaTableBucketNum` to indicate this method is for Delta Tables only.
+  - Modified the logic of `withHints`, `withAlias`, `withTblProperties`, and `withSerdeProperties` methods, now overwriting previous values instead of merging.
+  - Removed the `createExternal` method; you can now use the `create` method instead.
+- **Table** Introduced the `getSchemaVersion` method, allowing users to retrieve the current schema version of the table. The version number is updated each time a Schema Evolution occurs, and this field is used primarily for specifying when creating a StreamTunnel.
+- **StreamTunnel** Modified the initialization logic; if `allowSchemaMismatch` is set to `false`, it will automatically retry until the latest version of the table structure is used (with a timeout of 5 minutes).
+
+### Fixes
+- **GenerationExpression** Fixed the issue where an exception would be thrown when the `TruncTime` was uppercase during table creation and reloading the table.
+- **TypeInfoParser** Can now correctly handle `Struct` types, with fields quoted using backticks in `TypeInfo`.
+
 
 ## [0.51.0-public.rc0] - 2024-11-18
 

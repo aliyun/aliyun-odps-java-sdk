@@ -11,9 +11,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.Table;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
@@ -128,7 +130,43 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         this.httpClient = Util.newRestClient(conf, projectName);
         this.schemaVersion = schemaVersion;
         this.checkLatestSchema = !allowSchemaMismatch;
-        initiate(slotNum, cretaPartition);
+
+        // Due to server-side architecture design, the latest TableSchema may not be used when creating a Session,
+        // which may make users very confused in the scenario of not allowSchemaMismatch and use not specified schema version.
+        // So the session is rebuilt here until the session schema is the latest table schema.
+        if (this.checkLatestSchema && StringUtils.isNullOrEmpty(schemaVersion)) {
+            initiateUntilUseLatestSchema(slotNum, cretaPartition);
+        } else {
+            initiate(slotNum, cretaPartition);
+        }
+    }
+
+    private void initiateUntilUseLatestSchema(long slotNum, boolean createPartition)
+        throws TunnelException {
+        Table table = config.getOdps().tables().get(projectName, schemaName, tableName);
+        // max retry 5 minutes
+        int maxRetry = 60;
+        for (int i = 0; i < maxRetry; i++) {
+            schemaVersion = table.getSchemaVersion();
+            if (i == maxRetry - 1) {
+                throw new TunnelException(
+                    "Cannot init session use latest schema version: " + schemaVersion);
+            }
+            try {
+                initiate(slotNum, createPartition);
+                break;
+            } catch (OdpsException e) {
+                if (!"NoSuchSchema".equals(e.getErrorCode())) {
+                    throw e;
+                }
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException e1) {
+                    Thread.currentThread().interrupt();
+                    throw new TunnelException("Interrupt when initiate session.", e1);
+                }
+            }
+        }
     }
 
     private void initiate(long slotNum, boolean createPartition) throws TunnelException {

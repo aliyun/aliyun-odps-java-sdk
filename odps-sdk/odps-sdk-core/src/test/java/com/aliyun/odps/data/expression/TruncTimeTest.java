@@ -13,6 +13,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
@@ -34,8 +35,19 @@ public class TruncTimeTest {
     schema.addColumn(new Column("datetime", TypeInfoFactory.DATETIME));
     schema.addColumn(new Column("timestamp_ntz", TypeInfoFactory.TIMESTAMP_NTZ));
     record = new ArrayRecord(schema);
+  }
 
 
+  @Test
+  public void testGeneratePartitionSpec() {
+    TableSchema newSchema =
+        TableSchema.builder().withPartitionColumn(Column.newBuilder("p1", TypeInfoFactory.STRING)
+                                                      .withGenerateExpression(
+                                                          new TruncTime("timestamp", "day"))
+                                                      .build()).build();
+    record.set(0, Timestamp.from(Instant.now()));
+    PartitionSpec partitionSpec = newSchema.generatePartitionSpec(record);
+    System.out.println(partitionSpec);
   }
 
   @Test

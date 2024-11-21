@@ -19,7 +19,7 @@ public class TypeInfoParser {
   }
 
   private boolean isTypeInfoChar(char c) {
-    return Character.isLetterOrDigit(c) || (c == '_') || (c == '.') || Character.isWhitespace(c);
+    return Character.isLetterOrDigit(c) || (c == '_') || (c == '.') || (c == '`') || Character.isWhitespace(c);
   }
 
   // Tokenize the typeInfoString. The rule is simple: all consecutive
@@ -176,7 +176,11 @@ public class TypeInfoParser {
         }
       }
 
-      names.add(peek());
+      String peek = peek();
+      if (peek.length() > 2 && peek.charAt(0) == '`' && peek.charAt(peek.length() - 1) == '`') {
+        peek = peek.substring(1, peek.length() - 1);
+      }
+      names.add(peek);
       expect(":");
       typeInfos.add(parseTypeInfoInternal());
     }

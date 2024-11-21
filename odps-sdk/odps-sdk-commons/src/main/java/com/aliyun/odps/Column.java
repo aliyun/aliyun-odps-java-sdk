@@ -117,6 +117,7 @@ public final class Column implements Serializable {
     this(columnBuilder.name, columnBuilder.typeInfo, columnBuilder.comment, columnBuilder.label,
          columnBuilder.extendedLabels);
     this.isNullable = !columnBuilder.notNull;
+    this.generateExpression = columnBuilder.generateExpression;
   }
 
   /**
@@ -422,6 +423,7 @@ public final class Column implements Serializable {
     private String comment;
     private String label;
     private List<String> extendedLabels;
+    private GenerateExpression generateExpression;
     private boolean notNull = false;
 
     private ColumnBuilder(String name, TypeInfo typeInfo) {
@@ -446,6 +448,11 @@ public final class Column implements Serializable {
 
     public ColumnBuilder notNull() {
       this.notNull = true;
+      return this;
+    }
+
+    public ColumnBuilder withGenerateExpression(GenerateExpression expression) {
+      this.generateExpression = expression;
       return this;
     }
 

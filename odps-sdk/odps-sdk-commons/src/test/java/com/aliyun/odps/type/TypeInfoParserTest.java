@@ -264,7 +264,7 @@ public class TypeInfoParserTest {
   public void testParseStruct() {
 
     String name1 =
-        "struct<name:string,age:tinyint,families:map<string,int>,hobbies:array<string>,test:decimal(10,2),test2:decimal>";
+        "struct<`name`:string,`age`:tinyint,`families`:map<string,int>,hobbies:array<string>,test:decimal(10,2),test2:decimal>";
     TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name1);
 
     validateStruct(typeInfo);
