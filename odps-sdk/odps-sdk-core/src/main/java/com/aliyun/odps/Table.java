@@ -30,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
@@ -56,6 +57,7 @@ import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.OdpsCommonUtils;
@@ -2002,6 +2004,9 @@ public class Table extends LazyLoad {
     return !getSchema().getPartitionColumns().isEmpty();
   }
 
+  private void runSQL(String query) throws OdpsException {
+    runSQL("AnonymousSQLTask", query);
+  }
   private void runSQL(String taskName, String query) throws OdpsException {
     Map<String, String> hints = NameSpaceSchemaUtils.setSchemaFlagInHints(null, model.schemaName);
     Instance i = SQLTask.run(odps, odps.getDefaultProject(), query, taskName, hints, null);
@@ -2012,7 +2017,7 @@ public class Table extends LazyLoad {
     return NameSpaceSchemaUtils.initParamsWithSchema(model.schemaName);
   }
 
-  private String getCoordinate() throws OdpsException {
+  private String getCoordinate() {
     return NameSpaceSchemaUtils.getFullName(model.projectName, model.schemaName, model.name);
   }
 
@@ -2094,5 +2099,115 @@ public class Table extends LazyLoad {
     odps.streams().create(identifier,
                           TableIdentifier.of(model.projectName, model.schemaName, model.name));
     return odps.streams().get(identifier);
+  }
+
+  // update table methods
+
+  /**
+   * Modify the life cycle of an existing partitioned table or non-partitioned table.
+   */
+  public void setLifeCycle(int days) throws OdpsException {
+    String sql = String.format("ALTER TABLE %s SET LIFECYCLE %d;", getCoordinate(), days);
+    runSQL(sql);
+  }
+
+  /**
+   * Only the Project Owner or users with the Super_Administrator role can execute commands that modify the table Owner.
+   */
+  public void changeOwner(String newOwner) throws OdpsException {
+    String target = "table";
+    if (isVirtualView() || isMaterializedView()) {
+      target = "view";
+    }
+    runSQL(String.format("ALTER %s %s CHANGE OWNER TO %s;", target, getCoordinate(), OdpsCommonUtils.quoteStr(newOwner)));
+  }
+
+  /**
+   *  ChangeComment Modify the comment content of the table.
+   */
+  public void changeComment(String newComment) throws OdpsException {
+    runSQL(String.format("ALTER TABLE %s SET COMMENT %s;", getCoordinate(), OdpsCommonUtils.quoteStr(newComment)));
+  }
+
+  /**
+   * Touch can modify the LastModifiedTime of the table, making LastModifiedTime change to the current time
+   */
+  public void touch() throws OdpsException {
+    runSQL(String.format("ALTER TABLE %s TOUCH;", getCoordinate()));
+  }
+
+  /**
+   * ChangeClusterInfo Modify the cluster information of the table.
+   */
+  public void changeClusterInfo(ClusterInfo clusterInfo) throws OdpsException {
+    runSQL(String.format("ALTER TABLE %s %s;", getCoordinate(), clusterInfo.toString()));
+  }
+
+  /**
+   * Rename the table.
+   */
+  public void rename(String newName) throws Exception {
+    String target = "table";
+    if (isVirtualView()) {
+      target = "view";
+    }
+    runSQL(String.format("ALTER %s %s RENAME TO %s;", target, getCoordinate(), OdpsCommonUtils.quoteRef(newName)));
+    model.name = newName;
+  }
+
+  /**
+   * Add new columns to the table.
+   */
+  public void addColumns(List<Column> columns, boolean ifNotExists) throws Exception {
+    runSQL(generateAddColumnsSQL(columns, ifNotExists));
+  }
+
+  private String generateAddColumnsSQL(List<Column> columns, boolean ifNotExists) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("ALTER TABLE ").append(getCoordinate()).append(" ADD COLUMNS ");
+    if (ifNotExists) {
+      sb.append("IF NOT EXISTS ");
+    }
+    sb.append("(");
+    StringJoiner joiner = new StringJoiner(", ");
+    for (Column column : columns) {
+      StringBuilder columnDef = new StringBuilder();
+      columnDef.append(String.format("%s %s", OdpsCommonUtils.quoteRef(column.getName()), column.getTypeInfo().getTypeName()));
+      if (column.getComment() != null && !column.getComment().isEmpty()) {
+        columnDef.append(String.format(" COMMENT %s", OdpsCommonUtils.quoteStr(column.getComment())));
+      }
+      joiner.add(columnDef.toString());
+    }
+    sb.append(joiner).append(");");
+    return sb.toString();
+  }
+
+  /**
+   * Drop columns from the table.
+   */
+  public void dropColumns(List<String> columnNames) throws Exception {
+    runSQL(generateDropColumnsSQL(columnNames));
+  }
+
+  private String generateDropColumnsSQL(List<String> columnNames) {
+    StringJoiner joiner = new StringJoiner(", ");
+    for (String columnName : columnNames) {
+      joiner.add(OdpsCommonUtils.quoteRef(columnName));
+    }
+    return String.format("ALTER TABLE %s DROP COLUMNS %s;", getCoordinate(), joiner);
+  }
+
+  /**
+   * Change the type of an existing column in the table.
+   */
+  public void alterColumnType(String columnName, TypeInfo columnType) throws Exception {
+    runSQL(String.format("ALTER TABLE %s CHANGE COLUMN %s %s %s;", getCoordinate(), columnName, columnName, columnType.getTypeName()));
+  }
+
+  /**
+   * Change the name of an existing column in the table.
+   */
+  public void changeColumnName(String oldColumnName, String newColumnName) throws Exception {
+    runSQL(String.format("ALTER TABLE %s CHANGE COLUMN %s RENAME TO %s;", getCoordinate(), oldColumnName, newColumnName));
   }
 }

@@ -17,7 +17,9 @@
   - Renamed the `withBucketNum` method to `withDeltaTableBucketNum` to indicate this method is for Delta Tables only.
   - Modified the logic of `withHints`, `withAlias`, `withTblProperties`, and `withSerdeProperties` methods, now overwriting previous values instead of merging.
   - Removed the `createExternal` method; you can now use the `create` method instead.
-- **Table** Introduced the `getSchemaVersion` method, allowing users to retrieve the current schema version of the table. The version number is updated each time a Schema Evolution occurs, and this field is used primarily for specifying when creating a StreamTunnel.
+- **Table** 
+  - Introduced the `getSchemaVersion` method, allowing users to retrieve the current schema version of the table. The version number is updated each time a Schema Evolution occurs, and this field is used primarily for specifying when creating a StreamTunnel.
+  - Added `setLifeCycle`, `changeOwner`, `changeComment`, `touch`, `changeClusterInfo`, `rename`, `addColumns`, `dropColumns` methods to support modification of table structure.
 - **StreamTunnel** Modified the initialization logic; if `allowSchemaMismatch` is set to `false`, it will automatically retry until the latest version of the table structure is used (with a timeout of 5 minutes).
 
 ### Fixes

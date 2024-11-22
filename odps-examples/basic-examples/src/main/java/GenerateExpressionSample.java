@@ -10,9 +10,6 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.task.SQLTask;
 import com.google.common.collect.ImmutableMap;
 
-/**
- * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
- */
 public class GenerateExpressionSample {
 
   private static String accessId = "<your access id>";
@@ -41,12 +38,13 @@ public class GenerateExpressionSample {
     record.set("a", 123L);
     record.set("d", Instant.now());
 
-    PartitionSpec partitionSpec = getPartitionSpec(record, schema);
+    // Auto generate partitionSpec from record and schema
+    PartitionSpec partitionSpec = schema.generatePartitionSpec(record);
     System.out.println(partitionSpec);
   }
 
   /**
-   * Auto generate partitionSpec from record and schema
+   * How to manually generate partitionSpec from record and schema
    */
   private static PartitionSpec getPartitionSpec(Record record, TableSchema schema) {
     // And partition spec means where the record will be written to

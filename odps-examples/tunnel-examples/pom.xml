@@ -5,18 +5,30 @@
     <groupId>com.aliyun.odps</groupId>
     <artifactId>tunnel-examples</artifactId>
     <version>1.0</version>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>8</source>
+                    <target>8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
     <modelVersion>4.0.0</modelVersion>
 
     <dependencies>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-commons</artifactId>
-            <version>0.50.1-public</version>
+            <version>0.51.0-public.rc1</version>
         </dependency>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-core</artifactId>
-            <version>0.50.1-public</version>
+            <version>0.51.0-public.rc1</version>
         </dependency>
     </dependencies>
 </project>

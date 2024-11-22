@@ -1087,7 +1087,6 @@ public class Tables implements Iterable<Table> {
       ExceptionUtils.checkArgumentNotNull("odps", odps);
       ExceptionUtils.checkStringArgumentNotNull("projectName", projectName);
       ExceptionUtils.checkStringArgumentNotNull("tableName", tableName);
-      ExceptionUtils.checkArgumentNotNull("tableSchema", tableSchema);
       this.odps = odps;
       this.projectName = projectName;
       this.tableName = tableName;
@@ -1250,7 +1249,7 @@ public class Tables implements Iterable<Table> {
           if (lifeCycle != null) {
             sql.append(" LIFECYCLE ").append(lifeCycle);
           }
-          sql.append(" AS ").append(selectStatement).append(";");
+          sql.append(" AS (").append(selectStatement).append(");");
           return sql.toString();
         case VIEW:
           sql.append("CREATE VIEW ");
@@ -1258,21 +1257,23 @@ public class Tables implements Iterable<Table> {
             sql.append("IF NOT EXISTS ");
           }
           sql.append(NameSpaceSchemaUtils.getFullName(projectName, schemaName, tableName));
-          List<Column> columns = tableSchema.getColumns();
-          sql.append(" (");
-          for (int i = 0; i < columns.size(); i++) {
-            Column column = columns.get(i);
-            sql.append(OdpsCommonUtils.quoteRef(column.getName())).append(" ")
-                .append(column.getTypeInfo().getTypeName());
-            if (column.getComment() != null) {
-              sql.append(" COMMENT ").append(OdpsCommonUtils.quoteStr(column.getComment()));
+          if (tableSchema != null && !tableSchema.getColumns().isEmpty()) {
+            List<Column> columns = tableSchema.getColumns();
+            sql.append(" (");
+            for (int i = 0; i < columns.size(); i++) {
+              Column column = columns.get(i);
+              sql.append(OdpsCommonUtils.quoteRef(column.getName())).append(" ")
+                  .append(column.getTypeInfo().getTypeName());
+              if (column.getComment() != null) {
+                sql.append(" COMMENT ").append(OdpsCommonUtils.quoteStr(column.getComment()));
+              }
+              if (i + 1 < columns.size()) {
+                sql.append(',');
+              }
             }
-            if (i + 1 < columns.size()) {
-              sql.append(',');
-            }
+            sql.append(')');
           }
-          sql.append(')');
-          sql.append(" AS ").append(selectStatement).append(";");
+          sql.append(" AS (").append(selectStatement).append(");");
           return sql.toString();
         default:
           throw new IllegalArgumentException("Only 'Append Table' and 'Virtual View' support 'create table as' statement.");

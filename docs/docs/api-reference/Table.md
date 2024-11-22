@@ -12,6 +12,7 @@ sidebar_position: 2
 - [创建表实例对象](#创建表实例对象)
 - [表基本信息](#表基本信息)
 - [表数据操作](#表数据操作)
+- [表更新操作](#表更新操作)
 - [分区操作](#分区操作)
 - [标签操作](#标签操作)
 - [表扩展信息](#表扩展信息)
@@ -23,7 +24,7 @@ sidebar_position: 2
 
 要操作表，首先需要创建一个表的实例对象。
 
-注意，获取表实例是一个lazy操作，即只有当调用`Table` 类的其他方法时，才会真正获取表的元数据信息。同时，只有表真实存在，才能获取到表实例。
+**注意**，获取表实例是一个lazy操作，即只有当调用`Table` 类的其他方法时，才会真正获取表的元数据信息。同时，只有表真实存在，才能获取到表实例。
 ```java
 Table table = odps.tables().get("table_project", "table_name");
 ```
@@ -132,13 +133,13 @@ Date lastMetaModifiedTime = table.getLastMetaModifiedTime();
 ```
 
 ### 获取表存储大小
-注意：此方法通常不保证和实际占用存储大小相同。单位为`bytes`
+**注意**：此方法通常不保证和实际占用存储大小相同。单位为`bytes`
 ```java
 long size = table.getSize();
 ```
 
 ### 获取表数据数量
-注意：此方法当无准确数据时，返回-1
+**注意**：此方法当无准确数据时，返回-1
 ```java
 long recordNum = table.getRecordNum();
 ```
@@ -169,17 +170,17 @@ public RecordReader read(PartitionSpec partition, List<String> columns, int limi
 public RecordReader read(PartitionSpec partition, List<String> columns, int limit, String timezone) throws OdpsException
 ```
 
-参数说明
+**参数说明**
 - `limit`: 最多读取的记录行数。如果小于0，将抛出异常。
 - `partition`: 表的分区（PartitionSpec 对象）。如果不指定分区，则传入 null。
 - `columns`: 所要读取的列名列表。如果读取全表，则传入 null。
 - `timezone`: 设置 datetime 类型数据的时区字符串，如 "Asia/Shanghai"。如果不设置，则使用默认时区。
 
-注意
+**注意**
 - 读取数据时，最多返回 1W 条记录，若超过，数据将被截断。
 - 读取的数据大小不能超过 10MB，否则将抛出异常。
 
-使用示例
+**示例**
 ```java
 Table table = ...; // 获取Table对象的代码
 try {
@@ -200,6 +201,183 @@ try {
 table.truncate();
 ```
 
+
+## 表更新操作
+
+### 修改表生命周期
+
+修改已存在的分区表或非分区表的生命周期。
+
+```java
+public void setLifeCycle(int days) throws OdpsException
+```
+
+**参数说明**
+- `days`: 新的表生命周期，单位为天，必须为正整数。
+
+**示例**
+
+```java
+table.setLifeCycle(90);
+```
+
+### 更改表所有者
+
+更改表的所有者。只有项目所有者或具备超级管理角色的用户可以执行此命令。
+
+```java
+public void changeOwner(String newOwner) throws OdpsException
+```
+
+**参数说明**
+- `newOwner`: 新的所有者ID，必须是项目内有效的用户ID。
+
+**示例**
+
+```java
+table.changeOwner("new_owner_id");
+```
+
+### 修改表注释
+
+修改表的注释内容。
+
+```java
+public void changeComment(String newComment) throws OdpsException
+```
+
+**参数说明**
+- `newComment`: 新的注释文本，可以是空字符串。
+
+**示例**
+
+```java
+table.changeComment("This table contains user data.");
+```
+
+### 更新时间戳
+
+更新时间戳，将表的最后修改时间更新为当前时间。
+
+```java
+public void touch() throws OdpsException
+```
+
+**示例**
+
+```java
+table.touch();
+```
+
+### 更改集群信息
+
+修改表的集群信息。
+
+```java
+public void changeClusterInfo(ClusterInfo clusterInfo) throws OdpsException
+```
+
+**参数说明**
+- `clusterInfo`: 要应用于表的新集群信息对象。
+
+**示例**
+
+```java
+ClusterInfo newClusterInfo = ...; // 创建或获取新的 ClusterInfo 对象
+table.changeClusterInfo(newClusterInfo);
+```
+
+### 重命名表
+
+重命名表。
+
+```java
+public void rename(String newName) throws Exception
+```
+
+**参数说明**
+- `newName`: 表的新名称，必须符合命名规则。
+
+**示例**
+
+```java
+table.rename("new_table_name");
+```
+
+### 添加列
+
+向表中添加新列。
+
+```java
+public void addColumns(List<Column> columns, boolean ifNotExists) throws Exception
+```
+
+**参数说明**
+- `columns`: 要添加的列的列表，每个列应具有名称、类型和可选的注释。
+- `ifNotExists`: 如果为真，操作不会在列已存在时抛出错误。
+
+**示例**
+
+```java
+List<Column> newColumns = ...; // 创建或获取新的 Column 对象列表
+table.addColumns(newColumns, true);
+```
+
+### 删除列
+
+从表中删除列。
+
+```java
+public void dropColumns(List<String> columnNames) throws Exception
+```
+
+**参数说明**
+- `columnNames`: 要删除的列名列表，每个名称必须有效。
+
+**示例**
+
+```java
+List<String> columnsToDrop = List.of("column1", "column2");
+table.dropColumns(columnsToDrop);
+```
+
+### 更改列类型
+
+更改表中现有列的类型。
+
+```java
+public void alterColumnType(String columnName, TypeInfo columnType) throws Exception
+```
+
+**参数说明**
+- `columnName`: 要更改的列名称。
+- `columnType`: 新的列类型信息。
+
+**示例**
+
+```java
+TypeInfo newType = ...; // 创建或获取新的 TypeInfo 对象
+table.alterColumnType("existing_column", newType);
+```
+
+### 更改列名
+
+更改表中特定列的名称。
+
+```java
+public void changeColumnName(String oldColumnName, String newColumnName) throws Exception
+```
+
+**参数说明**
+- `oldColumnName`: 当前列名称。
+- `newColumnName`: 列的新名称。
+
+**示例**
+
+```java
+table.changeColumnName("old_name", "new_name");
+```
+
 ## 分区操作
 
 ### 获取分区
@@ -212,6 +390,13 @@ Partition partition = table.getPartition(partitionSpec);
 
 ```java
 List<Partition> partitions = table.getPartitions();
+```
+
+### 获取所有分区值
+与 `getPartitions()` 不同，此方法仅会返回分区值，而不会返回分区的详细信息，因此这个接口效率会更高。
+
+```java
+List<PartitionSpecs> partitions = table.getPartitionSpecs();
 ```
 
 ### 判断分区是否存在
@@ -247,7 +432,7 @@ List<Tag> tags = table.getTags("columnName");
 ```
 
 ### 添加标签
-注意：表和标签应当属于同一个`project`
+**注意**：表和标签应当属于同一个`project`
 ```java
 // 表级别
 table.addTag(tag);
@@ -311,13 +496,13 @@ table.isTransactional();
 ```
 
 ### 查看表所占磁盘的物理大小
-注意：此类方法通常为估计值，不保证准确性
+**注意**：此类方法通常为估计值，不保证准确性
 ```java
 long physicalSize = table.getPhysicalSize();
 ```
 
 ### 查看表占用文件数
-注意：此类方法通常为估计值，不保证准确性
+**注意**：此类方法通常为估计值，不保证准确性
 ```java
 long fileNum = table.getFileNum();
 ```

@@ -17,7 +17,9 @@
   - 重命名`withBucketNum`方法为`withDeltaTableBucketNum`，以表示该方法仅用于 Delta Table
   - 修改了 `withHints`，`withAlias`，`withTblProperties`，`withSerdeProperties` 方法的逻辑，现在会覆盖之前设置的值，而不是合并
   - 移除了`createExternal`方法，现在使用`create`方法即可
-- **Table** 新增 `getSchemaVersion` 方法，用户获取当前表结构的版本，用户每次进行 SchemaEvolution 都会更新版本号，目前该字段仅用于在创建 StreamTunnel 时指定
+- **Table** 
+  - 新增 `getSchemaVersion` 方法，用户获取当前表结构的版本，用户每次进行 SchemaEvolution 都会更新版本号，目前该字段仅用于在创建 StreamTunnel 时指定
+  - 新增 `setLifeCycle`，`changeOwner`，`changeComment`，`touch`，`changeClusterInfo`，`rename`，`addColumns`，`dropColumns`方法，以支持对表结构进行修改
 - **StreamTunnel** 修改初始化逻辑，当指定 `allowSchemaMismatch` 为 `false` 时，会自动重试直到使用最新版本的表结构(超时时间为5min)
 
 ### 修复
