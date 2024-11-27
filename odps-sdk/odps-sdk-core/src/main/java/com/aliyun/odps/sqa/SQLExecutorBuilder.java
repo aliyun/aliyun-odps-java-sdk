@@ -44,6 +44,7 @@ public class SQLExecutorBuilder {
   private Integer offlineJobPriority = null;
   private String regionId = null;
   private Quota quota = null;
+  private int logviewVersion = 1;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -64,7 +65,7 @@ public class SQLExecutorBuilder {
                                tunnelGetResultMaxRetryTime,
                                useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema,
                                tunnelSocketTimeout, tunnelReadTimeout, sessionSupportNonSelect,
-                               offlineJobPriority);
+                               offlineJobPriority, logviewVersion);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -189,6 +190,11 @@ public class SQLExecutorBuilder {
     return this;
   }
 
+  public SQLExecutorBuilder logviewVersion(int logviewVersion) {
+    this.logviewVersion = logviewVersion;
+    return this;
+  }
+
   public ExecuteMode getExecuteMode() {
     return executeMode;
   }
@@ -283,5 +289,9 @@ public class SQLExecutorBuilder {
 
   public String getRegionId() {
     return regionId;
+  }
+
+  public int getLogviewVersion() {
+    return logviewVersion;
   }
 }
