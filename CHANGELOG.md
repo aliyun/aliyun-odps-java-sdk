@@ -1,4 +1,27 @@
 # Changelog
+## [0.51.0-public] - 2024-12-05
+### Features
+- **MapReduce** Supports multi pipeline output.
+- **VolumeBuilder** Added the `accelerate` method to speed up the download process using dragonfly when the external volume is too large.
+- **Table** Introduced `TableType OBJECT_TABLE` and the method `isObjectTable` to verify it.
+- **Project** The `list` method now includes a filter condition `enableDr` to filter projects based on whether data disaster recovery is enabled.
+- **Cluster** New fields added: `clusterRole`, `jobDataPath`, and `zoneId`.
+
+### Changes
+- **TableBatchReadSession** The `predicate` class variable is now set to transient.
+- **Attribute** added escaping logic and will no longer double quote.
+- **SQLTask** Restored the `SQLTask.run(Odps odps, String project, String sql, String taskName, Map<String, String> hints, Map<String, String> aliases, int priority)` method removed in version 0.49.0 to resolve potential interface conflicts when users' MR jobs depend on older versions of the SDK.
+
+### Fixes
+- **Table.changeOwner** Fixed SQL spelling error.
+- **Instance.getTaskSummary** Removed unreasonable debug logging introduced since version 0.50.2.
+- **TruncTime** Uses backticks to quote `columnName` during table creation/toString.
+> **Note:** This version also includes all changes from "0.51.0-public.rc0" and "0.51.0-public.rc1".
+
+## [0.50.6-public] - 2024-11-27
+### Features
+- **Logview** Added support for Logview V2, which ensures data security. It can be created using `new Logview(odps, 2)`, and SQLExecutor specifies the version through the `logviewVersion` method.
+
 ## [0.51.0-public.rc1] - 2024-11-22
 ### Features and Changes
 - **Column** `ColumnBuilder` adds a new `withGenerateExpression` method for constructing auto-partition columns

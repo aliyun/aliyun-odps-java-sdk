@@ -1,4 +1,27 @@
 # 更新日志
+## [0.51.0-public] - 2024-12-05
+
+### 功能
+- **MapReduce** 支持多重管道输出 (multi pipeline output)。
+- **VolumeBuilder** 新增 `accelerate` 方法，用于在 external volume 过大时，使用 dragonfly 加速下载过程。
+- **Table** 新增 `TableType OBJECT_TABLE` 和判断方法 `isObjectTable`。
+- **Project** `list` 方法增加过滤条件 `enableDr`，用于过滤项目是否开启存储容灾。
+- **Cluster** 新增字段 `clusterRole`、`jobDataPath`、`zoneId`。
+
+### 变更
+- **TableBatchReadSession** 类变量 `predicate` 现在设置为 transient。
+- **Attribute** 增加转义逻辑，并不再会 double quote。
+- **SQLTask** 恢复了在 0.49.0 版本移除的 `SQLTask.run(Odps odps, String project, String sql, String taskName, Map<String, String> hints, Map<String, String> aliases, int priority)` 方法，以解决用户的 MR 作业依赖老版本 SDK 时可能发生的接口冲突问题。
+
+### 修复
+- **Table.changeOwner** 修复 SQL 拼写错误。
+- **Instance.getTaskSummary** 移除自 0.50.2 版本开始的不合理打印的 debug 日志。
+- **TruncTime** 在建表/toString 时，使用反引号对 `columnName` 进行 quote。
+> **注意：** 此版本还包括“0.51.0-public.rc0”和“0.51.0-public.rc1”的所有更改。
+
+## [0.50.6-public] - 2024-11-27
+- **Logview** 新增对 Logview V2 的支持，V2 版本保障了数据安全。可以通过 `new Logview(odps, 2)` 创建，SQLExecutor 通过 `logviewVersion` 方法指定。
+
 ## [0.51.0-public.rc1] - 2024-11-22
 ### 功能与变更
 - **Column** `ColumnBuilder` 新增 `withGenerateExpression` 方法，用于构造 auto-partition 列

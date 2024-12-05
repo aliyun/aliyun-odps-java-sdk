@@ -4,6 +4,117 @@ sidebar_position: 6
 ---
 
 # 更新日志
+## [0.51.0-public] - 2024-12-05
+
+### 功能
+- **MapReduce** 支持多重管道输出 (multi pipeline output)。
+- **VolumeBuilder** 新增 `accelerate` 方法，用于在 external volume 过大时，使用 dragonfly 加速下载过程。
+- **Table** 新增 `TableType OBJECT_TABLE` 和判断方法 `isObjectTable`。
+- **Project** `list` 方法增加过滤条件 `enableDr`，用于过滤项目是否开启存储容灾。
+- **Cluster** 新增字段 `clusterRole`、`jobDataPath`、`zoneId`。
+
+### 变更
+- **TableBatchReadSession** 类变量 `predicate` 现在设置为 transient。
+- **Attribute** 增加转义逻辑，并不再会 double quote。
+- **SQLTask** 恢复了在 0.49.0 版本移除的 `SQLTask.run(Odps odps, String project, String sql, String taskName, Map<String, String> hints, Map<String, String> aliases, int priority)` 方法，以解决用户的 MR 作业依赖老版本 SDK 时可能发生的接口冲突问题。
+
+### 修复
+- **Table.changeOwner** 修复 SQL 拼写错误。
+- **Instance.getTaskSummary** 移除自 0.50.2 版本开始的不合理打印的 debug 日志。
+- **TruncTime** 在建表/toString 时，使用反引号对 `columnName` 进行 quote。
+> **注意：** 此版本还包括“0.51.0-public.rc0”和“0.51.0-public.rc1”的所有更改。
+
+## [0.50.6-public] - 2024-11-27
+- **Logview** 新增对 Logview V2 的支持，V2 版本保障了数据安全。可以通过 `new Logview(odps, 2)` 创建，SQLExecutor 通过 `logviewVersion` 方法指定。
+
+## [0.51.0-public.rc1] - 2024-11-22
+### 功能与变更
+- **Column** `ColumnBuilder` 新增 `withGenerateExpression` 方法，用于构造 auto-partition 列
+- **TableSchema**
+  - 新增 `generatePartitionSpec` 方法，用于从`Record`中生成分区信息
+  - `setPartitionColumns` 方法现在接收`List<Column>`，而不是`ArrayList<Column>`
+- **TableCreator**
+  - 新增对`GenerateExpression`的支持，新增方法`autoPartitionBy`，现在可以创建 AutoPartition 表了
+  - 新增对`ClusterInfo`的支持，现在可以创建 Hash/Range Cluster 表了
+  - 新增指定 `TableFormat`，现在可以指定创建`APPEND`,`TRANSACTION`,`DELTA`,`EXTERNAL`,`VIEW`格式的表
+  - 新增`selectStatement`参数，用于`create table as` 和 `create view as` 场景
+  - 新增`getSql`方法，用于获取创建表的 SQL 语句
+  - 现在会对所有的 `Comment` 参数进行 quote，以支持包含特殊字符的 `Comment` 参数
+  - 将 DataHub 相关的建表参数（`hubLifecycle`, `shardNum`) 整合为 `DataHubInfo`
+  - 重命名`withJars`方法为`withResources`，以表示不仅可以使用JAR类型资源
+  - 重命名`withBucketNum`方法为`withDeltaTableBucketNum`，以表示该方法仅用于 Delta Table
+  - 修改了 `withHints`，`withAlias`，`withTblProperties`，`withSerdeProperties` 方法的逻辑，现在会覆盖之前设置的值，而不是合并
+  - 移除了`createExternal`方法，现在使用`create`方法即可
+- **Table**
+  - 新增 `getSchemaVersion` 方法，用户获取当前表结构的版本，用户每次进行 SchemaEvolution 都会更新版本号，目前该字段仅用于在创建 StreamTunnel 时指定
+  - 新增 `setLifeCycle`，`changeOwner`，`changeComment`，`touch`，`changeClusterInfo`，`rename`，`addColumns`，`dropColumns`方法，以支持对表结构进行修改
+- **StreamTunnel** 修改初始化逻辑，当指定 `allowSchemaMismatch` 为 `false` 时，会自动重试直到使用最新版本的表结构(超时时间为5min)
+
+### 修复
+- **GenerationExpression** 修复了当建表时`TruncTime`为大写，reload table 会抛出异常的问题
+- **TypeInfoParser** 能够正确处理 `Struct` 类型，字段被反引号quote的 `TypeInfo`了
+
+## [0.51.0-public.rc0] - 2024-11-18
+
+### 功能
+- **GenerateExpression** 增加对分区列的生成列表达式功能的支持，和第一个生成列表达式`TruncTime`，使用方式请参考[Example]()
+- **UpsertStream** 支持写入主键为 `TIMESTAMP_NTZ` 类型的值
+- **Table** 新增对 cdc 相关数据的查询，`getCdcSize()`，`getCdcRecordNum()`，`getCdcLatestVersion()`，`getCdcLatestTimestamp()`
+- **SQLExecutor** MCQA 2.0 作业支持获取 InstanceProgress 信息
+
+### 变更
+- **Quote** 对 Struct 类型的 TypeInfo，和其他拼装 SQL 的方法，使用反引号对名字进行 quote
+- **AutoClosable** 为了提醒用户正确关闭资源，对下列资源类，增加了相应的 `close()` 方法，以提醒用户正确关闭资源。
+  - `odps-sdk-core` 包下的 `UpsertStream`，
+  - `odps-sdk-impl` 包下的 `LocalOutputStreamSet`，`ReduceDriver.ReduceContextImpl`，`MapDriver.DirectMapContextImpl`，`LocalRecordWriter`
+  - `odps-sdk-udf` 包下的 `VectorizedOutputer`，`VectorizedExtractor`，`RecordWriter`，`RecordReader`，`Outputer`，`Extractor`
+
+## [0.50.5-public] - 2024-11-13
+
+### 功能
+
+- **TableAPI**
+  为可以安全重试的网络请求类型的报错增加了相应的重试逻辑，从而提高了接口的稳定性。在 `RestOptions`
+  中增加了 `retryWaitTimeInSeconds` 配置项，用于设置重试等待时间。
+- **SQLTask** 新增了 `run` 方法的重载，支持传入 `mcqaConnHeader` 参数，以便提交 MCQA 2.0 作业。
+- **SQLExecutor** 支持通过指定 `hints` 中的 `odps.task.wlm.quota` 来设置提交 MCQA 2.0 作业时的
+  interactive quota。
+- **RestClient** 新增了 `retryWaitTime` 参数，以及相应的 getter 和 setter 方法，以配置网络请求的重试等待时间。
+- **Configuration** 新增了 `socketRetryTimes` 参数以及相应的 getter 和 setter 方法，用于配置 Tunnel
+  网络请求的重试等待时间。如果未设置，则使用 `RestClient` 中的配置，否则使用此配置。
+
+### 变更
+
+- **Instances** 移除了 `get`
+  的重载方法 `get(String projectName, String id, String quotaName, String regionId)`
+  ，该方法在 `0.50.2-public` 版本中新增，用于获取 MCQA 2.0 实例。现在，用户在使用 `get` 方法时无须区分作业是否为
+  MCQA 2.0 作业，因此移除该方法可以直接使用 `get(String projectName, String id)` 方法来获取实例。
+
+### 修复
+
+- **Table.read()** 修复了在数据预览时，配置的网络相关参数（如超时时间、重试逻辑）无法正确生效的问题。
+- **Streams** 修复了 `create` 方法中，如果指定了 `version` 会报错的问题。同时增加了 `version`
+  的默认值（1），表示表的初始版本。
+
+## [0.50.4-public] - 2024-10-29
+
+### 功能
+
+- **PartitionSpec** 新增`(String, boolean)`
+  构造方法，通过布尔参数指定是否对分区值进行trim操作，以满足某些场景（如使用char类型作为分区字段）用户不希望trim的需求。
+
+### 变更
+
+- **Instance** 在调用stop方法时，抛出的OdpsException将不再被二次包装。
+
+### 修复
+
+- **SQLExecutor**
+  - 修复了在MCQA 1.0模式下，用户指定`fallbackPolicy.isFallback4AttachError`时未正确生效的问题。
+  - 修复了在MCQA 2.0模式下，作业失败时`cancel`方法抛出异常的问题。
+  - 修复了在MCQA 2.0模式下，当isSelect判断错误时，通过instanceTunnel取结果报错的问题。
+- **Table** 修复了`getPartitionSpecs`方法会trim分区值，导致无法获取存在的分区的问题。
+
 ## [0.50.3-public] - 2024-10-23
 ### 功能
 - **SQLExecutor** 在 MCQA 1.0 模式下，允许增加自定义回退策略，新增类`FallbackPolicy.UserDefinedFallbackPolicy`。
