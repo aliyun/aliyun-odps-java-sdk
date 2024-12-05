@@ -32,13 +32,26 @@ public class LogView {
   private static final String HOST_DEFAULT = "http://logview.aliyun.com";
   private String logViewHost = "";
 
+  private static final String HOST_DEFAULT_V2 = "https://maxcompute.console.aliyun.com";
+
+  private int version = 1;
+
   Odps odps;
 
   public LogView(Odps odps) {
+    this(odps, 1);
+  }
+
+  public LogView(Odps odps, int version) {
     this.odps = odps;
+    this.version = version;
   }
 
   private String getLogviewHost() {
+    if (2 == version) {
+      return HOST_DEFAULT_V2;
+    }
+
     if (odps.getLogViewHost() != null) {
       return odps.getLogViewHost();
     } else {
@@ -93,14 +106,7 @@ public class LogView {
    * @throws OdpsException
    */
   public String generateLogView(Instance instance, long hours) throws OdpsException {
-    if (StringUtils.isNullOrEmpty(logViewHost)) {
-      logViewHost = getLogviewHost();
-    }
-
-    String token = generateInstanceToken(instance, hours);
-    String logview = logViewHost + "/logview/?h=" + odps.getEndpoint() + "&p="
-                     + instance.getProject() + "&i=" + instance.getId() + "&token=" + token;
-    return logview;
+    return generateLogView(instance, hours, null, null);
   }
 
   /**
@@ -116,14 +122,7 @@ public class LogView {
    * @throws OdpsException
    */
   public String generateSubQueryLogView(Instance instance, int queryId, long hours) throws OdpsException {
-    if (StringUtils.isNullOrEmpty(logViewHost)) {
-      logViewHost = getLogviewHost();
-    }
-
-    String token = generateInstanceToken(instance, hours);
-    String logview = logViewHost + "/logview/?h=" + odps.getEndpoint() + "&p="
-        + instance.getProject() + "&i=" + instance.getId() + "&subQuery=" + queryId +"&token=" + token;
-    return logview;
+    return generateLogView(instance, hours, queryId, null);
   }
 
   /**
@@ -137,14 +136,42 @@ public class LogView {
    *           同一个attach session 可以复用已有的token
    * @return  logview
    */
-  public String generateSubQueryLogView(Instance instance, int queryId, String token) {
+  public String generateSubQueryLogView(Instance instance, int queryId, String token)
+      throws OdpsException {
+    return generateLogView(instance, 24, queryId, token);
+  }
+
+  private String generateLogView(Instance instance, long hours, Integer queryId, String token)
+      throws OdpsException {
     if (StringUtils.isNullOrEmpty(logViewHost)) {
       logViewHost = getLogviewHost();
     }
 
-    String logview = logViewHost + "/logview/?h=" + odps.getEndpoint() + "&p="
-                     + instance.getProject() + "&i=" + instance.getId() + "&subQuery=" + queryId +"&token=" + token;
-    return logview;
+    if (1 == version) {
+      StringBuilder urlBuilder = new StringBuilder(logViewHost);
+      urlBuilder.append("/logview/?h=").append(odps.getEndpoint())
+          .append("&p=").append(instance.getProject())
+          .append("&i=").append(instance.getId());
+      if (queryId != null) {
+        urlBuilder.append("&subQuery=").append(queryId);
+      }
+      if (token == null) {
+        token = generateInstanceToken(instance, hours);
+      }
+      urlBuilder.append("&token=").append(token);
+      return urlBuilder.toString();
+    } else if (2 == version) {
+      String url = logViewHost + "/" + odps.projects().get().getRegionId()
+             + "/job-insights?h=" + odps.getEndpoint()
+             + "&p=" + odps.getDefaultProject()
+             + "&i=" + instance.getId();
+      if (queryId != null) {
+        url += "&subQuery=" + queryId;
+      }
+      return url;
+    } else {
+      throw new IllegalArgumentException("logview version must be 1 or 2");
+    }
   }
 
   /**

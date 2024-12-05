@@ -271,6 +271,9 @@ public class LotReducerUDTF extends LotTaskUDTF {
       int nodeId = Integer.parseInt(funtionName.split("_")[3]);
       Pipeline.TransformNode pipeNode = pipeline.getNode(nodeId);
       Column[] intermediateFields = (Column[]) ArrayUtils.addAll(pipeNode.getOutputKeySchema(), pipeNode.getOutputValueSchema());
+      if (nodeId == pipeline.getNodeNum() - 1) {
+        intermediateFields = appendMultiInsertField(intermediateFields);
+      }
       if (pipeNode.getPartitionerClass() != null) {
         intermediateFields = (Column[]) ArrayUtils.addAll(SchemaUtils.fromString("__partition_id__:BIGINT"), intermediateFields);
       }
@@ -304,6 +307,9 @@ public class LotReducerUDTF extends LotTaskUDTF {
       int nodeId = Integer.parseInt(funtionName.split("_")[3]);
       Pipeline.TransformNode pipeNode = pipeline.getNode(nodeId);
       Column[] intermediateFields = (Column[]) ArrayUtils.addAll(pipeNode.getOutputKeySchema(), pipeNode.getOutputValueSchema());
+      if (nodeId == pipeline.getNodeNum() - 1) {
+        intermediateFields = appendMultiInsertField(intermediateFields);
+      }
       if (pipeNode.getPartitionerClass() != null) {
         intermediateFields = (Column[]) ArrayUtils.addAll(SchemaUtils.fromString("__partition_id__:BIGINT"), intermediateFields);
       }
@@ -313,6 +319,18 @@ public class LotReducerUDTF extends LotTaskUDTF {
       }
     }
     return SchemaUtils.getTypeInfos(udtfCtx.getPackagedOutputSchema());
+  }
+
+  Column[] appendMultiInsertField(Column[] intermediateFields) {
+    if (intermediateFields == null || conf == null) {
+      return intermediateFields;
+    }
+    TableInfo[] tables = com.aliyun.odps.mapred.utils.OutputUtils.getTables(conf);
+    if (tables != null && tables.length > 1) {
+      intermediateFields = (Column[]) ArrayUtils.addAll(
+          intermediateFields, SchemaUtils.fromString("MULTIDEST_LABEL:STRING"));
+    }
+    return intermediateFields;
   }
 
   @Override

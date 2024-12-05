@@ -99,7 +99,8 @@ public class Table extends LazyLoad {
     /**
      * Materialized view
      */
-    MATERIALIZED_VIEW
+    MATERIALIZED_VIEW,
+    OBJECT_TABLE
   }
 
   /**
@@ -203,6 +204,7 @@ public class Table extends LazyLoad {
     boolean isMaterializedViewRewriteEnabled;
     boolean isMaterializedViewOutdated;
     boolean isExternalTable;
+    boolean isObjectTable;
     long life = -1L;
     long hubLifecycle = -1L;
     String viewText;
@@ -964,6 +966,17 @@ public class Table extends LazyLoad {
     }
   }
 
+  public boolean isObjectTable() {
+    if (isLoaded()) {
+      return model.isObjectTable;
+    } else if (model.type != null) {
+      return TableType.OBJECT_TABLE.equals(model.type);
+    } else {
+      lazyLoad();
+      return model.isObjectTable;
+    }
+  }
+
   /**
    * 获取视图的文本内容
    *
@@ -1408,6 +1421,10 @@ public class Table extends LazyLoad {
 
       if (tree.has("isExternal")) {
         model.isExternalTable = tree.get("isExternal").getAsBoolean();
+      }
+
+      if (tree.has("isObjectTable")) {
+        model.isObjectTable = tree.get("isObjectTable").getAsBoolean();
       }
 
       if (tree.has("lifecycle")) {
@@ -2119,7 +2136,7 @@ public class Table extends LazyLoad {
     if (isVirtualView() || isMaterializedView()) {
       target = "view";
     }
-    runSQL(String.format("ALTER %s %s CHANGE OWNER TO %s;", target, getCoordinate(), OdpsCommonUtils.quoteStr(newOwner)));
+    runSQL(String.format("ALTER %s %s CHANGEOWNER TO %s;", target, getCoordinate(), OdpsCommonUtils.quoteStr(newOwner)));
   }
 
   /**

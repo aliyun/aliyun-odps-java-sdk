@@ -438,6 +438,11 @@ public class Volumes implements Iterable<Volume> {
       params.put("autoMkDir", null);
     }
 
+    if (builder.accelerate != null && builder.accelerate) {
+      params = new HashMap<>();
+      params.put("accelerate", null);
+    }
+
     client.stringRequest(resource, "POST", params, headers, xml);
   }
 
@@ -449,6 +454,7 @@ public class Volumes implements Iterable<Volume> {
     String extLocation;
 
     Boolean autoMkdir;
+    Boolean accelerate;
 
 
     public VolumeBuilder() {
@@ -499,6 +505,22 @@ public class Volumes implements Iterable<Volume> {
 
       return this;
     }
+
+    /**
+     * Sets the acceleration state for the volume builder.
+     *
+     * @param accelerate Acceleratively download external volume through dragonfly.
+     *                   If true, acceleration will be enabled; 
+     *                   if false, acceleration will be disabled, default false.
+     *                   Set it to true when external volume file is too large.
+     * @return
+     */
+    public VolumeBuilder accelerate(boolean accelerate) {
+      this.accelerate = accelerate;
+
+      return this;
+    }
+
     /**
      * volume properties
      *

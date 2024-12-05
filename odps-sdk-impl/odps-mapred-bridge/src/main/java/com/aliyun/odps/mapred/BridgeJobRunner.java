@@ -393,6 +393,10 @@ public abstract class BridgeJobRunner extends Configured implements JobRunner, E
       if (mode != null) {
         job.set("odps.mr.project.conf", mode);
       }
+      String disable = metaExplorer.getProjectProperty("odps.mr.mode.disable");
+      if (disable != null) {
+        job.set("odps.mr.project.disable", disable);
+      }
     } catch (OdpsException ignore) {
     }
   }

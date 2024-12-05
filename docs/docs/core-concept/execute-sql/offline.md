@@ -126,9 +126,9 @@ public static List<Record> getResult(Instance instance,String taskName)throws Od
 
 ```java
 String taskName="test_select_sql_task";
-    Instance instance=SQLTask.run(odps,odps.getDefaultProject(),"SELECT * FROM test_select_sql_result;",taskName,null,null,null);
-    instance.waitForSuccess();
-    List<Record> records=SQLTask.getResult(instance,taskName);
+Instance instance=SQLTask.run(odps,odps.getDefaultProject(),"SELECT * FROM test_select_sql_result;",taskName,null,null,null);
+instance.waitForSuccess();
+List<Record> records=SQLTask.getResult(instance,taskName);
 ```
 
 #### 方法二：使用 Instance Tunnel 获取查询结果 （最多1w条）
@@ -161,15 +161,16 @@ public static List<Record> getResultByInstanceTunnel(Instance instance,String ta
 
 ```java
 String taskName="test_select_sql_task";
-    Instance instance=SQLTask.run(odps,odps.getDefaultProject(),"SELECT * FROM test_select_sql_result;",taskName,null,null,3);
-    instance.waitForSuccess();
-    List<Record> records=SQLTask.getResultByInstanceTunnel(instance,taskName,1000L);
+Instance instance=SQLTask.run(odps,odps.getDefaultProject(),"SELECT * FROM test_select_sql_result;",taskName,null,null,3);
+instance.waitForSuccess();
+List<Record> records=SQLTask.getResultByInstanceTunnel(instance,taskName,1000L);
 ```
 
 #### 方法三：使用 Instance Tunnel 分页获取查询结果
 
 使用`getResultSet`方法可以使用 instance tunnel 获取记录迭代器，从而可以让用户通过迭代器逐条获取记录来避免一次性获取全量数据到本地时撑爆内存的问题。
 ResultSet 实现了 `Iterator<Record>`, `Iterable<Record>` 接口，可以直接使用迭代器进行遍历。
+
 ::: note
 只有instance的owner本人可以使用本接口。
 :::
@@ -203,7 +204,7 @@ public static ResultSet getResultSet(Instance instance,String taskName,
 - `taskName`：任务名称。默认值为`AnonymousSQLTask`。
 - `limit`：获取结果的数量，默认值为`null`。
 - `limitHint`
-  ：是否限制结果数量（可选）。当limitHint为true时，结果最多只能获得1条记录，超过将截断，但无需进行逐表的权限检查；当limitHint为false时，没有记录数限制，可获取instance对应query结果集的全量数据。但前提是需要逐表（SQL中
+  ：是否限制结果数量（可选）。当limitHint为true时，结果最多只能获得1w条记录，超过将截断，但无需进行逐表的权限检查；当limitHint为false时，没有记录数限制，可获取instance对应query结果集的全量数据。但前提是需要逐表（SQL中
   涉及的表与视图）对用户进行权限检查，所以当查询涉及表所在project打开protection时，需要提前在policy中为相应表和视图添加exception，否则无权下载。
 - `tunnelEndpoint`：指定的tunnel endpoint（可选），默认通过 endpoint 和 project 自动路由。
 - `instanceTunnel`：允许用户使用自己创建的`InstanceTunnel`对象（可选）。
@@ -215,14 +216,14 @@ public static ResultSet getResultSet(Instance instance,String taskName,
 **示例代码**：
 
 ```java
-Instance instance=SQLTask.run(odps,"SELECT * FROM test_select_sql_result;");
-    instance.waitForSuccess();
-    ResultSet resultSet=SQLTask.getResultSet(instance);
+Instance instance = SQLTask.run(odps,"SELECT * FROM test_select_sql_result;");
+instance.waitForSuccess();
+ResultSet resultSet = SQLTask.getResultSet(instance);
 
-    while(resultSet.hasNext()){
-    Record record=resultSet.next();
+while(resultSet.hasNext()){
+    Record record = resultSet.next();
     System.out.println(record);
-    }
+}
 ```
 
 ## SQLExecutor

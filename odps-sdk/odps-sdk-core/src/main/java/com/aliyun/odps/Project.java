@@ -271,6 +271,18 @@ public class Project extends LazyLoad {
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String regionId;
 
+    @Element(name = "ClusterRole", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String clusterRole;
+
+    @Element(name = "JobDataPath", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String jobDataPath;
+
+    @Element(name = "ZoneId", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String zoneId;
+
     @Element(name = "IsDefaultInRegion", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String defaultInRegion;
@@ -288,6 +300,18 @@ public class Project extends LazyLoad {
 
     public String getRegionId() {
       return regionId;
+    }
+
+    public String getClusterRole() {
+      return clusterRole;
+    }
+
+    public String getJobDataPath() {
+      return jobDataPath;
+    }
+
+    public String getZoneId() {
+      return zoneId;
     }
 
     public boolean isDefaultInRegion() {

@@ -48,7 +48,6 @@ public class VolumeFSInputStream extends FSInputStream {
 
   private static final Logger LOG = LoggerFactory.getLogger(VolumeFSInputStream.class);
 
-
   private VolumeFSClient volumeFSClient;
 
   private String path;

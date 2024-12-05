@@ -55,6 +55,8 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
 
     protected transient EnvironmentSettings settings;
 
+    protected transient Predicate filterPredicate;
+
     protected String sessionId;
 
     protected TableIdentifier identifier;
@@ -70,7 +72,6 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
     protected String errorMessage;
 
     protected Set<DataFormat> supportDataFormats;
-    protected Predicate filterPredicate;
 
     public TableBatchReadSessionBase(TableIdentifier identifier,
                                      List<PartitionSpec> requiredPartitions,

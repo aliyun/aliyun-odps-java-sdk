@@ -63,6 +63,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   private final boolean odpsNamespaceSchema;
   private final String taskName;
   private final SQLExecutorPool pool;
+  private final int logviewVersion;
 
   public SQLExecutorImpl(SQLExecutorBuilder builder)
       throws OdpsException {
@@ -93,6 +94,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.useCommandApi = builder.isUseCommandApi();
     this.taskName = StringUtils.isNullOrEmpty(builder.getTaskName()) ? DEFAULT_TASK_NAME : builder.getTaskName();
     this.pool = builder.getPool();
+    this.logviewVersion = builder.getLogviewVersion();
 
     // For the job resumed from the specified instance job, we assume that it is a select job,
     // which will cause an error to be reported during getResult for non-select jobs.
@@ -192,7 +194,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   public String getLogView() {
     try {
       if (queryInfo != null && queryInfo.getInstance() != null) {
-        return new LogView(odps).generateLogView(queryInfo.getInstance(), 7 * 24);
+        return new LogView(odps, logviewVersion).generateLogView(queryInfo.getInstance(), 7 * 24);
       }
     } catch (OdpsException e) {
       return null;

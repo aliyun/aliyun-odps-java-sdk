@@ -705,6 +705,13 @@ public class SQLTask extends Task {
     return run(odps, project, sql, taskName, hints, aliases, priority, "sql", null);
   }
 
+  @Deprecated
+  public static Instance run(Odps odps, String project, String sql,
+                             String taskName, Map<String, String> hints,
+                             Map<String, String> aliases, int priority) throws OdpsException {
+    return run(odps, project, sql, taskName, hints, aliases, priority, "sql", null);
+  }
+
   /**
    * 运行SQL
    *

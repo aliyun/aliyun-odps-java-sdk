@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import com.aliyun.odps.data.GenerateExpression;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.utils.OdpsCommonUtils;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
@@ -79,8 +80,8 @@ public class TruncTime implements GenerateExpression {
 
   @Override
   public String toString() {
-    // eg. "trunc_time(d, 'day')"
-    return NAME + "(" + dateColumnName + ", '" + datePart.name() + "')";
+    // eg. "trunc_time(`d`, 'day')"
+    return NAME + "(" + OdpsCommonUtils.quoteRef(dateColumnName) + ", '" + datePart.name() + "')";
   }
 
   @Override

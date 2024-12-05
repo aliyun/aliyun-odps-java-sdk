@@ -679,7 +679,6 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     params.put("instancesummary", null);
     params.put("taskname", taskName);
     Response result = client.request(getResource(), "GET", params, null, null);
-    System.out.println(new String(result.getBody()));
     TaskSummary summary = null;
     try {
       Gson gson = GsonObjectBuilder.get();

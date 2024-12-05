@@ -22,10 +22,9 @@
  */
 package com.aliyun.odps;
 
-import com.aliyun.odps.utils.StringUtils;
-
 import java.util.Map;
-import java.util.TreeMap;
+
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * ProjectFilter用于查询所有项目时根据条件过滤表
@@ -67,6 +66,8 @@ public class ProjectFilter {
   private String quotaType = null;
 
   private String quotaName = null;
+
+  private Boolean enableDr = null;
   /**
    * 获得表所有者
    *
@@ -210,6 +211,18 @@ public class ProjectFilter {
   }
 
   /**
+   * 判断是否开启了存储容灾 "odps.project.dr.enable" == "true"
+   * @return
+   */
+  public Boolean getEnableDr() {
+    return enableDr;
+  }
+
+  public void setEnableDr(Boolean enableDr) {
+    this.enableDr = enableDr;
+  }
+
+  /**
    * Put this to @params as key-value. Replace value if key exists and value not empty.
    */
   public void addTo(Map<String, String> params) {
@@ -239,6 +252,9 @@ public class ProjectFilter {
     }
     if (!StringUtils.isNullOrEmpty(name)) {
       params.put("name", name);
+    }
+    if (enableDr != null) {
+      params.put("enabledr", String.valueOf(enableDr));
     }
   }
 }

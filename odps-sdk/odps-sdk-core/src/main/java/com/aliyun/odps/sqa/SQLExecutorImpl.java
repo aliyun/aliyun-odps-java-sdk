@@ -98,6 +98,8 @@ public class SQLExecutorImpl implements SQLExecutor {
   private boolean odpsNamespaceSchema = false;
   private String tunnelEndpoint;
 
+  private int logviewVersion;
+
   enum TunnelRetryStatus {
     NEED_RETRY,
     NON_SELECT_QUERY,
@@ -152,7 +154,8 @@ public class SQLExecutorImpl implements SQLExecutor {
       int tunnelSocketTimeout,
       int tunnelReadTimeout,
       boolean sessionSupportNonSelect,
-      Integer offlineJobPriority) throws OdpsException {
+      Integer offlineJobPriority,
+      int logviewVersion) throws OdpsException {
     this.properties.putAll(properties);
     this.serviceName = serviceName;
     this.taskName = taskName;
@@ -170,6 +173,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.commandApi = new CommandApi(odps);
     this.sessionSupportNonSelect = sessionSupportNonSelect;
     this.offlineJobPriority = offlineJobPriority;
+    this.logviewVersion = logviewVersion;
     if (timeout != null) {
       this.attachTimeout = timeout;
     }
@@ -321,7 +325,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         return null;
       }
       try {
-        return new LogView(odps).generateLogView(queryInfo.getCommandInfo().getInstance(), 7 * 24);
+        return new LogView(odps, logviewVersion).generateLogView(queryInfo.getCommandInfo().getInstance(), 7 * 24);
       } catch (Exception e) {
         return null;
       }
@@ -332,14 +336,14 @@ public class SQLExecutorImpl implements SQLExecutor {
       try {
         if (queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE)) {
           if (session != null) {
-            return new LogView(odps)
+            return new LogView(odps, logviewVersion)
                 .generateSubQueryLogView(queryInfo.getInstance(), queryInfo.getId(), session.getToken());
           } else {
-            return new LogView(odps)
+            return new LogView(odps, logviewVersion)
                 .generateSubQueryLogView(queryInfo.getInstance(), queryInfo.getId(), 7 * 24);
           }
         } else {
-          return new LogView(odps).generateLogView(queryInfo.getInstance(), 7 * 24);
+          return new LogView(odps, logviewVersion).generateLogView(queryInfo.getInstance(), 7 * 24);
         }
       } catch (Exception e) {
         return null;
@@ -347,7 +351,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     } else if (session != null) {
       try {
         // no query running, return session logview if have
-        return session.getLogView();
+        return session.getLogView(logviewVersion);
       } catch (Exception e) {
         return null;
       }
@@ -1324,7 +1328,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         offlineJobPriority);
 
     queryInfo.setInstance(instance, ExecuteMode.OFFLINE,
-        new LogView(odps).generateLogView(instance, 7 * 24), rerunMsg);
+        new LogView(odps, logviewVersion).generateLogView(instance, 7 * 24), rerunMsg);
   }
 
   private void runQueryInternal(ExecuteMode executeMode, String rerunMsg, boolean isRerun) throws OdpsException {

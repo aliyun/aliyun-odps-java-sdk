@@ -112,6 +112,13 @@ public class Session {
     return logView;
   }
 
+  public String getLogView(int version) throws OdpsException {
+    if (logView == null && odps != null) {
+      logView = new LogView(odps, version).generateLogView(instance, 7 * 24 /* by default one week. can be set by config */);
+    }
+    return logView;
+  }
+
   public void setLogView(String logView) {
     this.logView = logView;
   }

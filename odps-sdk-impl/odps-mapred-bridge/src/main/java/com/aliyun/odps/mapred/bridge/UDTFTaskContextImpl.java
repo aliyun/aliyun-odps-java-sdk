@@ -390,7 +390,8 @@ public abstract class UDTFTaskContextImpl implements TaskContext {
   }
 
   private void resolveSqlModeNodeIndex(String exeMode, String tid) {
-    if (exeMode != null && exeMode.equalsIgnoreCase("lot")) {
+    if (exeMode != null && exeMode.equalsIgnoreCase("lot") &&
+        (conf.get("odps.mr.project.disable") == null || !Boolean.parseBoolean(conf.get("odps.mr.project.disable")))) {
       return;
     }
     TableInfo[] infos = InputUtils.getTables(conf);
