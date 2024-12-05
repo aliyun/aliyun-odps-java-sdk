@@ -20,7 +20,11 @@
 
 ## [0.50.6-public] - 2024-11-27
 ### Features
-- **Logview** Added support for Logview V2, which ensures data security. It can be created using `new Logview(odps, 2)`, and SQLExecutor specifies the version through the `logviewVersion` method.
+
+- **Logview** Added support for Logview V2, details see [November 14, 2024 (UTC+8): Notice on the security upgrade for MaxCompute LogView
+  ](https://www.alibabacloud.com/help/en/maxcompute/product-overview/2024-service-notices). It can be created
+  using `new Logview(odps, 2)`, and SQLExecutor specifies the version through the `logviewVersion`
+  method.
 
 ## [0.51.0-public.rc1] - 2024-11-22
 ### Features and Changes
@@ -53,7 +57,7 @@
 ## [0.51.0-public.rc0] - 2024-11-18
 
 ### Features
-- **GenerateExpression** added support for generating expression lists for partition columns, along with the first generated expression `TruncTime`. For usage, please refer to [Example]()
+- **GenerateExpression** added support for generating expression lists for partition columns, along with the first generated expression `TruncTime`. For usage, please refer to [Example](https://github.com/aliyun/aliyun-odps-java-sdk/blob/v0.51.0-public/odps-examples/basic-examples/src/main/java/GenerateExpressionSample.java)
 - **UpsertStream** supports writing values with primary keys of type `TIMESTAMP_NTZ`
 - **Table** added new methods for querying CDC-related data: `getCdcSize()`, `getCdcRecordNum()`, `getCdcLatestVersion()`, `getCdcLatestTimestamp()`
 - **SQLExecutor** MCQA 2.0 job supports retrieving InstanceProgress information

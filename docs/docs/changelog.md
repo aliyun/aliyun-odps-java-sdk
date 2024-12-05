@@ -25,7 +25,7 @@ sidebar_position: 6
 > **注意：** 此版本还包括“0.51.0-public.rc0”和“0.51.0-public.rc1”的所有更改。
 
 ## [0.50.6-public] - 2024-11-27
-- **Logview** 新增对 Logview V2 的支持，V2 版本保障了数据安全。可以通过 `new Logview(odps, 2)` 创建，SQLExecutor 通过 `logviewVersion` 方法指定。
+- **Logview** 新增对 Logview V2 的支持，V2 版本保障了数据安全，更多信息参考 [2024年11月14日-MaxCompute Logview安全升级](https://help.aliyun.com/zh/maxcompute/product-overview/2024-service-notices) 。可以通过 `new Logview(odps, 2)` 创建，SQLExecutor 通过 `logviewVersion` 方法指定。
 
 ## [0.51.0-public.rc1] - 2024-11-22
 ### 功能与变更
@@ -57,7 +57,7 @@ sidebar_position: 6
 ## [0.51.0-public.rc0] - 2024-11-18
 
 ### 功能
-- **GenerateExpression** 增加对分区列的生成列表达式功能的支持，和第一个生成列表达式`TruncTime`，使用方式请参考[Example]()
+- **GenerateExpression** 增加对分区列的生成列表达式功能的支持，和第一个生成列表达式`TruncTime`，使用方式请参考[Example](https://github.com/aliyun/aliyun-odps-java-sdk/blob/v0.51.0-public/odps-examples/basic-examples/src/main/java/GenerateExpressionSample.java)
 - **UpsertStream** 支持写入主键为 `TIMESTAMP_NTZ` 类型的值
 - **Table** 新增对 cdc 相关数据的查询，`getCdcSize()`，`getCdcRecordNum()`，`getCdcLatestVersion()`，`getCdcLatestTimestamp()`
 - **SQLExecutor** MCQA 2.0 作业支持获取 InstanceProgress 信息
