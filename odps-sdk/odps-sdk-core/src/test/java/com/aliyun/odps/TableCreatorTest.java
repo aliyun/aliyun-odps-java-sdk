@@ -30,7 +30,7 @@ public class TableCreatorTest {
         odps.tables().newTableCreator("testProject", "testCreateAutoPartitionTable", schema)
             .ifNotExists().getSQL();
     Assert.assertEquals(
-        "CREATE TABLE IF NOT EXISTS `testProject`.`testCreateAutoPartitionTable` (`c1` DATETIME) AUTO PARTITIONED BY (trunc_time(c1, 'DAY') AS `p1`);",
+        "CREATE TABLE IF NOT EXISTS `testProject`.`testCreateAutoPartitionTable` (`c1` DATETIME) AUTO PARTITIONED BY (trunc_time(`c1`, 'DAY') AS `p1`);",
         sql);
   }
 
