@@ -9,13 +9,13 @@ public class NameSpaceSchemaUtils {
 
     public static String getFullName(String project, String schema, String objectName) {
         if (isSchemaEnabled(schema)) {
-            return OdpsCommonUtils.quoteRef(project) + "." + OdpsCommonUtils.quoteRef(schema) + "."
-                   + OdpsCommonUtils.quoteRef(objectName);
+            return CommonUtils.quoteRef(project) + "." + CommonUtils.quoteRef(schema) + "."
+                   + CommonUtils.quoteRef(objectName);
         } else {
             // two-tier                 => a.b
             // three-tier not reload    => a.null.b
             // three-tier reloaded      => a.default.b
-            return OdpsCommonUtils.quoteRef(project) + "." + OdpsCommonUtils.quoteRef(objectName);
+            return CommonUtils.quoteRef(project) + "." + CommonUtils.quoteRef(objectName);
         }
     }
 

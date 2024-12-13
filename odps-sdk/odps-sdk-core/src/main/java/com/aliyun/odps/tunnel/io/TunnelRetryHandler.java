@@ -38,7 +38,7 @@ import com.aliyun.odps.tunnel.TunnelException;
  */
 public class TunnelRetryHandler {
 
-    private RetryPolicy defaultRetryPolicy;
+    protected RetryPolicy defaultRetryPolicy;
     private RestClient.RetryLogger retryLogger;
 
     public TunnelRetryHandler() {
@@ -80,7 +80,7 @@ public class TunnelRetryHandler {
         }
     }
 
-    private RetryPolicy getRetryPolicy(Integer errorCode) {
+    protected RetryPolicy getRetryPolicy(Integer errorCode) {
         if (errorCode == null) {
             return defaultRetryPolicy;
         }

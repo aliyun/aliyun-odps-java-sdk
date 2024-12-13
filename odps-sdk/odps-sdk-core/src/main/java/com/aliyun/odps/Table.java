@@ -59,6 +59,7 @@ import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.utils.ColumnUtils;
+import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.OdpsCommonUtils;
 import com.aliyun.odps.utils.StringUtils;
@@ -327,7 +328,7 @@ public class Table extends LazyLoad {
         stringBuilder.append(" RANGE CLUSTERED BY ");
       }
       stringBuilder.append("(").append(
-              clusterCols.stream().map(OdpsCommonUtils::quoteRef).collect(Collectors.joining(", ")))
+              clusterCols.stream().map(CommonUtils::quoteRef).collect(Collectors.joining(", ")))
           .append(")");
       if (sortCols != null && sortCols.size() > 0) {
         stringBuilder.append(" SORTED BY ").append("(")
@@ -373,7 +374,7 @@ public class Table extends LazyLoad {
 
     @Override
     public String toString() {
-      return String.format("%s %s", OdpsCommonUtils.quoteRef(name), order);
+      return String.format("%s %s", CommonUtils.quoteRef(name), order);
     }
   }
 
@@ -2136,14 +2137,14 @@ public class Table extends LazyLoad {
     if (isVirtualView() || isMaterializedView()) {
       target = "view";
     }
-    runSQL(String.format("ALTER %s %s CHANGEOWNER TO %s;", target, getCoordinate(), OdpsCommonUtils.quoteStr(newOwner)));
+    runSQL(String.format("ALTER %s %s CHANGEOWNER TO %s;", target, getCoordinate(), CommonUtils.quoteStr(newOwner)));
   }
 
   /**
    *  ChangeComment Modify the comment content of the table.
    */
   public void changeComment(String newComment) throws OdpsException {
-    runSQL(String.format("ALTER TABLE %s SET COMMENT %s;", getCoordinate(), OdpsCommonUtils.quoteStr(newComment)));
+    runSQL(String.format("ALTER TABLE %s SET COMMENT %s;", getCoordinate(), CommonUtils.quoteStr(newComment)));
   }
 
   /**
@@ -2168,7 +2169,7 @@ public class Table extends LazyLoad {
     if (isVirtualView()) {
       target = "view";
     }
-    runSQL(String.format("ALTER %s %s RENAME TO %s;", target, getCoordinate(), OdpsCommonUtils.quoteRef(newName)));
+    runSQL(String.format("ALTER %s %s RENAME TO %s;", target, getCoordinate(), CommonUtils.quoteRef(newName)));
     model.name = newName;
   }
 
@@ -2189,9 +2190,9 @@ public class Table extends LazyLoad {
     StringJoiner joiner = new StringJoiner(", ");
     for (Column column : columns) {
       StringBuilder columnDef = new StringBuilder();
-      columnDef.append(String.format("%s %s", OdpsCommonUtils.quoteRef(column.getName()), column.getTypeInfo().getTypeName()));
+      columnDef.append(String.format("%s %s", CommonUtils.quoteRef(column.getName()), column.getTypeInfo().getTypeName()));
       if (column.getComment() != null && !column.getComment().isEmpty()) {
-        columnDef.append(String.format(" COMMENT %s", OdpsCommonUtils.quoteStr(column.getComment())));
+        columnDef.append(String.format(" COMMENT %s", CommonUtils.quoteStr(column.getComment())));
       }
       joiner.add(columnDef.toString());
     }
@@ -2209,7 +2210,7 @@ public class Table extends LazyLoad {
   private String generateDropColumnsSQL(List<String> columnNames) {
     StringJoiner joiner = new StringJoiner(", ");
     for (String columnName : columnNames) {
-      joiner.add(OdpsCommonUtils.quoteRef(columnName));
+      joiner.add(CommonUtils.quoteRef(columnName));
     }
     return String.format("ALTER TABLE %s DROP COLUMNS %s;", getCoordinate(), joiner);
   }

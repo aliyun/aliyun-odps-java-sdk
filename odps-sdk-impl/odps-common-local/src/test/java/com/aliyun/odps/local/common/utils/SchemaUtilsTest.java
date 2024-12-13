@@ -1,14 +1,9 @@
 package com.aliyun.odps.local.common.utils;
 
-import java.util.List;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
-import com.aliyun.odps.local.common.AnyTypeInfo;
 import com.aliyun.odps.local.common.ColumnOrConstant;
+import com.aliyun.odps.local.common.AnyTypeInfo;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.CharTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
@@ -16,6 +11,9 @@ import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.type.TypeInfoParser;
+import java.util.List;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class SchemaUtilsTest {
 
@@ -37,11 +35,7 @@ public class SchemaUtilsTest {
     Assert.assertTrue(typeInfos.get(0) instanceof CharTypeInfo);
 
     String str = SchemaUtils.toString(cols);
-    String
-        expect =
-        "c1:MAP<BIGINT,STRING>,c2:ARRAY<INT>,c3:STRUCT<`name`:CHAR(10),`age`:INT,"
-        + "`parents`:MAP<VARCHAR(20),SMALLINT>,`hehe`:DECIMAL(20,10),`salary`:FLOAT,`hobbies`:ARRAY<VARCHAR(100)>>";
-    Assert.assertEquals(expect, str);
+    Assert.assertEquals(columnStr, str);
   }
 
   @Test

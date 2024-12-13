@@ -134,23 +134,25 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                         + "%s", identifier.toString(), request));
             }
 
-            Response resp = retryHandler.executeWithRetry(() -> restClient.stringRequest(
-                    ResourceBuilder.buildTableSessionResource(
-                            ConfigConstants.VERSION_1,
-                            identifier.getProject(),
-                            identifier.getSchema(),
-                            identifier.getTable(),
-                            null),
-                    "POST", params, headers, request));
-
-            String response;
-            if (resp.isOK()) {
-                response = new String(resp.getBody());
-                loadResultFromJson(response);
-            } else {
-                throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
-                        new ByteArrayInputStream(resp.getBody()), resp.getStatus());
-            }
+            String response = retryHandler.executeWithRetry(() -> {
+                Response resp = restClient.stringRequest(
+                        ResourceBuilder.buildTableSessionResource(
+                                ConfigConstants.VERSION_1,
+                                identifier.getProject(),
+                                identifier.getSchema(),
+                                identifier.getTable(),
+                                null),
+                        "POST", params, headers, request);
+                String body;
+                if (resp.isOK()) {
+                    body = new String(resp.getBody());
+                    loadResultFromJson(body);
+                    return body;
+                } else {
+                    throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
+                            new ByteArrayInputStream(resp.getBody()), resp.getStatus());
+                }
+            });
 
             if (sessionStatus != SessionStatus.NORMAL) {
                 long asyncIntervalInMills = HttpUtils.getAsyncIntervalInMills(settings);

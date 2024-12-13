@@ -177,5 +177,13 @@ public class CommonUtils {
     }
   }
 
+  public static String quoteRef(String str) {
+    str = str.replace("`", "``");
+    return "`" + str + "`";
+  }
 
+  public static String quoteStr(String str) {
+    str = str.replace("'", "\\'");
+    return "'" + str + "'";
+  }
 }

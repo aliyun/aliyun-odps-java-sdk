@@ -115,28 +115,29 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                         + "Session request:\n"
                         + "%s", identifier.toString(), req));
             }
-
-            Response resp = retryHandler.executeWithRetry(() -> restClient.stringRequest(
-                    ResourceBuilder.buildTableSessionResource(
-                            ConfigConstants.VERSION_1,
-                            identifier.getProject(),
-                            identifier.getSchema(),
-                            identifier.getTable(),
-                            null),
-                    "POST", params, headers, req));
-
-            if (resp.isOK()) {
-                String response = new String(resp.getBody());
-                if (logger.isDebugEnabled()) {
-                    logger.debug(String.format("Write table '%s'.\n"
-                            + "Session response:\n"
-                            + "%s", identifier.toString(), response));
-                }
-                loadResultFromJson(response);
-            } else {
-                throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
-                        new ByteArrayInputStream(resp.getBody()), resp.getStatus());
-            }
+            retryHandler.executeWithRetry(() -> {
+                        Response resp = restClient.stringRequest(ResourceBuilder.buildTableSessionResource(
+                                        ConfigConstants.VERSION_1,
+                                        identifier.getProject(),
+                                        identifier.getSchema(),
+                                        identifier.getTable(),
+                                        null),
+                                "POST", params, headers, req);
+                        if (resp.isOK()) {
+                            String response = new String(resp.getBody());
+                            if (logger.isDebugEnabled()) {
+                                logger.debug(String.format("Write table '%s'.\n"
+                                        + "Session response:\n"
+                                        + "%s", identifier.toString(), response));
+                            }
+                            loadResultFromJson(response);
+                        } else {
+                            throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
+                                    new ByteArrayInputStream(resp.getBody()), resp.getStatus());
+                        }
+                        return null;
+                    }
+            );
         } catch (Exception e) {
             throw new IOException(e.getMessage(), e);
         } finally {
@@ -233,22 +234,24 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                         + "%s", identifier.toString(), commitRequest));
             }
 
-            Response resp = retryHandler.executeWithRetry(
-                    () -> restClient.stringRequest(ResourceBuilder.buildTableCommitResource(
-                                    VERSION_1,
-                                    identifier.getProject(),
-                                    identifier.getSchema(),
-                                    identifier.getTable()),
-                            "POST", params, headers, commitRequest));
-
-            String response;
-            if (!resp.isOK()) {
-                throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
-                        new ByteArrayInputStream(resp.getBody()), resp.getStatus());
-            } else {
-                response = new String(resp.getBody());
-                loadResultFromJson(response);
-            }
+            String response = retryHandler.executeWithRetry(() -> {
+                        Response resp = restClient.stringRequest(ResourceBuilder.buildTableCommitResource(
+                                        VERSION_1,
+                                        identifier.getProject(),
+                                        identifier.getSchema(),
+                                        identifier.getTable()),
+                                "POST", params, headers, commitRequest);
+                        String body;
+                        if (!resp.isOK()) {
+                            throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
+                                    new ByteArrayInputStream(resp.getBody()), resp.getStatus());
+                        } else {
+                            body = new String(resp.getBody());
+                            loadResultFromJson(body);
+                        }
+                        return body;
+                    }
+            );
 
             if (sessionStatus != SessionStatus.COMMITTED) {
                 long asyncIntervalInMills = HttpUtils.getAsyncIntervalInMills(settings);

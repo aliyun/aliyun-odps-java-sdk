@@ -5,14 +5,16 @@ import java.util.List;
 import java.util.Objects;
 
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Odps struct 类型
- *
+ * <p>
  * Created by zhenhong.gzh on 16/7/8.
  */
 class SimpleStructTypeInfo implements StructTypeInfo {
+
   private static final long serialVersionUID = 1L;
   private final List<String> fieldNames;
   private final List<TypeInfo> fieldTypeInfos;
@@ -21,10 +23,8 @@ class SimpleStructTypeInfo implements StructTypeInfo {
   /**
    * 创建 odps struct 类型
    *
-   * @param names
-   *     struct 中字段的名称列表
-   * @param typeInfos
-   *     struct 中字段的类型列表
+   * @param names     struct 中字段的名称列表
+   * @param typeInfos struct 中字段的类型列表
    */
   SimpleStructTypeInfo(List<String> names, List<TypeInfo> typeInfos) {
     validateParameters(names, typeInfos);
@@ -46,6 +46,11 @@ class SimpleStructTypeInfo implements StructTypeInfo {
 
   @Override
   public String getTypeName() {
+    return getTypeName(false);
+  }
+
+  @Override
+  public String getTypeName(boolean quote) {
     StringBuilder stringBuilder = new StringBuilder(getOdpsType().name());
     stringBuilder.append("<");
 
@@ -53,9 +58,17 @@ class SimpleStructTypeInfo implements StructTypeInfo {
       if (i > 0) {
         stringBuilder.append(",");
       }
-      stringBuilder.append("`").append(fieldNames.get(i)).append("`");
+      if (quote) {
+        stringBuilder.append(CommonUtils.quoteRef(fieldNames.get(i)));
+      } else {
+        stringBuilder.append(fieldNames.get(i));
+      }
       stringBuilder.append(":");
-      stringBuilder.append(fieldTypeInfos.get(i).getTypeName());
+      if (quote && fieldTypeInfos.get(i) instanceof SimpleStructTypeInfo) {
+        stringBuilder.append(((SimpleStructTypeInfo) fieldTypeInfos.get(i)).getTypeName(true));
+      } else {
+        stringBuilder.append(fieldTypeInfos.get(i).getTypeName());
+      }
     }
 
     stringBuilder.append(">");

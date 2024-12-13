@@ -17,15 +17,6 @@ import com.aliyun.odps.type.TypeInfoFactory;
  */
 public class OdpsCommonUtils {
 
-  public static String quoteRef(String str) {
-    return "`" + str + "`";
-  }
-
-  public static String quoteStr(String str) {
-    str = str.replace("'", "\\'");
-    return "'" + str + "'";
-  }
-
   /**
    * Infer the Odps type of object based on its Java Type
    * <p>

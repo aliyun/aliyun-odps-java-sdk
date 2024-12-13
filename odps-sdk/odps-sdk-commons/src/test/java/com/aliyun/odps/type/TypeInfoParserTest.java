@@ -245,7 +245,7 @@ public class TypeInfoParserTest {
 
     Assert.assertTrue(typeInfo instanceof MapTypeInfo);
     Assert.assertEquals(typeInfo.getOdpsType(), OdpsType.MAP);
-    Assert.assertEquals(typeInfo.getTypeName(), "MAP<DECIMAL,STRUCT<`name`:STRING,`age`:INT>>");
+    Assert.assertEquals(typeInfo.getTypeName(), "MAP<DECIMAL,STRUCT<name:STRING,age:INT>>");
     Assert.assertEquals(((MapTypeInfo) typeInfo).getKeyTypeInfo(), TypeInfoFactory.DECIMAL);
     Assert.assertEquals(((MapTypeInfo) typeInfo).getValueTypeInfo().getOdpsType(), OdpsType.STRUCT);
     Assert.assertTrue(((MapTypeInfo) typeInfo).getValueTypeInfo() instanceof StructTypeInfo);
@@ -343,12 +343,12 @@ public class TypeInfoParserTest {
     name = "struct< a : int , un  :     char(10)>";
     typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
     Assert.assertTrue(typeInfo instanceof  StructTypeInfo);
-    Assert.assertEquals(typeInfo.getTypeName(), "STRUCT<`a`:INT,`un`:CHAR(10)>");
+    Assert.assertEquals(typeInfo.getTypeName(), "STRUCT<a:INT,un:CHAR(10)>");
 
     name = "struct< a b : int, un xs:     char(20)>";
     typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
     Assert.assertTrue(typeInfo instanceof StructTypeInfo);
-    Assert.assertEquals(typeInfo.getTypeName(), "STRUCT<`a b`:INT,`un xs`:CHAR(20)>");
+    Assert.assertEquals(typeInfo.getTypeName(), "STRUCT<a b:INT,un xs:CHAR(20)>");
     Assert.assertEquals(((StructTypeInfo)typeInfo).getFieldNames().get(0), "a b");
   }
 }

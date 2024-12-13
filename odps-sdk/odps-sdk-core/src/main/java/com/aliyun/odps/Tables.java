@@ -39,7 +39,10 @@ import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
+import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.ExceptionUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
 import com.aliyun.odps.utils.OdpsCommonUtils;
@@ -1262,10 +1265,10 @@ public class Tables implements Iterable<Table> {
             sql.append(" (");
             for (int i = 0; i < columns.size(); i++) {
               Column column = columns.get(i);
-              sql.append(OdpsCommonUtils.quoteRef(column.getName())).append(" ")
-                  .append(column.getTypeInfo().getTypeName());
+              sql.append(CommonUtils.quoteRef(column.getName())).append(" ")
+                  .append(getTypeName(column.getTypeInfo()));
               if (column.getComment() != null) {
-                sql.append(" COMMENT ").append(OdpsCommonUtils.quoteStr(column.getComment()));
+                sql.append(" COMMENT ").append(CommonUtils.quoteStr(column.getComment()));
               }
               if (i + 1 < columns.size()) {
                 sql.append(',');
@@ -1302,30 +1305,30 @@ public class Tables implements Iterable<Table> {
       sql.append(" (");
       for (int i = 0; i < columns.size(); i++) {
         Column column = columns.get(i);
-        sql.append(OdpsCommonUtils.quoteRef(column.getName())).append(" ")
-            .append(column.getTypeInfo().getTypeName());
+        sql.append(CommonUtils.quoteRef(column.getName())).append(" ")
+            .append(getTypeName(column.getTypeInfo()));
         if (!column.isNullable()) {
           sql.append(" NOT NULL");
         }
         if (StringUtils.isNotBlank(column.getDefaultValue())) {
-          sql.append(" DEFAULT ").append(OdpsCommonUtils.quoteStr(column.getDefaultValue()));
+          sql.append(" DEFAULT ").append(CommonUtils.quoteStr(column.getDefaultValue()));
         }
         if (column.getComment() != null) {
-          sql.append(" COMMENT ").append(OdpsCommonUtils.quoteStr(column.getComment()));
+          sql.append(" COMMENT ").append(CommonUtils.quoteStr(column.getComment()));
         }
         if (i + 1 < columns.size()) {
           sql.append(',');
         }
       }
       if (primaryKeys != null && !primaryKeys.isEmpty()) {
-        sql.append(", PRIMARY KEY(").append(primaryKeys.stream().map(OdpsCommonUtils::quoteRef).collect(
+        sql.append(", PRIMARY KEY(").append(primaryKeys.stream().map(CommonUtils::quoteRef).collect(
             Collectors.joining(","))).append(")");
       }
       sql.append(')');
 
       // [comment <table_comment>]
       if (comment != null) {
-        sql.append(" COMMENT ").append(OdpsCommonUtils.quoteStr(comment)).append(" ");
+        sql.append(" COMMENT ").append(CommonUtils.quoteStr(comment)).append(" ");
       }
 
       // [partitioned by (<col_name> <data_type> [comment <col_comment>], ...)]
@@ -1336,16 +1339,16 @@ public class Tables implements Iterable<Table> {
         // so here we only take the first column to check to determine whether the table is an auto-partition table.
         if (partitionColumns.get(0).getGenerateExpression() != null) {
           sql.append(" AUTO PARTITIONED BY (").append(partitionColumns.get(0).getGenerateExpression())
-              .append(" AS ").append(OdpsCommonUtils.quoteRef(partitionColumns.get(0).getName()))
+              .append(" AS ").append(CommonUtils.quoteRef(partitionColumns.get(0).getName()))
               .append(")");
         } else {
           sql.append(" PARTITIONED BY (");
           for (int i = 0; i < partitionColumns.size(); i++) {
             Column column = partitionColumns.get(i);
-            sql.append(OdpsCommonUtils.quoteRef(column.getName())).append(" ")
-                .append(column.getTypeInfo().getTypeName());
+            sql.append(CommonUtils.quoteRef(column.getName())).append(" ")
+                .append(getTypeName(column.getTypeInfo()));
             if (column.getComment() != null) {
-              sql.append(" COMMENT ").append(OdpsCommonUtils.quoteStr(column.getComment()));
+              sql.append(" COMMENT ").append(CommonUtils.quoteStr(column.getComment()));
             }
             if (i + 1 < partitionColumns.size()) {
               sql.append(',');
@@ -1360,7 +1363,7 @@ public class Tables implements Iterable<Table> {
       }
       // [stored by StorageHandler]
       if (storageHandler != null) {
-        sql.append(" STORED BY ").append(OdpsCommonUtils.quoteStr(storageHandler));
+        sql.append(" STORED BY ").append(CommonUtils.quoteStr(storageHandler));
       }
       // [with serdeproperties (options)]
       if (serdeProperties != null && !serdeProperties.isEmpty()) {
@@ -1368,7 +1371,7 @@ public class Tables implements Iterable<Table> {
         int index = 0;
         for (Map.Entry<String, String> entry : serdeProperties.entrySet()) {
           index++;
-          sql.append(OdpsCommonUtils.quoteStr(entry.getKey())).append("=").append(OdpsCommonUtils.quoteStr(entry.getValue()));
+          sql.append(CommonUtils.quoteStr(entry.getKey())).append("=").append(CommonUtils.quoteStr(entry.getValue()));
           if (index != serdeProperties.size()) {
             sql.append(" , ");
           }
@@ -1377,18 +1380,18 @@ public class Tables implements Iterable<Table> {
       }
       // [location <osslocation>]
       if (!StringUtils.isNullOrEmpty(location)) {
-        sql.append(" LOCATION ").append(OdpsCommonUtils.quoteStr(location));
+        sql.append(" LOCATION ").append(CommonUtils.quoteStr(location));
       }
       // [USING '<resource_name>']
       if (usingResources != null && !usingResources.isEmpty()) {
-        sql.append(" USING ").append(OdpsCommonUtils.quoteStr(String.join(",", usingResources)));
+        sql.append(" USING ").append(CommonUtils.quoteStr(String.join(",", usingResources)));
       }
       // [tblproperties("transactional"="true")]
       Map<String, String> allTblProperties = getTblProperties();
       if (!allTblProperties.isEmpty()) {
         sql.append(" TBLPROPERTIES(");
         for (Map.Entry<String, String> entry : allTblProperties.entrySet()) {
-          sql.append(OdpsCommonUtils.quoteStr(entry.getKey())).append("=").append(OdpsCommonUtils.quoteStr(entry.getValue())).append(",");
+          sql.append(CommonUtils.quoteStr(entry.getKey())).append("=").append(CommonUtils.quoteStr(entry.getValue())).append(",");
         }
         sql.deleteCharAt(sql.length() - 1);
         sql.append(")");
@@ -1407,6 +1410,13 @@ public class Tables implements Iterable<Table> {
         System.out.println(sql);
       }
       return sql.toString();
+    }
+
+    private String getTypeName(TypeInfo typeInfo) {
+      if (typeInfo instanceof StructTypeInfo) {
+        return ((StructTypeInfo) typeInfo).getTypeName(true);
+      }
+      return typeInfo.getTypeName();
     }
 
     private Map<String, String> getTblProperties() {

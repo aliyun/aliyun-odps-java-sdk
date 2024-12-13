@@ -20,6 +20,6 @@ public class StructTypeInfoTest {
 
     Assert.assertArrayEquals(names, structTypeInfo.getFieldNames().toArray());
 
-    Assert.assertEquals("STRUCT<`name`:STRING,`age`:BIGINT,`parents`:ARRAY<CHAR(20)>>", structTypeInfo.getTypeName());
+    Assert.assertEquals("STRUCT<name:STRING,age:BIGINT,parents:ARRAY<CHAR(20)>>", structTypeInfo.getTypeName());
   }
 }

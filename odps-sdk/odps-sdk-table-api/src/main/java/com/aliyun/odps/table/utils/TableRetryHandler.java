@@ -19,19 +19,35 @@
 
 package com.aliyun.odps.table.utils;
 
+import com.aliyun.odps.commons.transport.HttpStatus;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 
+import java.util.Random;
+
 public class TableRetryHandler extends TunnelRetryHandler {
+
+    private final RetryPolicy slotExceededRetryPolicy;
 
     public TableRetryHandler(RestClient restClient) {
         super(new TableRetryPolicy(restClient), restClient.getRetryLogger());
+        this.slotExceededRetryPolicy = new SlotExceededRetryPolicy(restClient);
+    }
+
+    @Override
+    protected RetryPolicy getRetryPolicy(Integer errorCode) {
+        if (errorCode == null) {
+            return defaultRetryPolicy;
+        } else if (errorCode == HttpStatus.FLOW_EXCEEDED) {
+            return slotExceededRetryPolicy;
+        }
+        return defaultRetryPolicy;
     }
 
     static class TableRetryPolicy implements TunnelRetryHandler.RetryPolicy {
 
-        private final int maxRetryTimes;
-        private final long retryWaitTimeInMills;
+        protected final int maxRetryTimes;
+        protected final long retryWaitTimeInMills;
 
         public TableRetryPolicy(RestClient restClient) {
             this.maxRetryTimes = restClient.getRetryTimes();
@@ -52,6 +68,26 @@ public class TableRetryHandler extends TunnelRetryHandler {
         @Override
         public long getRetryWaitTime(int attempt) {
             return retryWaitTimeInMills;
+        }
+    }
+
+    static class SlotExceededRetryPolicy extends TableRetryPolicy {
+
+        private final Random rand;
+
+        public SlotExceededRetryPolicy(RestClient restClient) {
+            super(restClient);
+            this.rand = new Random();
+        }
+
+        @Override
+        public boolean shouldRetry(Exception e, int attempt) {
+            return attempt <= maxRetryTimes;
+        }
+
+        @Override
+        public long getRetryWaitTime(int attempt) {
+            return rand.nextInt((int)retryWaitTimeInMills) + retryWaitTimeInMills;
         }
     }
 }

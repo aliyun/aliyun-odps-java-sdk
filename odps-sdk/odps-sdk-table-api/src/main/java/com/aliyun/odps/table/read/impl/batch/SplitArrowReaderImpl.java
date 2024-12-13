@@ -170,22 +170,21 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                     identifier.getSchema(),
                     identifier.getTable());
 
-            Response resp = retryHandler.executeWithRetry(() -> {
+            retryHandler.executeWithRetry(() -> {
                 try {
-                    connection = restClient.connect(resource, "GET", params, headers);
-                    return connection.getResponse();
+                    this.connection = restClient.connect(resource, "GET", params, headers);
+                    Response resp = connection.getResponse();
+                    this.requestId = resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID);
+                    if (!resp.isOK()) {
+                        throw new TunnelException(requestId, connection.getInputStream(),
+                                resp.getStatus());
+                    }
                 } catch (Exception e) {
                     disconnect();
                     throw e;
                 }
+                return null;
             });
-
-            if (!resp.isOK()) {
-                TunnelException err = new TunnelException(connection.getInputStream());
-                err.setRequestId(resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID));
-                throw err;
-            }
-            this.requestId = resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID);
         } catch (Exception e) {
             disconnect();
             logger.error("Open split reader failed", e);
