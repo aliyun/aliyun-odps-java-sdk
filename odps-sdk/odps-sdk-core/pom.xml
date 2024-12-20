@@ -67,7 +67,14 @@
             <groupId>com.aliyun</groupId>
             <artifactId>aliyun-java-auth</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>credentials-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.google.protobuf</groupId>

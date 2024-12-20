@@ -110,6 +110,9 @@ public class TunnelRetryHandler {
                 } else {
                     policy = defaultRetryPolicy;
                 }
+                if (errorCodeHandler != null && e instanceof TunnelException) {
+                    errorCodeHandler.accept(((TunnelException) e).getStatus());
+                }
                 if (!policy.shouldRetry(e, attempt)) {
                     throw e;
                 }
@@ -118,9 +121,6 @@ public class TunnelRetryHandler {
                 }
                 try {
                     policy.waitForNextRetry(attempt);
-                    if (errorCodeHandler != null && e instanceof TunnelException) {
-                        errorCodeHandler.accept(((TunnelException) e).getStatus());
-                    }
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw e;

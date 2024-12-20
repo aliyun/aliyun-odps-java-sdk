@@ -403,6 +403,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     if (isSync) {
       return new ArrayList<>(results.values());
     }
+    if (isMcqaV2) {
+      reload();
+      return new ArrayList<>(results.values());
+    }
     Map<String, String> params = new HashMap<>();
     params.put("result", null);
     InstanceResultModel instanceResult = client

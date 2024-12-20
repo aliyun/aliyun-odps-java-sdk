@@ -23,4 +23,6 @@ public interface InputSplitter {
     List<InputSplit> planInputSplits(SplitStrategy strategy) throws IOException;
 
     void setRemainingPredicate(RowExpression expr);
+
+    default void setLimit(long limit) {}
 }

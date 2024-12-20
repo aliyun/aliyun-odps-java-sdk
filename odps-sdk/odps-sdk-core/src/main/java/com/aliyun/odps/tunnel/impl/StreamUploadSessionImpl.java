@@ -4,6 +4,7 @@ import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -19,6 +20,7 @@ import com.aliyun.odps.Table;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.commons.transport.HttpStatus;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
@@ -390,7 +392,18 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                         }
                     }
                 }
+            }, errorCode -> {
+                if (errorCode == HttpStatus.BAD_GATEWAY
+                    || errorCode == HttpStatus.GATEWAY_TIMEOUT) {
+                    try {
+                        reload();
+                    } catch (TunnelException e) {
+                        throw new UncheckedIOException(new IOException(e.getMessage(), e));
+                    }
+                }
             });
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         } catch (RuntimeException | IOException re) {
             throw re;
         } catch (Exception e) {
@@ -433,7 +446,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                                                   response.getHeader(
                                                       HttpHeaders.HEADER_ODPS_TUNNEL_LATEST_SCHEMA_VERSION));
             }
-            throw new IOException(exception.getMessage(), exception);
+            throw exception;
         }
 
         reloadSlots(slot,
