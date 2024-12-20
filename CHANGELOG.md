@@ -1,4 +1,20 @@
 # Changelog
+
+## [0.51.2-public] - 2024-12-20
+### Features
+- **Authorization** Introduced the `credential-java` authorization package, now supporting authentication with `AlibabaCloudCredentialsProvider`.
+- **StreamUploadSession** Added awareness for Slot updates and automatic retry logic.
+- **table-api** Introduced the `TableRetryHandler` class, adding retry logic to the `table-api`.
+- **udf** The `InputSplitter` now includes the method `setLimit`.
+
+### Changes
+- **TypeInfo** The `StructTypeInfo` class now includes the method `getTypeName(boolean quote)`. In version `0.51.0-public (rc0)`, `StructTypeInfo` defaulted to quoting field names with backticks. We suspect that this change may affect users, so we decided to revert to the original behavior (not quoting by default). Users can now call `getTypeName(true)` when quoting is needed.
+
+### Fixes
+- **TypeInfo** Field names will now be correctly escaped when quoted with backticks.
+- **MCQA2** Fixed an issue where the `getRawTaskResults` interface call in MCQA2 jobs could not retrieve results.
+
+
 ## [0.51.0-public] - 2024-12-05
 ### Features
 - **MapReduce** Supports multi pipeline output.
@@ -63,7 +79,7 @@
 - **SQLExecutor** MCQA 2.0 job supports retrieving InstanceProgress information
 
 ### Changes
-- **Quote** added backticks for quoting names in Struct type TypeInfo and other methods that assemble SQL
+- **TypeInfo** added backticks for quoting names in Struct type TypeInfo and other methods that assemble SQL
 - **AutoClosable** to remind users to properly close resources, added corresponding `close()` methods to the following resource classes to prompt users to close resources correctly:
   - `UpsertStream` in the `odps-sdk-core` package,
   - `LocalOutputStreamSet`, `ReduceDriver.ReduceContextImpl`, `MapDriver.DirectMapContextImpl`, `LocalRecordWriter` in the `odps-sdk-impl` package

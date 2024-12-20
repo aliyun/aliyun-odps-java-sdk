@@ -4,6 +4,21 @@ sidebar_position: 6
 ---
 
 # 更新日志
+## [0.51.2-public] - 2024-12-20
+### 功能
+- **Authorization** 引入`credential-java`鉴权包，现在能够使用`AlibabaCloudCredentialsProvider`进行鉴权
+- **StreamUploadSession** 新增对 Slot 更新的感知和自动重试逻辑
+- **table-api** 引入`TableRetryHandler`类，为`table-api`添加重试逻辑
+- **udf** 中`InputSplitter`新增方法 `setLimit`
+
+### 变更
+- **TypeInfo** `StructTypeInfo` 新增方法 `getTypeName(boolean quote)`，在 `0.51.0-public (rc0)` 版本，`StructTypeInfo` 默认会对字段名使用反引号进行 quote，我们怀疑这项变更对用户有影响，因此决定恢复原行为（默认不进行quote）
+  而是当用户需要 quote 时，可以调用 `getTypeName(true)`
+
+### 修复
+- **TypeInfo** 当对字段使用反引号进行 quote 时，现在会正确对字段名进行转义
+- **MCQA2** 修复了 MCQA2 作业调用 `getRawTaskResults` 接口取不到结果的问题
+
 ## [0.51.0-public] - 2024-12-05
 
 ### 功能
@@ -63,7 +78,7 @@ sidebar_position: 6
 - **SQLExecutor** MCQA 2.0 作业支持获取 InstanceProgress 信息
 
 ### 变更
-- **Quote** 对 Struct 类型的 TypeInfo，和其他拼装 SQL 的方法，使用反引号对名字进行 quote
+- **TypeInfo** 对 Struct 类型的 TypeInfo，和其他拼装 SQL 的方法，使用反引号对名字进行 quote
 - **AutoClosable** 为了提醒用户正确关闭资源，对下列资源类，增加了相应的 `close()` 方法，以提醒用户正确关闭资源。
   - `odps-sdk-core` 包下的 `UpsertStream`，
   - `odps-sdk-impl` 包下的 `LocalOutputStreamSet`，`ReduceDriver.ReduceContextImpl`，`MapDriver.DirectMapContextImpl`，`LocalRecordWriter`
