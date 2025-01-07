@@ -4,6 +4,13 @@ sidebar_position: 6
 ---
 
 # 更新日志
+## [0.51.3-public] - 2025-01-07
+### 功能
+- **MCQA2** SQLExecutorImpl 新增 `setProject` 方法，用于指定提交作业使用的默认项目
+
+### 变更
+- **StreamTunnel** 在调用 append 方法时，当 Record 列数量大于 Session Schema 列数量，现在将抛出 `SchemaMismatchException(extend IOExcption)`，而不是抛出 `IOException`，并优化了错误信息
+
 ## [0.51.2-public] - 2024-12-20
 ### 功能
 - **Authorization** 引入`credential-java`鉴权包，现在能够使用`AlibabaCloudCredentialsProvider`进行鉴权

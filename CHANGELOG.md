@@ -1,4 +1,10 @@
 # Changelog
+## [0.51.3-public] - 2025-01-07
+### Features
+- **MCQA2** SQLExecutorImpl adds a new `setProject` method to specify the default project used for submitting jobs.
+
+### Changes
+- **StreamTunnel** when calling the append method, if the number of Record columns exceeds the number of Session Schema columns, it will now throw a `SchemaMismatchException (extends IOException)` instead of throwing an `IOException`, and the error message has been optimized.
 
 ## [0.51.2-public] - 2024-12-20
 ### Features
