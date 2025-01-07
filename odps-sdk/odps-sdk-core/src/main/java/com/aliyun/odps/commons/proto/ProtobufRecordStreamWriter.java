@@ -21,23 +21,6 @@ package com.aliyun.odps.commons.proto;
 
 import static com.aliyun.odps.data.ArrayRecord.DEFAULT_CALENDAR;
 
-import com.aliyun.odps.Column;
-import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.commons.util.DateUtils;
-import com.aliyun.odps.data.*;
-import com.aliyun.odps.tunnel.io.Checksum;
-import com.aliyun.odps.tunnel.io.CompressOption;
-import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
-import com.aliyun.odps.type.ArrayTypeInfo;
-import com.aliyun.odps.type.MapTypeInfo;
-import com.aliyun.odps.type.StructTypeInfo;
-import com.aliyun.odps.type.TypeInfo;
-import com.google.protobuf.CodedOutputStream;
-import com.google.protobuf.WireFormat;
-import org.apache.commons.io.output.CountingOutputStream;
-import org.xerial.snappy.SnappyFramedOutputStream;
-import net.jpountz.lz4.LZ4FrameOutputStream;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
@@ -45,7 +28,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -55,6 +37,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
+
+import org.apache.commons.io.output.CountingOutputStream;
+import org.xerial.snappy.SnappyFramedOutputStream;
+
+import com.aliyun.odps.Column;
+import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.commons.util.DateUtils;
+import com.aliyun.odps.data.AbstractChar;
+import com.aliyun.odps.data.Binary;
+import com.aliyun.odps.data.IntervalDayTime;
+import com.aliyun.odps.data.IntervalYearMonth;
+import com.aliyun.odps.data.OdpsTypeTransformer;
+import com.aliyun.odps.data.Record;
+import com.aliyun.odps.data.RecordPack;
+import com.aliyun.odps.data.RecordReader;
+import com.aliyun.odps.data.RecordWriter;
+import com.aliyun.odps.data.SimpleJsonValue;
+import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.exceptions.SchemaMismatchException;
+import com.aliyun.odps.tunnel.io.Checksum;
+import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.type.ArrayTypeInfo;
+import com.aliyun.odps.type.MapTypeInfo;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
+import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.WireFormat;
+
+import net.jpountz.lz4.LZ4FrameOutputStream;
 
 /**
  * @author chao.liu
@@ -117,9 +129,14 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
     int recordValues = r.getColumnCount();
     int columnCount = columns.length;
     if (recordValues > columnCount) {
-      throw new IOException("record values more than schema.");
+      throw new SchemaMismatchException(
+          String.format("Record values are more than schema. "
+                        + "The record written has %d columns but the current session only has %d columns. "
+                        + "If you just performed Schema Evolution, please recreate the session and try again.",
+                        recordValues, columnCount),
+          null
+      );
     }
-
     int i = 0;
     for (; i < columnCount && i < recordValues; i++) {
 

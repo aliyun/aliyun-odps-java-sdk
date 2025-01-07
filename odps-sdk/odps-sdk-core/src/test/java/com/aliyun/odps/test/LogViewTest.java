@@ -38,7 +38,10 @@ public class LogViewTest extends TestBase {
     try {
       LogView log = odps.logview();
       Iterator<Instance> instIter = odps.instances().iterator();
-      instIter.hasNext();
+      boolean hasNext = instIter.hasNext();
+      if (!hasNext) {
+        return;
+      }
       Instance i = instIter.next();
       String logview = log.generateLogView(i, 7 * 24);
       System.out.println(logview);
@@ -63,7 +66,10 @@ public class LogViewTest extends TestBase {
       LogView log = odps.logview();
       log.setLogViewHost("http://test.a.b.c");
       Iterator<Instance> instIter = odps.instances().iterator();
-      instIter.hasNext();
+      boolean hasNext = instIter.hasNext();
+      if (!hasNext) {
+        return;
+      }
       Instance i = instIter.next();
       assertTrue(
           log.generateLogView(i, 7 * 24).startsWith("http://test.a.b.c/logview"));

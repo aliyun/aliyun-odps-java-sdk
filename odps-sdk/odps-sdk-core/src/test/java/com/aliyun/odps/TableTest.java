@@ -106,6 +106,7 @@ public class TableTest extends TestBase {
   @BeforeClass
   public static void setUp() throws Exception {
     odps = OdpsTestUtils.newDefaultOdps();
+    cleanUp();
     OdpsTestUtils.createTableForTest(SOURCE_TABLE_NAME);
 
     schema = new TableSchema();
@@ -165,7 +166,6 @@ public class TableTest extends TestBase {
     partitionedTable.createPartition(new PartitionSpec("p1=1,p2=baz"), true);
   }
 
-  @AfterClass
   public static void cleanUp() throws Exception {
     odps.tables().delete(TABLE_NAME, true);
     odps.tables().delete(TABLE_NAME_2, true);

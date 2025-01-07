@@ -666,4 +666,8 @@ public class SQLExecutorImpl implements SQLExecutor {
       throw new OdpsException("Sql isSelect failed", e);
     }
   }
+
+  public void setProject(String project) {
+    odps.setDefaultProject(project);
+  }
 }

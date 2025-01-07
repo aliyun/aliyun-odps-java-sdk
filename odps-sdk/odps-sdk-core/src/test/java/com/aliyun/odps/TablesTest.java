@@ -402,6 +402,8 @@ public class TablesTest extends TestBase {
   public void testBatchLoadingCrossProjects() throws OdpsException, IOException {
     String crossProject = OdpsTestUtils.loadConfig().getProperty("security.project");
     assertNotEquals(odps.getDefaultProject(), crossProject);
+    // make sure at least one table
+    odps.tables().create(crossProject, "test_table", SCHEMA, true);
 
     List<Table> expectedTables = getTables(odps, crossProject, 10);
     assertTrue(expectedTables.size() > 0);
