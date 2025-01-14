@@ -1,4 +1,8 @@
 # Changelog
+## [0.51.5-public] - 2025-01-14
+### Fixes
+- **MCQA2** Fixed the problem that MCQA2 jobs may not throw exceptions correctly when using instance tunnel to obtain results.
+
 ## [0.51.4-public] - 2025-01-14
 
 ### Features

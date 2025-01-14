@@ -559,8 +559,7 @@ public class SQLExecutorImpl implements SQLExecutor {
       } catch (TunnelException e) {
         if (e.getErrorCode().equals(SQLExecutorConstants.sessionNotSelectException)
             || e.getErrorMsg().contains(SQLExecutorConstants.sessionNotSelectMessage)) {
-          queryInfo.setSelect(false);
-          return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
+          return getResultSetDirectly();
         }
         if (e.getErrorCode().equals("TaskFailed")) {
           // wait for success will check task status and throw exception
