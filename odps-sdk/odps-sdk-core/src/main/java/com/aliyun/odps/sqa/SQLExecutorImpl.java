@@ -1219,7 +1219,7 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet getOfflineResultSet()
       throws OdpsException, IOException {
-    String selectResult = queryInfo.getInstance().waitForTerminatedAndGetResult();
+    String selectResult = queryInfo.getInstance().waitForTerminatedAndGetResult().getString();
     if (!StringUtils.isNullOrEmpty(selectResult)) {
       if (queryInfo.isSelect()) {
         CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(selectResult);
@@ -1392,6 +1392,11 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public boolean isRunningInInteractiveMode() {
     return queryInfo.getExecuteMode().equals(ExecuteMode.INTERACTIVE);
+  }
+
+  @Override
+  public ExecuteMode getExecuteMode() {
+    return queryInfo.getExecuteMode();
   }
 
   @Override

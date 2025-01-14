@@ -1,4 +1,15 @@
 # Changelog
+## [0.51.4-public] - 2025-01-14
+
+### Features
+- **MCQA2**: Added several optimizations to improve the execution efficiency of MCQA2 jobs. MCQA2 jobs now use `ExecuteMode.INTERACTIVE_V2` mode, distinguishing it from MCQA1's `ExecuteMode.INTERACTIVE`
+- **SQLExecutor**: Added new `getExecuteMode` method to retrieve job execution mode
+
+### Changes
+- **UpsertStream**: In version 0.51.0, the signature of the `close` method was modified (no longer throwing `TunnelException`). This version restores it to maintain API compatibility.
+- **ClusterInfo**: The toString method was changed in version 0.51.0. This version restores it to maintain API compatibility.
+- **TunnelRetryStrategy** and **ConfigurationImpl** classes: These were removed in version 0.48.6. This version restores them (though they won't have any effect!) to maintain API compatibility.
+
 ## [0.51.3-public] - 2025-01-07
 ### Features
 - **MCQA2** SQLExecutorImpl adds a new `setProject` method to specify the default project used for submitting jobs.

@@ -8,7 +8,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.CompressOption;
 
-public interface UpsertStream extends Closeable {
+public interface UpsertStream extends AutoCloseable {
   /**
    * 按upsert操作，写入一条{@link Record}对象到缓冲区
    *
@@ -32,9 +32,8 @@ public interface UpsertStream extends Closeable {
 
   /**
    * 关闭UpsertStream, 调用后upsert/delete和flush接口均不可用
-   * #TODO remove TunnelException
    */
-  public void close() throws IOException;
+  public void close() throws IOException, TunnelException;
 
   /**
    * 关闭UpsertStream, 调用后数据和状态将被清空重置

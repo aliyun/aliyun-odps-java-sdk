@@ -1,4 +1,16 @@
 # 更新日志
+
+## [0.51.4-public] - 2025-01-14
+
+### 功能
+- **MCQA2** 增加若干项优化，提升了 MCQA2 作业的执行效率。MCQA2 作业的模式变为 `ExecuteMode.INTERACTIVE_V2`，与 MCQA1 的 `ExecuteMode.INTERACTIVE` 区别开
+- **SQLExecutor** 新增 `getExecuteMode` 方法，用于获取作业执行模式
+
+### 变更
+- **UpsertStream** 在 0.51.0 版本，修改了 `close` 方法的函数签名（不再抛出 `TunnelException`），在本版本中恢复，以保证接口兼容性。
+- **ClusterInfo** 在 0.51.0 版本，toString 方法有所变更，在本版本中恢复，以保证接口兼容性。 
+- **TunnelRetryStrategy**，**ConfigurationImpl** 类在 0.48.6 版本被移除，在本版本中恢复（但不会起到任何效果！），以保证接口兼容性。
+
 ## [0.51.3-public] - 2025-01-07
 ### 功能
 - **MCQA2** SQLExecutorImpl 新增 `setProject` 方法，用于指定提交作业使用的默认项目

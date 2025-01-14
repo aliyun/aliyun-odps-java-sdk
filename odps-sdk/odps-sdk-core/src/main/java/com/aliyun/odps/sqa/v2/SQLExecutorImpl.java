@@ -2,7 +2,6 @@ package com.aliyun.odps.sqa.v2;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -100,8 +99,8 @@ public class SQLExecutorImpl implements SQLExecutor {
     // which will cause an error to be reported during getResult for non-select jobs.
     // However, for MCQA2.0 jobs, it is not necessary to call this interface, so this error reporting behavior may be acceptable.
     if (builder.getRecoverInstance() != null) {
-      queryInfo = new QueryInfo("unknown", null, ExecuteMode.INTERACTIVE);
-      queryInfo.setInstance(builder.getRecoverInstance(), ExecuteMode.INTERACTIVE, null, null);
+      queryInfo = new QueryInfo("unknown", null, ExecuteMode.INTERACTIVE_V2);
+      queryInfo.setInstance(builder.getRecoverInstance(), ExecuteMode.INTERACTIVE_V2, null, null);
       queryInfo.setSelect(true);
     }
   }
@@ -142,7 +141,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
 
     String mcqaQueryHeader = quotaHeaderMap.get(useQuotaName);
-    queryInfo = new QueryInfo(sql, hint, ExecuteMode.INTERACTIVE);
+    queryInfo = new QueryInfo(sql, hint, ExecuteMode.INTERACTIVE_V2);
     queryInfo.setCommandInfo(new CommandInfo(sql, hint));
 
     if (useCommandApi) {
@@ -162,8 +161,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         SQLTask.run(odps, odps.getDefaultProject(), sql, taskName, hint,
                     null, null, mcqaQueryHeader);
 
-    queryInfo.setInstance(currentInstance, ExecuteMode.INTERACTIVE, null, null);
-    queryInfo.setSelect(isSelect(sql));
+    queryInfo.setInstance(currentInstance, ExecuteMode.INTERACTIVE_V2, null, null);
     log.add("Successfully submitted MCQA 2.0 Job, ID: " + currentInstance.getId() + ", Quota name: " + useQuotaName);
   }
 
@@ -381,23 +379,24 @@ public class SQLExecutorImpl implements SQLExecutor {
   }
 
   private List<Record> getResultDirectly() throws OdpsException {
-    String resultStr = getResultString();
-    if (resultStr != null) {
-      if (queryInfo.isSelect()) {
+    Instance.Result result = getResultString();
+    if (result != null) {
+      if (queryInfo.getInstance().isSelect(taskName) && "csv".equalsIgnoreCase(
+          result.getFormat())) {
         try {
-          return SQLTask.parseCsvRecord(resultStr);
+          return SQLTask.parseCsvRecord(result.getString());
         } catch (Exception e) {
-          throw new OdpsException(resultStr, e);
+          throw new OdpsException(result.getString(), e);
         }
       } else {
         // non-select command but with result
-        return CommandUtil.toRecord(resultStr, "Info");
+        return CommandUtil.toRecord(result.getString(), "Info");
       }
     }
     return new ArrayList<>();
   }
 
-  private String getResultString() throws OdpsException {
+  private Instance.Result getResultString() throws OdpsException {
     if (queryInfo == null) {
       throw new OdpsException("No query running now.");
     }
@@ -409,7 +408,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
-  private String getSyncResultStr() throws OdpsException {
+  private Instance.Result getSyncResultStr() throws OdpsException {
     if (queryInfo == null) {
       throw new OdpsException("No query running now.");
     }
@@ -426,7 +425,7 @@ public class SQLExecutorImpl implements SQLExecutor {
       throw new OdpsException("Status=" + taskResult.getStatus() + ", Result="
                               + taskResult.getResult().getString());
     }
-    return taskResult.getResult().getString();
+    return taskResult.getResult();
   }
 
   @Override
@@ -528,44 +527,30 @@ public class SQLExecutorImpl implements SQLExecutor {
 
 
   private ResultSet getResultSetDirectly() throws OdpsException {
-    String resultStr = getResultString();
-    if (!StringUtils.isNullOrEmpty(resultStr)) {
-      if (queryInfo.isSelect()) {
-        CSVRecordParser.ParseResult parseResult;
-        try {
-          parseResult = CSVRecordParser.parse(resultStr);
-        } catch (Exception e) {
-          throw new OdpsException(resultStr);
-        }
-        List<Record> records = parseResult.getRecords();
-        return new ResultSet(
-            new InMemoryRecordIterator(records),
-            parseResult.getSchema(),
-            records.size());
-      } else {
-        List<Record> records = CommandUtil.toRecord(resultStr, "Info");
-        TableSchema schema = new TableSchema();
-        schema.setColumns(Arrays.asList(records.get(0).getColumns()));
-        return new ResultSet(
-            new InMemoryRecordIterator(records),
-            schema,
-            records.size());
+    Instance.Result resultStr = getResultString();
+    if (queryInfo.getInstance().isSelect(taskName) && "csv".equalsIgnoreCase(
+        resultStr.getFormat())) {
+      CSVRecordParser.ParseResult parseResult;
+      try {
+        parseResult = CSVRecordParser.parse(resultStr.getString());
+      } catch (Exception e) {
+        throw new OdpsException(resultStr.getString());
       }
-    } else {
-      // empty result set
+      List<Record> records = parseResult.getRecords();
       return new ResultSet(
-          new InMemoryRecordIterator(new ArrayList<>()),
-          new TableSchema(),
-          0
-      );
+          new InMemoryRecordIterator(records),
+          parseResult.getSchema(),
+          records.size());
+    } else {
+      return InfoResultSet.of(resultStr.getString());
     }
   }
 
   private ResultSet getResultSetByInstanceTunnel(Long offset, Long countLimit, Long sizeLimit,
                                                  boolean limitEnabled)
       throws OdpsException, IOException {
-    if (queryInfo.isSelect()) {
-      queryInfo.getInstance().waitForTerminated(100, true);
+    queryInfo.getInstance().waitForTerminated(100, true);
+    if (queryInfo.getInstance().isSelect(taskName)) {
       InstanceTunnel.DownloadSession downloadSession = null;
       try {
         downloadSession =
@@ -615,24 +600,8 @@ public class SQLExecutorImpl implements SQLExecutor {
           schema,
           records.size());
     } else {
-      queryInfo.getInstance().waitForSuccess();
-      Map<String, String> results = queryInfo.getInstance().getTaskResults();
-      String selectResult = results.get(taskName);
-      if (StringUtils.isNullOrEmpty(selectResult)) {
-        // empty result set
-        return new ResultSet(
-            new InMemoryRecordIterator(new ArrayList<>()),
-            new TableSchema(),
-            0
-        );
-      }
-      List<Record> records = CommandUtil.toRecord(selectResult, "Info");
-      TableSchema schema = new TableSchema();
-      schema.setColumns(Arrays.asList(records.get(0).getColumns()));
-      return new ResultSet(
-          new InMemoryRecordIterator(records),
-          schema,
-          records.size());
+      // fall back to non-tunnel
+      return getResultSetDirectly();
     }
   }
 
@@ -648,6 +617,11 @@ public class SQLExecutorImpl implements SQLExecutor {
   }
 
   @Override
+  public ExecuteMode getExecuteMode() {
+    return ExecuteMode.INTERACTIVE_V2;
+  }
+
+  @Override
   public void close() {
     if (pool != null) {
       pool.releaseExecutor(this);
@@ -657,14 +631,6 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public boolean isUseInstanceTunnel() {
     return useInstanceTunnel;
-  }
-
-  public boolean isSelect(String sql) throws OdpsException {
-    try {
-      return SqlParserUtil.isSelect(sql);
-    } catch (SQLException e) {
-      throw new OdpsException("Sql isSelect failed", e);
-    }
   }
 
   public void setProject(String project) {

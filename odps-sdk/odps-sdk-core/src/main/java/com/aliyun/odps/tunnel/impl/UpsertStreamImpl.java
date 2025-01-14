@@ -213,14 +213,10 @@ public class UpsertStreamImpl implements UpsertStream {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() throws IOException, TunnelException {
     if (status == Status.NORMAL) {
-        try {
-            flush();
-            status = Status.CLOSED;
-        } catch (TunnelException e) {
-            throw new IOException(e);
-        }
+      flush();
+      status = Status.CLOSED;
     }
   }
 

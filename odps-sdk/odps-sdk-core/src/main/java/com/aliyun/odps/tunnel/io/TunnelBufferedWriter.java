@@ -21,6 +21,7 @@ package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
 
+import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -186,6 +187,17 @@ public class TunnelBufferedWriter implements RecordWriter {
                                              + ", now: " + flushThreshold);
     }
     this.flushThreshold = flushThreshold;
+  }
+
+  /**
+   * This method is no longer used, and the configured content will not take effect.
+   * Please use {@link com.aliyun.odps.tunnel.Configuration#retryPolicy} to set Tunnel Retry Logic configuration.
+   * <p>
+   * The purpose of this method is for interface compatibility
+   */
+  @Deprecated
+  public void setRetryStrategy(RetryStrategy strategy) {
+    // do nothing
   }
 
   /**

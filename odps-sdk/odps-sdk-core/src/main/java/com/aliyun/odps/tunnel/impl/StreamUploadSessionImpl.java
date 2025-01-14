@@ -506,4 +506,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     public Record newRecord() {
         return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
     }
+
+    public void abort() throws TunnelException {
+// do nothing
+    }
 }

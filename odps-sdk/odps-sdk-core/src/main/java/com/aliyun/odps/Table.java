@@ -304,7 +304,8 @@ public class Table extends LazyLoad {
     }
 
     public String getClusterType() {
-      return clusterType.name();
+      // to lower case is to keep consistency with old version
+      return clusterType.name().toLowerCase();
     }
 
     public long getBucketNum() {
@@ -332,7 +333,7 @@ public class Table extends LazyLoad {
           .append(")");
       if (sortCols != null && sortCols.size() > 0) {
         stringBuilder.append(" SORTED BY ").append("(")
-            .append(sortCols.stream().map(Object::toString).collect(Collectors.joining(", ")))
+            .append(sortCols.stream().map(SortColumn::toStringWithQuote).collect(Collectors.joining(", ")))
             .append(")");
       }
       if (bucketNum > 0) {
@@ -374,6 +375,10 @@ public class Table extends LazyLoad {
 
     @Override
     public String toString() {
+      return String.format("%s %s", name, order);
+    }
+
+    public String toStringWithQuote() {
       return String.format("%s %s", CommonUtils.quoteRef(name), order);
     }
   }

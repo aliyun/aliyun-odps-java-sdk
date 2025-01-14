@@ -51,12 +51,9 @@ public class SQLExecutorBuilder {
   }
 
   public SQLExecutor build() throws OdpsException {
-    if (useMcqaV2) {
-      // taskName
-      // properties
-      Preconditions.checkArgument(executeMode == ExecuteMode.INTERACTIVE,
+    if (useMcqaV2 || executeMode == ExecuteMode.INTERACTIVE_V2) {
+      Preconditions.checkArgument(executeMode != ExecuteMode.OFFLINE,
                                   "offline executeMode is not supported in mcqa");
-
       return new com.aliyun.odps.sqa.v2.SQLExecutorImpl(this);
     }
     return new SQLExecutorImpl(odps, serviceName, taskName, tunnelEndpoint,

@@ -131,4 +131,11 @@ public class TeaUtils {
       throw new RuntimeException(e.getMessage(), e);
     }
   }
+
+  public static String toString(Object val) {
+    if (val == null) {
+      return "null";
+    }
+    return val.toString();
+  }
 }

@@ -5,6 +5,7 @@ package com.aliyun.odps.sqa;
  */
 public enum ExecuteMode {
   INTERACTIVE,
+  INTERACTIVE_V2,
   OFFLINE,
   NONE
 }

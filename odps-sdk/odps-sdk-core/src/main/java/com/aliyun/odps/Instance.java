@@ -30,6 +30,7 @@ import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -160,6 +161,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     this.client = odps.getRestClient();
   }
 
+  /**
+   * reload instance 的返回值
+   */
   @Root(name = "Instance", strict = false)
   static class InstanceStatusModel {
 
@@ -208,6 +212,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       @Convert(SimpleXmlUtils.EmptyStringConverter.class)
       String status;
 
+      @Element(name = "ResultDescriptor", required = false)
+      @Convert(SimpleXmlUtils.JsonMapConverter.class)
+      Map<String, String> resultDescriptor;
+
       public String getType() {
         return type;
       }
@@ -222,6 +230,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
       public String getStatus() {
         return status;
+      }
+
+      public Map<String, String> getResultDescriptor() {
+        return resultDescriptor;
       }
     }
 
@@ -293,7 +305,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   private void reload(boolean isBlock) throws OdpsException {
     Map<String, String> params = null;
 
-    if (isBlock) {
+    if (isBlock || isMcqaV2) {
       params = new HashMap<String, String>();
       params.put("instancestatus", null);
     }
@@ -331,7 +343,14 @@ public class Instance extends com.aliyun.odps.LazyLoad {
         isSync = !results.isEmpty();
       }
     } catch (Exception e) {
-      throw new OdpsException("Invalid instance status response.", e);
+      String errorMessage;
+      if (resp.getBody() == null) {
+        errorMessage = "Invalid instance status response.";
+      } else {
+        errorMessage = String.format("Invalid instance status response: %s, ErrorMsg: %s",
+                                     new String(resp.getBody(), StandardCharsets.UTF_8), e.getMessage());
+      }
+      throw new OdpsException(errorMessage, e);
     }
 
     // do not set load flat to true
@@ -683,6 +702,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     params.put("instancesummary", null);
     params.put("taskname", taskName);
     Response result = client.request(getResource(), "GET", params, null, null);
+    
     TaskSummary summary = null;
     try {
       Gson gson = GsonObjectBuilder.get();
@@ -971,7 +991,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * 直接获取作业结果，无需调用 waitForSuccess 方法
    * 该方法仅适用于一个 Instance 对应一个 Task 的作业
    */
-  public String waitForTerminatedAndGetResult() throws OdpsException {
+  public Instance.Result waitForTerminatedAndGetResult() throws OdpsException {
     waitForTerminated(100, true);
     TaskResult taskResult;
     if (isSync) {
@@ -980,7 +1000,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       taskResult = getRawTaskResults().get(0);
     }
     throwExceptionIfTaskFailed(taskResult);
-    return taskResult.getResult().getString();
+    return taskResult.getResult();
   }
 
   private void throwExceptionIfTaskFailed(TaskResult taskResult) throws OdpsException {
@@ -1750,6 +1770,23 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     Gson gson = GsonObjectBuilder.get();
     JsonObject object = gson.fromJson(new String(resp.getBody()), JsonObject.class);
     return new InstanceQueueingInfo(object);
+  }
+
+  /**
+   * 判断当前作业是否是屏显作业，比如 select 语句。只有结束的 MCQA 2.0 作业可以进行此判断
+   */
+  public boolean isSelect(String taskName) {
+    if (!results.containsKey(taskName)) {
+      throw new IllegalStateException("The result with taskName " + taskName
+                                      + " cannot be found. Maybe the instance has not terminated yet.");
+    }
+    TaskResult taskResult = results.get(taskName);
+    if (taskResult.resultDescriptor == null
+        || taskResult.resultDescriptor.get("IsSelect") == null) {
+      throw new IllegalStateException(
+          "Cannot infer whether the job type is a select job. Currently, only MCQA 2.0 jobs are supported.");
+    }
+    return Boolean.parseBoolean(taskResult.resultDescriptor.get("IsSelect"));
   }
 
   private Map<String, String> userDefinedHeaders;
