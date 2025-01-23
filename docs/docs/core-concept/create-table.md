@@ -265,3 +265,23 @@ public void testCreateView() throws OdpsException {
         .create();
 }
 ```
+
+### 创建自定义 TblProperties 表（如 Append 2.0 表）
+除了 SDK 预定义的表类型外，用户也可以自行指定建表时的 Tblproperties。如下以 Append 2.0 表为例（指定 `transactional=true` 和 `table.format.version=2`)
+
+```java
+public void testCreateTableWithTblProperties() throws OdpsException {
+    // some table properties
+    Map<String, String> tblProperties = new HashMap<>();
+    tblProperties.put("transactional", "true");
+    tblProperties.put("table.format.version", "2");
+    
+    odps.tables().newTableCreator("testProject", "testCreateTableWithTblProperties",
+            TableSchema.builder()
+                .withColumn(Column.newBuilder("c1", TypeInfoFactory.STRING).build())
+                .withColumn(Column.newBuilder("c2", TypeInfoFactory.STRING).build())
+                .build())
+        .withTblProperties(tblProperties)
+        .create();
+}
+```
