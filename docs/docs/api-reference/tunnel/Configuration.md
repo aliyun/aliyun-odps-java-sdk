@@ -1,6 +1,6 @@
 ---
 title: Configuration 配置类
-sidebar_position: 2
+sidebar_position: 7
 ---
 
 # Configuration 配置类
@@ -58,7 +58,7 @@ public static Builder builder(Odps odps)
 public CompressOption getCompressOption()
 ```
 
-返回当前的压缩选项。所有支持的压缩选项参考 [`CompressOption` 类文档](../CompressOption.md)。
+返回当前的压缩选项。
 
 ### 设置压缩选项
 
@@ -66,7 +66,13 @@ public CompressOption getCompressOption()
 public void setCompressOption(CompressOption option)
 ```
 
-设置压缩选项。所有支持的压缩选项参考 [`CompressOption` 类文档](../CompressOption.md)。
+设置压缩选项。 当前支持的压缩选项为
+`ODPS_RAW`
+`ODPS_ZLIB`
+`ODPS_SNAPPY`
+`ODPS_LZ4_FRAME`
+`ODPS_ARROW_LZ4_FRAME` （仅 Arrow Tunnel 支持）
+`ODPS_ARROW_ZSTD`  （仅 Arrow Tunnel 支持）
 
 ### 获取指定Project的Tunnel服务入口地址
 
@@ -186,8 +192,13 @@ public Builder withTags(List<String> tags)
 ```java
 public Builder withCompressOptions(CompressOption compressOption)
 ```
-
-设置压缩选项。所有支持的压缩选项参考 [`CompressOption` 类文档](../CompressOption.md)。
+设置压缩选项。当前支持的压缩选项为
+`ODPS_RAW`
+`ODPS_ZLIB`
+`ODPS_SNAPPY`
+`ODPS_LZ4_FRAME`
+`ODPS_ARROW_LZ4_FRAME` （仅 Arrow Tunnel 支持）
+`ODPS_ARROW_ZSTD`  （仅 Arrow Tunnel 支持）
 
 #### 设置重试策略
 

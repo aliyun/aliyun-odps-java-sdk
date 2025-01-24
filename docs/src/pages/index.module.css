@@ -21,3 +21,96 @@
   align-items: center;
   justify-content: center;
 }
+/* index.module.css */
+.heroBanner {
+  position: relative;
+  min-height: 500px; /* 固定高度保证布局稳定 */
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.backgroundWrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.backgroundImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  filter: brightness(0.9) contrast(1.1);
+}
+
+.backgroundOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.95) 20%,
+    rgba(255, 255, 255, 0.6) 80%
+  );
+  mix-blend-mode: soft-light;
+}
+
+.contentContainer {
+  position: relative;
+  z-index: 1; /* 确保内容在蒙版层之上 */
+  text-align: center;
+  padding: 4rem 0;
+}
+
+.heroTitle {
+  color: #ff6a00 !important;
+  font-size: 3.5rem !important;
+  text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+  margin-bottom: 1.5rem;
+}
+
+.heroSubtitle {
+  color: #2d3748 !important;
+  font-size: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.features {
+  padding: 4rem 0;
+  background-color: var(--ifm-color-emphasis-100);
+}
+.feature {
+  text-align: center;
+  padding: 2rem;
+}
+
+.feature h3 {
+  color: var(--ifm-color-primary);
+}
+
+.quickStart {
+  padding: 4rem 0;
+}
+
+.quickStart pre {
+  background: var(--ifm-pre-background);
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.quickStart code {
+  white-space: pre-wrap;
+}
+
+.buttons {
+  margin-top: 2rem;
+  text-align: center;
+}

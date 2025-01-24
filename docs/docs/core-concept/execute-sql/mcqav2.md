@@ -1,15 +1,15 @@
 ---
-title: MCQA 2.0（邀测中）
-sidebar_label: MCQA 2.0（邀测中）
+title: MaxQA
+sidebar_label: MaxQA（MCQA 2.0）
 sidebar_position: 3
 ---
 
 :::note
-了解 MCQA 2.0
+了解 MaxQA
 的特性、架构和使用方式，请参考[阿里云官网文档](https://help.aliyun.com/zh/maxcompute/user-guide/maxcompute-query-acceleration2-0)
 :::
 
-odps-sdk 从 0.50 版本开始，支持提交 MCQA 2.0 作业
+odps-sdk 从 0.50 版本开始，支持提交 MaxQA 作业
 
 ## 核心接口
 

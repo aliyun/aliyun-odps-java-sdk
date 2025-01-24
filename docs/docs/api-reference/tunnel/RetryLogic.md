@@ -1,6 +1,6 @@
 ---
-title: 重试逻辑
-sidebar_position: 3
+title: RetryPolicy 重试逻辑
+sidebar_position: 8
 ---
 
 # RetryPolicy 重试策略

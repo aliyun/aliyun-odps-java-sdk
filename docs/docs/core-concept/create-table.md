@@ -273,7 +273,7 @@ public void testCreateView() throws OdpsException {
 public void testCreateTableWithTblProperties() throws OdpsException {
     // some table properties
     Map<String, String> tblProperties = new HashMap<>();
-    tblProperties.put("transactional", "true");
+    // tblProperties.put("transactional", "true"); 
     tblProperties.put("table.format.version", "2");
     
     odps.tables().newTableCreator("testProject", "testCreateTableWithTblProperties",

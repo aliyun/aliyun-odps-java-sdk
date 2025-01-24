@@ -1,6 +1,6 @@
 ---
-title: UploadSession 上传会话
-sidebar_position: 4
+title: Upload
+sidebar_position: 2
 ---
 
 UploadSession 作为 TableTunnel 的核心组件，是Batch Tunnel组件的一员部分。

@@ -1,11 +1,11 @@
 ---
-title: MCQA 1.0
-sidebar_label: MCQA 1.0
+title: MCQA
+sidebar_label: MCQA
 sidebar_position: 2
 ---
 
 :::note
-了解 MCQA 1.0
+了解 MCQA
 的特性、架构和使用方式，请参考[阿里云官网文档](https://help.aliyun.com/zh/maxcompute/user-guide/maxcompute-query-acceleration)
 :::
 
@@ -14,11 +14,10 @@ sidebar_position: 2
 ### Session
 
 Session 类是用于管理和执行 SQL 查询会话的核心类，其代表一个在MaxCompute上运行的交互式实例，在提交
-MCQA1.0 作业之前，需要创建/链接到一个 Session 上。
+MCQA 作业之前，需要创建/链接到一个 Session 上。
 后续提交的 SQL 作业，均作为这一 Session 的子查询来执行。
 
-Session 类提供了一系列方法来创建、附加、管理和获取查询结果。对于 Session
-类的介绍，参考文档[Session](../../api-reference/Session.md)。
+目前 SDK 已将 Session 抽象为 SQLExecutor，因此通常用户无需关注 Session 类。
 
 ### SQLExecutor
 
@@ -27,7 +26,7 @@ Session 类提供了一系列方法来创建、附加、管理和获取查询结
 
 #### 使用方式
 
-当创建`SQLExecutor`时，指定`ExecuteMode`为`INTERACTIVE`，则表示该`SQLExecutor`用于 MCQA 1.0 查询。
+当创建`SQLExecutor`时，指定`ExecuteMode`为`INTERACTIVE`，则表示该`SQLExecutor`用于 MCQA 查询。
 `SQLExecutor`的详细创建方法，和使用方法，参考文档：[SQLExecutor](../../api-reference/SQLExecutor.md)。
 
 ### 示例代码
@@ -55,7 +54,7 @@ public class SQLExecutorExample {
 
     SQLExecutor sqlExecutor = null;
     try {
-      // 创建一个使用 MCQA 1.0 的Executor。
+      // 创建一个使用 MCQA 的Executor。
       sqlExecutor = builder.odps(odps).executeMode(ExecuteMode.INTERACTIVE).build();
 
       // 如果需要的话可以传入查询的特殊设置。
@@ -104,6 +103,5 @@ public class SQLExecutorExample {
 ```
 
 ### 回退策略
-对于 MCQA 1.0 加速失败的作业，默认会回退到离线作业进行查询。用户可以通过参数来调整回退策略。
+对于 MCQA 加速失败的作业，默认会回退到离线作业进行查询。用户可以通过参数来调整回退策略。
 
-待完善...

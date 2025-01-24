@@ -11,6 +11,29 @@ MaxCompute 提供了高效、灵活的数据通道 Tunnel，以满足不同场�
 
 本指南将介绍如何使用 SDK 利用 TableTunnel 实现数据上传和下载功能。
 
+## 初始化
+
+在使用 `TableTunnel` 之前，需要进行 Odps 对象的初始化操作，对 Odps 对象的初始化操作参考[初始化 Odps 对象](init-odps-client.md)。
+
+根据是否需要自定义TableTunnel的配置，可以使用如下两个接口来初始化TableTunnel。
+
+**无参初始化**
+```java
+TableTunnel tunnel = odps.tableTunnel();
+```
+
+**使用配置文件进行初始化**
+```java
+// com.aliyun.odps.tunnel.Configuration;
+Configuration configuration=Configuration.builder(odps).build();
+TableTunnel tunnel = odps.tableTunnel(configuration);
+```
+有关配置文件的配置项，请参考[Configuration 文档](../api-reference/tunnel/Configuration.md)。
+
+
+## 使用方式
+- 有关 TableTunnel 的初始化方法，和使用方式，请参考[TableTunnel 文档](../api-reference/tunnel/TableTunnel.md)。
+
 ## 数据上传
 
 目前，MaxCompute 根据使用场景的不同，提供了两种上传模式（StreamingTunnel 和 BatchTunnel
@@ -21,28 +44,6 @@ TableTunnel 根据[上传模式](#上传模式)，[写入模式](#写入模式)�
 - StreamUploadSession
 - UploadSession
 - UpsertSession
-
-用户可以根据业务需求选择不同的写入类，以满足不同场景下的需求。下面提供了一个快速选择写入类的流程图。
-
-
-```mermaid 快速选择上传模式
-  graph TD
-    subgraph 表类型选择
-      A[确定业务需求] --> B{普通表?<br>Delta Table?}
-    end
-    subgraph 操作选择
-      B -- 普通表 --> C[选择Upload]
-      B -- Delta Table --> J[选择UpsertSession]
-    end
-    subgraph 实时性与完整性决策
-      C --> D{实时性优先?<br>吞吐量优先?}
-      D -- 实时性优先 --> E[选择StreamUploadSession]
-      D -- 吞吐量优先 --> F[选择UploadSession]
-    end
-    classDef decision fill:#F4FA58,stroke-width:0.5px,text-align:center
-    class B,D decision
-```
-
 
 ### 上传模式
 
@@ -74,7 +75,7 @@ TableTunnel 根据[上传模式](#上传模式)，[写入模式](#写入模式)�
 
 ### 使用建议
 
-- 根据目标表的类型（普通表或Delta Table）及业务逻辑（是否需要更新已有记录）来决定采用 `upload` 或 `upsert` 写入模式。
+- 根据目标表的类型（普通表或Transactional Table）及业务逻辑（是否需要更新已有记录）来决定采用 `upload` 或 `upsert` 写入模式。
 - 明确您的业务需求是偏向实时性还是吞吐量，以此来决定使用 `StreamingTunnel` 或 `BatchTunnel`。
 - 对于大量数据的处理，考虑使用 `BatchTunnel` 以减少网络交互次数和优化整体效率。
 - 在实施 `upsert` 操作前，确保对表的主键设计有充分理解，以避免数据冲突和不必要的性能开销。
@@ -82,35 +83,15 @@ TableTunnel 根据[上传模式](#上传模式)，[写入模式](#写入模式)�
 **目前 upsert 写入模式还不支持 `StreamingTunnel`。**
 
 ### 使用方法
-- 有关 TableTunnel 的初始化方法，和使用方式，请参考[TableTunnel 文档](../api-reference/tunnel/TableTunnel.md)。
 - UpsertSession 使用方法，请参考[UpsertSession 文档](../api-reference/tunnel/UpsertSession.md)。
 - UploadSession 使用方法，请参考[UploadSession 文档](../api-reference/tunnel/UploadSession.md)。
 - StreamUploadSession 使用方法，请参考[StreamUploadSession 文档](../api-reference/tunnel/StreamUploadSession.md)。
 
 
 ## 数据下载
-### 待完善
+DownloadSession 作为 TableTunnel 的核心组件，提供了对表数据的下载功能。
 
-## 初始化
-
-在使用 `TableTunnel` 之前，需要进行 Odps 对象的初始化操作，对 Odps 对象的初始化操作参考[初始化 Odps 对象](init-odps-client.md)。
-
-根据是否需要自定义TableTunnel的配置，可以使用如下两个接口来初始化TableTunnel。
-
-**无参初始化**
-```java
-TableTunnel tunnel = odps.tableTunnel();
-```
-
-**使用配置文件进行初始化**
-```java
-// com.aliyun.odps.tunnel.Configuration;
-Configuration configuration=Configuration.builder(odps).build();
-TableTunnel tunnel = odps.tableTunnel(configuration);
-```
-有关配置文件的配置项，请参考[Configuration 文档](../api-reference/tunnel/Configuration.md)。
+有关 DownloadSession 的使用方法，请参考[DownloadSession 文档](../api-reference/tunnel/DownloadSession.md)。
 
 
-## 使用方式
-- 有关 TableTunnel 的初始化方法，和使用方式，请参考[TableTunnel 文档](../api-reference/tunnel/TableTunnel.md)。
-- 
+

@@ -4,6 +4,21 @@ sidebar_position: 6
 ---
 
 # 更新日志
+## [0.51.5-public] - 2025-01-14
+### 修复
+- **MCQA2** 修复了 MCQA2 作业，可能会使用tunnel取结果时，无法正确抛出异常的问题
+
+## [0.51.4-public] - 2025-01-14
+
+### 功能
+- **MCQA2** 增加若干项优化，提升了 MCQA2 作业的执行效率。MCQA2 作业的模式变为 `ExecuteMode.INTERACTIVE_V2`，与 MCQA1 的 `ExecuteMode.INTERACTIVE` 区别开
+- **SQLExecutor** 新增 `getExecuteMode` 方法，用于获取作业执行模式
+
+### 变更
+- **UpsertStream** 在 0.51.0 版本，修改了 `close` 方法的函数签名（不再抛出 `TunnelException`），在本版本中恢复，以保证接口兼容性。
+- **ClusterInfo** 在 0.51.0 版本，toString 方法有所变更，在本版本中恢复，以保证接口兼容性。
+- **TunnelRetryStrategy**，**ConfigurationImpl** 类在 0.48.6 版本被移除，在本版本中恢复（但不会起到任何效果！），以保证接口兼容性。
+
 ## [0.51.3-public] - 2025-01-07
 ### 功能
 - **MCQA2** SQLExecutorImpl 新增 `setProject` 方法，用于指定提交作业使用的默认项目
@@ -25,6 +40,7 @@ sidebar_position: 6
 ### 修复
 - **TypeInfo** 当对字段使用反引号进行 quote 时，现在会正确对字段名进行转义
 - **MCQA2** 修复了 MCQA2 作业调用 `getRawTaskResults` 接口取不到结果的问题
+
 
 ## [0.51.0-public] - 2024-12-05
 
@@ -138,11 +154,16 @@ sidebar_position: 6
 - **Table** 修复了`getPartitionSpecs`方法会trim分区值，导致无法获取存在的分区的问题。
 
 ## [0.50.3-public] - 2024-10-23
+
 ### 功能
-- **SQLExecutor** 在 MCQA 1.0 模式下，允许增加自定义回退策略，新增类`FallbackPolicy.UserDefinedFallbackPolicy`。
+
+- **SQLExecutor** 在 MCQA 1.0
+  模式下，允许增加自定义回退策略，新增类`FallbackPolicy.UserDefinedFallbackPolicy`。
 
 ## [0.50.2-public] - 2024-10-23
+
 ### 功能
+
 - **SQLExecutor** 增强 MCQA 2.0 功能：
   - `isActive` 将返回 false，指示在 MCQA 2.0 模式下没有活跃的 Session。
   - 新增 `cancel` 方法，用于中止正在执行的作业。
@@ -150,45 +171,60 @@ sidebar_position: 6
   - 在 `SQLExecutorBuilder` 新增 `quota` 方法，支持复用已加载的 `Quota`，减少加载时间。
   - 在 `SQLExecutorBuilder` 新增 `regionId` 方法，允许指定 quota 所在的 region。
 - **Quotas** 新增带 `regionId` 参数的 `getWlmQuota` 方法，用于获取指定 regionId 的 quota。
-- **Quota** 新增 `setMcqaConnHeader` 方法，支持用户通过自定义的 McqaConnHeader 重载 quota，以适配 MCQA 2.0。
+- **Quota** 新增 `setMcqaConnHeader` 方法，支持用户通过自定义的 McqaConnHeader 重载 quota，以适配 MCQA
+  2.0。
 - **Instances** 新增适用于 MCQA 2.0 的 `get` 方法，需额外传入 MCQA 2.0 的 QuotaName 和 RegionId。
 - **Instance** 进一步适配 MCQA 2.0 作业。
 - **TableSchema** `basicallyEquals` 方法将不再严格检查两个类的 Class 类型一致性。
+
 ### 优化
-- **SQLExecutor** `run` 方法中的 hints 现在会进行深拷贝，保护用户传入的 Map，支持不可变类型（如 `ImmutableMap`）。
+
+- **SQLExecutor** `run` 方法中的 hints 现在会进行深拷贝，保护用户传入的
+  Map，支持不可变类型（如 `ImmutableMap`）。
+
 ### 修复
+
 - **Stream** 修复 `create` 方法中的潜在 SQL 语法错误。
 
 ## [0.50.1-public] - 2024-10-11
 
 ### 修复
 
--  **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，拿到了`ArrayRecord`无法正确`toString`的问题。
--  **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，如果`Split`对应的`Record`数量为0，在`get`
-   操作时会抛出数组越界异常的问题。
--  **TableAPI** 修复了复合谓词`CompositePredicate`在遇到空谓词时，可能额外增加一次操作符的问题。
+- **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，拿到了`ArrayRecord`无法正确`toString`的问题。
+- **TableAPI** 修复了使用`SplitRecordReaderImpl`获取结果时，如果`Split`对应的`Record`数量为0，在`get`
+  操作时会抛出数组越界异常的问题。
+- **TableAPI** 修复了复合谓词`CompositePredicate`在遇到空谓词时，可能额外增加一次操作符的问题。
 
 ## [0.50.0-public] - 2024-10-09
 
 ### 功能
-- 新增 `SchemaMismatchException` 异常：当使用 `StreamUploadSession` 时，如果用户上传的 Record 结构与表结构不匹配，将抛出该异常。此异常将额外携带最新的 schema version，方便用户重建 Session 并进行重试操作。
-- 在 `StreamUploadSession.Builder` 中新增 `allowSchemaMismatch` 方法，用于指定是否容忍用户上传的 Record 结构与表结构不匹配时是否抛出异常。默认值为 `true`。
+
+- 新增 `SchemaMismatchException` 异常：当使用 `StreamUploadSession` 时，如果用户上传的 Record
+  结构与表结构不匹配，将抛出该异常。此异常将额外携带最新的 schema version，方便用户重建 Session
+  并进行重试操作。
+- 在 `StreamUploadSession.Builder` 中新增 `allowSchemaMismatch` 方法，用于指定是否容忍用户上传的
+  Record 结构与表结构不匹配时是否抛出异常。默认值为 `true`。
 
 ### 修复
+
 - 修复了在 Odps 中指定 `tunnelEndpoint` 时，使用 `StreamUploadSession` 无法生效的问题。
 - 修复了 `TunnelRetryHandler` 潜在的 NPE 问题。
 
-
 ## [0.50.0-rc1] - 2024-09-19
+
 ### 功能
+
 - **SQLExecutor** 新增 `isUseInstanceTunnel` 方法：
   - 用来判断是否使用 instanceTunnel 取结果
+
 ### 修复
+
 - 修复了使用 SQLExecutor 执行 MCQA 2.0 作业时，执行 CommandApi 任务会影响下一次作业，导致取结果时抛出NPE的问题。
 
 ## [0.50.0-rc0] - 2024-09-18
 
 ### 功能
+
 - **SQLExecutor** 支持提交 MCQA 2.0 作业
   - SQLExecutorBuilder 新增方法 `enableMcqaV2`
   - SQLExecutorBuilder 新增对字段的 getter 方法
@@ -199,14 +235,21 @@ sidebar_position: 6
 - **Quotas** 新增 `getWlmQuota` 方法：
   - 能够根据 projectName 和 quotaNickName 获取到 quota 的详细信息，比如是否属于交互式 quota
 - **Quota 类**新增 `isInteractiveQuota` 方法，用来判断 quota 是否属于交互式 quota（适用于 MCQA 2.0）
-- 新增 `getResultByInstanceTunnel(Instance instance, String taskName, Long limit, boolean limitEnabled)` 方法：
-  - 用来无限制地通过 instanceTunnel 获取结果（解除限制需要更高的权限）
+-
+
+新增 `getResultByInstanceTunnel(Instance instance, String taskName, Long limit, boolean limitEnabled)`
+方法：
+
+- 用来无限制地通过 instanceTunnel 获取结果（解除限制需要更高的权限）
+
 - **UpsertSession.Builder** 新增 `setLifecycle` 方法，用来配置 Session 生命周期
 
 ### 修复
+
 - 修复了使用 SQLExecutor 执行离线作业时，指定 `limitEnabled` 取结果但不生效的问题
 - 修改了 SQLExecutor 执行离线作业时，`getQueryId` 方法会返回作业的 instanceID 而非 null
-- 修复了 SQLExecutor 执行离线作业时，当遇到非 select 语句时，使用 instanceTunnel 取结果不再抛出异常，而是回退到非 tunnel 逻辑
+- 修复了 SQLExecutor 执行离线作业时，当遇到非 select 语句时，使用 instanceTunnel 取结果不再抛出异常，而是回退到非
+  tunnel 逻辑
 - 修复了使用 DownloadSession 下载数据时，发生错误且读取数量刚好等于要读取记录的数量 - 1 时重建漏掉一条数据的问题
 - **Odps 类**的 `clone` 方法现在能正确克隆包括 `tunnelEndpoint` 等其他字段
 - **Instance** 的 `getRawTaskResults` 方法现在在处理同步作业时不会多次发起请求
@@ -243,9 +286,10 @@ sidebar_position: 6
 - **Varchar/Char 类型修复**：修复了 `Varchar/Char` 类型获取其长度时，当遇到中文符号或表情等特殊字符，会错误的计算两次的问题。
 
 ## [0.48.8-public] - 2024-08-12
-### 增强
-- 引入了对复合谓词表达式的内部验证，修复了处理无效或总是真/假谓词时的逻辑，增强了测试覆盖，确保了在复杂查询优化中的稳定性和准确性。
 
+### 增强
+
+- 引入了对复合谓词表达式的内部验证，修复了处理无效或总是真/假谓词时的逻辑，增强了测试覆盖，确保了在复杂查询优化中的稳定性和准确性。
 
 ## [0.48.7-public] - 2024-08-07
 
@@ -285,26 +329,26 @@ Odps odps;
 ### 新增
 
 - **支持序列化**：
-    - 主要数据类型如 `ArrayRecord`、`Column`、`TableSchema` 和 `TypeInfo` 现在支持序列化和反序列化，能够进行缓存和进程间通信。
+  - 主要数据类型如 `ArrayRecord`、`Column`、`TableSchema` 和 `TypeInfo` 现在支持序列化和反序列化，能够进行缓存和进程间通信。
 - **谓词下推**：
-    - 新增 `Attribute` 类型的谓词，用于指定列名。
+  - 新增 `Attribute` 类型的谓词，用于指定列名。
 
 ### 变更
 
 - **Tunnel 接口重构**：
-    - 重构了 Tunnel 相关接口，加入了无感知的重试逻辑，大大增强了稳定性和鲁棒性。
-    - 删除了 `TunnelRetryStrategy` 和 `ConfigurationImpl` 类，分别被 `TunnelRetryHandler`
-      和 `Configuration` 所取代。
+  - 重构了 Tunnel 相关接口，加入了无感知的重试逻辑，大大增强了稳定性和鲁棒性。
+  - 删除了 `TunnelRetryStrategy` 和 `ConfigurationImpl` 类，分别被 `TunnelRetryHandler`
+    和 `Configuration` 所取代。
 
 ### 优化
 
 - **SQLExecutor 优化**：
-    - 在使用 `SQLExecutor` 接口执行离线 SQL 作业时进行优化，减少每个作业获取结果时的一次网络请求，从而减少端到端延时。
+  - 在使用 `SQLExecutor` 接口执行离线 SQL 作业时进行优化，减少每个作业获取结果时的一次网络请求，从而减少端到端延时。
 
 ### 修复
 
 - **Table.read Decimal 读取**：
-    - 修复了 `Table.read` 接口在读取 `decimal` 类型时，后面补零不符合预期的问题。
+  - 修复了 `Table.read` 接口在读取 `decimal` 类型时，后面补零不符合预期的问题。
 
 ## [0.48.5-public] - 2024-06-17
 
@@ -446,8 +490,8 @@ org.antlr 重定位至 com.aliyun.odps.thirdparty.antlr
 
 - `TableReadSession` 新增参数 `maxBatchRawSize` 和 `splitMaxFileNum`。
 - `UpsertSession` 现支持：
-    - 写入部分列。
-    - 设置 Netty 线程池的数量（默认更改为 1）。
-    - 设置最大并发量（默认值更改为 16）。
+  - 写入部分列。
+  - 设置 Netty 线程池的数量（默认更改为 1）。
+  - 设置最大并发量（默认值更改为 16）。
 - `TableTunnel` 支持设置 `quotaName` 选项。
 

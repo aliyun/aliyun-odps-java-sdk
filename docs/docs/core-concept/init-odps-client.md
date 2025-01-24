@@ -51,20 +51,10 @@ public static Odps buildWithStsToken(String accessId, String accessKey, String s
 
 ## 使用阿里云CredentialProvider构建客户端
 
-此方法适用于如使用默认凭据链，或ECS实例上的RAM角色授权等场景。
+此方法适用于如ECS实例上的RAM角色授权等场景。
 
 ### 示例代码
-使用 [credential-java](https://github.com/aliyun/credentials-java) 包
-```java
-public static Odps buildWithCredentialProvider(AlibabaCloudCredentialsProvider credentialProvider) {
-  Account account = new AklessAccount(credentialProvider);
-  Odps odps = new Odps(account);
-  odps.setEndpoint(SAMPLE_ENDPOINT);
-  return odps;
-}
-```
 
-使用 aliyun-java-auth 包
 ```java
 public static Odps buildWithCredentialProvider(ICredentialProvider credentialProvider) {
   Account account = new AklessAccount(credentialProvider);
@@ -75,10 +65,8 @@ public static Odps buildWithCredentialProvider(ICredentialProvider credentialPro
 ```
 
 ### 说明
-CredentialProvider 是阿里云提供的一种无AK认证方式，它实际上提供了一种基于STS Token的生成和自动轮换机制。
-阿里云的`credential-java`包提供了`AlibabaCloudCredentialsProvider`接口和多种实现，
-阿里云的`aliyun-java-auth`包提供了`ICredentialProvider`接口和多种实现，
-用户可以根据需要选择不同的实现。
+
+CredentialProvider 是阿里云提供的一种无AK认证方式，它实际上提供了一种基于STS Token的生成和自动轮换机制。阿里云的`aliyun-java-auth`包提供了多种`ICredentialProvider`的实现，例如`DefaultCredentialProvider`和`RamRoleArnCredentialProvider`，用户可以根据需要选择不同的实现。
 
 ## 使用双重签名认证构建客户端
 
@@ -127,5 +115,5 @@ String bearerToken = sm.generateAuthorizationToken(policy, "BEARER");
 - [阿里云MaxCompute官方文档](https://help.aliyun.com/zh/maxcompute)
 - [阿里云RAM用户指南](https://help.aliyun.com/zh/maxcompute/getting-started/prepare-a-ram-user)
 - [Policy 权限控制文档](https://help.aliyun.com/zh/maxcompute/user-guide/policy-based-access-control-1)
-- [阿里云 CredentialProvider 使用文档](https://help.aliyun.com/zh/sdk/developer-reference/v2-manage-access-credentials)
+- [阿里云 CredentialProvider 使用文档](https://help.aliyun.com/zh/sdk/developer-reference/v2-java-integrated-sdk)
 
