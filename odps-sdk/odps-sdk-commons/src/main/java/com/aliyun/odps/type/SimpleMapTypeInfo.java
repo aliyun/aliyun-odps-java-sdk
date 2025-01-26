@@ -32,11 +32,6 @@ class SimpleMapTypeInfo implements MapTypeInfo {
     this.valueType = valueType;
   }
 
-  @Override
-  public String getTypeName() {
-    return getOdpsType().name() + "<" + keyType.getTypeName() + "," + valueType.getTypeName() + ">";
-  }
-
   /**
    * 获取键的类型
    *
@@ -82,5 +77,37 @@ class SimpleMapTypeInfo implements MapTypeInfo {
   @Override
   public int hashCode() {
     return Objects.hash(keyType, valueType);
+  }
+
+  @Override
+  public String getTypeName() {
+    return getTypeName(false);
+  }
+
+  @Override
+  public String getTypeName(boolean quote) {
+    String baseType = getOdpsType().name();
+
+    if (!quote) {
+      return String.format("%s<%s,%s>",
+                           baseType,
+                           keyType.getTypeName(),
+                           valueType.getTypeName()
+      );
+    }
+
+    StringBuilder sb = new StringBuilder(baseType).append("<");
+    appendNestedType(sb, keyType);
+    sb.append(",");
+    appendNestedType(sb, valueType);
+    return sb.append(">").toString();
+  }
+
+  private void appendNestedType(StringBuilder sb, TypeInfo type) {
+    if (type instanceof NestedTypeInfo) {
+      sb.append(((NestedTypeInfo) type).getTypeName(true));
+    } else {
+      sb.append(type.getTypeName());
+    }
   }
 }

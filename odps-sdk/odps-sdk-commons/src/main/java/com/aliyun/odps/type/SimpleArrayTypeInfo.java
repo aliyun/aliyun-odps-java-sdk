@@ -28,11 +28,6 @@ class SimpleArrayTypeInfo implements ArrayTypeInfo {
     valueType = typeInfo;
   }
 
-  @Override
-  public String getTypeName() {
-    return getOdpsType().name() + "<" + valueType.getTypeName() + ">";
-  }
-
   /**
    * 获取 Array 里元素类型信息
    *
@@ -68,5 +63,17 @@ class SimpleArrayTypeInfo implements ArrayTypeInfo {
   @Override
   public int hashCode() {
     return Objects.hash(valueType);
+  }
+
+  @Override
+  public String getTypeName() {
+    return getTypeName(false);
+  }
+  @Override
+  public String getTypeName(boolean quote) {
+    if (quote && valueType instanceof SimpleStructTypeInfo) {
+      return getOdpsType().name() + "<" + ((SimpleStructTypeInfo) valueType).getTypeName(true) + ">";
+    }
+    return getOdpsType().name() + "<" + valueType.getTypeName() + ">";
   }
 }

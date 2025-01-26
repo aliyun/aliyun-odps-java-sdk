@@ -7,7 +7,7 @@ package com.aliyun.odps.type;
  *
  * Created by zhenhong.gzh on 16/7/8.
  */
- public interface MapTypeInfo extends TypeInfo {
+ public interface MapTypeInfo extends NestedTypeInfo {
   TypeInfo getKeyTypeInfo();
   TypeInfo getValueTypeInfo();
 }

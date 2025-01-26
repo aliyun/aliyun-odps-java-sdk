@@ -171,6 +171,11 @@ public class TableSchema implements Serializable {
     return (List<Column>) columns.clone();
   }
 
+  @Deprecated
+  public void setPartitionColumns(ArrayList<Column> partitionColumns) {
+    setPartitionColumns((List<Column>)partitionColumns);
+  }
+
   public void setPartitionColumns(List<Column> partitionColumns) {
     this.partitionNameMap.clear();
     this.partitionColumns.clear();

@@ -9,14 +9,8 @@ import java.util.List;
  *
  * Created by zhenhong.gzh on 16/7/8.
  */
-public interface StructTypeInfo extends TypeInfo {
+public interface StructTypeInfo extends NestedTypeInfo {
   List<String> getFieldNames();
   List<TypeInfo> getFieldTypeInfos();
   int getFieldCount();
-
-  /**
-   * 此方法会将struct类型中，列字段进行转义。适用于拼装 SQL 场景
-   * 当 quote = false 时，此方法与 getTypeName() 相同
-   */
-  String getTypeName(boolean quote);
 }

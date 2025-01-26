@@ -39,6 +39,7 @@ import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.type.NestedTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
@@ -1413,8 +1414,8 @@ public class Tables implements Iterable<Table> {
     }
 
     private String getTypeName(TypeInfo typeInfo) {
-      if (typeInfo instanceof StructTypeInfo) {
-        return ((StructTypeInfo) typeInfo).getTypeName(true);
+      if (typeInfo instanceof NestedTypeInfo) {
+        return ((NestedTypeInfo) typeInfo).getTypeName(true);
       }
       return typeInfo.getTypeName();
     }
