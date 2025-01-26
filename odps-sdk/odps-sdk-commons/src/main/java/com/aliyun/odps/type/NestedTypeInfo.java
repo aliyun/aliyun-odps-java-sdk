@@ -1,14 +1,12 @@
 package com.aliyun.odps.type;
 
-import com.aliyun.odps.OdpsType;
-
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
 public interface NestedTypeInfo extends TypeInfo {
   /**
-   * ´Ë·½·¨»á½«structÀàĞÍÖĞ£¬ÁĞ×Ö¶Î½øĞĞ×ªÒå¡£ÊÊÓÃÓÚÆ´×° SQL ³¡¾°
-   * µ± quote = false Ê±£¬´Ë·½·¨Óë getTypeName() ÏàÍ¬
+   * æ­¤æ–¹æ³•ä¼šå°†structç±»å‹ä¸­ï¼Œåˆ—å­—æ®µè¿›è¡Œè½¬ä¹‰ã€‚é€‚ç”¨äºæ‹¼è£… SQL åœºæ™¯
+   * å½“ quote = false æ—¶ï¼Œæ­¤æ–¹æ³•ä¸ getTypeName() ç›¸åŒ
    */
   String getTypeName(boolean quote);
 }
