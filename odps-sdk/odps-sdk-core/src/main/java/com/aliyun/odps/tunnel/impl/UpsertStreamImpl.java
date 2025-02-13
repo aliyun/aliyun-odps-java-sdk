@@ -95,9 +95,7 @@ public class UpsertStreamImpl implements UpsertStream {
     private UpsertSessionImpl session;
     private long maxBufferSize = 64 * 1024 * 1024;
     private long slotBufferSize = 1024 * 1024;
-    private CompressOption
-        compressOption =
-        new CompressOption(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME, -1, 0);
+    private CompressOption compressOption = new CompressOption();
     private Listener listener = null;
 
     public Builder setSession(UpsertSessionImpl session) {

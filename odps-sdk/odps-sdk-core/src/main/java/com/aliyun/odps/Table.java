@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import java.io.InputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
@@ -58,6 +60,7 @@ import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoParser;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
@@ -101,6 +104,9 @@ public class Table extends LazyLoad {
      * Materialized view
      */
     MATERIALIZED_VIEW,
+    /**
+     * Object table
+     */
     OBJECT_TABLE
   }
 
@@ -401,12 +407,25 @@ public class Table extends LazyLoad {
     this.isShardInfoLoaded = false;
   }
 
+
+  protected void setIsExtendInfoLoaded(boolean isExtendInfoLoaded) {
+    this.isExtendInfoLoaded = isExtendInfoLoaded;
+  }
   @Override
   public void reload() throws OdpsException {
-    String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
-    Map<String, String> params = initParamsWithSchema();
-
-    reload(client.request(TableModel.class, resource, "GET", params));
+    odps.projects().get(model.projectName).executeIfEpv2(
+        () -> {
+          tableSchema = loadEpv2TableFromJson(model.projectName, model.schemaName,model.name);
+          this.setLoaded(true);
+          return null;
+        },
+        () -> {
+          String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+          Map<String, String> params = initParamsWithSchema();
+          reload(client.request(TableModel.class, resource, "GET", params));
+          return null;
+        }
+    );
   }
 
   public void reload(TableModel model) throws OdpsException {
@@ -444,8 +463,18 @@ public class Table extends LazyLoad {
 
   private void lazyLoadExtendInfo() {
     if (!this.isExtendInfoLoaded) {
-      reloadExtendInfo();
-      this.isExtendInfoLoaded = true;
+      try {
+        odps.projects().get(model.projectName).executeIfEpv2(() -> {
+          this.isExtendInfoLoaded = true;
+          return null;
+        }, () -> {
+          reloadExtendInfo();
+          this.isExtendInfoLoaded = true;
+          return null;
+        });
+      } catch (OdpsException e) {
+        throw new UncheckedOdpsException(e);
+      }
     }
   }
 
@@ -1588,6 +1617,142 @@ public class Table extends LazyLoad {
 
     return s;
   }
+
+  private TableSchema loadEpv2TableFromJson(String projectName, String schemaName,
+                                            String tableName) throws OdpsException {
+    InputStream is = null;
+    Map<String, String> queryHint = new HashMap<>();
+    try {
+      is = Table.class.getResourceAsStream("/com/aliyun/odps/core/base.conf");
+      Properties properties = new Properties();
+      properties.load(is);
+      String majorVersion = properties.getProperty("epv2flighting");
+      if (majorVersion != null && !majorVersion.isEmpty() && !"default".equals(majorVersion)) {
+        queryHint.put("odps.task.major.version", majorVersion);
+      }
+    } catch (Exception e) {
+    } finally {
+      org.apache.commons.io.IOUtils.closeQuietly(is);
+    }
+
+    String jsonString = "";
+    queryHint.put("odps.namespace.schema", "true");
+    queryHint.put("odps.sql.allow.namespace.schema", "true");
+    queryHint.put("odps.default.schema", schemaName);
+    queryHint.put("odps.sql.select.output.format", "json");
+    Instance instance =
+        SQLTask.run(odps, projectName, "desc extended " + tableName + ";", queryHint, null);
+    instance.waitForSuccess();
+    Instance.InstanceResultModel.TaskResult taskResult = instance.getRawTaskResults().get(0);
+    jsonString = taskResult.result.getString();
+
+    TableSchema tableSchema = new TableSchema();
+    JsonObject tree = new JsonParser().parse(jsonString).getAsJsonObject();
+
+    if (tree.has("Owner") && !tree.get("Owner").isJsonNull()) {
+      model.owner = tree.get("Owner").getAsString();
+    }
+
+    if (tree.has("Project") && !tree.get("Project").isJsonNull()) {
+      model.projectName = tree.get("Project").getAsString();
+    }
+
+    if (tree.has("Schema") && !tree.get("Schema").isJsonNull()) {
+      model.schemaName = tree.get("Schema").getAsString();
+    }
+
+    if (tree.has("TableComment") && !tree.get("TableComment").isJsonNull()) {
+      model.comment = tree.get("TableComment").getAsString();
+    }
+
+    if (tree.has("CreateTime") && !tree.get("CreateTime").isJsonNull()) {
+      model.createdTime = new Date(tree.get("CreateTime").getAsLong() * 1000);
+    }
+
+    if (tree.has("LastModifiedTime") && !tree.get("LastModifiedTime").isJsonNull()) {
+      model.lastModifiedTime = new Date(tree.get("LastModifiedTime").getAsLong() * 1000);
+    }
+
+    if (tree.has("ExternalTable") && !tree.get("ExternalTable").isJsonNull()) {
+      model.type = TableType.EXTERNAL_TABLE;
+      model.isExternalTable = "YES".equalsIgnoreCase(tree.get("ExternalTable").getAsString());
+    }
+
+    if (tree.has("Size") && !tree.get("Size").isJsonNull()) {
+      model.size = tree.get("Size").getAsLong();
+    }
+
+    if (tree.has("NativeColumns") && !tree.get("NativeColumns").isJsonNull()) {
+      JsonArray columnsNode = tree.get("NativeColumns").getAsJsonArray();
+      for (int i = 0; i < columnsNode.size(); ++i) {
+        JsonParser parser = new JsonParser();
+        JsonObject n = columnsNode.get(i).getAsJsonObject();
+        JsonObject node = parser.parse(n.toString()).getAsJsonObject();
+        String name = "";
+        String typeString = "";
+        String comment = "";
+        String nullable = "";
+        String defaultValue = "";
+        TypeInfo typeInfo = null;
+
+        if (node.has("Name") && !node.get("Name").isJsonNull()) {
+          name = node.get("Name").getAsString();
+        }
+        if (node.has("Type") && !node.get("Type").isJsonNull()) {
+          typeString = node.get("Type").getAsString();
+          typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
+
+        }
+        if (node.has("Comment") && !node.get("Comment").isJsonNull()) {
+          comment = node.get("Comment").getAsString();
+        }
+
+        if (node.has("Nullable") && !node.get("Nullable").isJsonNull()) {
+          nullable = node.get("Nullable").getAsString();
+        }
+
+        if (node.has("DefaultValue") && !node.get("DefaultValue").isJsonNull()) {
+          defaultValue = node.get("DefaultValue").getAsString();
+        }
+
+        Column column = new Column(name, typeInfo, comment);
+        column.setNullable(nullable.equals("true"));
+        column.setDefaultValue(defaultValue);
+        tableSchema.addColumn(column);
+        // other attribute set null
+      }
+    }
+
+    if (tree.has("PartitionColumns") && !tree.get("PartitionColumns").isJsonNull()) {
+      JsonArray columnsNode = tree.get("PartitionColumns").getAsJsonArray();
+      for (int i = 0; i < columnsNode.size(); ++i) {
+        JsonParser parser = new JsonParser();
+        JsonObject n = columnsNode.get(i).getAsJsonObject();
+        JsonObject node = parser.parse(n.toString()).getAsJsonObject();
+        String name = "";
+        String typeString = "";
+        String comment = "";
+        TypeInfo typeInfo = null;
+        if (node.has("Name") && !node.get("Name").isJsonNull()) {
+          name = node.get("Name").getAsString();
+        }
+        if (node.has("Type") && !node.get("Type").isJsonNull()) {
+          typeString = node.get("Type").getAsString();
+          typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
+
+        }
+        if (node.has("Comment") && !node.get("Comment").isJsonNull()) {
+          comment = node.get("Type").getAsString();
+        }
+        Column column = new Column(name, typeInfo, comment);
+        tableSchema.addPartitionColumn(column);
+        // other attribute set null
+      }
+    }
+    return tableSchema;
+  }
+
+
 
   private void loadReservedJson(String reserved) {
     JsonObject reservedJson = new JsonParser().parse(reserved).getAsJsonObject();

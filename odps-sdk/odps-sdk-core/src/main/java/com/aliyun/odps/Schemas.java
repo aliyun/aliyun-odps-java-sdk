@@ -19,14 +19,20 @@
 
 package com.aliyun.odps;
 
+import static com.aliyun.odps.task.SQLTask.parseCsvRecord;
+
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.aliyun.odps.Schema.SchemaModel;
 import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.rest.SimpleXmlUtils;
@@ -34,6 +40,7 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.utils.ExceptionUtils;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -289,9 +296,62 @@ public class Schemas implements Iterable<Schema> {
       return params.get("marker");
     }
 
+
+    /**
+     * getExternalProjectSchemaList , special for EPV2
+     * @param projectName
+     * @return
+     * @throws OdpsException
+     */
+    public List<Schema> getExternalProjectSchemaList(String projectName) throws OdpsException {
+      //Temporary code for openlake Demo(YunQi big conference):
+      // Long-term this code block should be converted to SQL for both internal and external projects,
+      // and should not have any setting flag, except for opening the 3 layer model based on project attributes(user can choose use 2 or 3tier for 3 layer Project ).
+      //warning filter not support in EPV2
+      Map<String, String> queryHint = new HashMap<>();
+      InputStream is = null;
+      try {
+        is = Schemas.class.getResourceAsStream("/com/aliyun/odps/core/base.conf");
+        Properties properties = new Properties();
+        properties.load(is);
+        String majorVersion = properties.getProperty("epv2flighting");
+        if (majorVersion != null && !majorVersion.isEmpty() && !"default".equals(majorVersion)) {
+          queryHint.put("odps.task.major.version", majorVersion);
+        }
+
+      } catch (Exception e) {
+      } finally {
+        org.apache.commons.io.IOUtils.closeQuietly(is);
+      }
+      queryHint.put("odps.sql.select.output.format", "csv");
+      Instance i = SQLTask.run(odps, projectName, "show schemas;", queryHint, null);
+      i.waitForSuccess();
+      Instance.InstanceResultModel.TaskResult taskResult = i.getRawTaskResults().get(0);
+      Instance.TaskStatus.Status taskStatus =
+          Instance.TaskStatus.Status.valueOf(taskResult.status.toUpperCase());
+      if (taskStatus != Instance.TaskStatus.Status.SUCCESS) {
+        throw new RuntimeException("show schemas failed. instanceId:" + i.getId());
+      }
+
+      String result = taskResult.result.getString();
+      List<Record> schemalist = parseCsvRecord(result);
+      if (schemalist == null || schemalist.isEmpty()) {
+        return null;
+      }
+      ArrayList<Schema> schemas = new ArrayList<>();
+      for (Record s : schemalist) {
+        SchemaModel model = new SchemaModel();
+        model.name = s.get(0).toString();
+        Schema schema = new Schema(model, projectName, odps);
+        schema.setLoaded(true);
+        schemas.add(schema);
+      }
+      return schemas;
+    }
+
     @Override
     protected List<Schema> list() {
-      ArrayList<Schema> schemas = new ArrayList<>();
+      AtomicReference<List<Schema>> schemas = new AtomicReference<>(new ArrayList<>());
       params.put("expectmarker", "true");
       String lastMarker = params.get("marker");
       if (params.containsKey("marker") && StringUtils.isNullOrEmpty(lastMarker)) {
@@ -307,26 +367,28 @@ public class Schemas implements Iterable<Schema> {
           params.put("owner", filter.getOwner());
         }
       }
-
       String resource = ResourceBuilder.buildSchemaResource(projectName);
-
       try {
-
-        ListSchemasResponse resp = client.request(
-                ListSchemasResponse.class, resource, "GET", params);
-
-        for (SchemaModel model: resp.schemas) {
-          Schema schema = new Schema(model, projectName, odps);
-          schemas.add(schema);
-        }
-
-        params.put("marker", resp.marker);
-
+        return odps.projects().get(projectName).executeIfEpv2(() -> {
+          schemas.set(getExternalProjectSchemaList(projectName));
+          if (schemas.get() == null || schemas.get().isEmpty()) {
+            return null;
+          }
+          params.put("marker", "");
+          return schemas.get();
+        }, () -> {
+          ListSchemasResponse resp = client.request(
+              ListSchemasResponse.class, resource, "GET", params);
+          for (SchemaModel model : resp.schemas) {
+            Schema schema = new Schema(model, projectName, odps);
+            schemas.get().add(schema);
+          }
+          params.put("marker", resp.marker);
+          return schemas.get();
+        });
       } catch (OdpsException e) {
-        throw new RuntimeException(e.getMessage(), e);
+        throw new UncheckedOdpsException(e);
       }
-
-      return schemas;
     }
   }
 }

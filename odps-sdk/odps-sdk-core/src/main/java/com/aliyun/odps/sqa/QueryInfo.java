@@ -119,6 +119,12 @@ public class QueryInfo {
     }
   }
 
+  public void addLog(String log) {
+    synchronized (this) {
+      executionLog.add(log);
+    }
+  }
+
   public CommandInfo getCommandInfo() {
     return commandInfo;
   }

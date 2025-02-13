@@ -44,6 +44,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.aliyun.odps.Classification.AttributeDefinition;
@@ -982,5 +983,84 @@ public class TableTest extends TestBase {
 
     Assert.assertNotEquals(schemaVersion, table.getSchemaVersion());
     odps.tables().delete(tableName, true);
+  }
+
+  @Test
+  @Ignore
+  public void testEpv2Table() throws OdpsException {
+
+////    testEpv2Print("openlake_win", "default", "user_profile");
+//    testEpv2Print("openlake_win", "gh_db", "gh_event_ods");
+//    testEpv2Print("openlake_win", "github_events", "gh_event_ods");
+//    testEpv2Print("test_mc_epv2_8", "mc_test_db", "sale_maxframe_demo");
+    Table table = odps.tables().get("testld", "bankpt");
+    System.out.println(table.getClusterInfo());
+
+    Table table2 = odps.tables().get("openlake_win","github_events", "gh_event_ods");
+    System.out.println(table2.getClusterInfo());
+
+
+//    测试reload
+//    System.out.println("tables ---------");
+//    Iterator<Table> iterator = odps.tables().iterator();
+//    while (iterator.hasNext()) {
+//      Table table1 = iterator.next();
+//      System.out.println(table1.getName());
+//      System.out.println(table1.getSchema().getColumns());
+//      System.out.println(table1.getRefreshHistory());
+//
+//    }
+  }
+
+
+  public void testEpv2Print(String projectName,String SchemaName,String tableName){
+
+    System.out.println(projectName +": ---------");
+    Table table = odps.tables().get(projectName, SchemaName, tableName);
+    System.out.println("tableName.getName: "+ table.getName());
+    System.out.println("Table.get.getProject: "+ table.getProject());
+    System.out.println("table.getSchema: "+ table.getSchema());
+    System.out.println("table.getComment: "+ table.getComment());
+    System.out.println("table.getCreatedTime: "+ table.getCreatedTime());
+    System.out.println("table.getLastDataModifiedTime: "+ table.getLastDataModifiedTime());
+    System.out.println("table.getType: "+table.isExternalTable());
+    for(Column column : table.getSchema().getColumns()){
+      System.out.println("getName: "+ column.getName());
+      System.out.println("getTypeName: "+column.getTypeInfo().getTypeName());
+      System.out.println("getDefaultValue: " + column.getDefaultValue());
+      System.out.println("getComment: " + column.getComment());
+      System.out.println("isNullable: " + column.isNullable());
+    }
+    if(!table.getSchema().getPartitionColumns().isEmpty()){
+      for(Column column : table.getSchema().getColumns()){
+        System.out.println("getPartitionColumns getName: "+ column.getName());
+        System.out.println("getPartitionColumns getTypeName: "+column.getTypeInfo().getTypeName());
+        System.out.println("getPartitionColumns getComment: " + column.getComment());
+      }
+    }
+
+  }
+
+
+  @Test
+  public void testEpv2TablesSchemas(){
+    System.out.println("tables ---------");
+    Iterator<Table> iterator = odps.tables().iterator();
+    while (iterator.hasNext()) {
+      Table table = iterator.next();
+      System.out.println("table.name:"+ table.getName());
+      System.out.println("table.columns:"+table.getSchema().getColumns().toString());
+      System.out.println("table.refreshHistory: " + table.getRefreshHistory());
+    }
+
+    System.out.println("schemas ---------");
+    Iterator<Schema> iterator2 = odps.schemas().iterator();
+    while (iterator2.hasNext()) {
+      Schema schema = iterator2.next();
+      System.out.println("schema.projectName: "+schema.getProjectName());
+      System.out.println("schema.name: "+schema.getName());
+      System.out.println("schema.type: "+schema.getType());
+
+    }
   }
 }

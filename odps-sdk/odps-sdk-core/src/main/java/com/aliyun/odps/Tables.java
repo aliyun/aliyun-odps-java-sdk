@@ -19,17 +19,23 @@
 
 package com.aliyun.odps;
 
+import static com.aliyun.odps.task.SQLTask.parseCsvRecord;
+
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.aliyun.odps.Table.TableModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.data.GenerateExpression;
+import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.rest.SimpleXmlUtils;
@@ -396,9 +402,54 @@ public class Tables implements Iterable<Table> {
       return params.get("marker");
     }
 
+
+    //special for EPV2
+    public List<Table> getExternalPrjTablelist(String projectName) throws OdpsException {
+      // Temporary code for openlake Demo(YunQi big conference):
+      // Long-term this code block should be converted to SQL for both internal and external projects,
+      // and should not have any setting flag, except for opening the 3 layer model based on project attributes(user can choose use 2 or 3tier for 3 layer Project ).
+      //warning: filter not support in EPV2 for now.
+      Map<String, String> queryHint = new HashMap<>();
+      InputStream is = null;
+      try {
+        is = Tables.class.getResourceAsStream("/com/aliyun/odps/core/base.conf");
+        Properties properties = new Properties();
+        properties.load(is);
+        String majorVersion = properties.getProperty("epv2flighting");
+        if (majorVersion != null && !majorVersion.isEmpty() && !"default".equals(majorVersion)) {
+          queryHint.put("odps.task.major.version", majorVersion);
+        }
+      } catch (Exception e) {
+      } finally {
+        org.apache.commons.io.IOUtils.closeQuietly(is);
+      }
+      queryHint.put("odps.namespace.schema", "true");
+      queryHint.put("odps.sql.allow.namespace.schema", "true");
+      queryHint.put("odps.sql.select.output.format", "csv");
+      queryHint.put("odps.default.schema", schemaName);
+      Instance i = SQLTask.run(odps, projectName, "show tables;", queryHint, null);
+      i.waitForSuccess();
+      Instance.InstanceResultModel.TaskResult taskResult = i.getRawTaskResults().get(0);
+      String result = taskResult.result.getString();
+      ArrayList<Table> tables = new ArrayList<Table>();
+      List<Record> tablelist = parseCsvRecord(result);
+      if (tablelist == null || tablelist.isEmpty()) {
+        return tables;
+      }
+      for (Record t : tablelist) {
+        TableModel tableModel = new TableModel();
+        tableModel.owner = t.get(0).toString();
+        tableModel.name = t.get(1).toString();
+        Table table = new Table(tableModel, projectName, schemaName, odps);
+        table.setIsExtendInfoLoaded(true);
+        tables.add(table);
+      }
+      return tables;
+    }
+
     @Override
     protected List<Table> list() {
-      ArrayList<Table> tables = new ArrayList<Table>();
+      AtomicReference<List<Table>> tables = new AtomicReference<>(new ArrayList<>());
       params.put("expectmarker", "true"); // since sprint-11
 
       String lastMarker = params.get("marker");
@@ -426,21 +477,26 @@ public class Tables implements Iterable<Table> {
 
       String resource = ResourceBuilder.buildTablesResource(projectName);
       try {
-
-        ListTablesResponse resp = client.request(ListTablesResponse.class, resource, "GET",
-                                                 params);
-
-        for (TableModel model : resp.tables) {
-          Table t = new Table(model, projectName, schemaName, odps);
-          tables.add(t);
-        }
-
-        params.put("marker", resp.marker);
+        return odps.projects().get(projectName).executeIfEpv2(
+            () -> {
+              tables.set(getExternalPrjTablelist(projectName));
+              params.put("marker", "");
+              return tables.get();
+            },
+            () -> {
+              ListTablesResponse resp = client.request(ListTablesResponse.class, resource, "GET",
+                                                       params);
+              for (TableModel model : resp.tables) {
+                Table t = new Table(model, projectName, schemaName, odps);
+                tables.get().add(t);
+              }
+              params.put("marker", resp.marker);
+              return tables.get();
+            }
+        );
       } catch (OdpsException e) {
-        throw new RuntimeException(e.getMessage(), e);
+        throw new UncheckedOdpsException(e);
       }
-
-      return tables;
     }
   }
 

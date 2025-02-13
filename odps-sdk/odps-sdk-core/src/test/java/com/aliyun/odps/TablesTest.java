@@ -642,4 +642,19 @@ public class TablesTest extends TestBase {
     }
     return tables;
   }
+
+  @Test
+  public void testGetExternalTable() throws OdpsException {
+    List<Table> expectedTables = getTables(odps, odps.getDefaultProject(), 100);
+//    assertTrue(expectedTables.size() > 0);
+
+    List<String> names = expectedTables.stream().map(Table::getName).collect(Collectors.toList());
+    List<String> owners = expectedTables.stream().map(Table::getOwner).collect(Collectors.toList());
+    for (Table t:expectedTables) {
+      System.out.println(t.getName());
+//      System.out.println(t.getFileNum());
+      System.out.println(t.getComment());
+    }
+
+  }
 }

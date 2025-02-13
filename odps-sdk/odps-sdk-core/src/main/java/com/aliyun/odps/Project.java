@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.Callable;
 
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -91,7 +92,12 @@ public class Project extends LazyLoad {
     /**
      * 映射到 Odps 的外部项目，例如 hive
      */
-    external
+    external,
+
+    /**
+     * 映射到 Odps 的外部项目 V2，后续将和 external 合并
+     */
+    external_v2
   }
 
   /**
@@ -428,10 +434,76 @@ public class Project extends LazyLoad {
 
       properties = model.properties;
       clusters = model.clusters;
+
+      if (isExternalV2(model.name)) {
+        model.type = ProjectType.external_v2.name();
+      }
     } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + ProjectModel.class, e);
     }
     setLoaded(true);
+  }
+
+  /**
+   * judge whether external epv2
+   *
+   * @param projectName
+   * @throws OdpsException
+   */
+  private boolean isExternalV2(String projectName) throws OdpsException {
+    if (projectName.equalsIgnoreCase("system_catalog")) {
+      return false;
+    }
+    // get isEx from api-worker and put in cache
+    String propertyStr = properties.get("external_project_properties");
+    if (propertyStr != null) {
+      //judge isExternalCatalogBound=true whether in external_project_properties of properties
+      return propertyStr.contains("\"isExternalCatalogBound\":true");
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * 首先检查当前项目是否为 epv2（但检查时可能会报错）。
+   * 如果是 epv2，执行 ifEpv2。
+   * 如果不是 epv2，或者检查时报错，则执行 ifNotEpv2。
+   * 当执行 ifNotEpv2 时，如果报错且检查 project 时也报错，则将两个报错合成一个，抛出。
+   */
+  public <T> T executeIfEpv2(Callable<T> ifEpv2, Callable<T> ifNotEpv2) throws OdpsException {
+    Exception readProjectException = null;
+    boolean isEpv2;
+    try {
+      isEpv2 = getType() == ProjectType.external_v2;
+    } catch (Exception e) {
+      readProjectException = e;
+      isEpv2 = false;
+    }
+    try {
+      if (isEpv2) {
+        return ifEpv2.call();
+      } else {
+        return ifNotEpv2.call();
+      }
+    } catch (Exception e) {
+      // 处理 ifNotEpv2 执行中的异常
+      if (readProjectException != null) {
+        // 如果项目检查时有异常，合成两个异常的消息抛出
+        String errMsg = String.format(
+                "%s, If any entities in the statement you execute are from external projects, the error may be caused by [%s]",
+                e.getMessage(), readProjectException.getMessage());
+        if (e instanceof NoSuchObjectException) {
+          throw new NoSuchObjectException(errMsg, e);
+        }
+        throw new OdpsException(errMsg, e);
+      } else {
+        if (e instanceof OdpsException) {
+          throw (OdpsException) e;
+        } else {
+          throw new OdpsException(e.getMessage(), e);
+        }
+      }
+    }
   }
 
   /**
@@ -452,7 +524,6 @@ public class Project extends LazyLoad {
     if (model.type == null) {
       lazyLoad();
     }
-
     if (model.type != null) {
       try {
         return ProjectType.valueOf(model.type.toLowerCase());

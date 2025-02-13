@@ -92,7 +92,7 @@ public class Projects {
    *
    * @param projectName {@link Project}名称
    * @return {@link Project}对象
-   * @throws NoSuchObjectException Project不存在
+   * @throws OdpsException No exception will throw, however for compatibility
    */
   public Project get(String projectName) throws OdpsException {
     ProjectModel model = new ProjectModel();

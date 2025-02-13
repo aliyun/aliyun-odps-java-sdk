@@ -1,5 +1,6 @@
 package com.aliyun.odps.type;
 
+
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */

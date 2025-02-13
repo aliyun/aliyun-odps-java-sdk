@@ -252,4 +252,30 @@ public class SchemasTest {
     }
   }
 
+
+  @Test
+  @Ignore
+  public void testExternalProjectV2Schemas(){
+
+    Schemas schemas = OdpsTestUtils.newDefaultOdps().schemas();
+    SchemaFilter filter = new SchemaFilter();
+
+    filter.setName("schema");
+    Iterator<Schema> iterator = schemas.iterator("test_mc_epv2_8", filter);
+    ListIterator<Schema> schemaListIterator = (ListIterator<Schema>) iterator;
+    String marker = null;
+    long maxItemSize = 10;
+    List<Schema> schemaList = schemaListIterator.list(marker, maxItemSize);
+    for (Schema schema : schemaList) {
+      System.out.println("schema.model.name : " + schema.model.name);
+      System.out.println("schema.getName() : " + schema.getName());
+      System.out.println("schema.getProjectName() : " + schema.getProjectName());
+      System.out.println("schema.getType() : " + schema.getType());
+      System.out.println("schema.getComment(): " + schema.getComment());
+      System.out.println("----------------");
+
+    }
+
+  }
+
 }

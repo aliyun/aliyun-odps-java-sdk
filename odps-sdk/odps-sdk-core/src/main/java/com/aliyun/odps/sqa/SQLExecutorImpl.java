@@ -1137,12 +1137,16 @@ public class SQLExecutorImpl implements SQLExecutor {
         if (!isSelect || TunnelConstants.INSTANCE_NOT_TERMINATED.equals(
             tunnelException.getErrorCode())
             || TunnelConstants.TASK_FAILED.equals(tunnelException.getErrorCode())) {
+          queryInfo.addLog(
+              "Use instance tunnel to fetch result failed, fallback to get result by API. Error: ["
+              + tunnelException.getErrorCode() + "] " + tunnelException.getMessage());
           return getOfflineResult();
         } else {
           throw tunnelException;
         }
       }
     } else {
+      queryInfo.addLog("Not select query, fetch result by API instead of instance tunnel.");
       Map<String, String> results = queryInfo.getInstance().getTaskResults();
       String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
       if (StringUtils.isNullOrEmpty(selectResult)) {
@@ -1266,12 +1270,16 @@ public class SQLExecutorImpl implements SQLExecutor {
         if (!isSelect || TunnelConstants.INSTANCE_NOT_TERMINATED.equals(
             tunnelException.getErrorCode())
             || TunnelConstants.TASK_FAILED.equals(tunnelException.getErrorCode())) {
+          queryInfo.addLog(
+              "Use instance tunnel to fetch result failed, fallback to get result by API. Error: ["
+              + tunnelException.getErrorCode() + "] " + tunnelException.getMessage());
           return getOfflineResultSet();
         } else {
           throw tunnelException;
         }
       }
     } else {
+      queryInfo.addLog("Not select query, fetch result by API instead of instance tunnel.");
       Map<String, String> results = queryInfo.getInstance().getTaskResults();
       String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
       if (StringUtils.isNullOrEmpty(selectResult)) {

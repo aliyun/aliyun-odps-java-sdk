@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -34,26 +35,31 @@ public class SQLExecutorV2Test {
 
   @BeforeClass
   public static void initExecutor() throws OdpsException {
-    SQLExecutorBuilder sqlExecutorBuilder = new SQLExecutorBuilder();
-    odps = OdpsTestUtils.newDefaultOdps();
-    odps.setDefaultProject("odps2_vm");
-    executor =
-        sqlExecutorBuilder.odps(odps)
-            .quotaName(QUOTA_NAME)
-            .useInstanceTunnel(false)
-            .enableMcqaV2(true)
-            .build();
-    tunnelExecutor = new SQLExecutorBuilder().odps(odps)
-        .quotaName(QUOTA_NAME)
-        .useInstanceTunnel(true)
-        .enableMcqaV2(true)
-        .build();
-    commandApiExecutor = new SQLExecutorBuilder().odps(odps)
-        .quotaName(QUOTA_NAME)
-        .enableCommandApi(true)
-        .enableMcqaV2(true)
-        .build();
-    hints = new HashMap<>();
+    try {
+      SQLExecutorBuilder sqlExecutorBuilder = new SQLExecutorBuilder();
+      odps = OdpsTestUtils.newDefaultOdps();
+      odps.setDefaultProject("odps2_vm");
+      executor =
+          sqlExecutorBuilder.odps(odps)
+              .quotaName(QUOTA_NAME)
+              .useInstanceTunnel(false)
+              .enableMcqaV2(true)
+              .build();
+      tunnelExecutor = new SQLExecutorBuilder().odps(odps)
+          .quotaName(QUOTA_NAME)
+          .useInstanceTunnel(true)
+          .enableMcqaV2(true)
+          .build();
+      commandApiExecutor = new SQLExecutorBuilder().odps(odps)
+          .quotaName(QUOTA_NAME)
+          .enableCommandApi(true)
+          .enableMcqaV2(true)
+          .build();
+      hints = new HashMap<>();
+    } catch (Exception e) {
+      // skip tests if odps is not available
+      Assume.assumeNoException(e);
+    }
   }
 
   @Test
