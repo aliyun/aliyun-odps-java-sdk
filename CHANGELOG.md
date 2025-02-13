@@ -1,4 +1,13 @@
 # Changelog
+## [0.51.7-public] - 2025-02-13
+### Features
+- **EPV2** Added support for EPV2 (External Project V2), including `ListTable`, `ListSchema`, `DescribeTable` interfaces
+- **MCQA** Added fallback logging when retrieving results via InstanceTunnel encounters failure rollback scenarios
+
+## [0.51.6-public] - 2025-01-26
+### Fixes
+- **TypeInfo** Fixed an issue where `StructTypeInfo` nested within `ArrayTypeInfo` or `MapTypeInfo` would not quote field names in nested structures when using `getTypeName(true)` method
+
 ## [0.51.5-public] - 2025-01-14
 ### Fixes
 - **MCQA2** Fixed the problem that MCQA2 jobs may not throw exceptions correctly when using instance tunnel to obtain results.

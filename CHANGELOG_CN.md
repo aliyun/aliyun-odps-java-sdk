@@ -1,4 +1,15 @@
 # 更新日志
+## [0.51.7-public] - 2025-02-13
+### 功能
+- **EPV2** 新增对 EPV2（External Project V2）的支持，包括`ListTable`, `ListSchema`, `DescribeTable` 等接口
+- **MCQA** 在通过 InstanceTunnel 取结果，发生失败回退的场景，加入回退日志
+
+
+## [0.51.6-public] - 2025-01-26
+### 修复
+- **TypeInfo** 修复了当 `StructTypeInfo` 嵌套在 `ArrayTypeInfo` 或 `MapTypeInfo` 内时，`getTypeName(true)` 方法不会对嵌套内字段名进行 quote 的问题。
+
+
 ## [0.51.5-public] - 2025-01-14
 ### 修复
 - **MCQA2** 修复了 MCQA2 作业，可能会使用tunnel取结果时，无法正确抛出异常的问题
