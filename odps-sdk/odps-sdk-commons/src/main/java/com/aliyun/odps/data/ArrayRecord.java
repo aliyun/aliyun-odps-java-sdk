@@ -95,7 +95,7 @@ public class ArrayRecord implements Record, Serializable {
     values = new Serializable[columns.length];
 
     for (int i = 0; i < columns.length; i++) {
-      nameMap.put(columns[i].getName(), i);
+      nameMap.put(columns[i].getName().toLowerCase(), i);
     }
   }
 
@@ -402,7 +402,7 @@ public class ArrayRecord implements Record, Serializable {
   }
 
   private int getColumnIndex(String name) {
-    Integer idx = nameMap.get(name);
+    Integer idx = nameMap.get(name.toLowerCase());
     if (idx == null) {
       throw new IllegalArgumentException("No such column:" + name);
     }

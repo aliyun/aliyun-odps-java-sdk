@@ -50,7 +50,7 @@ public class UpsertRecord extends ArrayRecord {
             this.columns[i] = columns[i];
         }
         for (int i = 0; i < columns.length; i++) {
-            nameMap.put(columns[i].getName(), i);
+            nameMap.put(columns[i].getName().toLowerCase(), i);
         }
         if (values == null) {
             record = new ArrayRecord(columns);
@@ -303,7 +303,7 @@ public class UpsertRecord extends ArrayRecord {
     }
 
     private int getColumnIndex(String name) {
-        Integer idx = nameMap.get(name);
+        Integer idx = nameMap.get(name.toLowerCase());
         if (idx == null) {
             throw new IllegalArgumentException("No such column:" + name);
         }

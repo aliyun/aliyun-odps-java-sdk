@@ -50,7 +50,7 @@ public class ColumnarBatchRecord extends ArrayRecord {
         }
         for (int i = 0; i < columns.length; ++i) {
             Field field = schema.getFields().get(i);
-            if (!field.getName().equals(columns[i].getName())) {
+            if (!field.getName().equalsIgnoreCase(columns[i].getName())) {
                 throw new RuntimeException(
                             "Required column is incompatible in arrow batch. Col: " + field.getName());
             }
@@ -69,7 +69,7 @@ public class ColumnarBatchRecord extends ArrayRecord {
         for (int i = 0; i < fieldVectors.size(); i++) {
             columnAccessors[i] = ArrowToRecordConverter.
                     createColumnVectorAccessor(fieldVectors.get(i), columns[i].getTypeInfo());
-            nameMap.put(columns[i].getName(), i);
+            nameMap.put(columns[i].getName().toLowerCase(), i);
         }
     }
 
@@ -200,7 +200,7 @@ public class ColumnarBatchRecord extends ArrayRecord {
     }
 
     private int getColumnIndex(String name) {
-        Integer idx = nameMap.get(name);
+        Integer idx = nameMap.get(name.toLowerCase());
         if (idx == null) {
             throw new IllegalArgumentException("No such column:" + name);
         }

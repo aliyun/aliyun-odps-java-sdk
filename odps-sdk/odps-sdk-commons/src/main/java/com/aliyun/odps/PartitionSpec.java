@@ -54,23 +54,36 @@ public class PartitionSpec implements Serializable {
 
   public PartitionSpec(String spec, boolean trim) {
     if (spec == null) {
-      throw new IllegalArgumentException("Argument \'spec\' cannot be null");
+      throw new IllegalArgumentException("Argument 'spec' cannot be null");
     }
     String[] groups = spec.split("[,/]");
     for (String group : groups) {
-      String[] kv = group.split("=");
-      if (kv.length != 2) {
-        throw new IllegalArgumentException("Invalid partition spec.");
+      if (group.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format("Invalid partition spec: empty group in '%s'", spec)
+        );
+      }
+      String[] splits = group.split("=", 2);
+      if (splits.length != 2) {
+        throw new IllegalArgumentException(
+            String.format("Invalid partition spec: expected key=value in '%s'", group)
+        );
       }
 
-      String k = trim ? kv[0].trim() : kv[0];
-      String v = (trim ? kv[1].trim() : kv[1])
-          .replaceAll("'", "")
-          .replaceAll("\"", "");
-      if (k.length() == 0 || v.length() == 0) {
-        throw new IllegalArgumentException("Invalid partition spec.");
+      String k = trim ? splits[0].trim() : splits[0];
+      String v = (trim ? splits[1].trim() : splits[1])
+          .replace("'", "")
+          .replace("\"", "");
+      if (k.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format("Invalid partition spec: empty key in group '%s'", group)
+        );
       }
-
+      if (v.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format("Invalid partition spec: empty value for key '%s' in group '%s'", k, group)
+        );
+      }
       set(k, v);
     }
   }

@@ -58,6 +58,7 @@ class DescribeTableCommand implements Command {
     tableMap.put("TableType", TypeInfoFactory.STRING);
     tableMap.put("NativeColumns", TypeInfoFactory.getArrayTypeInfo(getStructTypeInfo()));
     tableMap.put("PartitionColumns", TypeInfoFactory.getArrayTypeInfo(getStructTypeInfo()));
+    tableMap.put("MetadataJson", TypeInfoFactory.STRING);
   }
 
   private static final Map<String, TypeInfo> partitionMap = new LinkedHashMap<>();
@@ -67,6 +68,7 @@ class DescribeTableCommand implements Command {
     partitionMap.put("CreatedTime", TypeInfoFactory.DATETIME);
     partitionMap.put("LastDDLTime", TypeInfoFactory.DATETIME);
     partitionMap.put("LastModifiedTime", TypeInfoFactory.DATETIME);
+    partitionMap.put("MetadataJson", TypeInfoFactory.STRING);
   }
 
   private static final Map<String, TypeInfo> extendedTableMap = new LinkedHashMap<>(tableMap);
@@ -74,6 +76,7 @@ class DescribeTableCommand implements Command {
   static {
     extendedTableMap.put("ExtendedInfo", TypeInfoFactory
         .getMapTypeInfo(TypeInfoFactory.STRING, TypeInfoFactory.STRING));
+    extendedTableMap.put("ExtendedInfoJson", TypeInfoFactory.STRING);
   }
 
   private static final Map<String, TypeInfo>
@@ -86,6 +89,7 @@ class DescribeTableCommand implements Command {
     extendedPartitionMap.put("IsArchived", TypeInfoFactory.BOOLEAN);
     extendedPartitionMap.put("PhysicalSize", TypeInfoFactory.BIGINT);
     extendedPartitionMap.put("FileNum", TypeInfoFactory.BIGINT);
+    extendedPartitionMap.put("ExtendedInfoJson", TypeInfoFactory.STRING);
   }
 
   private String project;
@@ -189,6 +193,7 @@ class DescribeTableCommand implements Command {
         map.put("CreatedTime", meta.getCreatedTime());
         map.put("LastDDLTime", meta.getLastMetaModifiedTime());
         map.put("LastModifiedTime", meta.getLastDataModifiedTime());
+        map.put("MetadataJson", meta.getMetadataJson());
       } else { // table meta
         map.put("Owner", t.getOwner());
         map.put("Project", t.getProject());
@@ -248,6 +253,7 @@ class DescribeTableCommand implements Command {
           }
           map.put("PartitionColumns", partitionStruct);
         }
+        map.put("MetadataJson", t.getMetadataJson());
       }
     } catch (Exception e) {
       throw new RuntimeException("Invalid table schema.", e);
@@ -271,6 +277,7 @@ class DescribeTableCommand implements Command {
         results.put("IsArchived", pt.isArchived());
         results.put("PhysicalSize", pt.getPhysicalSize());
         results.put("FileNum", pt.getFileNum());
+        results.put("ExtendedInfoJson", pt.getExtendedInfoJson());
       } else {
         Map<String, String> extendedInfo = new LinkedHashMap<>();
         if (t.isExternalTable()) {
@@ -294,6 +301,7 @@ class DescribeTableCommand implements Command {
         }
         extendedInfo.put("CryptoAlgoName", t.getCryptoAlgoName());
         results.put("ExtendedInfo", extendedInfo);
+        results.put("ExtendedInfoJson", t.getExtendedInfoJson());
       }
     } catch (Exception e) {
       throw new RuntimeException("Invalid table schema.", e);

@@ -19,7 +19,6 @@
 
 package com.aliyun.odps.sqa.commandapi;
 
-import java.time.ZoneId;
 import java.util.List;
 
 import org.junit.AfterClass;
@@ -29,6 +28,7 @@ import org.junit.Test;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.TestBase;
 import com.aliyun.odps.data.Record;
@@ -41,6 +41,7 @@ import com.aliyun.odps.type.TypeInfoFactory;
 public class DescribeTableCommandTest extends TestBase {
 
   private static final String TEST_TABLE_NAME = "desc_table_test_table_name";
+  private static final String TEST_PARTITION_NAME = "pt1='hallo'";
   private static final String TEST_TABLE_NAME_NOT_EXIST = "desc_table_test_table_name_not_exist";
 
   @BeforeClass
@@ -52,7 +53,10 @@ public class DescribeTableCommandTest extends TestBase {
     TableSchema schema = new TableSchema();
     schema.addColumn(new Column("col1", TypeInfoFactory.BIGINT));
     schema.addColumn(new Column("col2", TypeInfoFactory.STRING));
+    schema.addPartitionColumn(new Column("pt1", TypeInfoFactory.STRING));
     odps.tables().create(TEST_TABLE_NAME, schema);
+
+    odps.tables().get(TEST_TABLE_NAME).createPartition(new PartitionSpec(TEST_PARTITION_NAME), true);
   }
 
   @AfterClass
@@ -123,5 +127,32 @@ public class DescribeTableCommandTest extends TestBase {
       }
     }
     Assert.assertEquals(errorCommands.length, num);
+  }
+
+  @Test
+  public void describeTableTest() {
+    List<Record>
+        records =
+        CommandTestUtil.runCommandAndGetResult(odps, "desc " + TEST_TABLE_NAME + " ;");
+    Assert.assertNotNull(records.get(0).get("metadatajson"));
+
+
+    records =
+        CommandTestUtil.runCommandAndGetResult(odps, "desc extended " + TEST_TABLE_NAME + " ;");
+    Assert.assertNotNull(records.get(0).get("metadatajson"));
+    Assert.assertNotNull(records.get(0).get("extendedInfojson"));
+  }
+
+  @Test
+  public void describePartitionTest() {
+    List<Record>
+        records =
+        CommandTestUtil.runCommandAndGetResult(odps, "desc " + TEST_TABLE_NAME + " partition(" + TEST_PARTITION_NAME + ") ;");
+    Assert.assertNotNull(records.get(0).get("metadatajson"));
+
+    records =
+        CommandTestUtil.runCommandAndGetResult(odps, "desc extended " + TEST_TABLE_NAME + " partition(" + TEST_PARTITION_NAME + ") ;");
+    Assert.assertNotNull(records.get(0).get("metadatajson"));
+    Assert.assertNotNull(records.get(0).get("extendedInfojson"));
   }
 }

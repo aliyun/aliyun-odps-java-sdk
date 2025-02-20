@@ -78,6 +78,9 @@ public class Partition extends LazyLoad {
      * 分层存储相关
      */
     StorageTierInfo storageTierInfo;
+
+    long cdcSize = -1;
+    long cdcRecordNum = -1;
   }
 
   @Root(name = "Column", strict = false)
@@ -117,6 +120,10 @@ public class Partition extends LazyLoad {
   // reserved json string in extended info
   private String reserved;
   private Table.ClusterInfo clusterInfo;
+
+  // raw json info
+  private String metadataJson;
+  private String extendedInfoJson;
 
   Partition(
       PartitionModel model,
@@ -238,6 +245,26 @@ public class Partition extends LazyLoad {
   }
 
   /**
+   * 获取分区内部存储的大小，单位Byte
+   *
+   * @return 内部存储大小
+   */
+  public long getSize() {
+    lazyLoad();
+    return size;
+  }
+
+  /**
+   * Get metadata json string.
+   *
+   * @return metadata json string
+   */
+  public String getMetadataJson() {
+    lazyLoad();
+    return metadataJson;
+  }
+
+  /**
    * 查看表是否进行了归档
    *
    * @return true表示表已进行过归档，false表示未进行过归档操作
@@ -283,25 +310,12 @@ public class Partition extends LazyLoad {
   }
 
   /**
-   * 获取分区内部存储的大小，单位Byte
-   *
-   * @return 内部存储大小
-   */
-  public long getSize() {
-    lazyLoad();
-    return size;
-  }
-
-  /**
    * 得到分区的存储类型
    *
    * @return StorageTierType
    */
   public StorageTierInfo getStorageTierInfo() {
-    if (model.storageTierInfo == null) {
-      reloadExtendInfo();
-      isExtendInfoLoaded = true;
-    }
+    lazyLoadExtendInfo();
     return model.storageTierInfo;
   }
 
@@ -312,9 +326,7 @@ public class Partition extends LazyLoad {
    * @return 保留字段
    */
   public String getReserved() {
-    if (reserved == null) {
-      lazyLoadExtendInfo();
-    }
+    lazyLoadExtendInfo();
     return reserved;
   }
 
@@ -324,11 +336,23 @@ public class Partition extends LazyLoad {
    * @return cluster info
    */
   public Table.ClusterInfo getClusterInfo() {
-    if (clusterInfo == null) {
-      lazyLoadExtendInfo();
-    }
-
+    lazyLoadExtendInfo();
     return clusterInfo;
+  }
+
+  public long getCdcSize() {
+    lazyLoadExtendInfo();
+    return model.cdcSize;
+  }
+
+  public long getCdcRecordNum() {
+    lazyLoadExtendInfo();
+    return model.cdcRecordNum;
+  }
+
+  public String getExtendedInfoJson() {
+    lazyLoadExtendInfo();
+    return extendedInfoJson;
   }
 
   /**
@@ -551,6 +575,7 @@ public class Partition extends LazyLoad {
     params.put("partition", getPartitionSpec().toString());
 
     PartitionMeta meta = client.request(PartitionMeta.class, resource, "GET", params);
+    metadataJson = meta.schema;
 
     try {
       JsonObject tree = new JsonParser().parse(meta.schema).getAsJsonObject();
@@ -606,6 +631,7 @@ public class Partition extends LazyLoad {
       PartitionMeta meta =
           client.request(PartitionMeta.class, resource.toString(), "GET", params);
 
+      extendedInfoJson = meta.schema;
       JsonObject tree = new JsonParser().parse(meta.schema).getAsJsonObject();
 
       if (tree.has("IsArchived")) {
@@ -651,5 +677,11 @@ public class Partition extends LazyLoad {
     clusterInfo = Table.parseClusterInfo(reservedJson);
     // 分层存储的相关信息
     model.storageTierInfo = StorageTierInfo.getStorageTierInfo(reservedJson);
+
+    model.cdcSize = reservedJson.has("cdc_size") ? Long.parseLong(
+        reservedJson.get("cdc_size").getAsString()) : -1;
+
+    model.cdcRecordNum = reservedJson.has("cdc_record_num") ? Long.parseLong(
+        reservedJson.get("cdc_record_num").getAsString()) : -1;
   }
 }

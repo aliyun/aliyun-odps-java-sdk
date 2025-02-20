@@ -397,6 +397,10 @@ public class Table extends LazyLoad {
   private boolean isShardInfoLoaded;
   private Odps odps;
 
+  // Raw Json metadata
+  private String metadataJson;
+  private String extendedInfoJson;
+
   Table(TableModel model, String project, String schemaName, Odps odps) {
     this.model = model;
     this.model.projectName = project;
@@ -423,6 +427,7 @@ public class Table extends LazyLoad {
           String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
           Map<String, String> params = initParamsWithSchema();
           reload(client.request(TableModel.class, resource, "GET", params));
+          this.metadataJson = model.schema.content;
           return null;
         }
     );
@@ -458,6 +463,7 @@ public class Table extends LazyLoad {
     } catch (OdpsException e) {
       throw new ReloadException(e.getMessage(), e);
     }
+    this.extendedInfoJson = response.schema.content;
     loadSchemaFromJson(response.schema.content);
   }
 
@@ -1143,6 +1149,16 @@ public class Table extends LazyLoad {
     }
 
     return model.schema == null ? null : model.schema.content;
+  }
+
+  public String getMetadataJson() {
+    lazyLoad();
+    return metadataJson;
+  }
+
+  public String getExtendedInfoJson() {
+    lazyLoadExtendInfo();
+    return extendedInfoJson;
   }
 
   /**
