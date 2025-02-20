@@ -1,4 +1,14 @@
 # 更新日志
+## [0.51.8-public] - 2025-02-20
+### 变更
+- **Record** `set(String columnName, Object value)` 方法现在会忽略 columnName 的大小写。`getColumn` 方法返回的列名将始终为小写。
+
+### 功能
+- **Table** 新增`getMetadataJson`和`getExtendedInfoJson`方法
+- **Partition** 新增`getMetadataJson`,`getExtendedInfoJson`,`getCdcSize`,`getCdcRecordNum`方法
+- **CommandApi** 增强 DescribeTableCommand，现在将额外返回 `MetadataJson` 和 `ExtendedInfoJson` 字段
+- **PartitionSpec** 改进构建失败时的报错信息，使报错更加明晰
+
 ## [0.51.7-public] - 2025-02-13
 ### 功能
 - **EPV2** 新增对 EPV2（External Project V2）的支持，包括`ListTable`, `ListSchema`, `DescribeTable` 等接口

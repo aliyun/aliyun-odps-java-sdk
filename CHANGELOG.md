@@ -1,4 +1,14 @@
 # Changelog
+## [0.51.8-public] - 2025-02-20
+### Changes
+- **Record** The `set(String columnName, Object value)` method now ignores the case of `columnName`. The `getColumn` method will always return column names in lowercase.
+
+### Features
+- **Table** Added `getMetadataJson` and `getExtendedInfoJson` methods.
+- **Partition** Added `getMetadataJson`, `getExtendedInfoJson`, `getCdcSize`, and `getCdcRecordNum` methods.
+- **CommandApi** Enhanced the `DescribeTableCommand` to include additional `MetadataJson` and `ExtendedInfoJson` fields in the response.
+- **PartitionSpec** Improved error messages for build failures to provide clearer debugging information.
+
 ## [0.51.7-public] - 2025-02-13
 ### Features
 - **EPV2** Added support for EPV2 (External Project V2), including `ListTable`, `ListSchema`, `DescribeTable` interfaces
