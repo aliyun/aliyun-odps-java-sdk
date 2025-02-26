@@ -45,9 +45,12 @@ public class NestedTypeQuoteTest {
   public void testMap() {
     MapTypeInfo mapTypeInfo = TypeInfoFactory.getMapTypeInfo(nestedTypeInfo, nestedTypeInfo);
     String typeName = mapTypeInfo.getTypeName();
-    Assert.assertEquals("MAP<STRUCT<end:STRING,start:BIGINT>,STRUCT<end:STRING,start:BIGINT>>", typeName);
+    Assert.assertEquals("MAP<STRUCT<end:STRING,start:BIGINT>,STRUCT<end:STRING,start:BIGINT>>",
+                        typeName);
     String typeNameWithQuote = mapTypeInfo.getTypeName(true);
-    Assert.assertEquals("MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>", typeNameWithQuote);
+    Assert.assertEquals(
+        "MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>",
+        typeNameWithQuote);
   }
 
   @Test
@@ -60,10 +63,58 @@ public class NestedTypeQuoteTest {
     typeInfos.add(nestedTypeInfo);
     StructTypeInfo structTypeInfo = TypeInfoFactory.getStructTypeInfo(names, typeInfos);
     String typeName = structTypeInfo.getTypeName();
-    Assert.assertEquals("STRUCT<end:STRUCT<end:STRING,start:BIGINT>,start:STRUCT<end:STRING,start:BIGINT>>", typeName);
+    Assert.assertEquals(
+        "STRUCT<end:STRUCT<end:STRING,start:BIGINT>,start:STRUCT<end:STRING,start:BIGINT>>",
+        typeName);
 
     String typeNameWithQuote = structTypeInfo.getTypeName(true);
-    Assert.assertEquals("STRUCT<`end`:STRUCT<`end`:STRING,`start`:BIGINT>,`start`:STRUCT<`end`:STRING,`start`:BIGINT>>", typeNameWithQuote);
+    Assert.assertEquals(
+        "STRUCT<`end`:STRUCT<`end`:STRING,`start`:BIGINT>,`start`:STRUCT<`end`:STRING,`start`:BIGINT>>",
+        typeNameWithQuote);
+  }
+
+  @Test
+  public void testNested() {
+    List<String> names = new ArrayList<>();
+    names.add("end");
+    names.add("start");
+    List<TypeInfo> typeInfos = new ArrayList<>();
+    typeInfos.add(TypeInfoFactory.STRING);
+    typeInfos.add(TypeInfoFactory.BIGINT);
+
+    TypeInfo struct = TypeInfoFactory.getStructTypeInfo(names, typeInfos);
+
+    ArrayTypeInfo arrayTypeInfo = TypeInfoFactory.getArrayTypeInfo(struct);
+
+    MapTypeInfo mapTypeInfo = TypeInfoFactory.getMapTypeInfo(struct, struct);
+
+    typeInfos = new ArrayList<>();
+    typeInfos.add(arrayTypeInfo);
+    typeInfos.add(mapTypeInfo);
+    struct = TypeInfoFactory.getStructTypeInfo(names, typeInfos);
+
+    arrayTypeInfo = TypeInfoFactory.getArrayTypeInfo(struct);
+
+    mapTypeInfo = TypeInfoFactory.getMapTypeInfo(struct, struct);
+
+    typeInfos = new ArrayList<>();
+    typeInfos.add(arrayTypeInfo);
+    typeInfos.add(mapTypeInfo);
+    struct = TypeInfoFactory.getStructTypeInfo(names, typeInfos);
+
+    arrayTypeInfo = TypeInfoFactory.getArrayTypeInfo(struct);
+
+    mapTypeInfo = TypeInfoFactory.getMapTypeInfo(struct, struct);
+
+    typeInfos = new ArrayList<>();
+    typeInfos.add(arrayTypeInfo);
+    typeInfos.add(mapTypeInfo);
+    struct = TypeInfoFactory.getStructTypeInfo(names, typeInfos);
+
+    String
+        expect =
+        "STRUCT<`end`:ARRAY<STRUCT<`end`:ARRAY<STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>>,`start`:MAP<STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>,STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>>>>,`start`:MAP<STRUCT<`end`:ARRAY<STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>>,`start`:MAP<STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>,STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>>>,STRUCT<`end`:ARRAY<STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>>,`start`:MAP<STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>,STRUCT<`end`:ARRAY<STRUCT<`end`:STRING,`start`:BIGINT>>,`start`:MAP<STRUCT<`end`:STRING,`start`:BIGINT>,STRUCT<`end`:STRING,`start`:BIGINT>>>>>>>";
+    Assert.assertEquals(expect, ((NestedTypeInfo) struct).getTypeName(true));
   }
 
 }

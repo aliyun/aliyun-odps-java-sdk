@@ -64,8 +64,8 @@ class SimpleStructTypeInfo implements StructTypeInfo {
         stringBuilder.append(fieldNames.get(i));
       }
       stringBuilder.append(":");
-      if (quote && fieldTypeInfos.get(i) instanceof SimpleStructTypeInfo) {
-        stringBuilder.append(((SimpleStructTypeInfo) fieldTypeInfos.get(i)).getTypeName(true));
+      if (quote && fieldTypeInfos.get(i) instanceof NestedTypeInfo) {
+        stringBuilder.append(((NestedTypeInfo) fieldTypeInfos.get(i)).getTypeName(true));
       } else {
         stringBuilder.append(fieldTypeInfos.get(i).getTypeName());
       }

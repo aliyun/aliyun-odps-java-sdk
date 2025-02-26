@@ -71,8 +71,8 @@ class SimpleArrayTypeInfo implements ArrayTypeInfo {
   }
   @Override
   public String getTypeName(boolean quote) {
-    if (quote && valueType instanceof SimpleStructTypeInfo) {
-      return getOdpsType().name() + "<" + ((SimpleStructTypeInfo) valueType).getTypeName(true) + ">";
+    if (quote && valueType instanceof NestedTypeInfo) {
+      return getOdpsType().name() + "<" + ((NestedTypeInfo) valueType).getTypeName(true) + ">";
     }
     return getOdpsType().name() + "<" + valueType.getTypeName() + ">";
   }
