@@ -17,6 +17,7 @@ public interface Struct extends Serializable {
   Object getFieldValue(int index);
   TypeInfo getFieldTypeInfo(String fieldName);
   Object getFieldValue(String fieldName);
+  TypeInfo getTypeInfo();
   List<Object> getFieldValues();
   @Override
   String toString();

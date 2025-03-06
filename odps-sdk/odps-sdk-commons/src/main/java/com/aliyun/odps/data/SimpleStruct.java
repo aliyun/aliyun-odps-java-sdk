@@ -76,6 +76,11 @@ public class SimpleStruct implements Struct {
   }
 
   @Override
+  public TypeInfo getTypeInfo() {
+    return typeInfo;
+  }
+
+  @Override
   public List<Object> getFieldValues() {
     return values;
   }
