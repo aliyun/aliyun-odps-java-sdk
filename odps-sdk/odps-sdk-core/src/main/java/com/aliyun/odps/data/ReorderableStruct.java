@@ -4,17 +4,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.NestedTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-public class ReorderableStruct extends SimpleStruct {
+public class ReorderableStruct implements Struct {
+
+  protected StructTypeInfo typeInfo;
+  protected List<Object> values;
 
   /**
    * lower field name to index
@@ -29,7 +34,23 @@ public class ReorderableStruct extends SimpleStruct {
    *               be careful: the struct value list is a reference of this param
    */
   public ReorderableStruct(StructTypeInfo type, List<Object> values) {
-    super(type, values);
+    if (type == null || values == null || values.size() != type.getFieldCount()) {
+      throw new IllegalArgumentException("Illegal arguments for StructObject.");
+    }
+    this.typeInfo = type;
+    this.values = values;
+    rebuildFieldNameIndexMap();
+  }
+
+  public ReorderableStruct(StructTypeInfo type) {
+    if (type == null) {
+      throw new IllegalArgumentException("Illegal arguments for StructObject.");
+    }
+    this.typeInfo = type;
+    values = new ArrayList<>(type.getFieldCount());
+    for (int i = 0; i < type.getFieldCount(); i++) {
+      values.add(null);
+    }
     rebuildFieldNameIndexMap();
   }
 
@@ -41,12 +62,27 @@ public class ReorderableStruct extends SimpleStruct {
     }
   }
 
-  public void set(String fieldName, Object value) {
+  public void setFieldValue(String fieldName, Object value) {
     values.set(fieldNameToIndex.get(fieldName.toLowerCase()), value);
   }
 
-  public Object get(String fieldName) {
+  public void setFieldValue(int index, Object value) {
+    values.set(index, value);
+  }
+
+  @Override
+  public Object getFieldValue(String fieldName) {
     return getFieldValue(fieldNameToIndex.get(fieldName.toLowerCase()));
+  }
+
+  @Override
+  public Object getFieldValue(int index) {
+    return values.get(index);
+  }
+
+  @Override
+  public TypeInfo getFieldTypeInfo(String fieldName) {
+    return typeInfo.getFieldTypeInfos().get(fieldNameToIndex.get(fieldName));
   }
 
   public synchronized void reorder(StructTypeInfo orderedType) {
@@ -91,8 +127,9 @@ public class ReorderableStruct extends SimpleStruct {
         oldTypeInfo = ((Struct) value).getTypeInfo();
       }
       // Automatically wrap ordinary Struct as ReorderableStruct
-      if (!(value instanceof ReorderableStruct)) {
-        value = new ReorderableStruct((StructTypeInfo) oldTypeInfo, ((Struct) value).getFieldValues());
+      if (value instanceof Struct && !(value instanceof ReorderableStruct)) {
+        value =
+            new ReorderableStruct((StructTypeInfo) oldTypeInfo, ((Struct) value).getFieldValues());
       }
       // Recursively process nested structures
       ReorderableStruct struct = (ReorderableStruct) value;
@@ -140,5 +177,68 @@ public class ReorderableStruct extends SimpleStruct {
     }
     // The basic type or type that does not require reordering will return directly to the original value
     return value;
+  }
+
+  @Override
+  public int getFieldCount() {
+    return values.size();
+  }
+
+  @Override
+  public String getFieldName(int index) {
+    return typeInfo.getFieldNames().get(index);
+  }
+
+  @Override
+  public TypeInfo getFieldTypeInfo(int index) {
+    return typeInfo.getFieldTypeInfos().get(index);
+  }
+
+  @Override
+  public TypeInfo getTypeInfo() {
+    return typeInfo;
+  }
+
+  @Override
+  public List<Object> getFieldValues() {
+    return values;
+  }
+
+  @Override
+  public String toString() {
+    String valueStr = "{";
+    int colCount = getFieldCount();
+    for (int i = 0; i < colCount; ++i) {
+      valueStr += getFieldName(i) + ":" + getFieldValue(i);
+      if (i != colCount - 1) {
+        valueStr += ", ";
+      }
+    }
+    valueStr += "}";
+    return valueStr;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    ReorderableStruct that = (ReorderableStruct) o;
+
+    if (!StringUtils.equalsIgnoreCase(this.typeInfo.getFieldNames(), that.typeInfo.getFieldNames())) {
+      return false;
+    }
+
+    return Objects.equals(this.getFieldValues(), that.getFieldValues());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(StringUtils.toLowerCase(typeInfo.getFieldNames()), values);
   }
 }

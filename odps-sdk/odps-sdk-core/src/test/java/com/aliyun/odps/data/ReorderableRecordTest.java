@@ -9,17 +9,55 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.Instance;
+import com.aliyun.odps.Odps;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.commons.transport.OdpsTestUtils;
+import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
 public class ReorderableRecordTest {
+  @Test
+  public void testE2E() throws Exception {
+    Odps odps = OdpsTestUtils.newDefaultOdps();
+    String tableName = "test_ReorderableRecordTest";
+    odps.tables().delete(tableName, true);
+
+    TableSchema schema = TableSchema.builder()
+        .withStringColumn("c1")
+        .withBigintColumn("c2")
+        .withColumn(new Column("c3", getOrderedStructType())).build();
+    odps.tables().newTableCreator(tableName, schema).withLifeCycle(1L)
+        .withHints(ImmutableMap.of("odps.sql.type.system.odps2", "true")).ifNotExists().create();
+
+    TableTunnel.StreamUploadSession session = odps.tableTunnel()
+        .buildStreamUploadSession(odps.getDefaultProject(), tableName).build();
+
+    Record record = new ReorderableRecord(session.getSchema());
+    Struct misOrderedStruct = getMisOrderedStruct();
+    record.set("C3", misOrderedStruct);
+    record.set("C2", 123L);
+    record.set("C1", "test");
+
+    TableTunnel.StreamRecordPack recordPack = session.newRecordPack();
+    for (int i = 0; i < 10; i++) {
+      recordPack.append(record);
+    }
+    recordPack.flush();
+
+    Instance instance = SQLTask.run(odps, "select c3 from " + tableName + ";");
+    System.out.println(instance.waitForTerminatedAndGetResult().getString());
+  }
+
 
   @Test
   public void testSetStruct() {
@@ -141,7 +179,7 @@ public class ReorderableRecordTest {
     List<TypeInfo> personFieldTypes = new ArrayList<>();
     List<String> personFieldNames = new ArrayList<>();
 
-// Person 结构体字段：name (String), age (Int)
+    // Person 结构体字段：name (String), age (Int)
     personFieldTypes.add(TypeInfoFactory.BIGINT); // money
     personFieldTypes.add(TypeInfoFactory.INT);    // age
     personFieldTypes.add(TypeInfoFactory.STRING);    // name
@@ -149,17 +187,14 @@ public class ReorderableRecordTest {
     personFieldNames.add("age");
     personFieldNames.add("name");
 
-    StructTypeInfo
-        personStructType =
+    StructTypeInfo personStructType =
         TypeInfoFactory.getStructTypeInfo(personFieldNames, personFieldTypes);
+    ReorderableStruct person = new ReorderableStruct(personStructType);
+    person.setFieldValue("money", 1234L);
+    person.setFieldValue("age", 25);
+    person.setFieldValue("name", "Jason");
 
-    List<Object> value = new ArrayList<>();
-    value.add(1234L);
-    value.add(25);
-    value.add("Jason");
-    Struct person = new SimpleStruct(personStructType, value);
-
-// 2. 创建 Array 类型（元素类型为 Person Struct）
+    // 2. 创建 Array 类型（元素类型为 Person Struct）
     ArrayTypeInfo personArrayType = TypeInfoFactory.getArrayTypeInfo(personStructType);
 
     List<Struct> personArray = new ArrayList<>();
@@ -167,7 +202,7 @@ public class ReorderableRecordTest {
     personArray.add(person);
     personArray.add(person);
 
-// 3. 创建 Map 类型（键为 String，值为 Person Array）
+    // 3. 创建 Map 类型（键为 String，值为 Person Array）
     MapTypeInfo personMapType = TypeInfoFactory.getMapTypeInfo(
         TypeInfoFactory.STRING,  // key type: String
         personArrayType          // value type: Array<Person>
@@ -178,11 +213,11 @@ public class ReorderableRecordTest {
     personMap.put("key2", personArray);
     personMap.put("key3", personArray);
 
-// 4. 创建外层 Struct 类型（包含 Map 和 Array 的嵌套）
+    // 4. 创建外层 Struct 类型（包含 Map 和 Array 的嵌套）
     List<TypeInfo> outerFieldTypes = new ArrayList<>();
     List<String> outerFieldNames = new ArrayList<>();
 
-// 外层结构体字段：config (Array<Person>) metadata (Map<String, Array<Person>>),
+    // 外层结构体字段：config (Array<Person>) metadata (Map<String, Array<Person>>),
     outerFieldTypes.add(personArrayType);   // config
     outerFieldTypes.add(personMapType);     // metadata
     outerFieldNames.add("config");
