@@ -133,5 +133,4 @@ try (ArrowRecordReader arrowReader = session.openArrowRecordReader(0, 50000)) {
 
 ## Transactional 表下载注意事项
 
-对于 Transactional 表，下载会话的创建和读取方式与普通表不通。需要注意的是，对于 Transactional 表，getRecordCount() 返回的是当前表的分片，而不是表的总记录数。
-对应的，每次仅支持下载1个分片，而非任意数量。
+对于 Transactional 表，目前尚不支持使用 Tunnel Download 进行下载。如果有需要，请使用 [MaxStorage 开放存储](https://help.aliyun.com/zh/maxcompute/user-guide/open-storage-sample-java-sdk) 进行下载

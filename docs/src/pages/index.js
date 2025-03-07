@@ -13,7 +13,7 @@ function HomepageHeader() {
       {/* 背景图容器 */}
       <div className={styles.backgroundWrapper}>
         <img
-          src="/img/vcg_VCG211151450126_RF.jpg"
+          src="https://raw.githubusercontent.com/aliyun/aliyun-odps-java-sdk/release/0.51.x/docs/static/img/vcg_VCG211151450126_RF.jpg"
           alt="技术背景（已授权）"
           className={styles.backgroundImage}
           loading="lazy"
