@@ -119,6 +119,9 @@ public class ReorderableStruct implements Struct {
   }
 
   public static Object reorderNestedType(Object value, TypeInfo oldTypeInfo, TypeInfo newTypeInfo) {
+    if (value == null) {
+      return null;
+    }
     if (oldTypeInfo != null && oldTypeInfo.getOdpsType() != newTypeInfo.getOdpsType()) {
       throw new IllegalArgumentException("The nested type is not compatible");
     }
