@@ -45,6 +45,8 @@ public class GenerateExpressionSample {
 
   /**
    * How to manually generate partitionSpec from record and schema
+   * <p>
+   * Note: The ingestion time partition table is not available. Cannot automatically replenish the current value.
    */
   private static PartitionSpec getPartitionSpec(Record record, TableSchema schema) {
     // And partition spec means where the record will be written to
