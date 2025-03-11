@@ -1,4 +1,23 @@
 # Changelog
+## [0.51.10-public] - 2025-03-11
+### Features
+- **TableTunnel Metrics Support**  
+  Upload/Download methods now support metrics collection.  
+  [Documentation Reference](link_to_document)
+
+- **TunnelBufferedReader Implementation**  
+  Added `TunnelBufferedReader` for downloading table/instance data via short-lived connections.
+
+- **Reorderable Data Structures**  
+  Introduced `ReorderableRecord` and `ReorderableStruct` entities.  
+  [Design Details](https://github.com/aliyun/aliyun-odps-java-sdk/releases/tag/v0.51.10-SNAPSHOT)
+
+
+## [0.51.9-public] - 2025-02-26
+### Fixes
+- **Struct Field Escaping**  
+  Fixed `getName(true)` not adding backticks to all nested struct field names in `TypeInfo`.
+
 ## [0.51.8-public] - 2025-02-20
 ### Changes
 - **Record** The `set(String columnName, Object value)` method now ignores the case of `columnName`. The `getColumn` method will always return column names in lowercase.

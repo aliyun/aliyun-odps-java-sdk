@@ -1,4 +1,22 @@
 # 更新日志
+## [0.51.10-public] - 2025-03-11
+### 功能增强
+- **TableTunnel 指标支持**  
+  Upload/Download 方法新增指标收集能力  
+  [文档参考](link_to_document)
+
+- **TunnelBufferedReader 实现**  
+  新增 `TunnelBufferedReader` 类，支持通过短连接下载表/实例数据
+
+- **可排序数据结构**  
+  新增 `ReorderableRecord` 和 `ReorderableStruct` 实体类  
+  [设计说明](https://github.com/aliyun/aliyun-odps-java-sdk/releases/tag/v0.51.10-SNAPSHOT)
+
+## [0.51.9-public] - 2025-02-26
+### 问题修复
+- **结构体字段转义修复**  
+  修复 `TypeInfo` 中 `getName(true)` 方法未对嵌套结构体字段名添加反引号的问题
+
 ## [0.51.8-public] - 2025-02-20
 ### 变更
 - **Record** `set(String columnName, Object value)` 方法现在会忽略 columnName 的大小写。`getColumn` 方法返回的列名将始终为小写。
