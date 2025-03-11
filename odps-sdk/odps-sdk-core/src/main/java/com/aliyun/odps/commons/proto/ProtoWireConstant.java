@@ -30,4 +30,7 @@ class ProtoWireConstant {
   public static final int TUNNEL_META_CHECKSUM = 33554431; // magic num 2^25-1
   public static final int TUNNEL_END_RECORD = 33553408; // maigc num 2^25-1024
   public static final int SCHEMA_END_TAG = 33553920; //maigc num 2^25-512
+
+  public static final int METRICS_TAG = 1;
+  public static final int METRICS_END_TAG = 33554176; // magic num 2^25-256
 }

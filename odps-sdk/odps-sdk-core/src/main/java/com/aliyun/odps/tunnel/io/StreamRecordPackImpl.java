@@ -1,11 +1,12 @@
 package com.aliyun.odps.tunnel.io;
 
+import java.io.IOException;
+
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
-
-import java.io.IOException;
+import com.aliyun.odps.tunnel.TunnelMetrics;
+import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 
 class FlushResultImpl implements TableTunnel.FlushResult {
   private String traceId;
@@ -49,7 +50,9 @@ public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
     if (flushing) {
       throw new IOException(new TunnelException("There's an unsuccessful flush called, you should call flush to retry or call reset to drop the data"));
     }
+    long startTime = System.currentTimeMillis();
     pack.append(record);
+    pack.addLocalWallTimeMs(System.currentTimeMillis() - startTime);
   }
 
   @Override
@@ -60,6 +63,10 @@ public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
   @Override
   public long getDataSize() {
     return pack.getTotalBytes();
+  }
+
+  public TunnelMetrics getMetrics() {
+    return pack.getMetrics();
   }
 
   @Override

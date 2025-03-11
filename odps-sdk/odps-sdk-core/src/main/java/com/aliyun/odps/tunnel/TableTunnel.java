@@ -20,6 +20,7 @@
 package com.aliyun.odps.tunnel;
 
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_TUNNEL_METRICS;
 import static com.aliyun.odps.tunnel.TunnelConstants.TUNNEL_DATE_TRANSFORM_VERSION;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -72,6 +73,7 @@ import com.aliyun.odps.tunnel.io.ArrowTunnelRecordWriter;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.tunnel.io.TunnelBufferedReader;
 import com.aliyun.odps.tunnel.io.TunnelBufferedWriter;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
@@ -1599,7 +1601,10 @@ public class TableTunnel {
           try {
             if (pack instanceof ProtobufRecordPack) {
               ProtobufRecordPack protoPack = (ProtobufRecordPack) pack;
+              long startTime = System.currentTimeMillis();
               conn = getConnection(blockId, protoPack.getCompressOption(), blockVersion);
+              protoPack.addNetworkWallTimeMs(System.currentTimeMillis() - startTime);
+              protoPack.addLocalWallTimeMs(System.currentTimeMillis() - startTime);
               sendBlock(protoPack, conn, timeout);
             } else {
               RecordWriter writer = openRecordWriter(blockId);
@@ -1635,6 +1640,7 @@ public class TableTunnel {
       if (null == conn) {
         throw new IOException("Invalid connection");
       }
+      long startTime = System.currentTimeMillis();
       pack.checkTransConsistency(shouldTransform);
       pack.complete();
       ByteArrayOutputStream baos = pack.getProtobufStream();
@@ -1663,6 +1669,12 @@ public class TableTunnel {
                                 response.getStatus());
         throw new IOException(exception.getMessage(), exception);
       }
+      // metrics
+      String metricsStr = response.getHeader(HEADER_ODPS_TUNNEL_METRICS);
+      TunnelMetrics batchMetrics =
+          TunnelMetrics.parse(metricsStr, pack.getLocalWallTimeMs() + (System.currentTimeMillis() - startTime),
+                              pack.getNetworkWallTimeMs() + (System.currentTimeMillis() - startTime));
+      pack.addMetrics(batchMetrics);
     }
 
     /**
@@ -1717,6 +1729,7 @@ public class TableTunnel {
 
     private RecordWriter openRecordWriterInternal(long blockId, CompressOption compress, long blockVersion)
         throws TunnelException {
+      long startTime = System.currentTimeMillis();
       TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
       try {
         return retryHandler.executeWithRetry(() -> {
@@ -1727,6 +1740,7 @@ public class TableTunnel {
             writer =
                 new TunnelRecordWriter(schema, conn, compress);
             writer.setTransform(shouldTransform);
+            writer.addWallTimeMs(System.currentTimeMillis() - startTime);
             return writer;
           } catch (IOException e) {
             if (conn != null) {
@@ -2395,6 +2409,17 @@ public class TableTunnel {
       TunnelRecordReader reader = new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this, disableModifiedCheck);
       reader.setTransform(shouldTransform);
 
+      return reader;
+    }
+
+    public RecordReader openBufferedRecordReader(long start, long count, long batchSize, CompressOption compress,
+                                               List<Column> columns, boolean disableModifiedCheck)
+        throws TunnelException {
+      if (columns != null && columns.isEmpty()) {
+        throw new TunnelException("Specified column list is empty.");
+      }
+      TunnelBufferedReader reader = new TunnelBufferedReader(start, count, batchSize, columns, compress, this, disableModifiedCheck);
+      reader.setTransform(shouldTransform);
       return reader;
     }
 

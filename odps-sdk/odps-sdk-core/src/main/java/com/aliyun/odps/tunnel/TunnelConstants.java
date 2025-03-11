@@ -27,7 +27,7 @@ package com.aliyun.odps.tunnel;
  */
 public interface TunnelConstants {
 
-  public static int VERSION = 5;
+  public static int VERSION = 6;
   public static String RES_PARTITION = "partition";
   public static String RES_SHARD = "shard";
   public static String RES_COLUMNS = "columns";

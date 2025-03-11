@@ -27,6 +27,7 @@ import com.aliyun.odps.commons.proto.ProtobufRecordStreamWriter;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
+import com.aliyun.odps.tunnel.TunnelMetrics;
 
 /**
  * 用 Protobuf 序列化存储的 {@link RecordPack}
@@ -42,6 +43,9 @@ public class ProtobufRecordPack extends RecordPack {
   private CompressOption option = null;
   private boolean isComplete = false;
   private boolean shouldTransform = false;
+  private TunnelMetrics accumulatedMetrics;
+  private long localWallTimeMs;
+  private long netWorkWallTimeMs;
 
   public void checkTransConsistency(boolean expect) throws IOException {
     if (shouldTransform != expect) {
@@ -124,6 +128,7 @@ public class ProtobufRecordPack extends RecordPack {
     if (null != checksum) {
       writer.setCheckSum(checksum);
     }
+    accumulatedMetrics = new TunnelMetrics();
   }
 
   public void setTransform(boolean shouldTransform) {
@@ -234,5 +239,31 @@ public class ProtobufRecordPack extends RecordPack {
    */
   public long getSize() {
     return count;
+  }
+
+  public TunnelMetrics getMetrics() {
+    return accumulatedMetrics;
+  }
+
+  public void addLocalWallTimeMs(long localWallTimeMs) {
+    this.localWallTimeMs += localWallTimeMs;
+  }
+
+  public long getLocalWallTimeMs() {
+    return localWallTimeMs;
+  }
+
+  public void addNetworkWallTimeMs(long netWorkWallTimeMs) {
+    this.netWorkWallTimeMs += netWorkWallTimeMs;
+  }
+
+  public long getNetworkWallTimeMs() {
+    return netWorkWallTimeMs;
+  }
+
+  public void addMetrics(TunnelMetrics batchMetrics) {
+    accumulatedMetrics.add(batchMetrics);
+    localWallTimeMs = 0;
+    netWorkWallTimeMs = 0;
   }
 }

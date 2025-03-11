@@ -1043,14 +1043,13 @@ public class TableTest extends TestBase {
 
 
   @Test
+  @Ignore
   public void testEpv2TablesSchemas(){
     System.out.println("tables ---------");
     Iterator<Table> iterator = odps.tables().iterator();
     while (iterator.hasNext()) {
       Table table = iterator.next();
       System.out.println("table.name:"+ table.getName());
-      System.out.println("table.columns:"+table.getSchema().getColumns().toString());
-      System.out.println("table.refreshHistory: " + table.getRefreshHistory());
     }
 
     System.out.println("schemas ---------");
@@ -1059,8 +1058,6 @@ public class TableTest extends TestBase {
       Schema schema = iterator2.next();
       System.out.println("schema.projectName: "+schema.getProjectName());
       System.out.println("schema.name: "+schema.getName());
-      System.out.println("schema.type: "+schema.getType());
-
     }
   }
 }

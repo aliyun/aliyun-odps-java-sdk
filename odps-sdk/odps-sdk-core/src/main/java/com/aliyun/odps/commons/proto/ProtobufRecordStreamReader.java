@@ -23,14 +23,12 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +67,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
   private TableSchema schema;
   private long count;
   private long bytesReaded = 0;
+  private String tunnelMetricsString;
   private Checksum crc = new Checksum();
   private Checksum crccrc = new Checksum();
   protected boolean shouldTransform = false;
@@ -202,15 +201,24 @@ public class ProtobufRecordStreamReader implements RecordReader {
         if (count != in.readSInt64()) {
           throw new IOException("count does not match.");
         }
-
-        if (ProtoWireConstant.TUNNEL_META_CHECKSUM != getTagFieldNumber(in)) {
-          throw new IOException("Invalid stream.");
+        // 从服务端拿到 总行数后，预期，拿metrics(如果存在）
+        int nextTag = getTagFieldNumber(in);
+        if (ProtoWireConstant.METRICS_TAG == nextTag) {
+          crc.update(ProtoWireConstant.METRICS_TAG);
+          tunnelMetricsString = readString();
+          nextTag = getTagFieldNumber(in);
         }
-
-        if ((int) crccrc.getValue() != in.readUInt32()) {
-          throw new IOException("Checksum invalid.");
+        if (ProtoWireConstant.METRICS_END_TAG == nextTag) {
+          if ((int) crc.getValue() != in.readUInt32()) {
+            throw new IOException("Metrics checksum invalid.");
+          }
+          nextTag = getTagFieldNumber(in);
         }
-
+        if (ProtoWireConstant.TUNNEL_META_CHECKSUM == nextTag) {
+          if ((int) crccrc.getValue() != in.readUInt32()) {
+            throw new IOException("Checksum invalid.");
+          }
+        }
         if (!in.isAtEnd()) {
           throw new IOException("Expect at the end of stream, but not.");
         }
@@ -572,6 +580,10 @@ public class ProtobufRecordStreamReader implements RecordReader {
     }
 
     return map;
+  }
+
+  public String getTunnelMetricsString() {
+    return tunnelMetricsString;
   }
 
 }

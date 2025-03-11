@@ -26,6 +26,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelMetrics;
 
 /**
  * <p>TunnelBufferedWriter 是一个<b>使用缓冲区</b>的、<b>容错</b>的 Tunnel 上传接口。</p>
@@ -102,6 +103,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   private long bytesWritten;
   private boolean isClosed;
   private long timeout;
+  private TunnelMetrics metrics;
   private TableTunnel.BlockVersionProvider versionProvider;
 
 
@@ -131,6 +133,7 @@ public class TunnelBufferedWriter implements RecordWriter {
     this.flushThreshold = FLUSH_THRESHOLD_DEFAULT;
     this.bytesWritten = 0;
     this.isClosed = false;
+    this.metrics = bufferedPack.getMetrics();
   }
 
   /**
@@ -217,7 +220,9 @@ public class TunnelBufferedWriter implements RecordWriter {
     if (bufferedPack.getTotalBytes() > bufferSize * flushThreshold) {
       flush();
     }
+    long time = System.currentTimeMillis();
     bufferedPack.append(r);
+    bufferedPack.addLocalWallTimeMs(System.currentTimeMillis() - time);
   }
 
   private void checkStatus() throws IOException {
@@ -272,6 +277,10 @@ public class TunnelBufferedWriter implements RecordWriter {
       bufferedPack.reset();
       bytesWritten += delta;
     }
+  }
+
+  public TunnelMetrics getMetrics() {
+    return metrics;
   }
 
   public long getTimeout() {

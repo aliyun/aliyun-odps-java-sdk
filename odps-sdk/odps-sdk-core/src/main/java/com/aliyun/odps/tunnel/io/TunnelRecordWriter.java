@@ -20,6 +20,7 @@
 package com.aliyun.odps.tunnel.io;
 
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_TUNNEL_METRICS;
 
 import java.io.IOException;
 
@@ -29,6 +30,7 @@ import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelMetrics;
 
 /**
  * TunnelRecordWriter支持通过Tunnel服务写入数据到ODPS表
@@ -39,6 +41,12 @@ public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
 
   private Connection conn;
   private boolean isClosed;
+  private TunnelMetrics metrics;
+
+  /**
+   * in tunnel record writer, local wall time and network wall time are the same
+   */
+  private long localAndNetworkWallTimeMs;
 
   /**
    * 构造此类对象
@@ -64,36 +72,60 @@ public class TunnelRecordWriter extends ProtobufRecordStreamWriter {
   }
 
   @Override
-  public void write(Record r) throws IOException{
+  public void flush() throws IOException {
+    long time = System.currentTimeMillis();
+    super.flush();
+    localAndNetworkWallTimeMs += (System.currentTimeMillis() - time);
+  }
+
+  @Override
+  public void write(Record r) throws IOException {
     if (isClosed) {
       throw new IOException("Writer has been closed.");
     }
 
     try {
+      long time = System.currentTimeMillis();
       super.write(r);
+      localAndNetworkWallTimeMs += (System.currentTimeMillis() - time);
     } catch (IOException e) {
       Response resp = conn.getResponse();
-      if (!resp.isOK()) {
-        TunnelException err = new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
-        throw new IOException(err.getMessage(), err);
-      }
+      handleResponse(resp);
     }
   }
 
   @Override
   public void close() throws IOException {
+    long time = System.currentTimeMillis();
     super.close();
-
     // handle response
     try {
       Response resp = conn.getResponse();
-      if (!resp.isOK()) {
-        TunnelException err = new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(), resp.getStatus());
-        throw new IOException(err.getMessage(), err);
-      }
+      localAndNetworkWallTimeMs += (System.currentTimeMillis() - time);
+      handleResponse(resp);
     } finally {
       conn.disconnect();
       isClosed = true;
     }
+  }
+
+  private void handleResponse(Response resp) throws IOException {
+    if (!resp.isOK()) {
+      TunnelException
+          err =
+          new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID), conn.getInputStream(),
+                              resp.getStatus());
+      throw new IOException(err.getMessage(), err);
+    }
+    String metricsString = resp.getHeader(HEADER_ODPS_TUNNEL_METRICS);
+    this.metrics = TunnelMetrics.parse(metricsString, localAndNetworkWallTimeMs, localAndNetworkWallTimeMs);
+  }
+
+  public void addWallTimeMs(long wallTime) {
+    this.localAndNetworkWallTimeMs += wallTime;
+  }
+
+  public TunnelMetrics getMetrics() {
+    return metrics;
   }
 }

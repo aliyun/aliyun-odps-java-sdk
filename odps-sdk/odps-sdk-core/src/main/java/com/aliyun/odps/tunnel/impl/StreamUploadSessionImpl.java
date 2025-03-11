@@ -1,6 +1,7 @@
 package com.aliyun.odps.tunnel.impl;
 
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_TUNNEL_METRICS;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,6 +31,7 @@ import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelMetrics;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.io.StreamRecordPackImpl;
@@ -416,6 +418,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         if (null == conn) {
             throw new IOException("Invalid connection");
         }
+
+        long startTime = System.currentTimeMillis();
         ByteArrayOutputStream baos = pack.getProtobufStream();
         if (timeout > 0) {
             ConnectionWatcher.getInstance().mark(conn, timeout);
@@ -452,6 +456,12 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         reloadSlots(slot,
                     response.getHeader(HttpHeaders.HEADER_ODPS_ROUTED_SERVER),
                     Integer.valueOf(response.getHeader(HttpHeaders.HEADER_ODPS_SLOT_NUM)));
+
+        String metricsStr = response.getHeader(HEADER_ODPS_TUNNEL_METRICS);
+        TunnelMetrics batchMetrics =
+            TunnelMetrics.parse(metricsStr, pack.getLocalWallTimeMs() + (System.currentTimeMillis() - startTime),
+                                pack.getNetworkWallTimeMs() + (System.currentTimeMillis() - startTime));
+        pack.addMetrics(batchMetrics);
 
         return response.getHeader(HEADER_ODPS_REQUEST_ID);
     }

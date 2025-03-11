@@ -975,7 +975,7 @@ public class StringUtils {
     return names.stream().map(String::toLowerCase).collect(Collectors.toList());
   }
 
-  public static final byte[] encodeQuotedPrintable(final byte[] bytes) {
+  public static byte[] encodeQuotedPrintable(final byte[] bytes) {
     if (bytes == null) {
       return null;
     }
@@ -997,6 +997,27 @@ public class StringUtils {
       }
     }
 
+    return buffer.toByteArray();
+  }
+
+  public static byte[] decodeQuotedPrintable(byte[] input) {
+    if (input == null) {
+      return null;
+    }
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    for (int i = 0; i < input.length; i++) {
+      byte c = input[i];
+      if (c == PRINTABLE_ESCAPE_CHAR) {
+        if (i + 2 < input.length) {
+          String hexValue = new String(input, i + 1, 2);
+          int byteValue = Integer.parseInt(hexValue, 16);
+          buffer.write(byteValue);
+          i += 2;
+        }
+      } else {
+        buffer.write(c);
+      }
+    }
     return buffer.toByteArray();
   }
 }

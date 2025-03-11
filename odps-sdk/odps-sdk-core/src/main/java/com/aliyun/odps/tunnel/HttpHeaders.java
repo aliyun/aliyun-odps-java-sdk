@@ -35,5 +35,6 @@ public class HttpHeaders extends Headers {
   public static final String HEADER_ODPS_TUNNEL_TAGS= "odps-tunnel-tags";
   public static final String HEADER_ODPS_TUNNEL_SDK_SUPPORT_SCHEMA_EVOLUTION = "odps-tunnel-sdk-support-schema-evolution";
   public static final String HEADER_ODPS_TUNNEL_LATEST_SCHEMA_VERSION = "odps-tunnel-latest-schema-version";
+  public static final String HEADER_ODPS_TUNNEL_METRICS = "odps-tunnel-metrics";
 
 }

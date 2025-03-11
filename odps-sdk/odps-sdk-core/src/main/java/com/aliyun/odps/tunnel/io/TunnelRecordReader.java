@@ -24,14 +24,14 @@ import java.util.List;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.proto.ProtobufRecordStreamReader;
+import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
-import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelMetrics;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
@@ -58,6 +58,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
   private long offset = 0;
   private long sizeLimit = 0;
   private long bytesReaded = 0;
+  private long localWallTime = 0;
 
   private boolean isClosed = false;
 
@@ -68,6 +69,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
   private InstanceTunnel.DownloadSession instanceSession;
   private RawTunnelRecordReader reader;
   private boolean disableModifiedCheck = false;
+  private TunnelMetrics metrics = new TunnelMetrics();
 
 
   /**
@@ -273,6 +275,10 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     return reader.getTableSchema();
   }
 
+  public TunnelMetrics getMetrics() {
+    return metrics;
+  }
+
   private boolean needRetry() {
     if (instanceSession == null) {
       // table tunnel
@@ -288,7 +294,14 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
 
   private Record readWithRetry(Record reusedRecord) throws TunnelException, IOException {
     try {
+      long startTime = System.currentTimeMillis();
       Record record = reader.read(reusedRecord);
+      localWallTime += System.currentTimeMillis() - startTime;
+
+      if (record == null) {
+        this.metrics.add(TunnelMetrics.parse(reader.getTunnelMetricsString(), localWallTime, localWallTime));
+        localWallTime = 0;
+      }
       offset += 1;
       return record;
     } catch (IOException e) {
@@ -306,6 +319,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
    * @throws TunnelException
    */
   private void createNewReader() throws TunnelException, IOException {
+    long startTime = System.currentTimeMillis();
     while (retryCount <= retryTimes) {
       try {
         if (reader != null) {
@@ -339,6 +353,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
         sleep(DEFAULT_CONNECT_TIMEOUT);
       }
     }
+    localWallTime += System.currentTimeMillis() - startTime;
   }
 
   private void sleep(long time) {
