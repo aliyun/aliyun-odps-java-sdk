@@ -11,12 +11,14 @@ import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Quota;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
+import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.sqa.v2.InfoResultSet;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -73,6 +75,44 @@ public class SQLExecutorV2Test {
     executor.getInstance().waitForTerminatedAndGetResult();
     boolean select2 = executor.getInstance().isSelect(executor.getTaskName());
     Assert.assertFalse(select2);
+  }
+
+  @Test
+  public void testParseXml() throws Exception {
+    String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+               + "<Instance>\n"
+               + "<Tasks>\n"
+               + "  <Task Type=\"SQL\">\n"
+               + "    <Name>console_query_task_13</Name>\n"
+               + "    <Status>Success</Status>\n"
+               + "    <ResultDescriptor>{\n"
+               + "    \"IsSelect\": false,\n"
+               + "    \"Schema\": {\n"
+               + "      \"Columns\": [\n"
+               + "        {\n"
+               + "            \"Name\": \"wr_returned_date_sk\",\n"
+               + "            \"Type\": \"bigint\"\n"
+               + "        },\n"
+               + "        {\n"
+               + "            \"Name\": \"wr_returned_time_sk\",\n"
+               + "            \"Type\": \"bigint\"\n"
+               + "        }\n"
+               + "        ]\n"
+               + "      }\n"
+               + "    }\n"
+               + "    </ResultDescriptor>\n"
+               + "    <Result Format=\"text\">1365937150772213:a_view\n"
+               + "1365937150772213:acid2_table_dest\n"
+               + "1365937150772213:acid2_table_src\n"
+               + "1365937150772213:acid_address_book_base\n"
+               + "    </Result>\n"
+               + "  </Task>\n"
+               + "</Tasks></Instance>";
+
+    Instance.InstanceResultModel
+        taskResult =
+        SimpleXmlUtils.unmarshal(xml.getBytes(), Instance.InstanceResultModel.class);
+    Assert.assertNotNull(taskResult);
   }
 
 

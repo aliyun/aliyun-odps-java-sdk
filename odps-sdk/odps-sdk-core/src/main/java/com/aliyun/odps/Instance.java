@@ -27,6 +27,10 @@ import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.Text;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.simpleframework.xml.convert.Converter;
+import com.aliyun.odps.simpleframework.xml.stream.InputNode;
+import com.aliyun.odps.simpleframework.xml.stream.OutputNode;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
@@ -47,7 +51,10 @@ import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
@@ -213,8 +220,8 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       String status;
 
       @Element(name = "ResultDescriptor", required = false)
-      @Convert(SimpleXmlUtils.JsonMapConverter.class)
-      Map<String, String> resultDescriptor;
+      @Convert(ResultDescriptorConverter.class)
+      ResultDescriptor resultDescriptor;
 
       public String getType() {
         return type;
@@ -232,7 +239,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
         return status;
       }
 
-      public Map<String, String> getResultDescriptor() {
+      public ResultDescriptor getResultDescriptor() {
         return resultDescriptor;
       }
     }
@@ -1782,11 +1789,16 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
     TaskResult taskResult = results.get(taskName);
     if (taskResult.resultDescriptor == null
-        || taskResult.resultDescriptor.get("IsSelect") == null) {
+        || taskResult.resultDescriptor.isSelect == null) {
+      String errTaskResult = taskResult.result.getString();
+      try {
+        errTaskResult = SimpleXmlUtils.marshal(taskResult);
+      } catch (Exception ignored) {
+      }
       throw new IllegalStateException(
-          "Cannot infer whether the job type is a select job. Currently, only MCQA 2.0 jobs are supported.");
+          "Cannot infer whether the job type is a select job. Currently, only MCQA 2.0 jobs are supported. \nTaskResult:\n" + errTaskResult);
     }
-    return Boolean.parseBoolean(taskResult.resultDescriptor.get("IsSelect"));
+    return taskResult.resultDescriptor.isSelect;
   }
 
   private Map<String, String> userDefinedHeaders;
@@ -1816,5 +1828,43 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       headers.putAll(userDefinedHeaders);
     }
     return headers;
+  }
+
+  static class ResultDescriptor {
+    private Boolean isSelect;
+    private TableSchema schema;
+
+    // Setter
+    public void setIsSelect(boolean isSelect) { this.isSelect = isSelect; }
+    public void setSchema(TableSchema schema) {this.schema = schema; }
+  }
+
+  static class ResultDescriptorConverter implements Converter<Instance.ResultDescriptor> {
+    private final Gson gson = new Gson();
+
+    @Override
+    public Instance.ResultDescriptor read(InputNode node) throws Exception {
+      JsonObject json = JsonParser.parseString(node.getValue()).getAsJsonObject();
+      ResultDescriptor resultDescriptor = new ResultDescriptor();
+      if (json.has("Schema")) {
+        TableSchema schema = new TableSchema();
+        JsonArray columnsJson = json.getAsJsonObject("Schema").getAsJsonArray("Columns");
+        for (JsonElement columnElem : columnsJson) {
+          String name = columnElem.getAsJsonObject().get("Name").getAsString();
+          String type = columnElem.getAsJsonObject().get("Type").getAsString();
+          schema.addColumn(new Column(name, OdpsType.valueOf(type.toUpperCase())));
+        }
+        resultDescriptor.setSchema(schema);
+      }
+      if (json.has("IsSelect")) {
+        resultDescriptor.setIsSelect(json.get("IsSelect").getAsBoolean());
+      }
+      return resultDescriptor;
+    }
+
+    @Override
+    public void write(OutputNode node, Instance.ResultDescriptor value) throws Exception {
+      node.setValue(gson.toJson(value));
+    }
   }
 }
