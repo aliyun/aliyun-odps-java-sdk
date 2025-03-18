@@ -1,4 +1,13 @@
 # Changelog
+
+## [0.51.11-public] - 2025-03-18
+### Key Changes
+- **MCQA 2.0 Structural Improvement**: The `ResultDescriptor` subclass in `Instance` class has been upgraded from `Map<String, String>` to a dedicated POJO object, specifically optimized for **MCQA 2.0 scenarios**
+- **Backward Compatibility**: Fully compatible with legacy logic - existing code will continue to function without modification
+
+### Important Notes
+- Future server-side updates may adjust `ResultDescriptor` data formats. **MCQA 2.0 users are recommended to upgrade to this version**
+
 ## [0.51.10-public] - 2025-03-11
 ### Features
 - **TableTunnel Metrics Support**  
