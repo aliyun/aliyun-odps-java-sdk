@@ -41,7 +41,7 @@ public interface Account {
     // 淘宝帐号
     TAOBAO,
     // 阿里云账号
-    ALIYUN,
+    APSARA,
     // STS
     STS,
     // logview token

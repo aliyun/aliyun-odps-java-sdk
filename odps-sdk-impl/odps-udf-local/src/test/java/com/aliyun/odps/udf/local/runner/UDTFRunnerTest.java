@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.udf.local.runner;
 
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.local.common.AnyTypeInfo;
 import com.aliyun.odps.local.common.Pair;
 import com.aliyun.odps.type.StructTypeInfo;
@@ -39,7 +40,6 @@ import org.junit.Test;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.udf.UDFException;
 import com.aliyun.odps.udf.local.LocalRunException;
 import com.aliyun.odps.udf.local.datasource.InputSource;
@@ -58,7 +58,7 @@ public class UDTFRunnerTest {
 
   @BeforeClass
   public static void setupBeforeClass() {
-    Account account = new AliyunAccount("accessId", "accessKey");
+    Account account = new ApsaraAccount("accessId", "accessKey");
     odps = new Odps(account);
     odps.setEndpoint("endpoint");
     odps.setDefaultProject("project_name");

@@ -25,7 +25,7 @@ import java.util.Properties;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -69,7 +69,7 @@ public class TestUtils {
     String endpoint = props.getProperty("default.endpoint");
     String project = props.getProperty("default.project");
 
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     Odps odps = new Odps(account);
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);

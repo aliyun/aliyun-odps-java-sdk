@@ -220,18 +220,18 @@ public class OdpsConf extends Configuration {
 
   /**
    * 获取帐号类型<br/>
-   * 取值范围：{@link com.aliyun.odps.account.Account.AccountProvider#ALIYUN} ,
+   * 取值范围：{@link com.aliyun.odps.account.Account.AccountProvider#APSARA} ,
    * {@link com.aliyun.odps.account.Account.AccountProvider#TAOBAO},
    * {@link com.aliyun.odps.account.Account.AccountProvider#BEARER_TOKEN}
    * {@link com.aliyun.odps.account.Account.AccountProvider#STS}<br/>
-   * 默认值： {@link com.aliyun.odps.account.Account.AccountProvider#ALIYUN}
+   * 默认值： {@link com.aliyun.odps.account.Account.AccountProvider#APSARA}
    *
    * @return 帐号类型
    * @throws OdpsException
    */
   public AccountProvider getAccountProvider() throws OdpsException {
     String provider = get(ACCOUNT_PROVIDER);
-    AccountProvider result = AccountProvider.ALIYUN;
+    AccountProvider result = AccountProvider.APSARA;
     if (provider != null) {
       provider = provider.trim().toUpperCase();
       try {

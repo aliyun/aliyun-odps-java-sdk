@@ -23,7 +23,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.sqa.*;
@@ -35,7 +35,7 @@ public class SQLExecutorExample {
 
     public static void SimpleExample() {
         // 设置账号和project信息
-        Account account = new AliyunAccount("", "");
+        Account account = new ApsaraAccount("", "");
         Odps odps = new Odps(account);
         odps.setDefaultProject("");
         odps.setEndpoint("http://service-corp.odps.aliyun-inc.com/api");
@@ -112,7 +112,7 @@ public class SQLExecutorExample {
     // SQLExecutor can be reused by pool mode
     public static void ExampleWithPool() {
         // 设置账号和project信息
-        Account account = new AliyunAccount("", "");
+        Account account = new ApsaraAccount("", "");
         Odps odps = new Odps(account);
         odps.setDefaultProject("");
         odps.setEndpoint("http://service-corp.odps.aliyun-inc.com/api");

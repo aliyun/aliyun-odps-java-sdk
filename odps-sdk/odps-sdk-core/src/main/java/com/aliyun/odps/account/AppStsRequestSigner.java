@@ -50,12 +50,12 @@ public class AppStsRequestSigner implements RequestSigner {
   public void sign(String resource, Request req) {
     Account.AccountProvider accountProvider = this.account.getType();
     switch(accountProvider) {
-      case ALIYUN:
+      case APSARA:
         // TODO: Case sensitive
         String providerStr = accountProvider.toString().toLowerCase();
         String signature = SecurityUtils.getFormattedSignature(
             providerStr,
-            ((AliyunAccount) account).getAccessId(),
+            ((ApsaraAccount) account).getAccessId(),
             getAliyunSignature(req));
         req.getHeaders().put(Headers.STS_AUTHENTICATION, signature);
         break;
@@ -80,7 +80,7 @@ public class AppStsRequestSigner implements RequestSigner {
     byte[] crypto;
     crypto = SecurityUtils.hmacsha1Signature(
         strToSign.getBytes(StandardCharsets.UTF_8),
-        ((AliyunAccount) account).getAccessKey().getBytes());
+        ((ApsaraAccount) account).getAccessKey().getBytes());
 
     return Base64.encodeBase64String(crypto).trim();
   }

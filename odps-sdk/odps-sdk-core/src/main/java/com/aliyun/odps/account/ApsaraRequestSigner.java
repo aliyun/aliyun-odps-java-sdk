@@ -39,20 +39,20 @@ import com.aliyun.odps.utils.StringUtils;
 /**
  * ODPS请求签名工具
  */
-public class AliyunRequestSigner implements RequestSigner {
+public class ApsaraRequestSigner implements RequestSigner {
 
-  private static final Logger log = Logger.getLogger(AliyunRequestSigner.class.getName());
+  private static final Logger log = Logger.getLogger(ApsaraRequestSigner.class.getName());
   private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyyMMdd");
 
   private final String accessId;
   private final String accessKey;
   private String regionName;
 
-  public AliyunRequestSigner(String accessId, String accessKey) {
+  public ApsaraRequestSigner(String accessId, String accessKey) {
     this(accessId, accessKey, null);
   }
 
-  public AliyunRequestSigner(String accessId, String accessKey, String regionName) {
+  public ApsaraRequestSigner(String accessId, String accessKey, String regionName) {
     if (StringUtils.isBlank(accessId)) {
       throw new IllegalArgumentException("AccessId should not be empty.");
     }

@@ -17,7 +17,7 @@ import com.aliyun.odps.commons.transport.Request;
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-public class AliyunV4AuthTest {
+public class ApsaraV4AuthTest {
 
   static Properties props;
   static String accessId;
@@ -36,28 +36,28 @@ public class AliyunV4AuthTest {
 
   @Test
   public void testV4Sign() throws URISyntaxException, OdpsException {
-    AliyunAccount aliyunAccount = new AliyunAccount(accessId, accessKey, "cn-hangzhou");
+    ApsaraAccount apsaraAccount = new ApsaraAccount(accessId, accessKey, "cn-hangzhou");
     Request request = new Request();
     request.setURI(new URI("http://www.aliyun.com"));
-    aliyunAccount.getRequestSigner().sign("resource", request);
+    apsaraAccount.getRequestSigner().sign("resource", request);
     String authorization = request.getHeaders().get("Authorization");
     Assert.assertTrue(authorization.contains("aliyun_v4_request"));
 
-    Odps odps = new Odps(aliyunAccount);
+    Odps odps = new Odps(apsaraAccount);
     odps.setEndpoint(endpoint);
     odps.projects().get(project).reload();
   }
 
   @Test
   public void testV2Sign() throws URISyntaxException, OdpsException {
-    AliyunAccount aliyunAccount = new AliyunAccount(accessId, accessKey);
+    ApsaraAccount apsaraAccount = new ApsaraAccount(accessId, accessKey);
     Request request = new Request();
     request.setURI(new URI("http://www.aliyun.com"));
-    aliyunAccount.getRequestSigner().sign("resource", request);
+    apsaraAccount.getRequestSigner().sign("resource", request);
     String authorization = request.getHeaders().get("Authorization");
     Assert.assertFalse(authorization.contains("aliyun_v4_request"));
 
-    Odps odps = new Odps(aliyunAccount);
+    Odps odps = new Odps(apsaraAccount);
     odps.setEndpoint(endpoint);
     odps.projects().get(project).reload();
   }

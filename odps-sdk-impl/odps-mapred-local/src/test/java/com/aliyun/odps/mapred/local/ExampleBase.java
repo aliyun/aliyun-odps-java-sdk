@@ -23,7 +23,7 @@ import java.io.File;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.mapred.cli.OdpsConf;
 import com.aliyun.odps.mapred.conf.SessionState;
 
@@ -33,7 +33,7 @@ public class ExampleBase {
 
   static {
     odpsConf = new OdpsConf();
-    Account account = new AliyunAccount(odpsConf.getAccessId(),
+    Account account = new ApsaraAccount(odpsConf.getAccessId(),
                                         odpsConf.getAccessKey());
     Odps odps = new Odps(account);
     odps.setDefaultProject(odpsConf.getProjName());

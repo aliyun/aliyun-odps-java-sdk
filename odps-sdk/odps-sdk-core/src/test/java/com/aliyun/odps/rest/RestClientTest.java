@@ -21,14 +21,10 @@ package com.aliyun.odps.rest;
 
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -36,10 +32,9 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.commons.transport.Headers;
-import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.commons.transport.Response;
 
@@ -129,8 +124,8 @@ public class RestClientTest extends TestBase {
     String accessKey = "key";
     String appAccessId = "app_id";
     String appAccessKey = "app_key";
-    Odps odps = new Odps(new AliyunAccount(accessId, accessKey),
-                         new AppAccount(new AliyunAccount(appAccessId, appAccessKey)));
+    Odps odps = new Odps(new ApsaraAccount(accessId, accessKey),
+                         new AppAccount(new ApsaraAccount(appAccessId, appAccessKey)));
     RestClient restClient = odps.getRestClient();
 
     Map<String, String> params = new HashMap<String, String>();

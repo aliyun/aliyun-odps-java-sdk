@@ -19,23 +19,12 @@
 
 package com.aliyun.odps;
 
-import com.aliyun.odps.*;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
-import com.aliyun.odps.commons.transport.OdpsTestUtils;
-import com.aliyun.odps.data.*;
-import com.aliyun.odps.tunnel.TableTunnel;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
+import com.aliyun.odps.account.ApsaraAccount;
+
 import org.junit.Test;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
@@ -58,7 +47,7 @@ public class TunnelEndpointLocalCacheTest  extends TestBase {
 
     @Test
     public void testSetGetFromLocalCache() throws IOException, OdpsException {
-        Account account = new AliyunAccount(accessId,accessKey);
+        Account account = new ApsaraAccount(accessId, accessKey);
         Odps odps = new Odps(account);
         odps.setDefaultProject(project1);
         odps.setEndpoint(endPoint);
@@ -75,7 +64,7 @@ public class TunnelEndpointLocalCacheTest  extends TestBase {
 
     @Test
     public void testSetExceedSize() throws IOException, OdpsException {
-        Account account = new AliyunAccount(accessId,accessKey);
+        Account account = new ApsaraAccount(accessId, accessKey);
         Odps odps = new Odps(account);
         odps.setDefaultProject(project1);
         odps.setEndpoint(endPoint);
@@ -104,7 +93,7 @@ public class TunnelEndpointLocalCacheTest  extends TestBase {
 
     @Test
     public void testSetExpireTime() throws IOException, OdpsException {
-        Account account = new AliyunAccount(accessId,accessKey);
+        Account account = new ApsaraAccount(accessId, accessKey);
         Odps odps = new Odps(account);
         odps.setDefaultProject(project1);
         odps.setEndpoint(endPoint);

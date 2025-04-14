@@ -23,7 +23,7 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.utils.StringUtils;
 
-public class StsRequestSigner extends AliyunRequestSigner {
+public class StsRequestSigner extends ApsaraRequestSigner {
 
   private String stsToken;
 

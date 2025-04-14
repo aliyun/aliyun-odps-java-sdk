@@ -25,7 +25,7 @@ import java.util.Properties;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.mapred.conf.SessionState;
 
 public class TestUtils {
@@ -77,7 +77,7 @@ public class TestUtils {
       endpoint = "xxx";
     }
 
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     Odps odps = new Odps(account);
     odps.setDefaultProject(projectName);
     odps.setEndpoint(endpoint);
@@ -91,7 +91,7 @@ public class TestUtils {
     String accessKey = props.getProperty("default.access.key");
     String endpoint = props.getProperty("default.endpoint");
     String project = "odps_test_bridgejob";
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     Odps odps = new Odps(account);
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);

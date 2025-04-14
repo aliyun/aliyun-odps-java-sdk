@@ -185,8 +185,8 @@ public class OptionParser {
     AccountProvider accountProvider = odpsConf.getAccountProvider();
 
     switch (accountProvider) {
-      case ALIYUN:
-        return new AliyunAccount(odpsConf.getAccessId(), odpsConf.getAccessKey());
+      case APSARA:
+        return new ApsaraAccount(odpsConf.getAccessId(), odpsConf.getAccessKey());
 
 
       case STS:
@@ -203,7 +203,7 @@ public class OptionParser {
     String appAccessId = odpsConf.getAppAccessId();
     String appAccessKey = odpsConf.getAppAccessKey();
     if (!StringUtils.isNullOrEmpty(appAccessId) && !StringUtils.isNullOrEmpty(appAccessKey)) {
-      return new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+      return new AppAccount(new ApsaraAccount(appAccessId, appAccessKey));
     }
     return null;
   }

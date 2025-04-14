@@ -41,7 +41,7 @@ import com.aliyun.odps.tunnel.TableTunnel;
  *
  * <pre>
  * <code>
- * Account account = new AliyunAccount("my_access_id", "my_access_key");
+ * Account account = new ApsaraAccount("my_access_id", "my_access_key");
  *
  * Odps odps = new Odps(account);
  * odps.setDefaultProject("my_project");

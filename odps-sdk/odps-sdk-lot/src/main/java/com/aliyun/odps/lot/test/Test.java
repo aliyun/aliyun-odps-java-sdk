@@ -33,7 +33,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.lot.Task;
 import com.aliyun.odps.lot.common.AggregationFunction;
 import com.aliyun.odps.lot.common.Constant;
@@ -68,7 +68,7 @@ public class Test {
 
     String accessId = "your access id";
     String accessKey = "your access key";
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
 
     Odps odps = new Odps(account);
     String name = "yongfeng.chai";

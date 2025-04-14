@@ -33,7 +33,7 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
@@ -139,7 +139,7 @@ public class OdpsTestUtils {
     String accessKey = props.getProperty("grant.access.key");
     String endpoint = props.getProperty("default.endpoint");
 
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     odps = new Odps(account);
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
@@ -160,7 +160,7 @@ public class OdpsTestUtils {
     String endpoint = props.getProperty("security.endpoint");
     String project = props.getProperty("security.project");
 
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     odps = new Odps(account);
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
@@ -182,9 +182,9 @@ public class OdpsTestUtils {
     String project = props.getProperty("default.project");
     String appAccessId = props.getProperty("default.app.access.id");
     String appAccessKey = props.getProperty("default.app.access.key");
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     if (appAccessId != null && appAccessKey != null) {
-      AppAccount appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+      AppAccount appAccount = new AppAccount(new ApsaraAccount(appAccessId, appAccessKey));
       odps = new Odps(account, appAccount);
     } else {
       odps = new Odps(account);
@@ -222,9 +222,9 @@ public class OdpsTestUtils {
     String project = getSchemaProject1();
     String appAccessId = props.getProperty("default.app.access.id");
     String appAccessKey = props.getProperty("default.app.access.key");
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     if (appAccessId != null && appAccessKey != null) {
-      AppAccount appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+      AppAccount appAccount = new AppAccount(new ApsaraAccount(appAccessId, appAccessKey));
       odps = new Odps(account, appAccount);
     } else {
       odps = new Odps(account);
@@ -250,7 +250,7 @@ public class OdpsTestUtils {
     String endpoint = props.getProperty("default.endpoint");
     String project = props.getProperty("default.project");
 
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     odps = new Odps(account);
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
@@ -285,7 +285,7 @@ public class OdpsTestUtils {
     String accessKey = props.getProperty("default.access.key");
     String endpoint = props.getProperty("default.endpoint");
 
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     RestClient client = new RestClient(new DefaultTransport());
     client.setAccount(account);
     client.setUserAgent("Mock Rest Client (test only)");

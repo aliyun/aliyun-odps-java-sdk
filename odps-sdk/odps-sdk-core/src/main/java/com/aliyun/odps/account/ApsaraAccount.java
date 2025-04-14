@@ -26,12 +26,12 @@ package com.aliyun.odps.account;
  * accessId/accessKey是阿里云用户的身份标识和认证密钥,请至http://www.aliyun.com查询。
  * </p>
  */
-public class AliyunAccount implements Account {
+public class ApsaraAccount implements Account {
 
   private String accessId;
   private String accessKey;
 
-  private AliyunRequestSigner signer;
+  private ApsaraRequestSigner signer;
 
   /**
    * 构造AliyunAccount对象
@@ -41,7 +41,7 @@ public class AliyunAccount implements Account {
    * @param accessKey
    *     AccessKey
    */
-  public AliyunAccount(String accessId, String accessKey) {
+  public ApsaraAccount(String accessId, String accessKey) {
     this(accessId, accessKey, null);
   }
 
@@ -52,11 +52,11 @@ public class AliyunAccount implements Account {
    * @param accessKey AccessKey
    * @param region region name
    */
-  public AliyunAccount(String accessId, String accessKey, String region) {
+  public ApsaraAccount(String accessId, String accessKey, String region) {
     this.accessId = accessId;
     this.accessKey = accessKey;
 
-    signer = new AliyunRequestSigner(accessId, accessKey, region);
+    signer = new ApsaraRequestSigner(accessId, accessKey, region);
   }
 
   /**
@@ -88,7 +88,7 @@ public class AliyunAccount implements Account {
 
   @Override
   public AccountProvider getType() {
-    return AccountProvider.ALIYUN;
+    return AccountProvider.APSARA;
   }
 
   @Override

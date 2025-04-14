@@ -121,7 +121,7 @@ import com.google.gson.JsonParser;
     private static String table2 = "<your table2>";
 
     public static void main(String args[]) {
-      Account account = new AliyunAccount(accessID, accessKey);
+      Account account = new ApsaraAccount(accessID, accessKey);
       Odps odps = new Odps(account);
       odps.setEndpoint(odpsURL);
       odps.setDefaultProject(project);
