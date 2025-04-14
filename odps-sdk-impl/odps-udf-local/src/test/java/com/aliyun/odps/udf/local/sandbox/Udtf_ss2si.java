@@ -39,7 +39,7 @@ import org.junit.Test;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.WareHouse;
 import com.aliyun.odps.local.common.security.SecurityClient;
@@ -62,7 +62,7 @@ public class Udtf_ss2si extends UDTF {
 
   @Before
   public void before() {
-    Account account = new AliyunAccount("accessId", "accessKey");
+    Account account = new ApsaraAccount("accessId", "accessKey");
     odps = new Odps(account);
     odps.setEndpoint("endpoint");
     odps.setDefaultProject("project_name");

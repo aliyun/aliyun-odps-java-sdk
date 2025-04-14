@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.udf.local;
 
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.data.TableInfo;
 import com.aliyun.odps.local.common.utils.PartitionUtils;
 import java.io.IOException;
@@ -33,7 +34,6 @@ import com.aliyun.odps.utils.StringUtils;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.local.common.utils.SchemaUtils;
 import com.aliyun.odps.local.common.WareHouse;
 import com.aliyun.odps.udf.UDFException;
@@ -85,7 +85,7 @@ public class Main {
       String accessId = cmdl.getOptionValue("access-id");
       String accessKey = cmdl.getOptionValue("access-key");
 
-      Account account = new AliyunAccount(accessId, accessKey);
+      Account account = new ApsaraAccount(accessId, accessKey);
       Odps odps = new Odps(account);
       odps.setEndpoint(endpoint);
       odps.setDefaultProject(defaultProject);

@@ -59,7 +59,7 @@ public class LocalConfTest {
 //    JobConf job = ss.getDefaultJob();
 //    LocalConf localJob = new LocalConf(job);
 //
-//    AliyunAccount account = (AliyunAccount) odps.getAccount();
+//    ApsaraAccount account = (ApsaraAccount) odps.getAccount();
 //    Assert.assertEquals(odps.getDefaultProject(), "project");
 //    Assert.assertEquals(odps.getEndpoint(), "endpoint");
 //    Assert.assertEquals(account.getAccessId(), "accessId");
@@ -79,7 +79,7 @@ public class LocalConfTest {
 //        JobConf job = ss.getDefaultJob();
 //        LocalConf localJob = new LocalConf(job);
 //
-//        AliyunAccount account = (AliyunAccount) odps.getAccount();
+//        ApsaraAccount account = (ApsaraAccount) odps.getAccount();
 //        Assert.assertEquals(odps.getDefaultProject(), "project");
 //        Assert.assertEquals(odps.getEndpoint(), "endpoint");
 //        Assert.assertEquals(account.getAccessId(), "accessId");

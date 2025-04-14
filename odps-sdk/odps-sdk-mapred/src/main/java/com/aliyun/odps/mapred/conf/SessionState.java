@@ -33,11 +33,11 @@ import java.util.Map.Entry;
 import java.util.Properties;
 
 import com.aliyun.odps.account.AppAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.account.StsAccount;
-import com.aliyun.odps.mapred.utils.SqlUtils;
 import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+
 import org.apache.commons.io.FileUtils;
 
 import com.aliyun.odps.Odps;
@@ -45,7 +45,6 @@ import com.aliyun.odps.OdpsHook;
 import com.aliyun.odps.OdpsHooks;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.Account.AccountProvider;
-import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
@@ -279,7 +278,7 @@ public class SessionState {
         System.err.println("Running job in console.");
       }
 
-      AccountProvider accountProvider = AccountProvider.ALIYUN;
+      AccountProvider accountProvider = AccountProvider.APSARA;
       String apStr = prop.getProperty(OLD_ACCOUNT_PROVIDER_KEY);
       if (apStr != null) {
         apStr = apStr.trim().toUpperCase();
@@ -292,8 +291,8 @@ public class SessionState {
 
       Account account;
       switch (accountProvider) {
-        case ALIYUN:
-          account = new AliyunAccount(accessId, accessKey);
+        case APSARA:
+          account = new ApsaraAccount(accessId, accessKey);
           break;
         case STS:
           account = new StsAccount(accessId, accessKey, stsToken);
@@ -304,7 +303,7 @@ public class SessionState {
 
       AppAccount appAccount = null;
       if (!StringUtils.isNullOrEmpty(appAccessId) && !StringUtils.isNullOrEmpty(appAccessKey)) {
-        appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+        appAccount = new AppAccount(new ApsaraAccount(appAccessId, appAccessKey));
       }
 
       Odps odps = new Odps(account, appAccount);

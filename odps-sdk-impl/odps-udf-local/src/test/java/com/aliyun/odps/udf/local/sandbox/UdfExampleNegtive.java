@@ -30,6 +30,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.List;
 
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.utils.StringUtils;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -37,7 +38,6 @@ import org.junit.Test;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.WareHouse;
 import com.aliyun.odps.local.common.security.SecurityClient;
@@ -57,7 +57,7 @@ public class UdfExampleNegtive extends UDF {
 
   @BeforeClass
   public static void beforeClass() {
-    Account account = new AliyunAccount("accessId", "accessKey");
+    Account account = new ApsaraAccount("accessId", "accessKey");
     odps = new Odps(account);
     odps.setEndpoint("endpoint");
     odps.setDefaultProject("project_name");

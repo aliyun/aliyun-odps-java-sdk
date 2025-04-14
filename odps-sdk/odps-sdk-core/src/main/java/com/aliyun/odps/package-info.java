@@ -28,7 +28,7 @@
  * <ul>
  * <li>
  * <code><pre>
- * Account account = new AliyunAccount("accessId", "accessKey");
+ * Account account = new ApsaraAccount("accessId", "accessKey");
  * Odps odps = new Odps(account);
  * odps.setDefaultProject("my_project");
  * for (Table t : odps.tables()) {

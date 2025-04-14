@@ -34,9 +34,9 @@ public class AppAccount implements Account {
         }
 
         switch (account.getType()) {
-            case ALIYUN:
+            case APSARA:
                 this.appAccount = account;
-                this.signer = new AppRequestSigner((AliyunAccount) account);
+                this.signer = new AppRequestSigner((ApsaraAccount) account);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported account provider for application account.");

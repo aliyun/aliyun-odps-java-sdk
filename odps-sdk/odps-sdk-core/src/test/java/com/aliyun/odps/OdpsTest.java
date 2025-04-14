@@ -25,7 +25,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.task.SQLTask;
 import com.google.gson.Gson;
@@ -75,7 +75,7 @@ public class OdpsTest {
     final String USER_DEFINED_SETTING_2 = "hello2";
     final String USER_DEFINED_VAL = "world";
 
-    AliyunAccount account = new AliyunAccount("foo", "bar");
+    ApsaraAccount account = new ApsaraAccount("foo", "bar");
     Odps odps = new Odps(account);
 
     // Test set global settings
@@ -107,7 +107,7 @@ public class OdpsTest {
     final String SETTING_VAL = "human";
 
     // Add global setting, this should be overwrote later
-    AliyunAccount account = new AliyunAccount("foo", "bar");
+    ApsaraAccount account = new ApsaraAccount("foo", "bar");
     Odps odps = new Odps(account);
     Map<String, String> globalSettings = new HashMap<>();
     globalSettings.put(SETTING_NAME, GLOBAL_VAL);

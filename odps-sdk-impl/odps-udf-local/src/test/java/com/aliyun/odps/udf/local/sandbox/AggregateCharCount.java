@@ -38,7 +38,7 @@ import org.junit.Test;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.io.LongWritable;
 import com.aliyun.odps.io.Text;
 import com.aliyun.odps.io.Writable;
@@ -61,7 +61,7 @@ public class AggregateCharCount extends Aggregator {
 
   @Before
   public void before() {
-    Account account = new AliyunAccount("accessId", "accessKey");
+    Account account = new ApsaraAccount("accessId", "accessKey");
     odps = new Odps(account);
     odps.setEndpoint("endpoint");
     odps.setDefaultProject("project_name");

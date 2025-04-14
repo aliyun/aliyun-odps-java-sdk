@@ -32,7 +32,7 @@ import org.junit.Test;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.local.common.WareHouse;
 import com.aliyun.odps.mapred.cli.OdpsConf;
 import com.aliyun.odps.mapred.conf.JobConf;
@@ -44,7 +44,7 @@ public class WareHouseTest {
 
   static {
     odpsConf = new OdpsConf();
-    Account account = new AliyunAccount("xxx", "xxx");
+    Account account = new ApsaraAccount("xxx", "xxx");
     Odps odps = new Odps(account);
     odps.setDefaultProject(odpsConf.getProjName());
     if (odpsConf.getEndpoint() != null) {

@@ -3,7 +3,7 @@ package com.aliyun.odps.udf.local.runner;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.udf.local.LocalRunException;
 import com.aliyun.odps.udf.local.util.UnstructuredUtils;
@@ -17,7 +17,7 @@ public class ExtendedRunnerTestBase {
   protected static Odps odps;
   @BeforeClass
   public static void setupBeforeClass() {
-    Account account = new AliyunAccount("accessId", "accessKey");
+    Account account = new ApsaraAccount("accessId", "accessKey");
     odps = new Odps(account);
     odps.setEndpoint("endpoint");
     odps.setDefaultProject("project_name");

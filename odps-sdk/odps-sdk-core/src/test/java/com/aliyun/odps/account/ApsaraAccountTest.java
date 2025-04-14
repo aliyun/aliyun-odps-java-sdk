@@ -30,7 +30,7 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.account.Account.AccountProvider;
 
-public class AliyunAccountTest {
+public class ApsaraAccountTest {
 
   private static TableSchema schema;
   String tableName = this.getClass().getSimpleName() +  "_table_name_for_test";
@@ -58,15 +58,15 @@ public class AliyunAccountTest {
 
   @Test
   public void testGetType() {
-    AliyunAccount account = new AliyunAccount("a", "b");
-    assertEquals(account.getType(), AccountProvider.ALIYUN);
+    ApsaraAccount account = new ApsaraAccount("a", "b");
+    assertEquals(account.getType(), AccountProvider.APSARA);
   }
 
   public static Odps createOdpsNull() {
     String endpoint = "https://service.odps.aliyun.com/api";
     String project = "sandovaltest";
     Odps odps = null;
-    Account account = new AliyunAccount(null, null);
+    Account account = new ApsaraAccount(null, null);
     odps = new Odps(account);
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);

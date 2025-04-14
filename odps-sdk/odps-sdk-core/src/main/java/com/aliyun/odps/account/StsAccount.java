@@ -19,7 +19,7 @@
 
 package com.aliyun.odps.account;
 
-public class StsAccount extends AliyunAccount {
+public class StsAccount extends ApsaraAccount {
 
   private StsRequestSigner signer;
 

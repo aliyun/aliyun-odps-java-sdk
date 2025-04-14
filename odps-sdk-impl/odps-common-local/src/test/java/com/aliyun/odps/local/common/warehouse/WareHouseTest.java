@@ -36,7 +36,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.conf.Configuration;
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.WareHouse;
@@ -47,7 +47,7 @@ public class WareHouseTest {
 
   @Before
   public void setup() {
-    Account account = new AliyunAccount("accessId", "accessKey");
+    Account account = new ApsaraAccount("accessId", "accessKey");
     Odps odps = new Odps(account);
     odps.setEndpoint("endpoint");
     odps.setDefaultProject("project_name");
@@ -258,7 +258,7 @@ public class WareHouseTest {
 
   @Test
   public void testMultiThread() throws InterruptedException {
-    Account account = new AliyunAccount("accessId1", "accessKey1");
+    Account account = new ApsaraAccount("accessId1", "accessKey1");
     Odps odps = new Odps(account);
     odps.setEndpoint("endpoint1");
     odps.setDefaultProject("project_name1");
@@ -272,7 +272,7 @@ public class WareHouseTest {
           e1.printStackTrace();
         }
 
-        Account account = new AliyunAccount("accessId2", "accessKey2");
+        Account account = new ApsaraAccount("accessId2", "accessKey2");
         Odps odps = new Odps(account);
         odps.setEndpoint("endpoint2");
         odps.setDefaultProject("project_name2");
@@ -300,7 +300,7 @@ public class WareHouseTest {
     Assert.assertEquals("endpoint1", WareHouse.getInstance().getOdps().getEndpoint());
     Assert.assertEquals("project_name1", WareHouse.getInstance().getOdps().getDefaultProject());
 
-    account = new AliyunAccount("accessId1", "accessKey1");
+    account = new ApsaraAccount("accessId1", "accessKey1");
     odps = new Odps(account);
     odps.setEndpoint("endpoint1");
     odps.setDefaultProject("project_name1");

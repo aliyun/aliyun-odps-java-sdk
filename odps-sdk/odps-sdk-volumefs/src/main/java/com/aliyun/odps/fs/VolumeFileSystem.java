@@ -36,7 +36,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.VolumeException;
 import com.aliyun.odps.VolumeFSFile;
 import com.aliyun.odps.account.Account;
-import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.account.ApsaraAccount;
 import com.aliyun.odps.tunnel.VolumeFSErrorCode;
 import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.volume.ExternalVolumeFSInputStream;
@@ -145,7 +145,7 @@ public class VolumeFileSystem extends FileSystem {
       throw new IOException("Incomplete config, no "
           + VolumeFileSystemConfigKeys.ODPS_SERVICE_ENDPOINT);
     }
-    Account account = new AliyunAccount(accessId, accessKey);
+    Account account = new ApsaraAccount(accessId, accessKey);
     Odps odps = new Odps(account);
 
     String restClientRetryTime = conf.get(VolumeFileSystemConfigKeys.ODPS_RESTCLIENT_RETRYTIME);
