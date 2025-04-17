@@ -25,12 +25,14 @@ import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import com.aliyun.odps.Instance.InstanceResultModel;
 import com.aliyun.odps.Instance.InstanceResultModel.TaskResult;
@@ -38,6 +40,7 @@ import com.aliyun.odps.Instance.TaskStatusModel;
 import com.aliyun.odps.Job.JobModel;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.options.CreateInstanceOption;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.utils.StringUtils;
@@ -394,13 +397,49 @@ public class Instances implements Iterable<Instance> {
     if (StringUtils.isNullOrEmpty(project)) {
       throw new IllegalArgumentException("project required.");
     }
-
     if (job == null) {
       throw new IllegalArgumentException("Job required.");
     }
+    CreateInstanceOption createInstanceOption = new CreateInstanceOption.Builder()
+        .setProjectName(project)
+        .setPriority(job.getPriority())
+        .setRunningCluster(job.getRunningCluster())
+        .setJobName(job.getName())
+        .setTryWait(tryWait)
+        .setMcqaConnHeader(mcqaConnHeader)
+        .build();
+    return create(job.getTasks(), createInstanceOption);
+  }
 
-    if (job.getTasks().size() == 0) {
+  public Instance create(Task task, CreateInstanceOption option) throws OdpsException {
+    return create(Collections.singletonList(task), option);
+  }
+
+  public Instance create(List<Task> tasks, CreateInstanceOption option) throws OdpsException {
+    String project = option.getProjectName();
+    if (StringUtils.isNullOrEmpty(project)) {
+      project = getDefaultProjectName();
+    }
+    if (tasks == null || tasks.size() == 0) {
       throw new IllegalArgumentException("Tasks required.");
+    }
+    Job job = new Job();
+    for (Task t : tasks) {
+      job.addTask(t);
+    }
+    if (option.getPriority() != null) {
+      // check priority not negative
+      if (option.getPriority() < 0) {
+        throw new OdpsException("Priority must more than or equal to zero.");
+      }
+      job.setPriority(option.getPriority());
+    }
+    job.setRunningCluster(option.getRunningCluster());
+    if (option.getJobName() != null) {
+      job.setName(option.getJobName());
+    }
+    if (option.getUniqueIdentifyID() != null) {
+      job.setUniqueIdentifyID(option.getUniqueIdentifyID());
     }
 
     String guid = UUID.randomUUID().toString();
@@ -436,15 +475,41 @@ public class Instances implements Iterable<Instance> {
     HashMap<String, String> params = new HashMap<String, String>();
 
     String resource = ResourceBuilder.buildInstancesResource(project);
-    if (StringUtils.isNotBlank(mcqaConnHeader)) {
+    if (StringUtils.isNotBlank(option.getMcqaConnHeader())) {
       resource = "/mcqa" + resource;
-      headers.put(Headers.ODPS_MCQA_CONN, mcqaConnHeader);
+      headers.put(Headers.ODPS_MCQA_CONN, option.getMcqaConnHeader());
     }
-    if (tryWait) {
+    if (option.isTryWait()) {
       params.put("tryWait", null);
     }
-    Response resp = client.stringRequest(resource, "POST", params, headers, xml);
 
+    long startTime = System.currentTimeMillis();
+    Response resp = null;
+    // at least wait 180s when get 409
+    while (System.currentTimeMillis() - startTime < TimeUnit.SECONDS.toMillis(180)) {
+      try {
+        resp = client.stringRequest(resource, "POST", params, headers, xml);
+        break;
+      } catch (OdpsException e) {
+        if (e.getStatus() != null && e.getStatus() == 409 && e.existRetryAfter()) {
+          try {
+            Long retryAfter = e.getRetryAfter();
+            if (retryAfter > 0) {
+              Thread.sleep(e.getRetryAfter() * 1000);
+            }
+          } catch (InterruptedException e1) {
+            Thread.currentThread().interrupt();
+            throw e;
+          }
+        } else {
+          throw e;
+        }
+      }
+    }
+    // If we exit the loop without a successful response, make one last attempt
+    if (resp == null) {
+      resp = client.stringRequest(resource, "POST", params, headers, xml);
+    }
     String location = resp.getHeaders().get(Headers.LOCATION);
     if (location == null || location.trim().length() == 0) {
       throw new OdpsException("Invalid response, Location header required.");
@@ -479,8 +544,8 @@ public class Instances implements Iterable<Instance> {
                                                      resp.getHeader(
                                                          Headers.ODPS_MCQA_QUERY_COOKIE)));
     }
-    if (StringUtils.isNotBlank(mcqaConnHeader)) {
-      instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_CONN, mcqaConnHeader));
+    if (StringUtils.isNotBlank(option.getMcqaConnHeader())) {
+      instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_CONN, option.getMcqaConnHeader()));
       instance.setMcqaV2(true);
     }
 

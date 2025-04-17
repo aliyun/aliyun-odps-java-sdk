@@ -73,6 +73,7 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
     private final String sessionId;
     private final TableIdentifier identifier;
     private final WriterAttemptId attemptId;
+    private final boolean enhanceWriteCheck;
 
     private Connection connection;
     private ArrowWriter batchWriter;
@@ -88,7 +89,8 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
                            long blockNumber,
                            WriterAttemptId attemptId,
                            WriterOptions writerOptions,
-                           ArrowOptions arrowOptions) {
+                           ArrowOptions arrowOptions,
+                           boolean enhanceWriteCheck) {
         this.sessionId = sessionId;
         this.identifier = identifier;
         this.blockNumber = blockNumber;
@@ -96,6 +98,7 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
         this.writerOptions = writerOptions;
         this.arrowSchema = SchemaUtils.toArrowSchema(schema.getColumns(), arrowOptions);
         this.isClosed = false;
+        this.enhanceWriteCheck = enhanceWriteCheck;
         initMetrics();
     }
 
@@ -249,6 +252,9 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
             JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
             if (tree.has("CommitMessage")) {
                 result = tree.get("CommitMessage").getAsString();
+                if (enhanceWriteCheck) {
+                    checkCommitMessage(result);
+                }
             }
         } catch (Exception e) {
             throw new IOException("Parse writer commit response failed", e);
@@ -263,6 +269,40 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
     private void disconnect() throws IOException {
         if (connection != null) {
             connection.disconnect();
+        }
+    }
+
+    private void checkCommitMessage(String message) throws IOException {
+        JsonObject tree = new JsonParser().parse(message).getAsJsonObject();
+
+        if (tree.has("BlockNumber")) {
+            long blockNumberRes = tree.get("BlockNumber").getAsLong();
+            if (blockNumberRes != blockNumber) {
+                throw new IOException("Unexpected block number, "
+                        + "expected = " + blockNumber + ", but " + blockNumberRes);
+            }
+        }
+
+        if (tree.has("AttemptNumber")) {
+            int attemptNumberRes = tree.get("AttemptNumber").getAsInt();
+            if (attemptNumberRes != attemptId.getAttemptNumber()) {
+                throw new IOException("Unexpected attempt number, "
+                        + "expected = " + attemptId.getAttemptNumber()
+                        + ", but " + attemptNumberRes);
+            }
+        }
+
+        if (tree.has("WriterStats")) {
+            JsonObject stats = tree.get("WriterStats").getAsJsonObject();
+
+            if (stats.has("RecordNum")) {
+                long recordNumRes = stats.get("RecordNum").getAsLong();
+                if (recordNumRes != recordCount.getCount()) {
+                    throw new IOException("Unexpected record count, "
+                            + "expected = " + recordCount.getCount()
+                            + ", but " + recordNumRes);
+                }
+            }
         }
     }
 }

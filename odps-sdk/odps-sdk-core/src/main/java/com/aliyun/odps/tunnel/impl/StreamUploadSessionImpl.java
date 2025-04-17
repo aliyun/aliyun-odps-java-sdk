@@ -504,7 +504,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
     @Override
     public TableTunnel.StreamRecordPack newRecordPack() throws IOException {
-        return new StreamRecordPackImpl(this, new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0));
+        return new StreamRecordPackImpl(this, this.config.getCompressOption());
     }
 
     @Override

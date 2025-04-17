@@ -25,6 +25,7 @@ import static com.aliyun.odps.tunnel.TunnelConstants.TUNNEL_DATE_TRANSFORM_VERSI
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -50,7 +51,9 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.Table;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.UncheckedOdpsException;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -64,8 +67,10 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordPack;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.RecordWriter;
+import com.aliyun.odps.options.MaxStorageDownloadOption;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 import com.aliyun.odps.tunnel.impl.UpsertSessionImpl;
 import com.aliyun.odps.tunnel.io.ArrowTunnelRecordReader;
@@ -82,9 +87,12 @@ import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.ConnectionWatcher;
 import com.aliyun.odps.utils.StringUtils;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 
 /**
  * Tunnel 是 ODPS 的数据通道，用户可以通过 Tunnel 向 ODPS 中上传或者下载数据。<br />
@@ -1151,6 +1159,9 @@ public class TableTunnel {
      * @return Record对象
      */
     public Record newRecord();
+
+    default void close() throws IOException {
+    }
 
     abstract class Builder {
       private String schemaName;
@@ -2230,6 +2241,7 @@ public class TableTunnel {
     private String schemaName;
     private String tableName;
     private String partitionSpec;
+    private MaxStorageDownloadOption maxStorageOption;
     private Long shardId;
     private long count;
     private TableSchema schema = new TableSchema();
@@ -2245,6 +2257,8 @@ public class TableTunnel {
 
     private RestClient tunnelServiceClient;
     private boolean shouldTransform = false;
+    private final boolean enableMaxStorage;
+    private boolean isDeltaTable;
 
     /**
      * 根据已有downloadId构造一个{@link DownloadSession}对象。
@@ -2263,6 +2277,10 @@ public class TableTunnel {
      *     Download的唯一标识符
      * @param async
      *     异步创建session,小文件多的场景下可以避免连接超时的问题
+     * @param waitAsyncBuild
+     *     异步创建session时，是否等待session创建完成
+     * @param maxStorageOption
+     *     使用 MaxStorage 下载表时独有的配置项，目前仅 DeltaTable 使用 MaxStorage 下载
      */
     DownloadSession(
         String projectName,
@@ -2272,7 +2290,9 @@ public class TableTunnel {
         Long shardId,
         String downloadId,
         boolean async,
-        boolean waitAsyncBuild) throws TunnelException {
+        boolean waitAsyncBuild,
+        boolean enableMaxStorage,
+        MaxStorageDownloadOption maxStorageOption) throws TunnelException {
       this.conf = TableTunnel.this.config;
       this.projectName = projectName;
       this.schemaName = schemaName;
@@ -2280,15 +2300,243 @@ public class TableTunnel {
       this.partitionSpec = partitionSpec;
       this.shardId = shardId;
       this.id = downloadId;
+      this.enableMaxStorage = enableMaxStorage;
+      this.maxStorageOption = maxStorageOption;
 
-      tunnelServiceClient = conf.newRestClient(projectName);
-
-      if (id == null) {
-        initiate(async, waitAsyncBuild);
-      } else {
-        reload();
+      try {
+        tunnelServiceClient = conf.newRestClient(projectName);
+        Table table = conf.getOdps().tables().get(projectName, schemaName, tableName);
+        if (enableMaxStorage && table.isDeltaTable()) {
+          this.isDeltaTable = true;
+          this.schema = table.getSchema();
+          if (id == null) {
+            initiateMaxStorageSession();
+          } else {
+            reloadMaxStorageSession();
+          }
+        } else {
+          if (id == null) {
+            initiate(async, waitAsyncBuild);
+          } else {
+            reload();
+          }
+        }
+      } catch (UncheckedOdpsException e) {
+        // when reload table, may throw UncheckedOdpsException (maybe table not exist or no privilege)
+        TunnelException te = new TunnelException(e.getCause().getRequestId(), e.getCause().getMessage(), e.getCause());
+        if (e.getCause().getMessage() != null && e.getCause().getMessage().contains("Access Denied")) {
+          te.setErrorCode("NoPermission");
+        }
+        throw te;
       }
     }
+
+    private void initiateMaxStorageSession() throws TunnelException {
+      // plan Input Splits
+      HashMap<String, String> headers = new HashMap<>();
+      headers.put(Headers.CONTENT_TYPE, "application/json");
+      List<String> tags = this.conf.getTags();
+
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
+      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+
+      HashMap<String, String> params = new HashMap<>();
+      params.put(ConfigConstants.SESSION_TYPE, "batch_read");
+
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
+      String request = generateReadSessionRequest();
+      try {
+        Response resp = tunnelServiceClient.stringRequest(
+            ResourceBuilder.buildTableSessionResource(
+                ConfigConstants.VERSION_1,
+                projectName,
+                schemaName,
+                tableName,
+                null),
+            "POST", params, headers, request);
+        String errorMsg;
+        String response;
+        if (resp.isOK()) {
+          response = new String(resp.getBody());
+          errorMsg = loadMaxStorageResultFromJson(response);
+        } else {
+          throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
+                                    new ByteArrayInputStream(resp.getBody()), resp.getStatus());
+        }
+        if (this.status != DownloadStatus.NORMAL) {
+          long asyncIntervalInMills = 3000; // hardcode now
+          long asyncTimeoutInMills = 3600 * 1000L; // hardcode now
+          long startTime = System.currentTimeMillis();
+
+          while (this.status == DownloadStatus.INITIATING) {
+            Thread.sleep(asyncIntervalInMills);
+            errorMsg = reloadMaxStorageSession();
+            if (System.currentTimeMillis() - startTime >= asyncTimeoutInMills) {
+              break;
+            }
+          }
+        }
+
+        if (status != DownloadStatus.NORMAL) {
+          throw new TunnelException(
+              String.format(
+                  "Create MaxStorage download session timeout.\n"
+                  + "Table identifier: %s.\n"
+                  + "Session status: %s.\n"
+                  + "Session id: %s.\n"
+                  + "Error message: %s.",
+                  projectName + "." + schemaName + "." + tableName,
+                  this.status.toString(),
+                  id,
+                  errorMsg));
+        }
+      } catch (OdpsException e) {
+        throw new TunnelException(e.getErrorCode(), e.getMessage());
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+    }
+
+    private String reloadMaxStorageSession() throws TunnelException {
+      // reload Input Splits
+      HashMap<String, String> headers = new HashMap<>();
+      List<String> tags = this.conf.getTags();
+      if (tags != null) {
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+      }
+      headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
+
+      HashMap<String, String> params = new HashMap<>();
+      params.put(ConfigConstants.SESSION_TYPE, "batch_read");
+
+      if (this.conf.availableQuotaName()) {
+        params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
+      }
+      Connection conn = null;
+      try {
+        conn = tunnelServiceClient.connect(ResourceBuilder.buildTableSessionResource(
+                                      ConfigConstants.VERSION_1,
+                                      projectName,
+                                      schemaName,
+                                      tableName,
+                                      id),
+                                  "GET", params, headers);
+
+        Response resp = conn.getResponse();
+
+        if (resp.isOK()) {
+          String response = IOUtils.readStreamAsString(conn.getInputStream());
+          return loadMaxStorageResultFromJson(response);
+        } else {
+          throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
+                                    conn.getInputStream(), resp.getStatus());
+        }
+      } catch (IOException e) {
+        throw new TunnelException("Failed to reload table read session with endpoint: "
+                              + tunnelServiceClient.getEndpoint(), e);
+      } catch (OdpsException e) {
+        throw new TunnelException(e.getRequestId(), e.getMessage(), e);
+      } finally {
+        if (conn != null) {
+          try {
+            conn.disconnect();
+          } catch (IOException ignored) {
+          }
+        }
+      }
+    }
+
+    private String generateReadSessionRequest() {
+      JsonObject request = new JsonObject();
+      JsonArray dataColumns = new JsonArray();
+      if (maxStorageOption != null && maxStorageOption.getRequiredColumns() != null) {
+        maxStorageOption.getRequiredColumns().stream().map(JsonPrimitive::new).forEach(dataColumns::add);
+      }
+      request.add("RequiredDataColumns", dataColumns);
+      request.add("RequiredPartitionColumns", new JsonArray());
+
+      JsonArray partitionFilters = new JsonArray();
+      if (StringUtils.isNotBlank(this.partitionSpec)) {
+        partitionFilters.add(
+            new JsonPrimitive(new PartitionSpec(this.partitionSpec).toString(false, true)));
+      }
+      request.add("RequiredPartitions", partitionFilters);
+      request.add("RequiredBucketIds", new JsonArray());
+
+      JsonObject jsonSplitOptions = new JsonObject();
+      jsonSplitOptions.addProperty("SplitMode", "Size");
+      if (maxStorageOption != null && maxStorageOption.getSplitSize() != null) {
+        jsonSplitOptions.addProperty("SplitNumber", maxStorageOption.getSplitSize());
+      } else {
+        jsonSplitOptions.addProperty("SplitNumber", 256 * 1024L * 1024L);
+      }
+      jsonSplitOptions.addProperty("CrossPartition", true);
+      request.add("SplitOptions", jsonSplitOptions);
+
+      request.add("SplitMaxFileNum", new JsonPrimitive(0));
+
+      JsonObject arrowOptions = new JsonObject();
+      arrowOptions.addProperty("TimestampUnit", "nano");
+      arrowOptions.addProperty("DatetimeUnit", "milli");
+      request.add("ArrowOptions", arrowOptions);
+
+      request.add("FilterPredicate", new JsonPrimitive(""));
+
+      Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+      return gson.toJson(request);
+    }
+
+    private String loadMaxStorageResultFromJson(String json) {
+      JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
+      // session id
+      if (tree.has("SessionId")) {
+        this.id = tree.get("SessionId").getAsString();
+      }
+      // status
+      if (tree.has("SessionStatus")) {
+        String status = tree.get("SessionStatus").getAsString().toUpperCase();
+        switch (status) {
+          case "INIT":
+            this.status = DownloadStatus.INITIATING;
+            break;
+          case "NORMAL":
+          case "COMMITTING":
+            this.status = DownloadStatus.NORMAL;
+            break;
+          case "COMMITTED":
+            this.status = DownloadStatus.CLOSED;
+            break;
+          case "EXPIRED":
+            this.status = DownloadStatus.EXPIRED;
+            break;
+          case "CRITICAL":
+          case "UNKNOWN":
+          default:
+            this.status = DownloadStatus.UNKNOWN;
+        }
+      }
+      // schema
+      if (tree.has("DataSchema")) {
+        JsonObject dataSchema = tree.get("DataSchema").getAsJsonObject();
+        schema = new TunnelTableSchema(dataSchema, true);
+      }
+      // splits count
+      if (tree.has("SplitsCount")) {
+        count = tree.get("SplitsCount").getAsInt();
+      }
+      // error message
+      String errorMessage = null;
+      if (tree.has("Message")) {
+        errorMessage = tree.get("Message").getAsString();
+      }
+      return errorMessage;
+    }
+
 
     /**
      * 打开{@link RecordReader}用来读取记录
@@ -2405,6 +2653,10 @@ public class TableTunnel {
       if (columns != null && columns.isEmpty()) {
         throw new TunnelException("Specified column list is empty.");
       }
+      if (isDeltaTable) {
+        throw new IllegalArgumentException(
+            "Delta table does not support openRecordReader, use openArrowRecordReader instead.");
+      }
 
       TunnelRecordReader reader = new TunnelRecordReader(start, count, columns, compress, tunnelServiceClient, this, disableModifiedCheck);
       reader.setTransform(shouldTransform);
@@ -2429,6 +2681,11 @@ public class TableTunnel {
         this.arrowSchema = ArrowUtils.tableSchemaToArrowSchema(this.schema);
       }
       return this.arrowSchema;
+    }
+
+    public ArrowRecordReader openArrowRecordReader(long splitIndex)
+        throws TunnelException, IOException {
+      return openArrowRecordReader(splitIndex, 1, null, null);
     }
 
     public ArrowRecordReader openArrowRecordReader(long start, long count)
@@ -2588,7 +2845,25 @@ public class TableTunnel {
      * 获取可下载的记录总数
      */
     public long getRecordCount() {
+      if (isDeltaTable) {
+        throw new UnsupportedOperationException("Delta table does not support getRecordCount, use getSplitCount instead.");
+      }
       return this.count;
+    }
+
+    /**
+     * 获取可下载的分片总数
+     */
+    public long getSplitCount() {
+      return this.count;
+    }
+
+    public boolean isEnableMaxStorage() {
+      return enableMaxStorage;
+    }
+
+    public boolean isUseMaxStorage() {
+      return isDeltaTable;
     }
 
     /**
@@ -2680,11 +2955,14 @@ public class TableTunnel {
     private String projectName;
     private String schemaName;
     private String tableName;
+    private List<String> requiredColumns;
     private PartitionSpec partitionSpec;
     private Long shardId;
     private String downloadId;
     private boolean asyncMode = false;
     private boolean waitAsyncBuild = true;
+    private boolean enableMaxStorage = false;
+    private MaxStorageDownloadOption maxStorageOption;
 
     public DownloadSessionBuilder setProjectName(String projectName) {
       this.projectName = projectName;
@@ -2703,6 +2981,11 @@ public class TableTunnel {
 
     public DownloadSessionBuilder setPartitionSpec(PartitionSpec partitionSpec) {
       this.partitionSpec = partitionSpec;
+      return this;
+    }
+
+    public DownloadSessionBuilder setMaxStorageOption(MaxStorageDownloadOption maxStorageOption) {
+      this.maxStorageOption = maxStorageOption;
       return this;
     }
 
@@ -2726,6 +3009,11 @@ public class TableTunnel {
       return this;
     }
 
+    public DownloadSessionBuilder setEnableMaxStorage(boolean enableMaxStorage) {
+      this.enableMaxStorage = enableMaxStorage;
+      return this;
+    }
+
     public DownloadSession build() throws TunnelException {
       return new TableTunnel.DownloadSession(projectName,
                                              schemaName,
@@ -2734,7 +3022,9 @@ public class TableTunnel {
                                              shardId,
                                              downloadId,
                                              asyncMode,
-                                             waitAsyncBuild);
+                                             waitAsyncBuild,
+                                             enableMaxStorage,
+                                             maxStorageOption);
     }
 
     /**

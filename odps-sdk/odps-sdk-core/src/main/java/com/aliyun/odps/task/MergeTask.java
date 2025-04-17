@@ -19,12 +19,22 @@
 
 package com.aliyun.odps.task;
 
+import java.util.Calendar;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import com.aliyun.odps.Instance;
+import com.aliyun.odps.Odps;
+import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Task;
+import com.aliyun.odps.options.SQLTaskOption;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
+import com.google.gson.GsonBuilder;
 
 /**
  * 表示执行一个Merge查询的任务。
@@ -33,6 +43,8 @@ import com.aliyun.odps.simpleframework.xml.Root;
  */
 @Root(name = "Merge", strict = false)
 public class MergeTask extends Task {
+
+  private static final String DEFAULT_NAME = "AnonymousMergeTask";
 
   @ElementList(entry = "TableName", inline = true, required = false)
   private List<String> tables;
@@ -118,5 +130,90 @@ public class MergeTask extends Task {
    */
   public void setTables(List<String> tables) {
     this.tables = tables;
+  }
+
+
+  public static boolean isCompactCommand(String sql) {
+    return true;
+  }
+
+  public enum CompactType {
+    MAJOR("major_compact"),
+    MINOR("minor_compact");
+    private String name;
+
+    CompactType(String name) {
+      this.name = name;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public static CompactType fromName(String name) {
+      if ("major".equalsIgnoreCase(name)) {
+        return MAJOR;
+      } else if ("minor".equalsIgnoreCase(name)) {
+        return MINOR;
+      }
+      throw new IllegalArgumentException("No enum constant for name: " + name);
+    }
+  }
+
+  private static final Pattern MERGE_SMALLFILES_PATTERN = Pattern.compile(
+      "\\s*ALTER\\s+TABLE\\s+(.*)\\s+(MERGE\\s+SMALLFILES\\s*)$",
+      Pattern.CASE_INSENSITIVE
+  );
+
+  private static final Pattern COMPACT_PATTERN = Pattern.compile(
+      "(?s)\\s*ALTER\\s+TABLE\\s+(.*)\\s+COMPACT\\s+(.*)",
+      Pattern.CASE_INSENSITIVE
+  );
+
+  public static Instance parseMergeTask(Odps odps, String sql, SQLTaskOption option)
+      throws OdpsException {
+    sql = sql.trim();
+    if (sql.endsWith(";")) {
+      sql = sql.substring(0, sql.length() - 1);
+    }
+    Matcher m = MERGE_SMALLFILES_PATTERN.matcher(sql);
+    if (m.find()) {
+      String tablePart = m.group(1);
+      Map<String, String> settings = new HashMap<>();
+      settings.put("odps.merge.cross.paths", "true");
+      if (option.getHints() != null) {
+        settings.putAll(option.getHints());
+      }
+      return run(odps, tablePart, settings);
+    }
+
+    m = COMPACT_PATTERN.matcher(sql);
+    if (m.find()) {
+      String tablePart = m.group(1).trim();
+      String[] params = m.group(2).trim().split("\\s+");
+      CompactType compactType = CompactType.fromName(params[0]);
+
+      Map<String, String> settings = new HashMap<>();
+      settings.put("odps.merge.txn.table.compact", compactType.getName());
+      settings.put("odps.merge.restructure.action", "hardlink");
+      if (option.getHints() != null) {
+        settings.putAll(option.getHints());
+      }
+      return run(odps, tablePart, settings);
+    }
+    return null;
+  }
+
+
+  public static Instance run(Odps odps, String tableId, Map<String, String> hints)
+      throws OdpsException {
+    String taskName = DEFAULT_NAME + "_" + Calendar.getInstance().getTimeInMillis();
+    Task task = new MergeTask(taskName, tableId);
+
+    if (hints != null) {
+      String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
+      task.setProperty("settings", json);
+    }
+    return odps.instances().create(task);
   }
 }

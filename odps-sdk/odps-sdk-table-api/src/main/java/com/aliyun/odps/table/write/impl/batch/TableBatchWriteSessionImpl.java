@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.ResourceBuilder;
@@ -42,19 +41,15 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.table.DataFormat;
 import com.aliyun.odps.table.DataSchema;
 import com.aliyun.odps.table.SessionStatus;
-import com.aliyun.odps.table.TableIdentifier;
-import com.aliyun.odps.table.configuration.ArrowOptions;
-import com.aliyun.odps.table.configuration.DynamicPartitionOptions;
 import com.aliyun.odps.table.configuration.WriterOptions;
 import com.aliyun.odps.table.distribution.Distribution;
 import com.aliyun.odps.table.distribution.Distributions;
-import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
 import com.aliyun.odps.table.order.NullOrdering;
 import com.aliyun.odps.table.order.SortDirection;
 import com.aliyun.odps.table.order.SortOrder;
 import com.aliyun.odps.table.write.BatchWriter;
-import com.aliyun.odps.table.write.TableWriteCapabilities;
+import com.aliyun.odps.table.write.TableWriteSessionBuilder;
 import com.aliyun.odps.table.write.WriterAttemptId;
 import com.aliyun.odps.table.write.WriterCommitMessage;
 import com.aliyun.odps.table.utils.HttpUtils;
@@ -80,22 +75,8 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
     private transient TunnelRetryHandler retryHandler;
 
-    public TableBatchWriteSessionImpl(TableIdentifier identifier,
-                                      PartitionSpec partitionSpec,
-                                      boolean overwrite,
-                                      DynamicPartitionOptions dynamicPartitionOptions,
-                                      ArrowOptions arrowOptions,
-                                      TableWriteCapabilities capabilities,
-                                      EnvironmentSettings settings,
-                                      long maxFieldSize) throws IOException {
-        super(identifier, partitionSpec, overwrite,
-                dynamicPartitionOptions, arrowOptions, capabilities, settings, maxFieldSize);
-    }
-
-    public TableBatchWriteSessionImpl(TableIdentifier identifier,
-                                      String sessionId,
-                                      EnvironmentSettings settings) throws IOException {
-        super(identifier, sessionId, settings);
+    public TableBatchWriteSessionImpl(TableWriteSessionBuilder builder) throws IOException {
+        super(builder);
     }
 
     @Override
@@ -190,6 +171,12 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         Preconditions.checkNotNull(attemptId, "Attempt id");
         Preconditions.checkNotNull(options, "Writer options");
 
+        if (requiredDistribution().getType().equals(Distribution.Type.HASH)
+                && maxBlockNumber().isPresent()
+                && blockNumber >= maxBlockNumber().get()) {
+            throw new IOException("Hash table max block writer number: " + maxBlockNumber().get());
+        }
+
         if (options.maxBlockNumber().isPresent()) {
             if (blockNumber >= options.maxBlockNumber().get()) {
                 throw new IOException("User defined max block writer number: " + options.maxBlockNumber().get());
@@ -200,7 +187,8 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         }
 
         return new ArrowWriterImpl(
-                sessionId, identifier, requiredSchema, blockNumber, attemptId, options, arrowOptions);
+                sessionId, identifier, requiredSchema, blockNumber, attemptId, options,
+                arrowOptions, enhanceWriteCheck);
     }
 
     @Override
@@ -357,6 +345,7 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
             request.add("SupportWriteCluster", new JsonPrimitive(false));
         }
         request.addProperty("MaxFieldSize", maxFieldSize);
+        request.addProperty("EnhanceWriteCheck", enhanceWriteCheck);
 
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         return gson.toJson(request);
@@ -482,6 +471,10 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                     }
                     requiredDistribution = Distributions.clustered(clusterKeys, type, bucketsNumber);
                 }
+            }
+
+            if (tree.has("EnhanceWriteCheck")) {
+                enhanceWriteCheck = tree.get("EnhanceWriteCheck").getAsBoolean();
             }
         } catch (Exception e) {
             throw new TunnelException("Invalid session response: \n" + json, e);

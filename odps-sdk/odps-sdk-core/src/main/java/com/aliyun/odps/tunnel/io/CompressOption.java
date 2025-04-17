@@ -27,15 +27,10 @@ public class CompressOption {
   public static enum CompressAlgorithm {
     ODPS_RAW,
     ODPS_ZLIB,
+    ODPS_SNAPPY,
     ODPS_LZ4_FRAME,
     ODPS_ARROW_LZ4_FRAME,
     ODPS_ARROW_ZSTD,
-
-    /**
-     * @deprecated snappy algorithm is deprecated,
-     * use ODPS_LZ4_FRAME/ODPS_ZLIB instead
-     */
-    @Deprecated ODPS_SNAPPY,
   }
 
   public CompressOption() {

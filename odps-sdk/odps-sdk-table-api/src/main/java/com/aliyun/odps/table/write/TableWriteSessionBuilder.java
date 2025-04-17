@@ -45,6 +45,7 @@ public class TableWriteSessionBuilder {
     private String sessionId;
     private String sessionProvider;
     private long maxFieldSize = 8 * 1024 * 1024L;
+    private boolean enhanceWriteCheck = false;
 
     /**
      * Set the write target to a specific table by {@link Table}.
@@ -140,6 +141,22 @@ public class TableWriteSessionBuilder {
     }
 
     /**
+     * Whether to enhance write verification capability. If enabled, there are the following restrictions:
+     * 1. Users must ensure the uniqueness of (block_number, attempt_number); otherwise, the writer will fail to write.
+     * 2. The commit message returned by the writer is in JSON format; Users can assess the integrity of the written data
+     *    based on the information in the JSON.
+     * 3. When the user executes CommitWriteSession, the same block_number must appear at most once;
+     *    otherwise, an error will be reported.
+     * 4. In principle, users must ensure that all writers have completed before executing CommitWriteSession.
+     *    When the server receives a CommitWriteSession request, it will require all unfinished writers to complete
+     *    within 90 seconds; otherwise, an error will be reported.
+     */
+    public TableWriteSessionBuilder withWriteCheck(boolean enhanceWriteCheck) {
+        this.enhanceWriteCheck = enhanceWriteCheck;
+        return this;
+    }
+
+    /**
      * Returns a logical {@link TableBatchWriteSession}.
      */
     public TableBatchWriteSession buildBatchWriteSession() throws IOException {
@@ -194,6 +211,10 @@ public class TableWriteSessionBuilder {
 
     public long getMaxFieldSize() {
         return maxFieldSize;
+    }
+
+    public boolean isEnhanceWriteCheck() {
+        return enhanceWriteCheck;
     }
 
     private TableWriteSessionProvider getProvider() throws IOException {

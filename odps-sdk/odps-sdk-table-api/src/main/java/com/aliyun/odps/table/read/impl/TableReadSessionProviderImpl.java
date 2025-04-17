@@ -35,20 +35,6 @@ public class TableReadSessionProviderImpl implements TableReadSessionProvider {
 
     @Override
     public TableBatchReadSession createBatchReadSession(TableReadSessionBuilder builder) throws IOException {
-        if (builder.getSessionId() == null) {
-            return new TableBatchReadSessionImpl(builder.getIdentifier(),
-                    builder.getRequiredPartitions(),
-                    builder.getRequiredDataColumns(),
-                    builder.getRequiredPartitionColumns(),
-                    builder.getRequiredBucketIds(),
-                    builder.getSplitOptions(),
-                    builder.getArrowOptions(),
-                    builder.getSettings(),
-                    builder.getFilterPredicate());
-        } else {
-            return new TableBatchReadSessionImpl(builder.getIdentifier(),
-                    builder.getSessionId(),
-                    builder.getSettings());
-        }
+        return new TableBatchReadSessionImpl(builder);
     }
 }

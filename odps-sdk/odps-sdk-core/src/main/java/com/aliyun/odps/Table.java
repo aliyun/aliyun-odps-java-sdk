@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,6 +41,7 @@ import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import com.aliyun.odps.Partition.PartitionModel;
 import com.aliyun.odps.Partition.PartitionSpecModel;
 import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.data.ArrowReaderWrapper;
 import com.aliyun.odps.data.ArrowStreamRecordReader;
 import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.rest.ResourceBuilder;
@@ -64,7 +66,6 @@ import com.aliyun.odps.type.TypeInfoParser;
 import com.aliyun.odps.utils.ColumnUtils;
 import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
-import com.aliyun.odps.utils.OdpsCommonUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.aliyun.odps.utils.TagUtils;
 import com.aliyun.odps.utils.TagUtils.OBJECT_TYPE;
@@ -1183,6 +1184,14 @@ public class Table extends LazyLoad {
   }
 
   /**
+   * 查看表是否为 delta table
+   */
+  public boolean isDeltaTable() {
+    List<String> primaryKey = getPrimaryKey();
+    return isTransactional() && primaryKey != null && primaryKey.size() > 0;
+  }
+
+  /**
    * 查看表所占磁盘的物理大小
    *
    * @return 物理大小
@@ -1405,8 +1414,9 @@ public class Table extends LazyLoad {
     ArrowStreamReader arrowReader;
     arrowReader = tableTunnel.preview(getProject(), getSchemaName(), model.name, partitionName,
                                       (long) limit);
-    ArrowStreamRecordReader
-        recordReader = new ArrowStreamRecordReader(arrowReader, schema, columns);
+    ArrowStreamRecordReader recordReader =
+        new ArrowStreamRecordReader(new ArrowReaderWrapper(arrowReader), schema,
+                                    (columns == null ? null : new HashSet<>(columns)), true, true);
     if (!StringUtils.isNullOrEmpty(timezone)) {
       try {
         recordReader.setTimeZone(ZoneId.of(timezone));

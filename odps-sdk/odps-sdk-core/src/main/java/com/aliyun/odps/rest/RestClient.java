@@ -419,8 +419,8 @@ public class RestClient {
           String errorMessage = resp.getBody() == null ? null : new String(resp.getBody());
           e = new OdpsException(errorMessage);
         }
-        // capture the header information
-        if (resp.getStatus() == 429) {
+        // capture the header information, 429 flow exceed, 409 instance conflict
+        if (resp.getStatus() == 429 || resp.getStatus() == 409) {
           Map<String, String> errorHeader = resp.getHeaders();
           if (errorHeader != null && errorHeader.containsKey(Headers.ODPS_RETRY_AFTER)
               && errorHeader.get(Headers.ODPS_RETRY_AFTER) != null) {

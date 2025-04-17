@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang.BooleanUtils;
+
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.LogView;
 import com.aliyun.odps.Odps;
@@ -379,21 +381,12 @@ public class SQLExecutorImpl implements SQLExecutor {
   }
 
   private List<Record> getResultDirectly() throws OdpsException {
-    Instance.Result result = getResultString();
-    if (result != null) {
-      if (queryInfo.getInstance().isSelect(taskName) && "csv".equalsIgnoreCase(
-          result.getFormat())) {
-        try {
-          return SQLTask.parseCsvRecord(result.getString());
-        } catch (Exception e) {
-          throw new OdpsException(result.getString(), e);
-        }
-      } else {
-        // non-select command but with result
-        return CommandUtil.toRecord(result.getString(), "Info");
-      }
+    ResultSet resultSet = getResultSetDirectly();
+    List<Record> records = new ArrayList<>();
+    while (resultSet.hasNext()) {
+      records.add(resultSet.next());
     }
-    return new ArrayList<>();
+    return records;
   }
 
   private Instance.Result getResultString() throws OdpsException {
@@ -527,23 +520,29 @@ public class SQLExecutorImpl implements SQLExecutor {
 
 
   private ResultSet getResultSetDirectly() throws OdpsException {
-    Instance.Result resultStr = getResultString();
-    if (queryInfo.getInstance().isSelect(taskName) && "csv".equalsIgnoreCase(
-        resultStr.getFormat())) {
-      CSVRecordParser.ParseResult parseResult;
-      try {
-        parseResult = CSVRecordParser.parse(resultStr.getString());
-      } catch (Exception e) {
-        throw new OdpsException(resultStr.getString());
+    Instance.Result result = getResultString();
+    Instance.ResultDescriptor resultDescriptor =
+        queryInfo.getInstance().getResultDescriptor(taskName);
+    CSVRecordParser.ParseResult parseResult;
+    if (result != null) {
+      if (BooleanUtils.isTrue(resultDescriptor.isSelect()) && "csv".equalsIgnoreCase(
+          result.getFormat())) {
+        try {
+          parseResult = CSVRecordParser.parse(result.getString(), resultDescriptor.getSchema());
+        } catch (Exception e) {
+          throw new OdpsException(result.getString(), e);
+        }
+        List<Record> records = parseResult.getRecords();
+        return new ResultSet(
+            new InMemoryRecordIterator(records),
+            parseResult.getSchema(),
+            records.size());
+      } else {
+        // non-select command but with result
+        return InfoResultSet.of(result.getString());
       }
-      List<Record> records = parseResult.getRecords();
-      return new ResultSet(
-          new InMemoryRecordIterator(records),
-          parseResult.getSchema(),
-          records.size());
-    } else {
-      return InfoResultSet.of(resultStr.getString());
     }
+    return ResultSet.EMPTY;
   }
 
   private ResultSet getResultSetByInstanceTunnel(Long offset, Long countLimit, Long sizeLimit,

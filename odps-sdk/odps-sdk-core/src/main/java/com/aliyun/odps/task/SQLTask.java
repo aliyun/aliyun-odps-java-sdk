@@ -40,6 +40,8 @@ import com.aliyun.odps.Task;
 import com.aliyun.odps.commons.util.EmptyIterator;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
+import com.aliyun.odps.options.CreateInstanceOption;
+import com.aliyun.odps.options.SQLTaskOption;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.Root;
@@ -74,7 +76,7 @@ public class SQLTask extends Task {
   
   private static Map<String,String> defaultHints;
 
-  private static final String AnonymousSQLTaskName = "AnonymousSQLTask";
+  public static final String AnonymousSQLTaskName = "AnonymousSQLTask";
 
   private static final String AnonymousLineageTask = "AnonymousLineageTask";
 
@@ -647,7 +649,7 @@ public class SQLTask extends Task {
     if (project == null) {
       throw new OdpsException("default project required.");
     }
-    return run(odps, project, sql, "AnonymousSQLTask", null, null, "sql");
+    return run(odps, project, sql, AnonymousSQLTaskName, null, null, "sql");
   }
 
   /**
@@ -740,22 +742,48 @@ public class SQLTask extends Task {
     return run(odps, project, sql, taskName, hints, aliases, priority, "sql", mcqaConnHeader);
   }
 
+  static Instance run(Odps odps, String project, String sql,
+                      String taskName, Map<String, String> hints, Map<String, String> aliases,
+                      String type) throws OdpsException {
+    return run(odps, project, sql, taskName, hints, aliases, null, type, null);
+  }
+
   private static Instance run(Odps odps, String project, String sql, String taskName,
                               Map<String, String> hints, Map<String, String> aliases,
                               Integer priority,
                               String type, String mcqaConnHeader) throws OdpsException {
-    SQLTask task = new SQLTask();
-    task.setQuery(sql);
-    task.setName(taskName);
-    task.setProperty("type", type);
-    
-    if (hints == null) {
-      hints = defaultHints;
-    } else {
-      hints = new HashMap<>(hints);
+    SQLTaskOption sqlTaskOption = new SQLTaskOption.Builder()
+        .setType(type)
+        .setTaskName(taskName)
+        .setHints(hints)
+        .setAliases(aliases)
+        .setInstanceOption(new CreateInstanceOption.Builder()
+                               .setProjectName(project)
+                               .setPriority(priority)
+                               .setMcqaConnHeader(mcqaConnHeader)
+                               .build())
+        .build();
+    return run(odps, sql, sqlTaskOption);
+  }
+
+  public static Instance run(Odps odps, String sql, SQLTaskOption option) throws OdpsException {
+    Instance instance = MergeTask.parseMergeTask(odps, sql, option);
+    if (instance != null) {
+      return instance;
     }
 
-    if (hints != null) {
+    SQLTask task = new SQLTask();
+    task.setQuery(sql);
+    task.setName(option.getTaskName());
+    task.setProperty("type", option.getType());
+
+    Map<String, String> hints = option.getHints();
+    if (hints == null) {
+      hints = defaultHints;
+    }
+    hints = hints == null ? new HashMap<>() : new HashMap<>(hints);
+
+    if (!hints.isEmpty()) {
       try {
         // default schema priority: hints.get(ODPS_DEFAULT_SCHEMA) > odps.getCurrentSchema()
         if (!hints.containsKey(OdpsConstants.ODPS_DEFAULT_SCHEMA)) {
@@ -769,29 +797,15 @@ public class SQLTask extends Task {
       }
     }
 
-    if (aliases != null) {
+    if (option.getAliases() != null) {
       try {
-        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(aliases);
+        String json = new GsonBuilder().disableHtmlEscaping().create().toJson(option.getAliases());
         task.setProperty("aliases", json);
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
       }
-
     }
-    if (StringUtils.isNotBlank(mcqaConnHeader)) {
-      return odps.instances().create(project, task, priority, null, null, mcqaConnHeader);
-    }
-    if (priority != null) {
-      return odps.instances().create(project, task, priority);
-    } else {
-      return odps.instances().create(project, task);
-    }
-  }
-
-  static Instance run(Odps odps, String project, String sql,
-                      String taskName, Map<String, String> hints, Map<String, String> aliases,
-                      String type) throws OdpsException {
-    return run(odps, project, sql, taskName, hints, aliases, null, type, null);
+    return odps.instances().create(task, option.getInstanceOption());
   }
 
 

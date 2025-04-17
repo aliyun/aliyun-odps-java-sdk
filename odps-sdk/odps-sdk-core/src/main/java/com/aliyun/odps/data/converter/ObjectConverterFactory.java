@@ -43,6 +43,7 @@ import com.aliyun.odps.data.SimpleJsonValue;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.type.DecimalTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.utils.StringUtils;
 
 class ObjectConverterFactory {
 
@@ -470,6 +471,8 @@ class ObjectConverterFactory {
                         throw new IllegalArgumentException(
                             String.format("InvalidData: invalid hex string %s", str));
                     }
+                case BINARY_FORMAT_QUOTED_PRINTABLE:
+                    return StringUtils.decodeQuotedPrintable(str.getBytes(StandardCharsets.UTF_8));
                 default:
                     throw new IllegalArgumentException();
             }

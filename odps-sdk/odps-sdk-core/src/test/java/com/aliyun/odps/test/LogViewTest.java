@@ -22,14 +22,13 @@ package com.aliyun.odps.test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Iterator;
-
 import org.junit.Test;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.LogView;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.TestBase;
+import com.aliyun.odps.task.SQLTask;
 
 public class LogViewTest extends TestBase {
 
@@ -37,12 +36,7 @@ public class LogViewTest extends TestBase {
   public void testLogView() throws OdpsException {
     try {
       LogView log = odps.logview();
-      Iterator<Instance> instIter = odps.instances().iterator();
-      boolean hasNext = instIter.hasNext();
-      if (!hasNext) {
-        return;
-      }
-      Instance i = instIter.next();
+      Instance i = SQLTask.run(odps, "select 1;");
       String logview = log.generateLogView(i, 7 * 24);
       System.out.println(logview);
     } catch (Exception e) {
@@ -65,12 +59,7 @@ public class LogViewTest extends TestBase {
     try {
       LogView log = odps.logview();
       log.setLogViewHost("http://test.a.b.c");
-      Iterator<Instance> instIter = odps.instances().iterator();
-      boolean hasNext = instIter.hasNext();
-      if (!hasNext) {
-        return;
-      }
-      Instance i = instIter.next();
+      Instance i = SQLTask.run(odps, "select 1;");
       assertTrue(
           log.generateLogView(i, 7 * 24).startsWith("http://test.a.b.c/logview"));
     } catch (OdpsException e) {

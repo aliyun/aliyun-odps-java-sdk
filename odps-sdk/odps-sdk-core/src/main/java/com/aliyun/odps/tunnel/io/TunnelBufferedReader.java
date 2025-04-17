@@ -10,12 +10,13 @@ import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.TunnelMetrics;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
 public class TunnelBufferedReader implements RecordReader, AutoCloseable {
-  private static final long DEFAULT_BATCH_SIZE = 1024 * 1024 * 64;
+
   private long start;
   private long count;
   private final long batchSize;
@@ -24,6 +25,7 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
   private final InstanceTunnel.DownloadSession instanceSession;
   private final TableTunnel.DownloadSession tableSession;
   private boolean disableModifiedCheck;
+  private final TunnelMetrics metrics = new TunnelMetrics();
   private final LinkedList<Record> recordBuffer = new LinkedList<>();
   private boolean shouldTransform = false;
 
@@ -34,7 +36,7 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
    * @param option               {@link CompressOption}
    * @param start                本次要读取记录的起始位置
    * @param count                本次要读取记录的数量
-   * @param batchSize            每次读取的记录大小, 如填写 <= 0, 默认值为 64MB
+   * @param batchSize            每次读取的记录数量
    * @param session              本次读取所在 session
    * @param disableModifiedCheck 不检查下载的数据是否是表中最新数据
    * @throws IOException
@@ -44,7 +46,7 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
                               TableTunnel.DownloadSession session, boolean disableModifiedCheck) {
     this.start = start;
     this.count = count;
-    this.batchSize = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
+    this.batchSize = batchSize <= 0 ? 1000 : batchSize;
     this.option = option;
     this.columnList = columns;
     this.tableSession = session;
@@ -57,7 +59,7 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
                               InstanceTunnel.DownloadSession session) {
     this.start = start;
     this.count = count;
-    this.batchSize = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
+    this.batchSize = batchSize <= 0 ? 1000 : batchSize;
     this.option = option;
     this.columnList = columns;
     this.instanceSession = session;
@@ -83,33 +85,35 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
     if (count <= 0) {
       return;
     }
+    long recordNum = Math.min(count, batchSize);
     TunnelRecordReader recordReader;
     if (tableSession != null) {
       recordReader =
-          tableSession.openRecordReader(start, count, option, columnList, disableModifiedCheck);
+          tableSession.openRecordReader(start, recordNum, option, columnList, disableModifiedCheck);
     } else if (instanceSession != null) {
       recordReader =
-          instanceSession.openRecordReader(start, count, option, columnList);
+          instanceSession.openRecordReader(start, recordNum, option, columnList);
     } else {
       throw new IllegalArgumentException("Cannot create record reader if session is null.");
     }
     recordReader.setTransform(this.shouldTransform);
-    long alreadyReadBytes = 0;
-    Record record;
-    while ((record = recordReader.read()) != null) {
+    Record record = recordReader.read();
+    while (record != null) {
       recordBuffer.add(record);
-      alreadyReadBytes += recordReader.getTotalBytes();
-      if (alreadyReadBytes >= batchSize) {
-        break;
-      }
+      record = recordReader.read();
     }
     recordReader.close();
-    start += recordBuffer.size();
-    count -= recordBuffer.size();
+    metrics.add(recordReader.getMetrics());
+    start += recordNum;
+    count -= recordNum;
   }
 
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;
+  }
+
+  public TunnelMetrics getMetrics() {
+    return metrics;
   }
 
   @Override

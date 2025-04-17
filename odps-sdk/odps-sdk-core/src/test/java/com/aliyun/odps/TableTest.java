@@ -167,6 +167,7 @@ public class TableTest extends TestBase {
     partitionedTable.createPartition(new PartitionSpec("p1=1,p2=baz"), true);
   }
 
+  @AfterClass
   public static void cleanUp() throws Exception {
     odps.tables().delete(TABLE_NAME, true);
     odps.tables().delete(TABLE_NAME_2, true);
@@ -1050,6 +1051,8 @@ public class TableTest extends TestBase {
     while (iterator.hasNext()) {
       Table table = iterator.next();
       System.out.println("table.name:"+ table.getName());
+      System.out.println("table.columns:"+table.getSchema().getColumns().toString());
+      System.out.println("table.refreshHistory: " + table.getRefreshHistory());
     }
 
     System.out.println("schemas ---------");
@@ -1058,6 +1061,8 @@ public class TableTest extends TestBase {
       Schema schema = iterator2.next();
       System.out.println("schema.projectName: "+schema.getProjectName());
       System.out.println("schema.name: "+schema.getName());
+      System.out.println("schema.type: "+schema.getType());
+
     }
   }
 }

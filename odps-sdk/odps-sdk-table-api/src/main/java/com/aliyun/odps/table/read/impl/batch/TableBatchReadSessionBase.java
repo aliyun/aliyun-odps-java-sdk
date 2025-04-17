@@ -34,6 +34,7 @@ import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.optimizer.predicate.Predicate;
 import com.aliyun.odps.table.read.TableBatchReadSession;
+import com.aliyun.odps.table.read.TableReadSessionBuilder;
 import com.aliyun.odps.table.read.split.InputSplitAssigner;
 import com.aliyun.odps.table.utils.Preconditions;
 
@@ -73,38 +74,23 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
 
     protected Set<DataFormat> supportDataFormats;
 
-    public TableBatchReadSessionBase(TableIdentifier identifier,
-                                     List<PartitionSpec> requiredPartitions,
-                                     List<String> requiredDataColumns,
-                                     List<String> requiredPartitionColumns,
-                                     List<Integer> bucketIds,
-                                     SplitOptions splitOptions,
-                                     ArrowOptions arrowOptions,
-                                     EnvironmentSettings settings,
-                                     Predicate filterPredicate) throws IOException {
-        Preconditions.checkNotNull(identifier, "Table identifier", "required");
-        Preconditions.checkNotNull(settings, "Environment settings", "required");
-        this.identifier = identifier;
-        this.settings = settings;
+    public TableBatchReadSessionBase(TableReadSessionBuilder builder) throws IOException {
+        this.identifier = Preconditions.checkNotNull(builder.getIdentifier(), "Table identifier", "required");
+        this.settings = Preconditions.checkNotNull(builder.getSettings(), "Environment settings", "required");
         this.sessionStatus = SessionStatus.UNKNOWN;
-        sanitize(requiredPartitions, requiredDataColumns,
-                requiredPartitionColumns, bucketIds, splitOptions, arrowOptions, filterPredicate);
-
-        planInputSplits();
-    }
-
-    public TableBatchReadSessionBase(TableIdentifier identifier,
-                                     String sessionId,
-                                     EnvironmentSettings settings) throws IOException {
-        Preconditions.checkNotNull(identifier, "Table identifier", "required");
-        Preconditions.checkNotNull(sessionId, "Table read session id", "required");
-        Preconditions.checkNotNull(settings, "Environment settings", "required");
-        this.identifier = identifier;
-        this.sessionId = sessionId;
-        this.settings = settings;
-        this.sessionStatus = SessionStatus.UNKNOWN;
-
-        reloadInputSplits();
+        if (builder.getSessionId() == null) {
+            sanitize(builder.getRequiredPartitions(),
+                    builder.getRequiredDataColumns(),
+                    builder.getRequiredPartitionColumns(),
+                    builder.getRequiredBucketIds(),
+                    builder.getSplitOptions(),
+                    builder.getArrowOptions(),
+                    builder.getFilterPredicate());
+            planInputSplits();
+        } else {
+            this.sessionId = builder.getSessionId();
+            reloadInputSplits();
+        }
     }
 
     protected abstract void planInputSplits() throws IOException;

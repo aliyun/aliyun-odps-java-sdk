@@ -37,6 +37,7 @@ import com.aliyun.odps.table.order.SortOrder;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.table.write.TableBatchWriteSession;
 import com.aliyun.odps.table.write.TableWriteCapabilities;
+import com.aliyun.odps.table.write.TableWriteSessionBuilder;
 
 public abstract class TableBatchWriteSessionBase implements TableBatchWriteSession {
 
@@ -71,45 +72,27 @@ public abstract class TableBatchWriteSessionBase implements TableBatchWriteSessi
     protected long maxBlockNumber;
 
     protected Set<DataFormat> supportDataFormats;
+
     protected long maxFieldSize;
 
-    public TableBatchWriteSessionBase(TableIdentifier identifier, PartitionSpec partitionSpec,
-                                      boolean overwrite,
-                                      DynamicPartitionOptions dynamicPartitionOptions,
-                                      ArrowOptions arrowOptions,
-                                      TableWriteCapabilities capabilities,
-                                      EnvironmentSettings settings) throws IOException {
-        this(identifier, partitionSpec, overwrite, dynamicPartitionOptions, arrowOptions,
-             capabilities, settings, null);
-    }
+    protected boolean enhanceWriteCheck;
 
-    public TableBatchWriteSessionBase(TableIdentifier identifier,
-                                      PartitionSpec partitionSpec,
-                                      boolean overwrite,
-                                      DynamicPartitionOptions dynamicPartitionOptions,
-                                      ArrowOptions arrowOptions,
-                                      TableWriteCapabilities capabilities,
-                                      EnvironmentSettings settings,
-                                      Long maxFieldSize) throws IOException {
-        Preconditions.checkNotNull(identifier, "Table identifier", "required");
-        Preconditions.checkNotNull(settings, "Environment settings", "required");
-        this.settings = settings;
-        this.identifier = identifier;
-        this.overwrite = overwrite;
-        sanitize(partitionSpec, dynamicPartitionOptions, arrowOptions, capabilities, maxFieldSize);
-        initSession();
-    }
-
-    public TableBatchWriteSessionBase(TableIdentifier identifier,
-                                      String sessionId,
-                                      EnvironmentSettings settings) throws IOException {
-        Preconditions.checkNotNull(identifier, "Table identifier", "required");
-        Preconditions.checkNotNull(settings, "Environment settings", "required");
-
-        this.sessionId = sessionId;
-        this.identifier = identifier;
-        this.settings = settings;
-        reloadSession();
+    public TableBatchWriteSessionBase(TableWriteSessionBuilder builder) throws IOException {
+        this.identifier = Preconditions.checkNotNull(builder.getIdentifier(), "Table identifier", "required");
+        this.settings = Preconditions.checkNotNull(builder.getSettings(), "Environment settings", "required");
+        if (builder.getSessionId() == null) {
+            this.overwrite = builder.isOverwrite();
+            this.enhanceWriteCheck = builder.isEnhanceWriteCheck();
+            sanitize(builder.getTargetPartitionSpec(),
+                    builder.getDynamicPartitionOptions(),
+                    builder.getArrowOptions(),
+                    builder.getWriteCapabilities(),
+                    builder.getMaxFieldSize());
+            initSession();
+        } else {
+            this.sessionId = builder.getSessionId();
+            reloadSession();
+        }
     }
 
     protected abstract void initSession() throws IOException;

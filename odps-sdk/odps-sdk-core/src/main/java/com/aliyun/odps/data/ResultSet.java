@@ -15,6 +15,8 @@ import com.aliyun.odps.TableSchema;
  */
 public class ResultSet implements Iterable<Record>, Iterator<Record> {
 
+  public static final ResultSet EMPTY = emptyResultSet();
+
   private Iterator<Record> recordIterator;
   private long recordCount;
   private TableSchema schema;
@@ -56,5 +58,19 @@ public class ResultSet implements Iterable<Record>, Iterator<Record> {
 
   public long getRecordCount() {
     return recordCount;
+  }
+
+  private static ResultSet emptyResultSet() {
+    return new ResultSet(new Iterator<Record>() {
+      @Override
+      public boolean hasNext() {
+        return false;
+      }
+
+      @Override
+      public Record next() {
+        return null;
+      }
+    }, null, 0);
   }
 }

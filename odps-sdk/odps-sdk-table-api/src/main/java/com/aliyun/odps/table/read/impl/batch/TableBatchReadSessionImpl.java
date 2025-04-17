@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.Column;
-import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.ArrayRecord;
@@ -42,14 +41,10 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.table.DataFormat;
 import com.aliyun.odps.table.DataSchema;
 import com.aliyun.odps.table.SessionStatus;
-import com.aliyun.odps.table.TableIdentifier;
-import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.table.configuration.ReaderOptions;
-import com.aliyun.odps.table.configuration.SplitOptions;
-import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
-import com.aliyun.odps.table.optimizer.predicate.Predicate;
 import com.aliyun.odps.table.read.SplitReader;
+import com.aliyun.odps.table.read.TableReadSessionBuilder;
 import com.aliyun.odps.table.read.split.InputSplit;
 import com.aliyun.odps.table.read.split.impl.IndexedInputSplitAssigner;
 import com.aliyun.odps.table.read.split.impl.RowRangeInputSplitAssigner;
@@ -75,23 +70,8 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
     private transient RestClient restClient;
     private transient TunnelRetryHandler retryHandler;
 
-    public TableBatchReadSessionImpl(TableIdentifier identifier,
-                                     String sessionId,
-                                     EnvironmentSettings settings) throws IOException {
-        super(identifier, sessionId, settings);
-    }
-
-    public TableBatchReadSessionImpl(TableIdentifier identifier,
-                                     List<PartitionSpec> requiredPartitions,
-                                     List<String> requiredDataColumns,
-                                     List<String> requiredPartitionColumns,
-                                     List<Integer> bucketIds,
-                                     SplitOptions splitOptions,
-                                     ArrowOptions arrowOptions,
-                                     EnvironmentSettings settings,
-                                     Predicate filterPredicate) throws IOException {
-        super(identifier, requiredPartitions, requiredDataColumns,
-                requiredPartitionColumns, bucketIds, splitOptions, arrowOptions, settings, filterPredicate);
+    public TableBatchReadSessionImpl(TableReadSessionBuilder builder) throws IOException {
+        super(builder);
     }
 
     @Override

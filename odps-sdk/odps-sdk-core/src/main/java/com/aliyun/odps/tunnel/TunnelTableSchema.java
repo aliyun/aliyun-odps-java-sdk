@@ -35,20 +35,47 @@ public class TunnelTableSchema extends TableSchema {
   private Map<String, Long> columnIdMap = new HashMap<>();
 
   public TunnelTableSchema(JsonObject node) {
-    JsonArray columns = node.has("columns") ? node.get("columns").getAsJsonArray() : new JsonArray();
-    for (int i = 0; i < columns.size(); ++i) {
-      JsonObject column = columns.get(i).getAsJsonObject();
-      Column col = parseColumn(column);
-      addColumn(col);
-    }
+    this(node, false);
+  }
 
-    columns = node.has("partitionKeys") ? node.get("partitionKeys").getAsJsonArray() : new JsonArray();
-    for (int i = 0; i < columns.size(); ++i) {
-      JsonObject column = columns.get(i).getAsJsonObject();
-      Column col = parseColumn(column);
-      addPartitionColumn(col);
+  public TunnelTableSchema(JsonObject node, boolean maxStorage) {
+    if (maxStorage) {
+      if (node.has("DataColumns")) {
+        JsonArray dataColumns = node.get("DataColumns").getAsJsonArray();
+        for (int i = 0; i < dataColumns.size(); ++i) {
+          JsonObject column = dataColumns.get(i).getAsJsonObject();
+          addColumn(parseMaxStorageColumn(column));
+        }
+      }
+
+      if (node.has("PartitionColumns")) {
+        JsonArray partitionColumns = node.get("PartitionColumns").getAsJsonArray();
+        for (int i = 0; i < partitionColumns.size(); ++i) {
+          JsonObject column = partitionColumns.get(i).getAsJsonObject();
+          addPartitionColumn(parseMaxStorageColumn(column));
+        }
+      }
+    } else {
+      JsonArray
+          columns =
+          node.has("columns") ? node.get("columns").getAsJsonArray() : new JsonArray();
+      for (int i = 0; i < columns.size(); ++i) {
+        JsonObject column = columns.get(i).getAsJsonObject();
+        Column col = parseColumn(column);
+        addColumn(col);
+      }
+
+      columns =
+          node.has("partitionKeys") ? node.get("partitionKeys").getAsJsonArray() : new JsonArray();
+      for (int i = 0; i < columns.size(); ++i) {
+        JsonObject column = columns.get(i).getAsJsonObject();
+        Column col = parseColumn(column);
+        addPartitionColumn(col);
+      }
     }
   }
+
+
 
   public long getColumnId(String name) throws TunnelException {
     if (!columnIdMap.containsKey(name)) {
@@ -71,6 +98,18 @@ public class TunnelTableSchema extends TableSchema {
     col = new Column(name, typeInfo, comment);
     if (nullable != null) {
       col.setNullable(nullable.equalsIgnoreCase("true"));
+    }
+    return col;
+  }
+
+  private Column parseMaxStorageColumn(JsonObject column) {
+    String name = column.has("Name") ? column.get("Name").getAsString() : null;
+    String type = column.has("Type") ? column.get("Type").getAsString() : null;
+    String comment = column.has("Comment") ? column.get("Comment").getAsString() : null;
+    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(type);
+    Column col = new Column(name, typeInfo, comment);
+    if (column.has("Nullable")) {
+      col.setNullable(column.get("Nullable").getAsBoolean());
     }
     return col;
   }

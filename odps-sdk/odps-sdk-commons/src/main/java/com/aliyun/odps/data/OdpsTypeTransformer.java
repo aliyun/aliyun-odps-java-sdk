@@ -234,159 +234,183 @@ public class OdpsTypeTransformer {
     if (value == null) {
       return null;
     }
-
-    // 1. transform
-    Object transformedResult = value;
-    Map<OdpsType, Class> transformMapper = ODPS_TYPE_MAPPER;
-    switch (typeInfo.getOdpsType()) {
-      case JSON:
-        if (setData) {
-          if (strict) {
-            validateString(transformedResult.toString(), fieldMaxSize);
-            validateJson(transformedResult);
-          }
-          return (T) transformedResult;
-        }
-        break;
-      case STRING:
-        if (setData) {
-          if (value instanceof byte[]) {
-            // this convert would happen on embedded STRING in MAP/ARRAY/STRUCT
-            // raw STRING would not convert byte array to string, it handles in ArrayRecord.set
-            transformedResult = ArrayRecord.bytesToString((byte[]) value);
-          }
-          if (strict) {
-            validateString((String) transformedResult, fieldMaxSize);
-          }
-        }
-        break;
-      case BIGINT:
-        if (setData) {
-          validateBigint((Long) transformedResult);
-        }
-        break;
-      case DECIMAL:
-        if (setData) {
-          validateDecimal((BigDecimal) transformedResult, (DecimalTypeInfo) typeInfo);
-        }
-        break;
-      case CHAR:
-        if (setData) {
-          validateChar((Char) transformedResult, (CharTypeInfo) typeInfo);
-        }
-        break;
-      case VARCHAR:
-        if (setData) {
-          validateVarChar((Varchar) transformedResult, (VarcharTypeInfo) typeInfo);
-        }
-        break;
-      case DATETIME:
-        if (setData) {
-          if (transformedResult instanceof ZonedDateTime) {
-            transformMapper = ODPS_TYPE_MAPPER_V2;
-            validateDateTime((ZonedDateTime) transformedResult);
-          } else {
-            validateDateTime((Date) transformedResult);
-          }
-        } else {
-          if (compatible) {
-            if (value instanceof ZonedDateTime) {
-              transformedResult = Date.from(((ZonedDateTime) value).toInstant());
+    try {
+      // 1. transform
+      Object transformedResult = value;
+      Map<OdpsType, Class> transformMapper = ODPS_TYPE_MAPPER;
+      switch (typeInfo.getOdpsType()) {
+        case JSON:
+          if (setData) {
+            if (strict) {
+              validateString(transformedResult.toString(), fieldMaxSize);
+              validateJson(transformedResult);
             }
-          } else {
-            // 返回原始数据
-            if (value instanceof ZonedDateTime) {
+            return (T) transformedResult;
+          }
+          break;
+        case STRING:
+          if (setData) {
+            if (value instanceof byte[]) {
+              // this convert would happen on embedded STRING in MAP/ARRAY/STRUCT
+              // raw STRING would not convert byte array to string, it handles in ArrayRecord.set
+              transformedResult = ArrayRecord.bytesToString((byte[]) value);
+            }
+            if (strict) {
+              validateString((String) transformedResult, fieldMaxSize);
+            }
+          }
+          break;
+        case BINARY:
+          if (setData && value instanceof byte[]) {
+            transformedResult = new Binary((byte[]) value);
+          }
+          break;
+        case BIGINT:
+          if (setData) {
+            validateBigint((Long) transformedResult);
+          }
+          break;
+        case DECIMAL:
+          if (setData) {
+            validateDecimal((BigDecimal) transformedResult, (DecimalTypeInfo) typeInfo);
+          }
+          break;
+        case CHAR:
+          if (setData) {
+            validateChar((Char) transformedResult, (CharTypeInfo) typeInfo);
+          }
+          break;
+        case VARCHAR:
+          if (setData) {
+            validateVarChar((Varchar) transformedResult, (VarcharTypeInfo) typeInfo);
+          }
+          break;
+        case DATETIME:
+          if (setData) {
+            if (transformedResult instanceof ZonedDateTime) {
               transformMapper = ODPS_TYPE_MAPPER_V2;
-            }
-          }
-        }
-        break;
-      case DATE:
-        if (setData) {
-          if (value instanceof LocalDate) {
-            transformMapper = ODPS_TYPE_MAPPER_V2;
-          } else {
-            if (calendar != null) {
-              // setDate(date, calendar) => LocalDate
-              // date + calendar => LocalDate
-              transformMapper = ODPS_TYPE_MAPPER_V2;
-              transformedResult = dateToLocalDate((java.sql.Date) value, calendar);
-            }
-            // else setDate
-          }
-        } else {
-          if (compatible) {
-            if (value instanceof LocalDate) {
-              transformedResult = localDateToDate((LocalDate) value, calendar);
+              validateDateTime((ZonedDateTime) transformedResult);
+            } else {
+              validateDateTime((Date) transformedResult);
             }
           } else {
+            if (compatible) {
+              if (value instanceof ZonedDateTime) {
+                transformedResult = Date.from(((ZonedDateTime) value).toInstant());
+              }
+            } else {
+              // 返回原始数据
+              if (value instanceof ZonedDateTime) {
+                transformMapper = ODPS_TYPE_MAPPER_V2;
+              }
+            }
+          }
+          break;
+        case DATE:
+          if (setData) {
             if (value instanceof LocalDate) {
               transformMapper = ODPS_TYPE_MAPPER_V2;
-            }
-          }
-        }
-        break;
-      case TIMESTAMP:
-      case TIMESTAMP_NTZ:
-        if (setData) {
-          if (value instanceof Instant) {
-            transformMapper = ODPS_TYPE_MAPPER_V2;
-          }
-        } else {
-          if (compatible) {
-            if (value instanceof Instant) {
-              transformedResult = Timestamp.from((Instant) value);
+            } else {
+              if (calendar != null) {
+                // setDate(date, calendar) => LocalDate
+                // date + calendar => LocalDate
+                transformMapper = ODPS_TYPE_MAPPER_V2;
+                transformedResult = dateToLocalDate((java.sql.Date) value, calendar);
+              }
+              // else setDate
             }
           } else {
+            if (compatible) {
+              if (value instanceof LocalDate) {
+                transformedResult = localDateToDate((LocalDate) value, calendar);
+              }
+            } else {
+              if (value instanceof LocalDate) {
+                transformMapper = ODPS_TYPE_MAPPER_V2;
+              }
+            }
+          }
+          break;
+        case TIMESTAMP:
+        case TIMESTAMP_NTZ:
+          if (setData) {
             if (value instanceof Instant) {
               transformMapper = ODPS_TYPE_MAPPER_V2;
             }
+          } else {
+            if (compatible) {
+              if (value instanceof Instant) {
+                transformedResult = Timestamp.from((Instant) value);
+              }
+            } else {
+              if (value instanceof Instant) {
+                transformMapper = ODPS_TYPE_MAPPER_V2;
+              }
+            }
           }
-        }
-        break;
-      case ARRAY:
-        List arrayValue = (List) value;
-        TypeInfo elementTypeInfo = ((ArrayTypeInfo)typeInfo).getElementTypeInfo();
+          break;
+        case ARRAY:
+          List arrayValue = (List) value;
+          TypeInfo elementTypeInfo = ((ArrayTypeInfo) typeInfo).getElementTypeInfo();
 
-        List<Object> newList = new ArrayList<>(arrayValue.size());
-        for (Object obj : arrayValue) {
-          newList.add(transform(obj, elementTypeInfo, calendar, setData, compatible, strict, fieldMaxSize));
-        }
-        transformedResult = newList;
-        break;
-      case MAP:
-        TypeInfo keyTypeInfo = ((MapTypeInfo)typeInfo).getKeyTypeInfo();
-        TypeInfo valTypeInfo = ((MapTypeInfo)typeInfo).getValueTypeInfo();
-        Map map = (Map) value;
+          List<Object> newList = new ArrayList<>(arrayValue.size());
+          for (Object obj : arrayValue) {
+            newList.add(transform(obj, elementTypeInfo, calendar, setData, compatible, strict,
+                                  fieldMaxSize));
+          }
+          transformedResult = newList;
+          break;
+        case MAP:
+          TypeInfo keyTypeInfo = ((MapTypeInfo) typeInfo).getKeyTypeInfo();
+          TypeInfo valTypeInfo = ((MapTypeInfo) typeInfo).getValueTypeInfo();
+          Map map = (Map) value;
 
-        Map newMap = new HashMap(map.size(), 1.0f);
-        Iterator iter = map.entrySet().iterator();
+          Map newMap = new HashMap(map.size(), 1.0f);
+          Iterator iter = map.entrySet().iterator();
 
-        while (iter.hasNext()) {
-          Map.Entry entry = (Map.Entry) iter.next();
+          while (iter.hasNext()) {
+            Map.Entry entry = (Map.Entry) iter.next();
 
-          Object entryKey = transform(entry.getKey(), keyTypeInfo, calendar, setData, compatible, strict, fieldMaxSize);
-          Object entryValue = transform(entry.getValue(), valTypeInfo, calendar, setData, compatible, strict, fieldMaxSize);
+            Object
+                entryKey =
+                transform(entry.getKey(), keyTypeInfo, calendar, setData, compatible, strict,
+                          fieldMaxSize);
+            Object
+                entryValue =
+                transform(entry.getValue(), valTypeInfo, calendar, setData, compatible, strict,
+                          fieldMaxSize);
 
-          newMap.put(entryKey, entryValue);
-        }
-        transformedResult = newMap;
-        break;
-      case STRUCT:
-        Struct struct = (Struct) value;
-        StructTypeInfo structTypeInfo = (StructTypeInfo) typeInfo;
-        List<Object> elements = new ArrayList<>();
+            newMap.put(entryKey, entryValue);
+          }
+          transformedResult = newMap;
+          break;
+        case STRUCT:
+          Struct struct = (Struct) value;
+          StructTypeInfo structTypeInfo = (StructTypeInfo) typeInfo;
+          List<Object> elements = new ArrayList<>();
 
-        for (int i = 0; i < structTypeInfo.getFieldCount(); ++i) {
-          TypeInfo fieldTypeInfo = struct.getFieldTypeInfo(i);
-          elements.add(transform(struct.getFieldValue(i), fieldTypeInfo, calendar, setData, compatible, strict, fieldMaxSize));
-        }
-        transformedResult = new SimpleStruct(structTypeInfo, elements);
-        break;
-      default:
+          for (int i = 0; i < structTypeInfo.getFieldCount(); ++i) {
+            TypeInfo fieldTypeInfo = struct.getFieldTypeInfo(i);
+            elements.add(
+                transform(struct.getFieldValue(i), fieldTypeInfo, calendar, setData, compatible,
+                          strict, fieldMaxSize));
+          }
+          transformedResult = new SimpleStruct(structTypeInfo, elements);
+          break;
+        default:
 
+      }
+      return (T) odpsTypeToJavaType(transformMapper, typeInfo.getOdpsType()).cast(
+          transformedResult);
+    } catch (ClassCastException e) {
+      // manually throw exception because jvm may optimize ClassCastException message to null.
+      throw new IllegalArgumentException("Cannot format " + value
+                                         + "(" + value.getClass() + ") to ODPS type: "
+                                         + typeInfo.getOdpsType()
+                                         + ", expect java class: "
+                                         + ODPS_TYPE_MAPPER_V2.get(typeInfo.getOdpsType()).getName()
+          , e);
     }
-    return (T) odpsTypeToJavaType(transformMapper, typeInfo.getOdpsType()).cast(transformedResult);
   }
 
   // 转换为 calendar 时区下的 LocalDate

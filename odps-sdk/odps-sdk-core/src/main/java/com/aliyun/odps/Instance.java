@@ -47,6 +47,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
+import com.aliyun.odps.type.TypeInfoParser;
 import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
@@ -1783,22 +1786,31 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * 判断当前作业是否是屏显作业，比如 select 语句。只有结束的 MCQA 2.0 作业可以进行此判断
    */
   public boolean isSelect(String taskName) {
+    Boolean isSelect = getResultDescriptor(taskName).isSelect();
+    if (isSelect == null) {
+      throw new IllegalStateException(
+          "Cannot infer whether the job type is a select job. Currently, only MCQA 2.0 jobs are supported. \nTaskResult:\n"
+          + results.get(taskName).result.getString());
+    }
+    return isSelect;
+  }
+
+  public ResultDescriptor getResultDescriptor(String taskName) {
     if (!results.containsKey(taskName)) {
       throw new IllegalStateException("The result with taskName " + taskName
                                       + " cannot be found. Maybe the instance has not terminated yet.");
     }
     TaskResult taskResult = results.get(taskName);
-    if (taskResult.resultDescriptor == null
-        || taskResult.resultDescriptor.isSelect == null) {
+    if (taskResult.resultDescriptor == null) {
       String errTaskResult = taskResult.result.getString();
       try {
         errTaskResult = SimpleXmlUtils.marshal(taskResult);
       } catch (Exception ignored) {
       }
       throw new IllegalStateException(
-          "Cannot infer whether the job type is a select job. Currently, only MCQA 2.0 jobs are supported. \nTaskResult:\n" + errTaskResult);
+          "Cannot get result descriptor. Currently, only MCQA 2.0 jobs are supported. \nTaskResult:\n" + errTaskResult);
     }
-    return taskResult.resultDescriptor.isSelect;
+    return taskResult.resultDescriptor;
   }
 
   private Map<String, String> userDefinedHeaders;
@@ -1830,13 +1842,21 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     return headers;
   }
 
-  static class ResultDescriptor {
+  public static class ResultDescriptor {
     private Boolean isSelect;
     private TableSchema schema;
 
     // Setter
     public void setIsSelect(boolean isSelect) { this.isSelect = isSelect; }
     public void setSchema(TableSchema schema) {this.schema = schema; }
+
+    public Boolean isSelect() {
+      return isSelect;
+    }
+
+    public TableSchema getSchema() {
+      return schema;
+    }
   }
 
   static class ResultDescriptorConverter implements Converter<Instance.ResultDescriptor> {
@@ -1846,18 +1866,24 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     public Instance.ResultDescriptor read(InputNode node) throws Exception {
       JsonObject json = JsonParser.parseString(node.getValue()).getAsJsonObject();
       ResultDescriptor resultDescriptor = new ResultDescriptor();
+      if (json.has("IsSelect")) {
+        resultDescriptor.setIsSelect(json.get("IsSelect").getAsBoolean());
+      }
       if (json.has("Schema")) {
         TableSchema schema = new TableSchema();
         JsonArray columnsJson = json.getAsJsonObject("Schema").getAsJsonArray("Columns");
         for (JsonElement columnElem : columnsJson) {
           String name = columnElem.getAsJsonObject().get("Name").getAsString();
           String type = columnElem.getAsJsonObject().get("Type").getAsString();
-          schema.addColumn(new Column(name, OdpsType.valueOf(type.toUpperCase())));
+          try {
+            TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(type);
+            schema.addColumn(new Column(name, typeInfo));
+          } catch (Exception e) {
+            // unknown type should not throw exception here, should throw exception when get result
+            schema.addColumn(new Column(name, TypeInfoFactory.UNKNOWN));
+          }
         }
         resultDescriptor.setSchema(schema);
-      }
-      if (json.has("IsSelect")) {
-        resultDescriptor.setIsSelect(json.get("IsSelect").getAsBoolean());
       }
       return resultDescriptor;
     }

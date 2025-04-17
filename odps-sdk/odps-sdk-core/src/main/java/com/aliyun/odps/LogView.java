@@ -163,7 +163,7 @@ public class LogView {
     } else if (2 == version) {
       String url = logViewHost + "/" + odps.projects().get().getRegionId()
              + "/job-insights?h=" + odps.getEndpoint()
-             + "&p=" + odps.getDefaultProject()
+             + "&p=" + instance.getProject()
              + "&i=" + instance.getId();
       if (queryId != null) {
         url += "&subQuery=" + queryId;

@@ -50,6 +50,37 @@ public class SQLExecutorBuilder {
     return new SQLExecutorBuilder();
   }
 
+  @Override
+  public SQLExecutorBuilder clone() {
+    SQLExecutorBuilder builder = new SQLExecutorBuilder();
+    builder.executeMode = this.executeMode;
+    builder.enableReattach = this.enableReattach;
+    builder.useInstanceTunnel = this.useInstanceTunnel;
+    builder.odps = this.odps;
+    builder.properties = new ConcurrentHashMap<>(this.properties);
+    builder.taskName = this.taskName;
+    builder.serviceName = this.serviceName;
+    builder.tunnelEndpoint = this.tunnelEndpoint;
+    builder.quotaName = this.quotaName;
+    builder.pool = this.pool;
+    builder.fallbackPolicy = this.fallbackPolicy;
+    builder.tunnelGetResultMaxRetryTime = this.tunnelGetResultMaxRetryTime;
+    builder.attachTimeout = this.attachTimeout;
+    builder.runningCluster = this.runningCluster;
+    builder.recoverInstance = this.recoverInstance;
+    builder.useCommandApi = this.useCommandApi;
+    builder.odpsNamespaceSchema = this.odpsNamespaceSchema;
+    builder.tunnelSocketTimeout = this.tunnelSocketTimeout;
+    builder.tunnelReadTimeout = this.tunnelReadTimeout;
+    builder.sessionSupportNonSelect = this.sessionSupportNonSelect;
+    builder.useMcqaV2 = this.useMcqaV2;
+    builder.offlineJobPriority = this.offlineJobPriority;
+    builder.regionId = this.regionId;
+    builder.quota = this.quota;
+    builder.logviewVersion = this.logviewVersion;
+    return builder;
+  }
+
   public SQLExecutor build() throws OdpsException {
     if (useMcqaV2 || executeMode == ExecuteMode.INTERACTIVE_V2) {
       Preconditions.checkArgument(executeMode != ExecuteMode.OFFLINE,

@@ -519,6 +519,7 @@ public class ResourceBuilder {
                                                  String tableName,
                                                  String sessionId) {
     StringBuilder sb = new StringBuilder();
+    schemaName = StringUtils.isNullOrEmpty(schemaName) ? "default" : schemaName;
     sb.append(buildStoragePrefix(version));
     sb.append(buildTableResource(projectName, schemaName, tableName));
     if (StringUtils.isNullOrEmpty(sessionId)) {
@@ -536,6 +537,7 @@ public class ResourceBuilder {
                                                 String schemaName,
                                                 String tableName) {
     StringBuilder sb = new StringBuilder();
+    schemaName = StringUtils.isNullOrEmpty(schemaName) ? "default" : schemaName;
     sb.append(buildStoragePrefix(version));
     sb.append(buildTableResource(projectName, schemaName, tableName));
     sb.append(DATA);

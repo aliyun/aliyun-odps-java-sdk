@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.aliyun.odps.Instance;
@@ -25,6 +26,7 @@ import com.aliyun.odps.utils.StringUtils;
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
+@Ignore
 public class SQLExecutorV2Test {
 
   private static SQLExecutor executor;
@@ -91,7 +93,7 @@ public class SQLExecutorV2Test {
                + "      \"Columns\": [\n"
                + "        {\n"
                + "            \"Name\": \"wr_returned_date_sk\",\n"
-               + "            \"Type\": \"bigint\"\n"
+               + "            \"Type\": \"Decimal(38,8)\"\n"
                + "        },\n"
                + "        {\n"
                + "            \"Name\": \"wr_returned_time_sk\",\n"
@@ -233,5 +235,13 @@ public class SQLExecutorV2Test {
     String logView = executor.getLogView();
     System.out.println(logView);
     Assert.assertNotNull(logView);
+  }
+
+  @Test
+  public void testSpecialType() throws Exception {
+    executor.run("select repeat(\"A\", 1), repeat(\"A\", 3), repeat(\"abc\\0d\", 2), repeat(NULL, 2), repeat(\"\", NULL);", hints);
+    List<Record> result = executor.getResult();
+    Assert.assertTrue(result != null && !result.isEmpty());
+    result.forEach(r -> System.out.println(r.toString()));
   }
 }

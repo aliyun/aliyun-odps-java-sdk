@@ -35,18 +35,6 @@ public class TableWriteSessionProviderImpl implements TableWriteSessionProvider 
 
     @Override
     public TableBatchWriteSession createBatchWriteSession(TableWriteSessionBuilder builder) throws IOException {
-        if (builder.getSessionId() == null) {
-            return new TableBatchWriteSessionImpl(builder.getIdentifier(),
-                    builder.getTargetPartitionSpec(),
-                    builder.isOverwrite(),
-                    builder.getDynamicPartitionOptions(),
-                    builder.getArrowOptions(),
-                    builder.getWriteCapabilities(),
-                    builder.getSettings(),
-                    builder.getMaxFieldSize());
-        } else {
-            return new TableBatchWriteSessionImpl(builder.getIdentifier(),
-                    builder.getSessionId(), builder.getSettings());
-        }
+        return new TableBatchWriteSessionImpl(builder);
     }
 }

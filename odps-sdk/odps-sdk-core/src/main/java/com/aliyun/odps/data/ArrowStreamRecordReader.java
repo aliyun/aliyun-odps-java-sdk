@@ -21,7 +21,6 @@ package com.aliyun.odps.data;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -43,7 +42,6 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.ipc.ArrowReader;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
@@ -101,7 +99,7 @@ import com.aliyun.odps.type.TypeInfo;
  */
 public class ArrowStreamRecordReader extends DefaultRecordReader {
 
-  private final ArrowReader arrowReader;
+  private final ArrowRecordReader arrowReader;
   private final Deque<Record> records;
   private List<Column> columns;
 
@@ -114,25 +112,34 @@ public class ArrowStreamRecordReader extends DefaultRecordReader {
   private DateFormat dateFormat;
 
   private boolean useLegacyOutputFormat = false;
+  private boolean isExtensionArrowType = false;
 
-  public ArrowStreamRecordReader(ArrowReader arrowReader, TableSchema tableSchema) {
+  public ArrowStreamRecordReader(ArrowRecordReader arrowReader, TableSchema tableSchema) {
     this(arrowReader, tableSchema, (Set<String>) null);
   }
 
-  public ArrowStreamRecordReader(ArrowReader arrowReader, TableSchema tableSchema,
+  public ArrowStreamRecordReader(ArrowRecordReader arrowReader, TableSchema tableSchema,
                                  List<String> columnFilter) {
     this(arrowReader, tableSchema, columnFilter == null ? null : new HashSet<>(columnFilter));
   }
 
-  public ArrowStreamRecordReader(ArrowReader arrowReader, TableSchema tableSchema,
+  public ArrowStreamRecordReader(ArrowRecordReader arrowReader, TableSchema tableSchema,
                                  Set<String> columnFilter) {
+    this(arrowReader, tableSchema, columnFilter, false, false);
+  }
+
+  public ArrowStreamRecordReader(ArrowRecordReader arrowReader, TableSchema tableSchema,
+                                 Set<String> columnFilter, boolean withPartitionColumn, boolean isExtension) {
     // for compatibility
     super(new ByteArrayInputStream(new byte[0]), null);
     this.arrowReader = arrowReader;
+    this.isExtensionArrowType = isExtension;
     records = new ArrayDeque<>();
 
     columns = tableSchema.getColumns();
-    columns.addAll(tableSchema.getPartitionColumns());
+    if (withPartitionColumn) {
+      columns.addAll(tableSchema.getPartitionColumns());
+    }
     if (columnFilter != null) {
       columns =
           columns.stream().filter(column -> columnFilter.contains(column.getName()))
@@ -159,9 +166,9 @@ public class ArrowStreamRecordReader extends DefaultRecordReader {
     if (!records.isEmpty()) {
       return records.removeFirst();
     }
-    if (arrowReader != null && arrowReader.loadNextBatch()) {
-      VectorSchemaRoot vectorSchemaRoot = arrowReader.getVectorSchemaRoot();
-      if (vectorSchemaRoot.getRowCount() == 0) {
+    if (arrowReader != null) {
+      VectorSchemaRoot vectorSchemaRoot = arrowReader.read();
+      if (vectorSchemaRoot == null) {
         return null;
       }
       convertToRecord(vectorSchemaRoot);
@@ -194,8 +201,8 @@ public class ArrowStreamRecordReader extends DefaultRecordReader {
         TypeInfo typeInfo = column.getTypeInfo();
         ArrowVectorAccessor
             columnVectorAccessor =
-            ArrowToRecordConverter.createColumnVectorAccessor(vector, typeInfo, true);
-        Object data = ArrowToRecordConverter.getData(columnVectorAccessor, typeInfo, rowId, true);
+            ArrowToRecordConverter.createColumnVectorAccessor(vector, typeInfo, this.isExtensionArrowType);
+        Object data = ArrowToRecordConverter.getData(columnVectorAccessor, typeInfo, rowId, this.isExtensionArrowType);
         if (typeInfo.getOdpsType() == OdpsType.DATETIME) {
           data = data == null ? null : ((ZonedDateTime) data).withZoneSameInstant(timeZone);
         }

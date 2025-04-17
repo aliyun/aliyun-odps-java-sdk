@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.52.0-public] - 2025-04-17
+
+### 🎉 New Features
+- **TableAPI**
+  - Added `enhanceWriteCheck` parameter to `TableWriteSessionBuilder` to strengthen write validation capabilities
+  - Added `Append2 Table` preview feature in `TableCreator` (🚧 Preview)
+
+- **DownloadSession**
+  - Introduced `enableMaxStorage` configuration to support downloading Delta Tables via StorageAPI (🚧 Preview)
+
+- **MaxQA**
+  - Implemented CSV data parsing to strongly-typed records (`Parse CSV To Record`)
+  - After server readiness, `getResult` (non-Tunnel mode) will return typed data (previously all String types) (🚧 Preview)
+
+- **SQL**
+  - Added `SQLTaskOption` and `CreateInstanceOption` configuration classes to simplify overloads of `SQLTask.run()`
+  - Added support for submitting Merge Tasks using regular expressions
+  - Implemented Unique ID mechanism to ensure idempotent submission of jobs with the same ID
+
+- **ObjectConverter**
+  - Added support for `BINARY_FORMAT_QUOTED_PRINTABLE` format parsing
+
+### 🛠️ Functionality Improvements
+- **ArrowStreamRecordReader**  
+  Refactored class implementation to support converting any source `ArrowReader` to `RecordReader`
+
+- **ArrayRecord**
+  - Optimized type validation logic:  
+    ✅ Changed potential `ClassCastException` in `set` method to `IllegalArgumentException`  
+    ✅ Improved error message readability  
+    ✅ Prevented JVM implicit optimizations (e.g., truncated error messages to null)
+
 ## [0.51.11-public] - 2025-03-18
 ### Key Changes
 - **MCQA 2.0 Structural Improvement**: The `ResultDescriptor` subclass in `Instance` class has been upgraded from `Map<String, String>` to a dedicated POJO object, specifically optimized for **MCQA 2.0 scenarios**

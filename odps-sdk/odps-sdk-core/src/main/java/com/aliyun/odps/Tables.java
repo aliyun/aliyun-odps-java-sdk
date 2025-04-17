@@ -52,7 +52,6 @@ import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.utils.CommonUtils;
 import com.aliyun.odps.utils.ExceptionUtils;
 import com.aliyun.odps.utils.NameSpaceSchemaUtils;
-import com.aliyun.odps.utils.OdpsCommonUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.common.collect.ImmutableList;
 
@@ -408,7 +407,7 @@ public class Tables implements Iterable<Table> {
       // Temporary code for openlake Demo(YunQi big conference):
       // Long-term this code block should be converted to SQL for both internal and external projects,
       // and should not have any setting flag, except for opening the 3 layer model based on project attributes(user can choose use 2 or 3tier for 3 layer Project ).
-      //warning: filter not support in EPV2 for now.
+      // warning: filter not support in EPV2 for now.
       Map<String, String> queryHint = new HashMap<>();
       InputStream is = null;
       try {
@@ -1183,6 +1182,13 @@ public class Tables implements Iterable<Table> {
     public TableCreator deltaTable() {
       preSetTblProperties.put("transactional", "true");
       this.tableFormat = TableFormat.DELTA;
+      return this;
+    }
+
+    public TableCreator append2Table() {
+      preSetTblProperties.put("transactional", "true");
+      preSetTblProperties.put("table.format.version", "2");
+      this.tableFormat = TableFormat.APPEND;
       return this;
     }
 

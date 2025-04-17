@@ -105,7 +105,6 @@ public class Project extends LazyLoad {
    */
   @Root(name = "Project", strict = false)
   static class ProjectModel {
-
     @Element(name = "Name", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String name;

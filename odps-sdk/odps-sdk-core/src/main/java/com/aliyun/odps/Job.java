@@ -19,6 +19,10 @@
 
 package com.aliyun.odps;
 
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
+
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
@@ -26,10 +30,18 @@ import com.aliyun.odps.simpleframework.xml.ElementListUnion;
 import com.aliyun.odps.simpleframework.xml.Path;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
-import com.aliyun.odps.task.*;
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
+import com.aliyun.odps.task.AlgoTask;
+import com.aliyun.odps.task.CupidTask;
+import com.aliyun.odps.task.GalaxyTask;
+import com.aliyun.odps.task.GraphTask;
+import com.aliyun.odps.task.LOTTask;
+import com.aliyun.odps.task.MergeTask;
+import com.aliyun.odps.task.MoyeTask;
+import com.aliyun.odps.task.SQLCostTask;
+import com.aliyun.odps.task.SQLRTTask;
+import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.task.SqlPlanTask;
+import com.aliyun.odps.task.XLibTask;
 
 /**
  * ODPS Job定义。ODPS内部使用。
@@ -66,6 +78,10 @@ public class Job {
     @Element(name = "RunningCluster", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String runningCluster;
+
+    @Element(name = "Guid", required = false)
+    @Convert(SimpleXmlUtils.EmptyStringConverter.class)
+    String uniqueIdentifyID;
 
     @Path(value = "Tasks")
     @ElementListUnion({
@@ -134,6 +150,10 @@ public class Job {
    */
   public void setPriority(int priority) {
     model.priority = priority;
+  }
+
+  public void setUniqueIdentifyID(String uniqueIdentifyID) {
+    model.uniqueIdentifyID = uniqueIdentifyID;
   }
 
   /* Un-document */

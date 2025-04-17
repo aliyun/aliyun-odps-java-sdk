@@ -459,7 +459,8 @@ public class ArrayRecordTest {
         } else {
           r.set(i, 2);
         }
-      } catch (ClassCastException e) {
+      } catch (IllegalArgumentException e) {
+        System.out.println(e.getMessage());
         count++;
       }
     }

@@ -4,6 +4,37 @@ sidebar_position: 6
 ---
 
 # 更新日志
+## [0.52.0-public] - 2025-04-17
+
+### 🎉 新增功能
+- **TableAPI**
+  - `TableWriteSessionBuilder` 新增 `enhanceWriteCheck` 参数，增强写入校验能力
+  - `TableCreator` 新增 `Append2 Table` 预览功能（🚧 Preview）
+
+- **DownloadSession**
+  - 新增 `enableMaxStorage` 配置，支持通过 StorageAPI 下载 Delta Table（🚧 Preview）
+
+- **MaxQA**
+  - 实现 CSV 数据解析到强类型记录功能（`Parse CSV To Record`）
+  - 服务端 Ready 后，`getResult`（非 Tunnel 模式）将返回类型化数据（原全量 String 类型）（🚧 Preview）
+
+- **SQL**
+  - 新增 `SQLTaskOption` 和 `CreateInstanceOption` 配置类，简化 `SQLTask.run()` 方法重载
+  - 支持通过正则表达式提交 Merge Task 作业
+  - 新增 UniqueId 机制，确保同 ID 作业幂等提交
+
+- **ObjectConverter**
+  - 新增 `BINARY_FORMAT_QUOTED_PRINTABLE` 格式解析支持
+
+### 🛠️ 功能优化
+- **ArrowStreamRecordReader**  
+  重构类实现，支持将任意来源的 `ArrowReader` 转换为 `RecordReader`
+
+- **ArrayRecord**
+  - 优化类型校验逻辑：  
+    ✅ 将 `set` 方法可能抛出的 `ClassCastException` 改为 `IllegalArgumentException`  
+    ✅ 增强错误信息可读性  
+    ✅ 避免 JVM 对异常的隐式优化（如错误信息被截断为 null）
 
 ## [0.51.11-public] - 2025-03-18
 
