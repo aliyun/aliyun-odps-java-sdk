@@ -105,10 +105,17 @@ public class SQLExecutorGetResultTest extends TestBase {
 
   public void getResultSetTest(ExecuteMode mode, boolean isUseInstanceTunnel)
       throws OdpsException, IOException {
+    getResultSetTest(mode, isUseInstanceTunnel, true);
+    getResultSetTest(mode, isUseInstanceTunnel, false);
+  }
+
+  public void getResultSetTest(ExecuteMode mode, boolean isUseInstanceTunnel, boolean isSkipCheckIfSelect)
+      throws OdpsException, IOException {
     SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
     builder.odps(odps)
         .executeMode(mode)
-        .useInstanceTunnel(isUseInstanceTunnel);
+        .useInstanceTunnel(isUseInstanceTunnel)
+        .setSkipCheckIfSelect(isSkipCheckIfSelect);
     SQLExecutorImpl sqlExecutor = (SQLExecutorImpl) builder.build();
     ResultSet resultSet;
     Record record;

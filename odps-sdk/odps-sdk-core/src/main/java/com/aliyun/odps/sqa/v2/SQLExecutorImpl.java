@@ -606,7 +606,7 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   @Override
   public boolean hasResultSet() {
-    return SqlParserUtil.hasResultSet(queryInfo.getSql());
+    return true;
   }
 
   @Override

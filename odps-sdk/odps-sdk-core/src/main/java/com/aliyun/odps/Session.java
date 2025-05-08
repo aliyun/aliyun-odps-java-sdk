@@ -652,6 +652,10 @@ public class Session {
     return response;
   }
 
+  public SubQueryResult getSubQueryResult(int queryId) throws OdpsException {
+    return getSubQueryResult(queryId, false);
+  }
+
   /**
    * getInformation查询SubQuery结果. 仅支持select query
    *
@@ -660,13 +664,34 @@ public class Session {
    * @return 查询结果
    * @throws OdpsException
    */
-  public SubQueryResult getSubQueryResult(int queryId) throws OdpsException {
+  public SubQueryResult getSubQueryResult(int queryId, boolean skipCheckIfSelect)
+      throws OdpsException {
     String resultString = getSubQueryResultInternal(queryId);
-    SubQueryResult result = new SubQueryResult();
-    CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(resultString);
-    result.setSchema(parseResult.getSchema());
-    result.setRecords(parseResult.getRecords());
-    return result;
+    if (skipCheckIfSelect) {
+      // if skip check if select, we do not know query has result set.
+      // so here we check if result string has '/r/n' to judge if query has result set. very hack
+      // since 0.52
+      SubQueryResult result = new SubQueryResult();
+      if (resultString.contains("\r\n")) {
+        CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(resultString);
+        result.setSchema(parseResult.getSchema());
+        result.setRecords(parseResult.getRecords());
+        return result;
+      } else {
+        List<Record> records = CommandUtil.toRecord(resultString, "Info");
+        TableSchema schema = new TableSchema();
+        schema.setColumns(Arrays.asList(records.get(0).getColumns()));
+        result.setSchema(schema);
+        result.setRecords(records);
+        return result;
+      }
+    } else {
+      SubQueryResult result = new SubQueryResult();
+      CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(resultString);
+      result.setSchema(parseResult.getSchema());
+      result.setRecords(parseResult.getRecords());
+      return result;
+    }
   }
 
   /**

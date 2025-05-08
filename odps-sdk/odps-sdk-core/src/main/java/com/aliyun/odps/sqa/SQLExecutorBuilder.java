@@ -45,6 +45,7 @@ public class SQLExecutorBuilder {
   private String regionId = null;
   private Quota quota = null;
   private int logviewVersion = 1;
+  private boolean skipCheckIfSelect = false;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -78,6 +79,7 @@ public class SQLExecutorBuilder {
     builder.regionId = this.regionId;
     builder.quota = this.quota;
     builder.logviewVersion = this.logviewVersion;
+    builder.skipCheckIfSelect = this.skipCheckIfSelect;
     return builder;
   }
 
@@ -93,7 +95,7 @@ public class SQLExecutorBuilder {
                                tunnelGetResultMaxRetryTime,
                                useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema,
                                tunnelSocketTimeout, tunnelReadTimeout, sessionSupportNonSelect,
-                               offlineJobPriority, logviewVersion);
+                               offlineJobPriority, logviewVersion, skipCheckIfSelect);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -223,6 +225,11 @@ public class SQLExecutorBuilder {
     return this;
   }
 
+  public SQLExecutorBuilder setSkipCheckIfSelect(boolean skipCheckIfSelect) {
+    this.skipCheckIfSelect = skipCheckIfSelect;
+    return this;
+  }
+
   public ExecuteMode getExecuteMode() {
     return executeMode;
   }
@@ -321,5 +328,9 @@ public class SQLExecutorBuilder {
 
   public int getLogviewVersion() {
     return logviewVersion;
+  }
+
+  public boolean isSkipCheckIfSelect() {
+      return skipCheckIfSelect;
   }
 }

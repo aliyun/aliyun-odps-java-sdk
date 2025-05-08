@@ -100,6 +100,13 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   private int logviewVersion;
 
+  /**
+   * We use antlr4 to check if query is Select, However, Antlr may cost a lot of cpu and in some case, it may cause critical issue.
+   * so we provide a switch to skip check if query is Select.
+   */
+  private boolean skipCheckIfSelect;
+
+
   enum TunnelRetryStatus {
     NEED_RETRY,
     NON_SELECT_QUERY,
@@ -155,7 +162,8 @@ public class SQLExecutorImpl implements SQLExecutor {
       int tunnelReadTimeout,
       boolean sessionSupportNonSelect,
       Integer offlineJobPriority,
-      int logviewVersion) throws OdpsException {
+      int logviewVersion,
+      boolean skipCheckIfSelect) throws OdpsException {
     this.properties.putAll(properties);
     this.serviceName = serviceName;
     this.taskName = taskName;
@@ -174,6 +182,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.sessionSupportNonSelect = sessionSupportNonSelect;
     this.offlineJobPriority = offlineJobPriority;
     this.logviewVersion = logviewVersion;
+    this.skipCheckIfSelect = skipCheckIfSelect;
     if (timeout != null) {
       this.attachTimeout = timeout;
     }
@@ -869,7 +878,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (!isSelect) {
       // tunnel do not support non-select query, double check task result
       try {
-        session.getSubQueryResult(queryInfo.getId());
+        session.getSubQueryResult(queryInfo.getId(), skipCheckIfSelect);
         // query success
         info.status = TunnelRetryStatus.NON_SELECT_QUERY;
         return info;
@@ -1045,7 +1054,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     Session.SubQueryResult result = null;
     try {
       if (queryInfo.isSelect()) {
-        result = session.getSubQueryResult(queryInfo.getId());
+        result = session.getSubQueryResult(queryInfo.getId(), skipCheckIfSelect);
       } else {
         result = session.getRawSubQueryResult(queryInfo.getId());
       }
@@ -1105,11 +1114,12 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   private List<Record> getOfflineResult() throws OdpsException {
     queryInfo.getInstance().waitForSuccess();
-    Map<String, String> results = queryInfo.getInstance().getTaskResults();
-    String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+    Map<String, Instance.Result> results = queryInfo.getInstance().getTaskResultsWithFormat();
+    Instance.Result result = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+    String selectResult = result.getString();
 
     if (selectResult != null) {
-      if (queryInfo.isSelect()) {
+      if (queryInfo.isSelect() && "csv".equalsIgnoreCase(result.getFormat())) {
         return SQLTask.parseCsvRecord(selectResult);
       } else {
         // 非select但是具备结果集的命令
@@ -1162,7 +1172,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     try {
       // subquery -1 的时候，不区分不会报错。之后的subquery，非select的结果就是错的
       if (queryInfo.isSelect()) {
-        result = session.getSubQueryResult(queryInfo.getId());
+        result = session.getSubQueryResult(queryInfo.getId(), skipCheckIfSelect);
       } else {
         result = session.getRawSubQueryResult(queryInfo.getId());
       }
@@ -1223,9 +1233,11 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   private ResultSet getOfflineResultSet()
       throws OdpsException, IOException {
-    String selectResult = queryInfo.getInstance().waitForTerminatedAndGetResult().getString();
+    Instance.Result result = queryInfo.getInstance().waitForTerminatedAndGetResult();
+    String selectResult = result.getString();
     if (!StringUtils.isNullOrEmpty(selectResult)) {
-      if (queryInfo.isSelect()) {
+      if (queryInfo.isSelect() && "csv".equalsIgnoreCase(
+          result.getFormat())) {
         CSVRecordParser.ParseResult parseResult = CSVRecordParser.parse(selectResult);
         List<Record> records = parseResult.getRecords();
         return new ResultSet(
@@ -1394,7 +1406,11 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (parseSuccess) {
       return true;
     }
-    return SqlParserUtil.hasResultSet(queryInfo.getSql());
+    if (skipCheckIfSelect) {
+      return true;
+    } else {
+      return SqlParserUtil.hasResultSet(queryInfo.getSql());
+    }
   }
 
   @Override
@@ -1414,12 +1430,15 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   public boolean isSelect(String sql) throws OdpsException {
     try {
-      return SqlParserUtil.isSelect(sql);
+      if (skipCheckIfSelect) {
+        return true;
+      } else {
+        return SqlParserUtil.isSelect(sql);
+      }
     } catch (SQLException e) {
       throw new OdpsException("Sql isSelect failed", e);
     }
   }
-
 }
 
 /**
