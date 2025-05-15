@@ -229,6 +229,7 @@ public class SqlParserUtil {
     OdpsLexer lexer = new OdpsLexer(input);
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     OdpsParser parser = new OdpsParser(tokens);
+    parser.removeErrorListeners();
 
     SqlParserListener parserListener = new SqlParserListener();
     ParseTreeWalker treeWalker = new ParseTreeWalker();
