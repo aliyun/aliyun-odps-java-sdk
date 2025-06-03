@@ -74,6 +74,7 @@ class DescribeTableCommand implements Command {
   private static final Map<String, TypeInfo> extendedTableMap = new LinkedHashMap<>(tableMap);
 
   static {
+    extendedTableMap.replace("NativeColumns", TypeInfoFactory.getArrayTypeInfo(getExtendedStructTypeInfo()));
     extendedTableMap.put("ExtendedInfo", TypeInfoFactory
         .getMapTypeInfo(TypeInfoFactory.STRING, TypeInfoFactory.STRING));
     extendedTableMap.put("ExtendedInfoJson", TypeInfoFactory.STRING);
