@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.52.2-public] - 2025-06-03
+### Issue Fixed
+- **CommandApi**
+  Fixed an issue where the Comment field is Boolean type is handled when SQLExecutor is enabled when CommandApi function is turned on.
+
+## [0.52.1-public] - 2025-05-08
+### 🎉 New features
+- **SQLExecutor**
+  SQLExecutorBuilder added the parameter `skipCheckIfSelect` (only Non-MaxQA scenarios are effective), which defaults to false. When true, the check of the select statement will be skipped to improve the performance under high concurrency.
+  It can be used when the request scenario is mainly a query statement. When processing non-query statements, the processing delay will become longer.
+
 ## [0.52.0-public] - 2025-04-17
 
 ### 🎉 New Features

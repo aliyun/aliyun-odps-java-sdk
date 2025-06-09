@@ -1,4 +1,17 @@
 # 更新日志
+
+## [0.52.2-public] - 2025-06-03
+### 问题修复
+- **CommandApi**
+  修复了在 SQLExecutor 开启 CommandApi 功能时，在处理 desc extended table 返回结果中 Comment 字段错误的为 Boolean 类型的问题。
+
+
+## [0.52.1-public] - 2025-05-08
+### 🎉 新增功能
+- **SQLExecutor**
+  SQLExecutorBuilder 新增参数 `skipCheckIfSelect`（仅非 MaxQA 场景生效），默认为 false，当为 true 时，会跳过 select 语句的校验，提高极限性能。
+  可以在请求场景主要为查询语句时使用，在处理非查询语句时，处理延时会变长。
+
 ## [0.52.0-public] - 2025-04-17
 
 ### 🎉 新增功能
