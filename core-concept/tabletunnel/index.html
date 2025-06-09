@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.5.2">
 <title data-rh="true">使用 Tunnel 对表进行上传下载 | MaxCompute Java SDK</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://aliyun.github.io/aliyun-odps-java-sdk/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://aliyun.github.io/aliyun-odps-java-sdk/img/logo.svg"><meta data-rh="true" property="og:url" content="https://aliyun.github.io/aliyun-odps-java-sdk/core-concept/tabletunnel/"><meta data-rh="true" property="og:locale" content="zh_Hans"><meta data-rh="true" name="docusaurus_locale" content="zh-Hans"><meta data-rh="true" name="docsearch:language" content="zh-Hans"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="使用 Tunnel 对表进行上传下载 | MaxCompute Java SDK"><meta data-rh="true" name="description" content="概述"><meta data-rh="true" property="og:description" content="概述"><link data-rh="true" rel="canonical" href="https://aliyun.github.io/aliyun-odps-java-sdk/core-concept/tabletunnel/"><link data-rh="true" rel="alternate" href="https://aliyun.github.io/aliyun-odps-java-sdk/core-concept/tabletunnel/" hreflang="zh-Hans"><link data-rh="true" rel="alternate" href="https://aliyun.github.io/aliyun-odps-java-sdk/core-concept/tabletunnel/" hreflang="x-default"><link rel="stylesheet" href="/aliyun-odps-java-sdk/assets/css/styles.d1ef58d9.css">
-<script src="/aliyun-odps-java-sdk/assets/js/runtime~main.89118246.js" defer="defer"></script>
+<script src="/aliyun-odps-java-sdk/assets/js/runtime~main.672519d6.js" defer="defer"></script>
 <script src="/aliyun-odps-java-sdk/assets/js/main.262cb277.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -37,7 +37,7 @@
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="streamingtunnel">StreamingTunnel<a href="#streamingtunnel" class="hash-link" aria-label="StreamingTunnel的直接链接" title="StreamingTunnel的直接链接">​</a></h4>
 <p><strong>特点:</strong></p>
 <ul>
-<li><strong>自动提交（Auto-commit）:</strong> 数据写入后立即可见，适合实时或近实时的数据传输场景。</li>
+<li><strong>自动提交（Auto-commit）:</strong> 数据写入后无需commit，由服务端自动进行提交。更加适合实时或近实时的数据传输场景。</li>
 <li><strong>适用场景:</strong> 需要快速响应和即时查看数据变更的应用，如实时数据分析、流式处理等。</li>
 </ul>
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="batchtunnel">BatchTunnel<a href="#batchtunnel" class="hash-link" aria-label="BatchTunnel的直接链接" title="BatchTunnel的直接链接">​</a></h4>
