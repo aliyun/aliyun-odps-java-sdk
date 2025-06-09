@@ -6,7 +6,7 @@ toc_max_heading_level: 4
 
 ## 概述
 
-`SQLExecutor` 是 MaxCompute 为执行 SQL 提供的统一的接口，用户可以通过这一接口，提交离线作业和 MCQA
+`SQLExecutor` 是 MaxCompute 为执行 SQL 提供的统一的接口，用户可以通过这一接口，提交离线作业，MCQA和MaxQA
 作业，并提供了丰富的配置和方法，来满足用户多样的需求。
 
 ## 目录
@@ -63,8 +63,8 @@ public SQLExecutorBuilder odps(Odps odps)
 
 #### 设置任务名称
 
-使用`taskName`方法可以设置任务名称。对于 MCQA 1.0 作业，默认 taskName 为 `console_sqlrt_task`。
-对于 MCQA 2.0 作业，默认 taskName 为 `AnonymousMCQATask`。
+使用`taskName`方法可以设置任务名称。对于 MCQA 作业，默认 taskName 为 `console_sqlrt_task`。
+对于 MaxQA 作业，默认 taskName 为 `AnonymousMCQATask`。
 对于离线作业，无法配置 taskName，会使用 `AnonymousSQLTask` 作为 taskName。
 
 ```java
@@ -93,7 +93,7 @@ public SQLExecutorBuilder tunnelEndpoint(String tunnelEndpoint)
 #### 设置Quota名称
 
 使用`quotaName`方法可以设置计算资源组的名称。
-对于MCQA 2.0的作业，此项为必填项，需要指定相应的交互式资源组名称，否则在创建`SQLExecutor`时将抛出异常。
+对于MaxQA的作业，此项为必填项，需要指定相应的交互式资源组名称，否则在创建`SQLExecutor`时将抛出异常。
 
 ```java
 public SQLExecutorBuilder quotaName(String quotaName)
@@ -113,15 +113,15 @@ public SQLExecutorBuilder executeMode(ExecuteMode executeMode)
 
 **参数**：
 
-- `executeMode`：执行模式。可选项为 1. `INTERACTIVE`：交互式执行。（MCQA）；2. `OFFLINE`：离线执行。
+- `executeMode`：执行模式。可选项为 1. `INTERACTIVE_V2`：MaxQA；2. `INTERACTIVE`：MCQA；3. `OFFLINE`：离线执行。
 
-#### 启用 MCQA V2
+#### 使用 MaxQA
 
 ```java
 public SQLExecutorBuilder enableMcqaV2(boolean mcqaV2)
 ```
 
-- **参数**：`mcqaV2` - 布尔值，表示是否启用 MCQA V2。
+- **参数**：`mcqaV2` - 布尔值，表示是否启用 MaxQA。
 
 #### 启用命令API
 
@@ -205,7 +205,7 @@ SQLExecutorBuilder setPool(SQLExecutorPool pool)
 
 用来从指定实例恢复`SQLExecutor`。
 
-对于`MCQA 1.0`作业，instance为`Session`实例，这项操作表示重新链接到给定的`Session`。
+对于`MCQA`作业，instance为`Session`实例，这项操作表示重新链接到给定的`Session`。
 对于其他类型作业，instance为`SQLTask`实例，这项操作表示重新链接到给定的`SQLTask`。
 
 ```java
@@ -222,7 +222,7 @@ public SQLExecutorBuilder offlineJobPriority(Integer offlineJobPriority)
 
 - **参数**：`offlineJobPriority` - 整数，表示离线作业的优先级。
 
-#### 加速失败回退策略（仅MCQA1.0）
+#### 加速失败回退策略（仅MCQA）
 
 当执行失败时，是否回退到离线查询，采用什么策略回退。
 
@@ -232,10 +232,10 @@ public SQLExecutorBuilder fallbackPolicy(FallbackPolicy fallbackPolicy)
 
 - **参数**：`fallbackPolicy` - `FallbackPolicy` 对象，表示回退策略。
 
-#### 启用或禁用重新连接Session功能（仅MCQA1.0）
+#### 启用或禁用重新连接Session功能（仅MCQA）
 
-在MCQA1.0模式下，当发生当前链接找不到`Session`时（可能是`Session`被停止或超时），是否启用重新连接功能。
-`Session` 是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../core-concept/execute-sql/mcqav1.md)。
+在MCQA模式下，当发生当前链接找不到`Session`时（可能是`Session`被停止或超时），是否启用重新连接功能。
+`Session` 是MCQA独有的概念，详细信息可以参考[MCQA](../core-concept/execute-sql/mcqav1.md)。
 
 ```java
 public SQLExecutorBuilder enableReattach(boolean enableReattach)
@@ -245,9 +245,9 @@ public SQLExecutorBuilder enableReattach(boolean enableReattach)
 - **参数**：`enableReattach` - 布尔值，表示是否启用重新连接。
 - **返回值**：`SQLExecutorBuilder` 实例。
 
-#### 设置属性（仅MCQA1.0）
+#### 设置属性（仅MCQA）
 
-配置创建MCQA1.0 Session时，使用的的`properties`。
+配置创建MCQA Session时，使用的的`properties`。
 
 ```java
 public SQLExecutorBuilder properties(Map<String, String> properties)
@@ -257,10 +257,10 @@ public SQLExecutorBuilder properties(Map<String, String> properties)
 
 - `properties`：属性的键值对。
 
-#### 设置服务名称（仅MCQA1.0）
+#### 设置服务名称（仅MCQA）
 
-使用`serviceName`方法可以设置使用MCQA1.0时，链接的`Session`名称。
-`Session` 是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../core-concept/execute-sql/mcqav1.md)。
+使用`serviceName`方法可以设置使用MCQA时，链接的`Session`名称。
+`Session` 是MCQA独有的概念，详细信息可以参考[MCQA](../core-concept/execute-sql/mcqav1.md)。
 
 ```java
 public SQLExecutorBuilder serviceName(String serviceName)
@@ -270,9 +270,9 @@ public SQLExecutorBuilder serviceName(String serviceName)
 
 - `serviceName`：`Session`名称。
 
-#### 允许MCQA1.0执行非Select操作（仅MCQA1.0）
+#### 允许MCQA执行非Select操作（仅MCQA）
 
-当关闭这项选项时，MCQA1.0作业在遇到非选择操作，会回退为离线作业。
+当关闭这项选项时，MCQA作业在遇到非选择操作，会回退为离线作业。
 
 ```java
 public SQLExecutorBuilder sessionSupportNonSelect(boolean sessionSupportNonSelect)
@@ -280,10 +280,10 @@ public SQLExecutorBuilder sessionSupportNonSelect(boolean sessionSupportNonSelec
 
 - **参数**：`sessionSupportNonSelect` - 布尔值，表示是否支持非选择操作。
 
-#### 设置附加超时时间（仅MCQA1.0）
+#### 设置附加超时时间（仅MCQA）
 
-使用`attachTimeout`方法可以设置当使用MCQA1.0时，链接`Session`时的超时时间。`Session`
-是MCQA1.0独有的概念，详细信息可以参考[MCQA 1.0](../core-concept/execute-sql/mcqav1.md)。
+使用`attachTimeout`方法可以设置当使用MCQA时，链接`Session`时的超时时间。`Session`
+是MCQA独有的概念，详细信息可以参考[MCQA](../core-concept/execute-sql/mcqav1.md)。
 
 ```java
 public SQLExecutorBuilder attachTimeout(Long timeout)
@@ -293,7 +293,7 @@ public SQLExecutorBuilder attachTimeout(Long timeout)
 
 - `timeout`：超时时间。单位为毫秒。
 
-#### 设置运行集群的名称（仅MCQA1.0）
+#### 设置运行集群的名称（仅MCQA）
 
 实际上，这个接口大部分情况下无用，因为用户没有手段得知运行集群的名称。通常仅作为内部排查问题使用。
 
@@ -303,7 +303,7 @@ public SQLExecutorBuilder runningCluster(String runningCluster)
 
 - **参数**：`runningCluster` - 字符串，表示运行集群的名称。
 
-#### 设置Quota（仅MCQA2.0）
+#### 设置Quota（仅MaxQA）
 
 与[设置Quota名称](#设置quota名称)相比，这个方法可以配置一个已经获取好的Quota示例，这可以避免通过quotaName从服务端获取Quota的过程，使通过缓存Quota来提高性能成为可能。
 
@@ -313,15 +313,22 @@ public SQLExecutorBuilder quota(Quota quota)
 
 - **参数**：`quota` - Quota 实例，通过 `Quotas#getWlmQuota` 获得，或通过 `Quota#setMcqaConnHeader(String)` 方法加载。
 
-#### 设置RegionId（仅MCQA2.0）
+#### 设置RegionId（仅MaxQA）
 
-MCQA 2.0 作业会通过 [设置Quota名称](#设置quota名称) 获取的 quotaName 来从服务端获取 Quota，这使用的是 Project 所在的 RegionId，
+MaxQA 作业会通过 [设置Quota名称](#设置quota名称) 获取的 quotaName 来从服务端获取 Quota，这使用的是 Project 所在的 RegionId，
 然而，我们允许用户通过这个方法，指定 Quota 所在的 RegionId，尽管像其他 region 的 Quota 提及作业有可能失败。
 ```java
 public SQLExecutorBuilder regionId(String regionId)
 ```
 
 - **参数**：`regionId` - 区域名，表示 Quota 所在的区域，通常不需要设置。
+
+#### 跳过 SQL 解析（仅MCQA，离线作业）
+默认为 false，当为 true 时，会跳过 select 语句的校验，提高极限性能。 可以在请求场景主要为查询语句时使用，在处理非查询语句时，处理延时会变长。
+MaxQA 采用全新协议，无需跳过 SQL 解析。
+```java
+public SQLExecutorBuilder skipCheckIfSelect(boolean skipCheckIfSelect)
+```
 
 ## 执行SQL查询
 
@@ -427,7 +434,7 @@ String getTaskName();
 ### 获取当前查询ID
 
 返回 null 表示 Executor 尚未初始化，或未执行作业。 
-对于 MCQA 1.0 作业，返回值为`instanceId + '_' + subqueryId`，对于其他作业，返回值为 instanceId。
+对于 MCQA 作业，返回值为`instanceId + '_' + subqueryId`，对于其他作业，返回值为 instanceId。
 
 ```java
 String getQueryId();
@@ -435,7 +442,7 @@ String getQueryId();
 ### 获取子查询ID
 
 返回 -1 表示 Executor 尚未初始化，或未执行作业。 
-对于 MCQA 1.0 作业，返回值为子查询的id
+对于 MCQA 作业，返回值为子查询的id
 对于其他作业，返回值始终为 -1
 
 ```java
@@ -452,7 +459,7 @@ String getLogView();
 
 ### 获取当前查询的实例
 
-当使用MCQA1.0时，该接口返回的是`Session`实例，否则返回上一个查询的`SQLTask`实例。返回值可能为null。
+当使用MCQA时，该接口返回的是`Session`实例，否则返回上一个查询的`SQLTask`实例。返回值可能为null。
 
 ```java
 Instance getInstance();
@@ -461,8 +468,8 @@ Instance getInstance();
 ### 检查该 Executor 是否活跃
 
 离线查询模式，该接口永远返回`false`。
-MCQA1.0查询模式，该接口返回的是`Session`状态。
-MCQA2.0查询模式，该接口永远返回`false`。
+MCQA查询模式，该接口返回的是`Session`状态。
+MaxQA查询模式，该接口永远返回`false`。
 
 ```java
 boolean isActive();
