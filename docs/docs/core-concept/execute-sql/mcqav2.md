@@ -9,7 +9,7 @@ sidebar_position: 3
 的特性、架构和使用方式，请参考[阿里云官网文档](https://help.aliyun.com/zh/maxcompute/user-guide/maxcompute-query-acceleration2-0)
 :::
 
-odps-sdk 从 0.50 版本开始，支持提交 MaxQA 作业
+odps-sdk 从 0.52.0 版本开始，支持提交 MaxQA 作业，低于 0.52.0 版本，可能存在兼容性问题，详见 CHANGELOG
 
 ## 核心接口
 
