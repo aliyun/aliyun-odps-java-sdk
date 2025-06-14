@@ -41,6 +41,7 @@ import java.util.TimeZone;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.exceptions.SchemaMismatchRuntimeException;
 import com.aliyun.odps.type.TypeInfoFactory;
 
 /**
@@ -73,6 +74,13 @@ public class ArrayRecord implements Record, Serializable {
    */
   private Long fieldMaxSize = DEFAULT_FIELD_MAX_SIZE;
 
+  /**
+   * Whether to ignore case when accessing record by column name.
+   * Since 0.51.8, default value from true to false.
+   * if true, may cause performance loss.
+   */
+  protected boolean caseSensitive;
+
   public ArrayRecord(Column[] columns) {
     this(columns, true);
   }
@@ -82,12 +90,17 @@ public class ArrayRecord implements Record, Serializable {
   }
 
   public ArrayRecord(Column[] columns, boolean strictTypeValidation, Long fieldMaxSize) {
+    this(columns, strictTypeValidation, fieldMaxSize, false);
+  }
+
+  public ArrayRecord(Column[] columns, boolean strictTypeValidation, Long fieldMaxSize, boolean caseSensitive) {
     if (columns == null) {
       throw new IllegalArgumentException();
     }
 
     this.columns = columns;
     this.strictTypeValidation = strictTypeValidation;
+    this.caseSensitive = caseSensitive;
     if (fieldMaxSize != null) {
       this.fieldMaxSize = fieldMaxSize;
     }
@@ -95,7 +108,11 @@ public class ArrayRecord implements Record, Serializable {
     values = new Serializable[columns.length];
 
     for (int i = 0; i < columns.length; i++) {
-      nameMap.put(columns[i].getName().toLowerCase(), i);
+      if (!caseSensitive) {
+        nameMap.put(columns[i].getName().toLowerCase(), i);
+      } else {
+        nameMap.put(columns[i].getName(), i);
+      }
     }
   }
 
@@ -103,10 +120,14 @@ public class ArrayRecord implements Record, Serializable {
     this(columns, values, true);
   }
 
-  public ArrayRecord(Column[] columns, Object[] values, boolean strictTypeValidation){
-    this(columns, strictTypeValidation);
+  public ArrayRecord(Column[] columns, Object[] values, boolean strictTypeValidation) {
+    this(columns, values, strictTypeValidation, false);
+  }
+
+  public ArrayRecord(Column[] columns, Object[] values, boolean strictTypeValidation, boolean caseSensitive) {
+    this(columns, strictTypeValidation, null, caseSensitive);
     if (values.length != columns.length) {
-      throw new IllegalArgumentException("Lengths of schema and column values of the Record mismatches.");
+      throw new SchemaMismatchRuntimeException("Lengths of schema and column values of the Record mismatches.");
     }
     for (int i = 0 ; i < columns.length; i++){
       set(i, values[i]);
@@ -388,8 +409,11 @@ public class ArrayRecord implements Record, Serializable {
 
   @Override
   public void set(Object[] values) {
-    if (values == null || columns.length != values.length) {
-      throw new IllegalArgumentException();
+    if (values == null) {
+      throw new IllegalArgumentException("values cannot be null.");
+    }
+    if (columns.length != values.length) {
+      throw new SchemaMismatchRuntimeException("Schema mismatch, expect " + columns.length + " columns, but got " + values.length);
     }
     for (int i = 0; i < values.length; ++i) {
       set(i, values[i]);
@@ -402,7 +426,7 @@ public class ArrayRecord implements Record, Serializable {
   }
 
   private int getColumnIndex(String name) {
-    Integer idx = nameMap.get(name.toLowerCase());
+    Integer idx = nameMap.get(this.caseSensitive ? name : name.toLowerCase());
     if (idx == null) {
       throw new IllegalArgumentException("No such column:" + name);
     }

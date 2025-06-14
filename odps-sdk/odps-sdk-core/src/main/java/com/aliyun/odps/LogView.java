@@ -22,36 +22,55 @@ package com.aliyun.odps;
 import java.util.HashMap;
 
 import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.options.OdpsOptions;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.security.SecurityManager;
 import com.aliyun.odps.utils.StringUtils;
 
+/**
+ * JobInsight is the name of new version of Logview.
+ * In MaxCompute S54, we will use JobInsight to replace Logview.
+ *
+ */
 public class LogView {
 
   private static final String POLICY_TYPE = "BEARER";
-  private static final String HOST_DEFAULT = "http://logview.aliyun.com";
+  private static final String LOGVIEW_HOST_DEFAULT = "http://logview.alibaba-inc.com";
   private String logViewHost = "";
 
-  private static final String HOST_DEFAULT_V2 = "https://maxcompute.console.aliyun.com";
+  private static final String JOBINSIGHT_HOST_DEFAULT = "https://maxcompute.console.aliyun.com";
+  private String jobInsightHost = "";
 
-  private int version = 1;
+  private final int version;
 
   Odps odps;
 
   public LogView(Odps odps) {
-    this(odps, 1);
+    this(odps, null);
   }
 
-  public LogView(Odps odps, int version) {
+  public LogView(Odps odps, Integer version) {
     this.odps = odps;
-    this.version = version;
+    if (version == null) {
+      Boolean useLegacyLogview = odps.options().isUseLegacyLogview();
+      if (useLegacyLogview == null) {
+        this.jobInsightHost = getJobInsightHost();
+        if (StringUtils.isNullOrEmpty(jobInsightHost)) {
+          this.version = 1;
+        } else {
+          this.version = 2;
+        }
+      } else if (useLegacyLogview) {
+        this.version = 1;
+      } else {
+        this.version = 2;
+      }
+    } else {
+      this.version = version;
+    }
   }
 
   private String getLogviewHost() {
-    if (2 == version) {
-      return HOST_DEFAULT_V2;
-    }
-
     if (odps.getLogViewHost() != null) {
       return odps.getLogViewHost();
     } else {
@@ -62,13 +81,32 @@ public class LogView {
         Response resp = restClient.request(resource, "GET", params, null, null);
         String logViewHost = new String(resp.getBody());
         if (StringUtils.isNullOrEmpty(logViewHost)) {
-          return HOST_DEFAULT;
+          return LOGVIEW_HOST_DEFAULT;
         } else
         {
           return logViewHost;
         }
       } catch (Exception e) {
-        return HOST_DEFAULT;
+        return LOGVIEW_HOST_DEFAULT;
+      }
+    }
+  }
+
+
+  private String getJobInsightHost() {
+    if (odps.getJobInsightHost() != null) {
+      return odps.getJobInsightHost();
+    } else {
+      RestClient restClient = odps.clone().getRestClient();
+      restClient.setConnectTimeout(3);
+      restClient.setReadTimeout(10);
+      try {
+        String resource = "/webconsole/host";
+        HashMap<String, String> params = new HashMap<String, String>();
+        Response resp = restClient.request(resource, "GET", params, null, null);
+        return new String(resp.getBody());
+      } catch (Exception e) {
+        return null;
       }
     }
   }
@@ -79,11 +117,17 @@ public class LogView {
    * @return logview host 地址
    */
   public String getLogViewHost() {
-    if (StringUtils.isNullOrEmpty(logViewHost)) {
-      logViewHost = getLogviewHost();
+    if (version == 2) {
+      if (StringUtils.isNullOrEmpty(jobInsightHost)) {
+        jobInsightHost = getJobInsightHost();
+      }
+      return jobInsightHost;
+    } else {
+      if (StringUtils.isNullOrEmpty(logViewHost)) {
+        logViewHost = getLogviewHost();
+      }
+      return logViewHost;
     }
-
-    return logViewHost;
   }
 
   /**
@@ -93,6 +137,27 @@ public class LogView {
    */
   public void setLogViewHost(String logViewHost) {
     this.logViewHost = logViewHost;
+  }
+
+  /**
+   * 设置 logview host 地址
+   * @param jobInsightHost
+   *          host 地址
+   */
+  public void setJobInsightHost(String jobInsightHost) {
+    this.jobInsightHost = jobInsightHost;
+  }
+
+  /**
+   * 生成 logview 链接，默认有效时间 24h
+   *
+   * @param instance
+   *          instance 对象
+   * @return  logview
+   * @throws OdpsException
+   */
+  public String generateLogView(Instance instance) throws OdpsException {
+    return generateLogView(instance, 24, null, null);
   }
 
   /**
@@ -143,11 +208,10 @@ public class LogView {
 
   private String generateLogView(Instance instance, long hours, Integer queryId, String token)
       throws OdpsException {
-    if (StringUtils.isNullOrEmpty(logViewHost)) {
-      logViewHost = getLogviewHost();
-    }
-
     if (1 == version) {
+      if (StringUtils.isNullOrEmpty(logViewHost)) {
+        logViewHost = getLogviewHost();
+      }
       StringBuilder urlBuilder = new StringBuilder(logViewHost);
       urlBuilder.append("/logview/?h=").append(odps.getEndpoint())
           .append("&p=").append(instance.getProject())
@@ -161,10 +225,18 @@ public class LogView {
       urlBuilder.append("&token=").append(token);
       return urlBuilder.toString();
     } else if (2 == version) {
-      String url = logViewHost + "/" + odps.projects().get().getRegionId()
-             + "/job-insights?h=" + odps.getEndpoint()
-             + "&p=" + instance.getProject()
-             + "&i=" + instance.getId();
+      if (StringUtils.isNullOrEmpty(jobInsightHost)) {
+        jobInsightHost = getJobInsightHost();
+      }
+      String regionId = "cn";
+      try {
+        regionId = odps.projects().get(instance.getProject()).getRegionId();
+      } catch (Exception ignore) {
+      }
+      String url = jobInsightHost + "/" + regionId
+                   + "/job-insights?h=" + odps.getEndpoint()
+                   + "&p=" + instance.getProject()
+                   + "&i=" + instance.getId();
       if (queryId != null) {
         url += "&subQuery=" + queryId;
       }

@@ -97,7 +97,7 @@ public class Projects {
   public Project get(String projectName) throws OdpsException {
     ProjectModel model = new ProjectModel();
     model.name = projectName;
-    Project prj = new Project(model, client);
+    Project prj = new Project(model, odps);
 
     return prj;
   }
@@ -355,7 +355,7 @@ public class Projects {
                 "GET", params);
 
         for (Project.ProjectModel model : resp.projects) {
-          Project t = new Project(model, client);
+          Project t = new Project(model, odps);
           projects.add(t);
         }
 

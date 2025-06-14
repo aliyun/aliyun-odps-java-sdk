@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 
+import org.apache.commons.lang.BooleanUtils;
+
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
@@ -394,6 +396,7 @@ public class Project extends LazyLoad {
   }
 
   private ProjectModel model;
+  private Odps odps;
   private RestClient client;
 
   private Map<String, String> properties = new LinkedHashMap<String, String>();
@@ -408,6 +411,12 @@ public class Project extends LazyLoad {
   Project(ProjectModel model, RestClient client) {
     this.model = model;
     this.client = client;
+  }
+
+  Project(ProjectModel model, Odps odps) {
+    this.model = model;
+    this.odps = odps;
+    this.client = odps.getRestClient();
   }
 
   @SuppressWarnings("unchecked")
@@ -468,8 +477,20 @@ public class Project extends LazyLoad {
    * 如果是 epv2，执行 ifEpv2。
    * 如果不是 epv2，或者检查时报错，则执行 ifNotEpv2。
    * 当执行 ifNotEpv2 时，如果报错且检查 project 时也报错，则将两个报错合成一个，抛出。
+   * <p>
+   * 可以通过 OdpsOptions.setSkipCheckIfEpv2(true) 跳过检查。
    */
   public <T> T executeIfEpv2(Callable<T> ifEpv2, Callable<T> ifNotEpv2) throws OdpsException {
+    if (BooleanUtils.isTrue(odps.options().isSkipCheckIfEpv2())) {
+      try {
+        return ifNotEpv2.call();
+      } catch (OdpsException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new OdpsException(e.getMessage(), e);
+      }
+    }
+
     Exception readProjectException = null;
     boolean isEpv2;
     try {

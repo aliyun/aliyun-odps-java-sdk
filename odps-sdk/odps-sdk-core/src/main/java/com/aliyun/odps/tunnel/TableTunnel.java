@@ -1280,6 +1280,13 @@ public class TableTunnel {
      */
     Record newRecord();
 
+    /**
+     * 创建一个{@Link Record} 对象，默认在 SetByName 时非 caseSensitive
+     * 可以配置为true，能够提高创建效率
+     * @return Record对象
+     */
+    Record newRecord(boolean caseSensitive);
+
     UpsertStream.Builder buildUpsertStream();
 
     interface Builder {
@@ -2119,8 +2126,18 @@ public class TableTunnel {
       return new ArrayRecord(
           getSchema().getColumns().toArray(new Column[0]),
           true,
-          fieldMaxSize);
+          fieldMaxSize,
+          false);
     }
+
+    public Record newRecord(boolean caseSensitive) {
+      return new ArrayRecord(
+          getSchema().getColumns().toArray(new Column[0]),
+          true,
+          fieldMaxSize,
+          caseSensitive);
+    }
+
 
     public RecordPack newRecordPack() throws IOException {
       return newRecordPack(null);

@@ -45,7 +45,6 @@ public class LogViewTest extends TestBase {
   }
 
 
-
   @Test
   public void testLogViewNotNull() {
     LogView log = odps.logview();
@@ -57,11 +56,29 @@ public class LogViewTest extends TestBase {
   @Test
   public void testLogViewHost() throws OdpsException {
     try {
+      odps.options().setUseLegacyLogview(true);
       LogView log = odps.logview();
       log.setLogViewHost("http://test.a.b.c");
       Instance i = SQLTask.run(odps, "select 1;");
       assertTrue(
           log.generateLogView(i, 7 * 24).startsWith("http://test.a.b.c/logview"));
+    } catch (OdpsException e) {
+      assertTrue(e.getMessage().contains("Request timeout"));
+    } finally {
+      odps.options().setUseLegacyLogview(null);
+    }
+  }
+
+  @Test
+  public void testLogViewHostV2() throws OdpsException {
+    try {
+      LogView log = odps.logview();
+      log.setJobInsightHost("http://test.a.b.c");
+      Instance i = SQLTask.run(odps, "select 1;");
+      assertTrue(
+          log.generateLogView(i).startsWith("http://test.a.b.c"));
+      assertTrue(
+          log.generateLogView(i).contains("job-insights"));
     } catch (OdpsException e) {
       assertTrue(e.getMessage().contains("Request timeout"));
     }

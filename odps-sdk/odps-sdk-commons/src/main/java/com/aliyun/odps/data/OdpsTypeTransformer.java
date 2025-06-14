@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.exceptions.SchemaMismatchRuntimeException;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.CharTypeInfo;
 import com.aliyun.odps.type.DecimalTypeInfo;
@@ -95,8 +96,9 @@ public class OdpsTypeTransformer {
     try {
       if (value.length() * UTF8_ENCODED_CHAR_MAX_SIZE > limit
           && value.getBytes("utf-8").length > limit) {
-        throw new IllegalArgumentException(
-            "InvalidData: The string's length is more than " + limit + " bytes.");
+        throw new SchemaMismatchRuntimeException(
+            "InvalidData: The string's length is more than " + limit
+            + " bytes. You can enlarge this limit by 'setproject odps.sql.cfile2.field.maxsize=[length]' and rebuild the tunnel session or array record.");
       }
     } catch (UnsupportedEncodingException e) {
       throw new IllegalArgumentException(e.getMessage(), e);
@@ -113,7 +115,7 @@ public class OdpsTypeTransformer {
 
   private static void validateChar(Char value, CharTypeInfo typeInfo) {
     if (value.length() > typeInfo.getLength()) {
-      throw new IllegalArgumentException(String.format(
+      throw new SchemaMismatchRuntimeException(String.format(
           "InvalidData: %s data is overflow, pls check data length: %s.", typeInfo.getTypeName(),
           (value).length()));
     }
@@ -121,7 +123,7 @@ public class OdpsTypeTransformer {
 
   private static void validateVarChar(Varchar value, VarcharTypeInfo typeInfo) {
     if (value.length() > typeInfo.getLength()) {
-      throw new IllegalArgumentException(String.format(
+      throw new SchemaMismatchRuntimeException(String.format(
           "InvalidData: %s data is overflow, pls check data length: %s.", typeInfo.getTypeName(),
           (value).length()));
     }
@@ -129,7 +131,8 @@ public class OdpsTypeTransformer {
 
   private static void validateBigint(Long value) {
     if (value == Long.MIN_VALUE) {
-      throw new IllegalArgumentException("InvalidData: Bigint out of range.");
+      throw new IllegalArgumentException(
+          "InvalidData: Bigint out of range. MaxCompute does not support Long type with a value of -2^63. For long numbers, you can use the String type instead.");
     }
   }
 
@@ -143,7 +146,9 @@ public class OdpsTypeTransformer {
 
   private static void validateDateTime(long epochMilli) {
     if (epochMilli < DATETIME_MIN_TICKS || epochMilli > DATETIME_MAX_TICKS) {
-      throw new IllegalArgumentException(String.format("InvalidData: Datetime(%s) out of range.", epochMilli));
+      throw new IllegalArgumentException(String.format(
+          "InvalidData: Datetime(%s) out of range. MaxCompute does not support time type before than -001-12-31 00:00:00 or"
+          + "after than 10000-01-02 00:00:00.", epochMilli));
     }
   }
 
@@ -151,7 +156,7 @@ public class OdpsTypeTransformer {
     BigDecimal tmpValue = value.setScale(typeInfo.getScale(), RoundingMode.HALF_UP);
     int intLength = tmpValue.precision() - tmpValue.scale();
     if (intLength > (typeInfo.getPrecision() - typeInfo.getScale())) {
-      throw new IllegalArgumentException(
+      throw new SchemaMismatchRuntimeException(
           String.format("InvalidData: decimal value %s overflow, max integer digit number is %s.",
                         value, (typeInfo.getPrecision() - typeInfo.getScale())));
     }
@@ -404,7 +409,7 @@ public class OdpsTypeTransformer {
           transformedResult);
     } catch (ClassCastException e) {
       // manually throw exception because jvm may optimize ClassCastException message to null.
-      throw new IllegalArgumentException("Cannot format " + value
+      throw new SchemaMismatchRuntimeException("Cannot format " + value
                                          + "(" + value.getClass() + ") to ODPS type: "
                                          + typeInfo.getOdpsType()
                                          + ", expect java class: "

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.aliyun.odps.exceptions.SchemaMismatchRuntimeException;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.NestedTypeInfo;
@@ -34,8 +35,13 @@ public class ReorderableStruct implements Struct {
    *               be careful: the struct value list is a reference of this param
    */
   public ReorderableStruct(StructTypeInfo type, List<Object> values) {
-    if (type == null || values == null || values.size() != type.getFieldCount()) {
+    if (type == null || values == null) {
       throw new IllegalArgumentException("Illegal arguments for StructObject.");
+    }
+    if (values.size() != type.getFieldCount()) {
+      throw new SchemaMismatchRuntimeException(
+          "Schema mismatch, expect " + type.getFieldCount() + " columns, but got "
+          + values.size());
     }
     this.typeInfo = type;
     this.values = values;
@@ -88,7 +94,10 @@ public class ReorderableStruct implements Struct {
   public synchronized void reorder(StructTypeInfo orderedType) {
     List<String> orderedTypeFieldNames = orderedType.getFieldNames();
     if (orderedTypeFieldNames.size() != typeInfo.getFieldNames().size()) {
-      throw new IllegalArgumentException("The orderedType is not compatible with this struct");
+      throw new SchemaMismatchRuntimeException(
+          "The orderedType is not compatible with this struct. Struct has "
+          + typeInfo.getFieldNames().size() + " columns, but record schema need "
+          + orderedTypeFieldNames.size() + " columns.");
     }
 
     List<Object> newValues = new ArrayList<>();
@@ -98,7 +107,8 @@ public class ReorderableStruct implements Struct {
       String colName = orderedTypeFieldNames.get(index).toLowerCase();
       Integer oldIndex = fieldNameToIndex.get(colName);
       if (oldIndex == null) {
-        throw new IllegalArgumentException("Field " + colName + " not found in original struct");
+        throw new SchemaMismatchRuntimeException(
+            "Field " + colName + " not found in original struct");
       }
       Object oldValue = values.get(oldIndex);
       TypeInfo oldTypeInfo = typeInfo.getFieldTypeInfos().get(oldIndex);
@@ -118,12 +128,15 @@ public class ReorderableStruct implements Struct {
     rebuildFieldNameIndexMap();
   }
 
-  public static Object reorderNestedType(Object value, TypeInfo oldTypeInfo, TypeInfo newTypeInfo) {
+  public static Object reorderNestedType(Object value, TypeInfo oldTypeInfo,
+                                         TypeInfo newTypeInfo) {
     if (value == null) {
       return null;
     }
     if (oldTypeInfo != null && oldTypeInfo.getOdpsType() != newTypeInfo.getOdpsType()) {
-      throw new IllegalArgumentException("The nested type is not compatible");
+      throw new SchemaMismatchRuntimeException(
+          "The nested type is not compatible. " + oldTypeInfo.getTypeName() + " != "
+          + newTypeInfo.getTypeName());
     }
     if (newTypeInfo instanceof StructTypeInfo) {
       if (oldTypeInfo == null) {
@@ -132,7 +145,8 @@ public class ReorderableStruct implements Struct {
       // Automatically wrap ordinary Struct as ReorderableStruct
       if (value instanceof Struct && !(value instanceof ReorderableStruct)) {
         value =
-            new ReorderableStruct((StructTypeInfo) oldTypeInfo, ((Struct) value).getFieldValues());
+            new ReorderableStruct((StructTypeInfo) oldTypeInfo,
+                                  ((Struct) value).getFieldValues());
       }
       // Recursively process nested structures
       ReorderableStruct struct = (ReorderableStruct) value;
@@ -233,7 +247,8 @@ public class ReorderableStruct implements Struct {
 
     ReorderableStruct that = (ReorderableStruct) o;
 
-    if (!StringUtils.equalsIgnoreCase(this.typeInfo.getFieldNames(), that.typeInfo.getFieldNames())) {
+    if (!StringUtils.equalsIgnoreCase(this.typeInfo.getFieldNames(),
+                                      that.typeInfo.getFieldNames())) {
       return false;
     }
 

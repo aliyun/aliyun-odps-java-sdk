@@ -29,6 +29,7 @@ import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
+import com.aliyun.odps.options.OdpsOptions;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -92,6 +93,7 @@ public class Odps {
   private Classifications classifications;
   private Quotas quotas;
   private Streams streams;
+  private OdpsOptions options;
 
   /* RestClient instance */
   protected RestClient client;
@@ -99,6 +101,7 @@ public class Odps {
   private String userAgent;
 
   private String logViewHost;
+  private String jobInsightHost;
   private AccountFormat accountFormat = null;
 
   public void setAccount(Account account) {
@@ -150,6 +153,7 @@ public class Odps {
     offlineModels = new OfflineModels(this);
     classifications = new Classifications(this);
     quotas = new Quotas(this);
+    options = new OdpsOptions();
   }
 
   public Odps(Odps odps) {
@@ -158,10 +162,12 @@ public class Odps {
     setUserAgent(odps.getUserAgent());
     setEndpoint(odps.getEndpoint());
     setLogViewHost(odps.getLogViewHost());
+    setJobInsightHost(odps.getJobInsightHost());
     setTunnelEndpoint(odps.tunnelEndpoint);
     setCurrentSchema(odps.getCurrentSchema());
     setAccountFormat(odps.getAccountFormat());
     setGlobalSettings(odps.getGlobalSettings());
+    setOptions(odps.options);
     client.setIgnoreCerts(odps.getRestClient().isIgnoreCerts());
     client.setPrefix(odps.getRestClient().getPrefix());
     odps.getRestClient().getUserDefinedHeaders()
@@ -399,6 +405,14 @@ public class Odps {
     return offlineModels;
   }
 
+  public OdpsOptions options() {
+    return options;
+  }
+
+  public void setOptions(OdpsOptions options) {
+    this.options = options;
+  }
+
   @Override
   public Odps clone() {
     return new Odps(this);
@@ -423,6 +437,15 @@ public class Odps {
   }
 
   /**
+   * 获取jobInsight host地址，可能为null
+   *
+   * @return logview host地址
+   */
+  public String getJobInsightHost() {
+    return this.jobInsightHost;
+  }
+
+  /**
    * 设置logview host地址
    *
    * @param host
@@ -430,6 +453,16 @@ public class Odps {
    */
   public void setLogViewHost(String host) {
     this.logViewHost = host;
+  }
+
+  /**
+   * 设置job-insight host地址
+   *
+   * @param host
+   *     地址
+   */
+  public void setJobInsightHost(String host) {
+    this.jobInsightHost = host;
   }
 
   /**

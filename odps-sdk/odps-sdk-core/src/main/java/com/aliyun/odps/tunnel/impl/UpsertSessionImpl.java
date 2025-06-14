@@ -117,6 +117,11 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     }
 
     @Override
+    public Record newRecord(boolean caseSensitive) {
+        return new UpsertRecord(this.recordSchema.getColumns().toArray(new Column[0]), null, caseSensitive);
+    }
+
+    @Override
     public UpsertStream.Builder buildUpsertStream() {
         return new UpsertStreamImpl.Builder().setSession(this)
             .setCompressOption(config.getCompressOption()).setListener(
