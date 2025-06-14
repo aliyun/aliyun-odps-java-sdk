@@ -4,6 +4,23 @@ sidebar_position: 6
 ---
 
 # 更新日志
+## [0.52.3-public] - 2025-06-14
+### 🎉 新增功能
+- **OdpsOptions**  
+  新增 Odps 实例级别的一些变量，可以通过 `odps.options()` 获取。现有两个方法：
+  - `setUseLegacyLogview` = true/false/null  
+    当为 true，使用 logview，当为 false，使用 jobinsight（logview v2），当为 null（默认值），智能判断当前 region 是否能够使用 jobinsight，如是使用 jobinsight，否则使用 logview。  
+    ⚠️ **兼容性提示**：此前版本默认使用的是 logview，更新到此版本后，获取logview时可能获取到 jobinsight 地址，注意这点以避免兼容性问题。
+  - `setSkipCheckIfEpv2` = true/false  
+    默认为 false，在 0.51.7 版本中，getTable 等接口增加了对 EPv2 项目的支持，但会影响接口性能。可以通过将此配置设置 true，会跳过Epv2的项目，提高性能。
+
+- **ArrayRecord**  
+  在主要的初始化 Record 场景，比如通过构造函数初始化ArrayRecord，通过Tunnel Session newRecord 方法生成 Record，都新增了 caseSensitive 参数，用来标识使用该 Record setByName 时，是否区分大小写。  
+  ⚠️ **历史兼容说明**：在 0.51.8 版本中，我们让 Record 不再区分大小写（因为 MaxCompute 引擎不区分大小写），但这会导致一些性能损失。因此在本版本，我们提供了方式来恢复原行为。
+
+- **SchemaMismatchRuntimeException**  
+  新增了一种异常类型，来试图 try best 的告诉用户：在 Tunnel 写入过程中，传入的数据和表模式不匹配 可能是表模式发生了变化，请重建 Tunnel Session。该类是 `IllegalArgumentException` 的子类。
+
 
 ## [0.52.2-public] - 2025-06-03
 ### 问题修复
@@ -49,6 +66,8 @@ sidebar_position: 6
     ✅ 增强错误信息可读性  
     ✅ 避免 JVM 对异常的隐式优化（如错误信息被截断为 null）
 
+
+
 ## [0.51.11-public] - 2025-03-18
 
 ### 主要改动
@@ -80,6 +99,8 @@ sidebar_position: 6
 ### 变更
 - **Record** `set(String columnName, Object value)` 方法现在会忽略 columnName 的大小写。`getColumn` 方法返回的列名将始终为小写。
 
+  ⚠️ **兼容性提示**： 注意，这项改动会影响 ArrayRecord 初始化和 setByName 时的性能，用户应当相应的性能测试，我们在 0.52.3 版本中增加了开关来关闭这项功能。
+
 ### 功能
 - **Table** 新增`getMetadataJson`和`getExtendedInfoJson`方法
 - **Partition** 新增`getMetadataJson`,`getExtendedInfoJson`,`getCdcSize`,`getCdcRecordNum`方法
@@ -88,13 +109,16 @@ sidebar_position: 6
 
 ## [0.51.7-public] - 2025-02-13
 ### 功能
-- **EPV2** 新增对 EPV2（External Project V2）的支持，包括`ListTable`, `ListSchema`, `DescribeTable` 等接口
 - **MCQA** 在通过 InstanceTunnel 取结果，发生失败回退的场景，加入回退日志
+- **EPV2** 新增对 EPV2（External Project V2）的支持，包括`ListTable`, `ListSchema`, `DescribeTable` 等接口。
+
+  ⚠️ **兼容性提示**：这会略微影响这些接口的性能（功能不受影响），需要用户注意，我们在 0.52.3 版本中增加了开关来关闭这项功能。
 
 
 ## [0.51.6-public] - 2025-01-26
 ### 修复
 - **TypeInfo** 修复了当 `StructTypeInfo` 嵌套在 `ArrayTypeInfo` 或 `MapTypeInfo` 内时，`getTypeName(true)` 方法不会对嵌套内字段名进行 quote 的问题。
+
 
 ## [0.51.5-public] - 2025-01-14
 ### 修复
@@ -108,7 +132,7 @@ sidebar_position: 6
 
 ### 变更
 - **UpsertStream** 在 0.51.0 版本，修改了 `close` 方法的函数签名（不再抛出 `TunnelException`），在本版本中恢复，以保证接口兼容性。
-- **ClusterInfo** 在 0.51.0 版本，toString 方法有所变更，在本版本中恢复，以保证接口兼容性。
+- **ClusterInfo** 在 0.51.0 版本，toString 方法有所变更，在本版本中恢复，以保证接口兼容性。 
 - **TunnelRetryStrategy**，**ConfigurationImpl** 类在 0.48.6 版本被移除，在本版本中恢复（但不会起到任何效果！），以保证接口兼容性。
 
 ## [0.51.3-public] - 2025-01-07
@@ -127,7 +151,7 @@ sidebar_position: 6
 
 ### 变更
 - **TypeInfo** `StructTypeInfo` 新增方法 `getTypeName(boolean quote)`，在 `0.51.0-public (rc0)` 版本，`StructTypeInfo` 默认会对字段名使用反引号进行 quote，我们怀疑这项变更对用户有影响，因此决定恢复原行为（默认不进行quote）
-  而是当用户需要 quote 时，可以调用 `getTypeName(true)`
+而是当用户需要 quote 时，可以调用 `getTypeName(true)`
 
 ### 修复
 - **TypeInfo** 当对字段使用反引号进行 quote 时，现在会正确对字段名进行转义
@@ -170,12 +194,12 @@ sidebar_position: 6
   - 新增`selectStatement`参数，用于`create table as` 和 `create view as` 场景
   - 新增`getSql`方法，用于获取创建表的 SQL 语句
   - 现在会对所有的 `Comment` 参数进行 quote，以支持包含特殊字符的 `Comment` 参数
-  - 将 DataHub 相关的建表参数（`hubLifecycle`, `shardNum`) 整合为 `DataHubInfo`
+  - 将 DataHub 相关的建表参数（`hubLifecycle`, `shardNum`) 整合为 `DataHubInfo` 
   - 重命名`withJars`方法为`withResources`，以表示不仅可以使用JAR类型资源
   - 重命名`withBucketNum`方法为`withDeltaTableBucketNum`，以表示该方法仅用于 Delta Table
   - 修改了 `withHints`，`withAlias`，`withTblProperties`，`withSerdeProperties` 方法的逻辑，现在会覆盖之前设置的值，而不是合并
   - 移除了`createExternal`方法，现在使用`create`方法即可
-- **Table**
+- **Table** 
   - 新增 `getSchemaVersion` 方法，用户获取当前表结构的版本，用户每次进行 SchemaEvolution 都会更新版本号，目前该字段仅用于在创建 StreamTunnel 时指定
   - 新增 `setLifeCycle`，`changeOwner`，`changeComment`，`touch`，`changeClusterInfo`，`rename`，`addColumns`，`dropColumns`方法，以支持对表结构进行修改
 - **StreamTunnel** 修改初始化逻辑，当指定 `allowSchemaMismatch` 为 `false` 时，会自动重试直到使用最新版本的表结构(超时时间为5min)
@@ -240,9 +264,9 @@ sidebar_position: 6
 ### 修复
 
 - **SQLExecutor**
-  - 修复了在MCQA 1.0模式下，用户指定`fallbackPolicy.isFallback4AttachError`时未正确生效的问题。
-  - 修复了在MCQA 2.0模式下，作业失败时`cancel`方法抛出异常的问题。
-  - 修复了在MCQA 2.0模式下，当isSelect判断错误时，通过instanceTunnel取结果报错的问题。
+    - 修复了在MCQA 1.0模式下，用户指定`fallbackPolicy.isFallback4AttachError`时未正确生效的问题。
+    - 修复了在MCQA 2.0模式下，作业失败时`cancel`方法抛出异常的问题。
+    - 修复了在MCQA 2.0模式下，当isSelect判断错误时，通过instanceTunnel取结果报错的问题。
 - **Table** 修复了`getPartitionSpecs`方法会trim分区值，导致无法获取存在的分区的问题。
 
 ## [0.50.3-public] - 2024-10-23
@@ -257,11 +281,11 @@ sidebar_position: 6
 ### 功能
 
 - **SQLExecutor** 增强 MCQA 2.0 功能：
-  - `isActive` 将返回 false，指示在 MCQA 2.0 模式下没有活跃的 Session。
-  - 新增 `cancel` 方法，用于中止正在执行的作业。
-  - `getExecutionLog` 现在返回当前日志的深拷贝并清空当前日志，避免重复获取。
-  - 在 `SQLExecutorBuilder` 新增 `quota` 方法，支持复用已加载的 `Quota`，减少加载时间。
-  - 在 `SQLExecutorBuilder` 新增 `regionId` 方法，允许指定 quota 所在的 region。
+    - `isActive` 将返回 false，指示在 MCQA 2.0 模式下没有活跃的 Session。
+    - 新增 `cancel` 方法，用于中止正在执行的作业。
+    - `getExecutionLog` 现在返回当前日志的深拷贝并清空当前日志，避免重复获取。
+    - 在 `SQLExecutorBuilder` 新增 `quota` 方法，支持复用已加载的 `Quota`，减少加载时间。
+    - 在 `SQLExecutorBuilder` 新增 `regionId` 方法，允许指定 quota 所在的 region。
 - **Quotas** 新增带 `regionId` 参数的 `getWlmQuota` 方法，用于获取指定 regionId 的 quota。
 - **Quota** 新增 `setMcqaConnHeader` 方法，支持用户通过自定义的 McqaConnHeader 重载 quota，以适配 MCQA
   2.0。
@@ -307,7 +331,7 @@ sidebar_position: 6
 ### 功能
 
 - **SQLExecutor** 新增 `isUseInstanceTunnel` 方法：
-  - 用来判断是否使用 instanceTunnel 取结果
+    - 用来判断是否使用 instanceTunnel 取结果
 
 ### 修复
 
@@ -318,14 +342,14 @@ sidebar_position: 6
 ### 功能
 
 - **SQLExecutor** 支持提交 MCQA 2.0 作业
-  - SQLExecutorBuilder 新增方法 `enableMcqaV2`
-  - SQLExecutorBuilder 新增对字段的 getter 方法
+    - SQLExecutorBuilder 新增方法 `enableMcqaV2`
+    - SQLExecutorBuilder 新增对字段的 getter 方法
 - SQLExecutor 新增 `getQueryId` 方法：
-  - 对于离线作业和 MCQA 2.0 作业，会返回当前执行的作业 InstanceId
-  - 对于 MCQA 1.0 作业，会返回 InstanceId 和 SubQueryId
+    - 对于离线作业和 MCQA 2.0 作业，会返回当前执行的作业 InstanceId
+    - 对于 MCQA 1.0 作业，会返回 InstanceId 和 SubQueryId
 - **TableAPI** `EnvironmentSettings` 新增 `SharingQuotaToken` 参数，以支持提交作业时携带Quota资源共享临时凭证
 - **Quotas** 新增 `getWlmQuota` 方法：
-  - 能够根据 projectName 和 quotaNickName 获取到 quota 的详细信息，比如是否属于交互式 quota
+    - 能够根据 projectName 和 quotaNickName 获取到 quota 的详细信息，比如是否属于交互式 quota
 - **Quota 类**新增 `isInteractiveQuota` 方法，用来判断 quota 是否属于交互式 quota（适用于 MCQA 2.0）
 -
 
@@ -421,26 +445,26 @@ Odps odps;
 ### 新增
 
 - **支持序列化**：
-  - 主要数据类型如 `ArrayRecord`、`Column`、`TableSchema` 和 `TypeInfo` 现在支持序列化和反序列化，能够进行缓存和进程间通信。
+    - 主要数据类型如 `ArrayRecord`、`Column`、`TableSchema` 和 `TypeInfo` 现在支持序列化和反序列化，能够进行缓存和进程间通信。
 - **谓词下推**：
-  - 新增 `Attribute` 类型的谓词，用于指定列名。
+    - 新增 `Attribute` 类型的谓词，用于指定列名。
 
 ### 变更
 
 - **Tunnel 接口重构**：
-  - 重构了 Tunnel 相关接口，加入了无感知的重试逻辑，大大增强了稳定性和鲁棒性。
-  - 删除了 `TunnelRetryStrategy` 和 `ConfigurationImpl` 类，分别被 `TunnelRetryHandler`
-    和 `Configuration` 所取代。
+    - 重构了 Tunnel 相关接口，加入了无感知的重试逻辑，大大增强了稳定性和鲁棒性。
+    - 删除了 `TunnelRetryStrategy` 和 `ConfigurationImpl` 类，分别被 `TunnelRetryHandler`
+      和 `Configuration` 所取代。
 
 ### 优化
 
 - **SQLExecutor 优化**：
-  - 在使用 `SQLExecutor` 接口执行离线 SQL 作业时进行优化，减少每个作业获取结果时的一次网络请求，从而减少端到端延时。
+    - 在使用 `SQLExecutor` 接口执行离线 SQL 作业时进行优化，减少每个作业获取结果时的一次网络请求，从而减少端到端延时。
 
 ### 修复
 
 - **Table.read Decimal 读取**：
-  - 修复了 `Table.read` 接口在读取 `decimal` 类型时，后面补零不符合预期的问题。
+    - 修复了 `Table.read` 接口在读取 `decimal` 类型时，后面补零不符合预期的问题。
 
 ## [0.48.5-public] - 2024-06-17
 
@@ -582,8 +606,8 @@ org.antlr 重定位至 com.aliyun.odps.thirdparty.antlr
 
 - `TableReadSession` 新增参数 `maxBatchRawSize` 和 `splitMaxFileNum`。
 - `UpsertSession` 现支持：
-  - 写入部分列。
-  - 设置 Netty 线程池的数量（默认更改为 1）。
-  - 设置最大并发量（默认值更改为 16）。
+    - 写入部分列。
+    - 设置 Netty 线程池的数量（默认更改为 1）。
+    - 设置最大并发量（默认值更改为 16）。
 - `TableTunnel` 支持设置 `quotaName` 选项。
 

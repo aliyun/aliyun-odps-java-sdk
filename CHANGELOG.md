@@ -1,4 +1,24 @@
 # Changelog
+## [0.52.3-public] - 2025-06-14
+### 🎉 New Features
+- **OdpsOptions**  
+  Adds instance-level variables for Odps that can be accessed through `odps.options()`. Two methods are currently available:
+  - `setUseLegacyLogview` = true/false/null  
+    When set to true, uses logview; when false, uses jobinsight (logview v2); when null (default), intelligently determines if jobinsight is available in the current region and uses it if possible, otherwise falls back to logview.  
+    ⚠️ **Compatibility Note**: Previous versions defaulted to logview. After upgrading, calls to get logview URLs might return jobinsight addresses - verify this to avoid compatibility issues.
+  - `setSkipCheckIfEpv2` = true/false  
+    Defaults to false. In version 0.51.7, interfaces like getTable gained support for EPv2 projects but this impacts interface performance. Setting this configuration to true skips EPv2 project checks to improve performance.
+
+- **ArrayRecord**  
+  Added a `caseSensitive` parameter in major Record initialization scenarios (constructor initialization of ArrayRecord, and Tunnel Session's newRecord method) to control whether field names are case-sensitive during setByName operations.  
+  ⚠️ **Historical Compatibility Note**: In version 0.51.8, we made Record case-insensitive (since MaxCompute engine is case-insensitive), but this introduced performance overhead. This version provides a way to restore the original behavior.
+
+- **SchemaMismatchRuntimeException**  
+  Added a new exception type that makes a best-effort attempt to inform users:
+  - Data mismatches table schema during Tunnel writes
+  - Table schema might have changed - please recreate the Tunnel Session  
+    This class extends `IllegalArgumentException`.
+
 
 ## [0.52.2-public] - 2025-06-03
 ### Issue Fixed
@@ -73,6 +93,7 @@
 ## [0.51.8-public] - 2025-02-20
 ### Changes
 - **Record** The `set(String columnName, Object value)` method now ignores the case of `columnName`. The `getColumn` method will always return column names in lowercase.
+  ⚠️ **Compatibility Note**: This change will affect the performance of ArrayRecord initialization and setByName operations. Users should conduct corresponding performance tests. We have introduced a toggle in version 0.52.3 to disable this feature.
 
 ### Features
 - **Table** Added `getMetadataJson` and `getExtendedInfoJson` methods.
@@ -83,7 +104,9 @@
 ## [0.51.7-public] - 2025-02-13
 ### Features
 - **EPV2** Added support for EPV2 (External Project V2), including `ListTable`, `ListSchema`, `DescribeTable` interfaces
+  ⚠️ **Compatibility Note**: This will slightly impact the performance of these interfaces (functionality remains unaffected) and requires user attention. We have added a configuration option in version 0.52.3 to turn off this feature.
 - **MCQA** Added fallback logging when retrieving results via InstanceTunnel encounters failure rollback scenarios
+
 
 ## [0.51.6-public] - 2025-01-26
 ### Fixes

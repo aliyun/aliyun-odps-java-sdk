@@ -1,4 +1,21 @@
 # 更新日志
+## [0.52.3-public] - 2025-06-14
+### 🎉 新增功能
+- **OdpsOptions**  
+  新增 Odps 实例级别的一些变量，可以通过 `odps.options()` 获取。现有两个方法：
+  - `setUseLegacyLogview` = true/false/null  
+    当为 true，使用 logview，当为 false，使用 jobinsight（logview v2），当为 null（默认值），智能判断当前 region 是否能够使用 jobinsight，如是使用 jobinsight，否则使用 logview。  
+    ⚠️ **兼容性提示**：此前版本默认使用的是 logview，更新到此版本后，获取logview时可能获取到 jobinsight 地址，注意这点以避免兼容性问题。
+  - `setSkipCheckIfEpv2` = true/false  
+    默认为 false，在 0.51.7 版本中，getTable 等接口增加了对 EPv2 项目的支持，但会影响接口性能。可以通过将此配置设置 true，会跳过Epv2的项目，提高性能。
+
+- **ArrayRecord**  
+  在主要的初始化 Record 场景，比如通过构造函数初始化ArrayRecord，通过Tunnel Session newRecord 方法生成 Record，都新增了 caseSensitive 参数，用来标识使用该 Record setByName 时，是否区分大小写。  
+  ⚠️ **历史兼容说明**：在 0.51.8 版本中，我们让 Record 不再区分大小写（因为 MaxCompute 引擎不区分大小写），但这会导致一些性能损失。因此在本版本，我们提供了方式来恢复原行为。
+
+- **SchemaMismatchRuntimeException**  
+  新增了一种异常类型，来试图 try best 的告诉用户：在 Tunnel 写入过程中，传入的数据和表模式不匹配 可能是表模式发生了变化，请重建 Tunnel Session。该类是 `IllegalArgumentException` 的子类。
+
 
 ## [0.52.2-public] - 2025-06-03
 ### 问题修复
@@ -77,6 +94,8 @@
 ### 变更
 - **Record** `set(String columnName, Object value)` 方法现在会忽略 columnName 的大小写。`getColumn` 方法返回的列名将始终为小写。
 
+  ⚠️ **兼容性提示**： 注意，这项改动会影响 ArrayRecord 初始化和 setByName 时的性能，用户应当相应的性能测试，我们在 0.52.3 版本中增加了开关来关闭这项功能。
+
 ### 功能
 - **Table** 新增`getMetadataJson`和`getExtendedInfoJson`方法
 - **Partition** 新增`getMetadataJson`,`getExtendedInfoJson`,`getCdcSize`,`getCdcRecordNum`方法
@@ -85,8 +104,10 @@
 
 ## [0.51.7-public] - 2025-02-13
 ### 功能
-- **EPV2** 新增对 EPV2（External Project V2）的支持，包括`ListTable`, `ListSchema`, `DescribeTable` 等接口
 - **MCQA** 在通过 InstanceTunnel 取结果，发生失败回退的场景，加入回退日志
+- **EPV2** 新增对 EPV2（External Project V2）的支持，包括`ListTable`, `ListSchema`, `DescribeTable` 等接口。
+
+  ⚠️ **兼容性提示**：这会略微影响这些接口的性能（功能不受影响），需要用户注意，我们在 0.52.3 版本中增加了开关来关闭这项功能。
 
 
 ## [0.51.6-public] - 2025-01-26
