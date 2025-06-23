@@ -32,10 +32,7 @@ import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelMetrics;
-import com.aliyun.odps.tunnel.io.CompressOption;
-import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
-import com.aliyun.odps.tunnel.io.StreamRecordPackImpl;
-import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
+import com.aliyun.odps.tunnel.io.*;
 import com.aliyun.odps.utils.ConnectionWatcher;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonObject;
@@ -50,6 +47,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         private boolean p2pMode = false;
         private List<Column> zorderColumns;
         private Configuration config;
+        private boolean dynamicPartition = false;
 
         public String getProjectName() {
             return projectName;
@@ -106,7 +104,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                     getSlotNum(),
                     zorderColumns,
                     getSchemaVersion(),
-                    allowSchemaMismatch);
+                    allowSchemaMismatch,
+                    dynamicPartition);
         }
     }
 
@@ -114,6 +113,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     private boolean p2pMode = false;
     private List<Column> columns;
     private boolean checkLatestSchema;
+    private boolean dynamicPartition = false;
 
     public StreamUploadSessionImpl(Configuration conf,
                                    String projectName,
@@ -124,7 +124,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                                    long slotNum,
                                    List<Column> zorderColumns,
                                    String schemaVersion,
-                                   boolean allowSchemaMismatch) throws TunnelException {
+                                   boolean allowSchemaMismatch,
+                                   boolean dynamicPartition) throws TunnelException {
         this.config = conf;
         this.projectName = projectName;
         this.schemaName = schemaName;
@@ -134,6 +135,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         this.httpClient = Util.newRestClient(conf, projectName);
         this.schemaVersion = schemaVersion;
         this.checkLatestSchema = !allowSchemaMismatch;
+        this.dynamicPartition = dynamicPartition;
 
         // Due to server-side architecture design, the latest TableSchema may not be used when creating a Session,
         // which may make users very confused in the scenario of not allowSchemaMismatch and use not specified schema version.
@@ -187,6 +189,10 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         if (schemaVersion != null && !schemaVersion.isEmpty()) {
             params.put(TunnelConstants.SCHEMA_VERSION, this.schemaVersion);
+        }
+
+        if (dynamicPartition) {
+            params.put(TunnelConstants.PARAM_DYNAMIC_PARTITION, "true");
         }
 
         HashMap<String, String> headers = getCommonHeaders();
@@ -298,6 +304,10 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         if (columns != null && columns.size() != 0) {
             params.put(TunnelConstants.ZORDER_COLUMNS, getColumnString());
+        }
+
+        if (dynamicPartition) {
+            params.put(TunnelConstants.PARAM_DYNAMIC_PARTITION, "true");
         }
 
         HashMap<String, String> headers = getCommonHeaders();
@@ -504,17 +514,29 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
     @Override
     public TableTunnel.StreamRecordPack newRecordPack() throws IOException {
-        return new StreamRecordPackImpl(this, this.config.getCompressOption());
+        if (dynamicPartition) {
+            return new DynamicPartitionRecordPack(this, this.config.getCompressOption());
+        } else {
+            return new StreamRecordPackImpl(this, this.config.getCompressOption());
+        }
     }
 
     @Override
     public TableTunnel.StreamRecordPack newRecordPack(CompressOption option) throws IOException {
-        return new StreamRecordPackImpl(this, option);
+        if (dynamicPartition) {
+            return new DynamicPartitionRecordPack(this, option);
+        } else {
+            return new StreamRecordPackImpl(this, option);
+        }
     }
 
     @Override
     public Record newRecord() {
-        return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
+        if (dynamicPartition) {
+            return new PartitionRecord(schema.getColumns().toArray(new Column[0]));
+        } else {
+            return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
+        }
     }
 
     public void abort() throws TunnelException {

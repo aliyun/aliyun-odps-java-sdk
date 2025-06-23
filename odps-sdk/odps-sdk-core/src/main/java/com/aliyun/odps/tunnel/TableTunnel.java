@@ -1170,6 +1170,7 @@ public class TableTunnel {
       private boolean createPartition = false;
       private String schemaVersion;
       protected boolean allowSchemaMismatch = true;
+      private boolean dynamicPartition = false;
       public String getSchemaName() {
         return schemaName;
       }
@@ -1222,6 +1223,11 @@ public class TableTunnel {
 
       public Builder allowSchemaMismatch(boolean allowSchemaMismatch) {
         this.allowSchemaMismatch = allowSchemaMismatch;
+        return this;
+      }
+
+      public Builder setDynamicPartition(boolean dynamicPartition) {
+        this.dynamicPartition = dynamicPartition;
         return this;
       }
 
