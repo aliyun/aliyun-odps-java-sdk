@@ -22,7 +22,10 @@ public class DynamicPartitionRecordPack  implements TableTunnel.StreamRecordPack
     @Override
     public void append(Record record) throws IOException {
         PartitionRecord r = (PartitionRecord) record;
-        String partition = r.getPartition();
+        append(r, r.getPartition());
+    }
+
+    public void append(Record record, String partition) throws IOException {
         StreamRecordPackImpl pack = mBufferMap.get(partition);
         if (pack == null) {
             pack = new StreamRecordPackImpl(session, compressOption);
