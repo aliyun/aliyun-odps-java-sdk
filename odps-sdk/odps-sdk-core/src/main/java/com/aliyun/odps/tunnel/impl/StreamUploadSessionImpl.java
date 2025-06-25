@@ -1,6 +1,7 @@
 package com.aliyun.odps.tunnel.impl;
 
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_TUNNEL_BATCH_ID;
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_TUNNEL_METRICS;
 
 import java.io.ByteArrayOutputStream;
@@ -14,6 +15,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsException;
@@ -33,6 +36,7 @@ import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelMetrics;
 import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.DynamicPartitionRecordPack;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
 import com.aliyun.odps.tunnel.io.StreamRecordPackImpl;
 import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
@@ -42,8 +46,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 
-public class StreamUploadSessionImpl extends StreamSessionBase implements TableTunnel.StreamUploadSession {
+public class StreamUploadSessionImpl extends StreamSessionBase
+    implements TableTunnel.StreamUploadSession {
+
     public static class Builder extends TableTunnel.StreamUploadSession.Builder {
+
         private String projectName;
         private String tableName;
         private CompressOption compressOption = new CompressOption();
@@ -98,15 +105,16 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         public TableTunnel.StreamUploadSession build() throws TunnelException {
             return new StreamUploadSessionImpl(config,
-                    projectName,
-                    getSchemaName(),
-                    tableName,
-                    getPartitionSpec(),
-                    isCreatePartition(),
-                    getSlotNum(),
-                    zorderColumns,
-                    getSchemaVersion(),
-                    allowSchemaMismatch);
+                                               projectName,
+                                               getSchemaName(),
+                                               tableName,
+                                               getPartitionSpec(),
+                                               isCreatePartition(),
+                                               getSlotNum(),
+                                               zorderColumns,
+                                               getSchemaVersion(),
+                                               allowSchemaMismatch,
+                                               dynamicPartition);
         }
     }
 
@@ -114,6 +122,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     private boolean p2pMode = false;
     private List<Column> columns;
     private boolean checkLatestSchema;
+    private boolean dynamicPartition = false;
+    private long lastBatchId = 0;
+    private long lastBatchCommitTime = 0;
+    private AtomicBoolean reloading = new AtomicBoolean(false);
+    private AtomicLong lastReloadTime = new AtomicLong(0);
 
     public StreamUploadSessionImpl(Configuration conf,
                                    String projectName,
@@ -124,7 +137,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                                    long slotNum,
                                    List<Column> zorderColumns,
                                    String schemaVersion,
-                                   boolean allowSchemaMismatch) throws TunnelException {
+                                   boolean allowSchemaMismatch,
+                                   boolean dynamicPartition) throws TunnelException {
         this.config = conf;
         this.projectName = projectName;
         this.schemaName = schemaName;
@@ -134,6 +148,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         this.httpClient = Util.newRestClient(conf, projectName);
         this.schemaVersion = schemaVersion;
         this.checkLatestSchema = !allowSchemaMismatch;
+        this.dynamicPartition = dynamicPartition;
 
         // Due to server-side architecture design, the latest TableSchema may not be used when creating a Session,
         // which may make users very confused in the scenario of not allowSchemaMismatch and use not specified schema version.
@@ -189,44 +204,93 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             params.put(TunnelConstants.SCHEMA_VERSION, this.schemaVersion);
         }
 
+        if (dynamicPartition) {
+            params.put(TunnelConstants.PARAM_DYNAMIC_PARTITION, "true");
+        }
+
         HashMap<String, String> headers = getCommonHeaders();
         if (slotNum > 0) {
             headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slotNum));
         }
 
-        StreamSessionBase.HttpResult result = httpRequest(headers, params, "POST", "create stream upload session");
+        StreamSessionBase.HttpResult
+            result =
+            httpRequest(headers, params, "POST", "create stream upload session");
 
         try {
             JsonObject tree = new JsonParser().parse(result.body).getAsJsonObject();
             this.slots = new Slots(loadFromJson(result.requestId, tree, false));
         } catch (JsonSyntaxException e) {
-            throw new TunnelException(result.requestId, "Invalid json content: '" + result.body + "'", e);
+            throw new TunnelException(result.requestId,
+                                      "Invalid json content: '" + result.body + "'", e);
         }
     }
 
-    private void reload() throws TunnelException {
-
-        HashMap<String, String> params = getCommonParams();
-
-        params.put(TunnelConstants.UPLOADID, id);
-        params.put(TunnelConstants.SCHEMA_VERSION, schemaVersion);
-
-        HashMap<String, String> headers = getCommonHeaders();
-
-        StreamSessionBase.HttpResult result = httpRequest(headers, params, "GET", "get stream upload session");
-
+    private void reload(boolean force, boolean readonly) throws TunnelException {
         try {
-            JsonObject tree = new JsonParser().parse(result.body).getAsJsonObject();
-            this.slots = new Slots(loadFromJson(result.requestId, tree, true));
-        } catch (JsonSyntaxException e) {
-            throw new TunnelException(result.requestId, "Invalid json content: '" + result.body + "'", e);
+            if (!force) {
+                if (reloading.get()
+                    || System.currentTimeMillis() - lastReloadTime.get() < 30 * 1000) {
+                    return;
+                }
+            }
+
+            reloading.set(true);
+            HashMap<String, String> params = getCommonParams();
+
+            params.put(TunnelConstants.UPLOADID, id);
+            params.put(TunnelConstants.SCHEMA_VERSION, schemaVersion);
+            if (readonly) {
+                params.put(TunnelConstants.PARAM_READ_ONLY, "true");
+            }
+
+            HashMap<String, String> headers = getCommonHeaders();
+
+            StreamSessionBase.HttpResult
+                result =
+                httpRequest(headers, params, "GET", "get stream upload session");
+
+            try {
+                JsonObject tree = new JsonParser().parse(result.body).getAsJsonObject();
+                List<Slot> loadedSlots = loadFromJson(result.requestId, tree, true);
+                if (loadedSlots != null && !loadedSlots.isEmpty()) {
+                    this.slots = new Slots(loadFromJson(result.requestId, tree, true));
+                }
+            } catch (JsonSyntaxException e) {
+                throw new TunnelException(result.requestId,
+                                          "Invalid json content: '" + result.body + "'", e);
+            }
+
+            lastReloadTime.set(System.currentTimeMillis());
+        } finally {
+            reloading.set(false);
         }
+    }
+
+    @Override
+    protected List<Slot> loadFromJson(String requestId, JsonObject tree, boolean reload)
+        throws TunnelException {
+        if (tree.has("last_batch_id")) {
+            try {
+                this.lastBatchId = Long.valueOf(tree.get("last_batch_id").getAsString());
+            } catch (NumberFormatException ignore) {
+            }
+        }
+
+        if (tree.has("last_batch_commit_time")) {
+            try {
+                this.lastBatchCommitTime =
+                    Long.valueOf(tree.get("last_batch_commit_time").getAsString());
+            } catch (NumberFormatException ignore) {
+            }
+        }
+        return super.loadFromJson(requestId, tree, reload);
     }
 
     public void reloadSlots(Slot slot, String server, int slotNum) throws TunnelException {
         if (slots.getSlotNum() != slotNum) {
             // reload slot routes if slot num changed
-            reload();
+            reload(true, false);
         } else {
             // reset routed server slot rescheduled
             if (!slot.getServer().equals(server)) {
@@ -236,6 +300,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     }
 
     static class Slots implements Iterable<Slot> {
+
         private Random rand = new Random();
         private final List<Slot> slots;
         private int curSlotIndex;
@@ -280,8 +345,15 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         }
     }
 
-    private Connection getConnection(CompressOption compress, Slot slot, long size, long reocrdCount)
-            throws OdpsException, IOException {
+    private Connection getConnection(CompressOption compress, Slot slot, long size,
+                                     long reocrdCount)
+        throws OdpsException, IOException {
+        return getConnection(compress, slot, size, reocrdCount, null);
+    }
+
+    private Connection getConnection(CompressOption compress, Slot slot, long size,
+                                     long reocrdCount, String partition)
+        throws OdpsException, IOException {
         HashMap<String, String> params = new HashMap<String, String>();
 
         params.put(TunnelConstants.UPLOADID, id);
@@ -292,12 +364,20 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             params.put(TunnelConstants.RES_PARTITION, partitionSpec);
         }
 
+        if (partition != null && partition.length() > 0) {
+            params.put(TunnelConstants.RES_PARTITION, partition);
+        }
+
         if (reocrdCount > 0) {
             params.put(TunnelConstants.RECORD_COUNT, String.valueOf(reocrdCount));
         }
 
         if (columns != null && columns.size() != 0) {
             params.put(TunnelConstants.ZORDER_COLUMNS, getColumnString());
+        }
+
+        if (dynamicPartition) {
+            params.put(TunnelConstants.PARAM_DYNAMIC_PARTITION, "true");
         }
 
         HashMap<String, String> headers = getCommonHeaders();
@@ -310,7 +390,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
 
-        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
+        headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION,
+                    String.valueOf(TunnelConstants.VERSION));
 
         headers.put(HttpHeaders.HEADER_ODPS_SLOT_NUM, String.valueOf(slots.getSlotNum()));
 
@@ -346,7 +427,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             try {
                 URI u = new URI(httpClient.getEndpoint());
                 return httpClient.connect(getResource(), "PUT", params, headers,
-                        u.getScheme() + "://" + slot.getIp());
+                                          u.getScheme() + "://" + slot.getIp());
             } catch (URISyntaxException e) {
                 throw new TunnelException("Invalid endpoint: " + httpClient.getEndpoint());
             }
@@ -355,27 +436,42 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         }
     }
 
-    /**
-     * 打开http链接，写入pack数据，然后关闭链
-     *
-     * @param pack
-     *     pack数据
-     */
-    public String writeBlock(ProtobufRecordPack pack)
-            throws IOException {
-        return writeBlock(pack, 0);
+    public static class WriteResult {
+
+        public String requestId;
+        public Long batchId = 0L;
     }
 
     /**
      * 打开http链接，写入pack数据，然后关闭链
      *
-     * @param pack
-     *     pack数据
-     * @param timeout
-     *     超时时间(单位毫秒)，0代表无超时。
+     * @param pack pack数据
      */
-    public String writeBlock(ProtobufRecordPack pack, long timeout)
-            throws IOException {
+    public WriteResult writeBlock(ProtobufRecordPack pack)
+        throws IOException {
+        return writeBlock(pack, 0, null);
+    }
+
+    /**
+     * 打开http链接，写入pack数据，然后关闭链
+     *
+     * @param pack    pack数据
+     * @param timeout 超时时间(单位毫秒)，0代表无超时。
+     */
+    public WriteResult writeBlock(ProtobufRecordPack pack, long timeout)
+        throws IOException {
+        return writeBlock(pack, timeout, null);
+    }
+
+    /**
+     * 打开http链接，写入pack数据，然后关闭链
+     *
+     * @param pack      pack数据
+     * @param timeout   超时时间(单位毫秒)，0代表无超时。
+     * @param partition 分区
+     */
+    public WriteResult writeBlock(ProtobufRecordPack pack, long timeout, String partition)
+        throws IOException {
         TunnelRetryHandler tunnelRetryHandler = new TunnelRetryHandler(config);
         try {
             return tunnelRetryHandler.executeWithRetry(() -> {
@@ -384,7 +480,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                     Slot slot = slots.iterator().next();
                     conn =
                         getConnection(pack.getCompressOption(), slot, pack.getTotalBytes(),
-                                      pack.getSize());
+                                      pack.getSize(), partition);
                     return sendBlock(pack, conn, slot, timeout);
                 } finally {
                     if (conn != null) {
@@ -398,7 +494,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
                 if (errorCode == HttpStatus.BAD_GATEWAY
                     || errorCode == HttpStatus.GATEWAY_TIMEOUT) {
                     try {
-                        reload();
+                        reload(true, false);
                     } catch (TunnelException e) {
                         throw new UncheckedIOException(new IOException(e.getMessage(), e));
                     }
@@ -413,8 +509,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
         }
     }
 
-    private String sendBlock(ProtobufRecordPack pack, Connection conn, Slot slot, long timeout)
-            throws IOException, TunnelException {
+    private WriteResult sendBlock(ProtobufRecordPack pack, Connection conn, Slot slot, long timeout)
+        throws IOException, TunnelException {
         if (null == conn) {
             throw new IOException("Invalid connection");
         }
@@ -432,7 +528,8 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             response = conn.getResponse();
         } catch (Throwable tr) {
             if (timeout > 0 && ConnectionWatcher.getInstance().checkTimedOut(conn)) {
-                throw new SocketTimeoutException("Flush time exceeded timeout user set: " + timeout + "ms");
+                throw new SocketTimeoutException(
+                    "Flush time exceeded timeout user set: " + timeout + "ms");
             }
             throw tr;
         } finally {
@@ -441,9 +538,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
             }
         }
         if (!response.isOK()) {
-            TunnelException exception = new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID),
-                                                      conn.getInputStream(),
-                                                      response.getStatus());
+            TunnelException
+                exception =
+                new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID),
+                                    conn.getInputStream(),
+                                    response.getStatus());
             if (exception.getErrorCode().equals("SchemaModified") &&
                 exception.getStatus().equals(412)) {
                 throw new SchemaMismatchException("SchemaModified",
@@ -459,11 +558,20 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
 
         String metricsStr = response.getHeader(HEADER_ODPS_TUNNEL_METRICS);
         TunnelMetrics batchMetrics =
-            TunnelMetrics.parse(metricsStr, pack.getLocalWallTimeMs() + (System.currentTimeMillis() - startTime),
-                                pack.getNetworkWallTimeMs() + (System.currentTimeMillis() - startTime));
+            TunnelMetrics.parse(metricsStr, pack.getLocalWallTimeMs() + (System.currentTimeMillis()
+                                                                         - startTime),
+                                pack.getNetworkWallTimeMs() + (System.currentTimeMillis()
+                                                               - startTime));
         pack.addMetrics(batchMetrics);
 
-        return response.getHeader(HEADER_ODPS_REQUEST_ID);
+        WriteResult result = new WriteResult();
+        result.requestId = response.getHeader(HEADER_ODPS_REQUEST_ID);
+        try {
+            result.batchId = Long.valueOf(response.getHeader(HEADER_ODPS_TUNNEL_BATCH_ID));
+        } catch (NumberFormatException ignore) {
+        }
+
+        return result;
     }
 
     private String getColumnString() {
@@ -503,18 +611,42 @@ public class StreamUploadSessionImpl extends StreamSessionBase implements TableT
     }
 
     @Override
+    public long getLastBatchId() throws TunnelException {
+        reload(false, true);
+        return lastBatchId;
+    }
+
+    @Override
+    public long getLastBatchCommitTime() throws TunnelException {
+        reload(false, true);
+        return lastBatchCommitTime;
+    }
+
+    @Override
     public TableTunnel.StreamRecordPack newRecordPack() throws IOException {
-        return new StreamRecordPackImpl(this, this.config.getCompressOption());
+        if (dynamicPartition) {
+            return new DynamicPartitionRecordPack(this, this.config.getCompressOption());
+        } else {
+            return new StreamRecordPackImpl(this, this.config.getCompressOption());
+        }
     }
 
     @Override
     public TableTunnel.StreamRecordPack newRecordPack(CompressOption option) throws IOException {
-        return new StreamRecordPackImpl(this, option);
+        if (dynamicPartition) {
+            return new DynamicPartitionRecordPack(this, option);
+        } else {
+            return new StreamRecordPackImpl(this, option);
+        }
     }
 
     @Override
     public Record newRecord() {
-        return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
+        if (dynamicPartition) {
+            return new PartitionRecord(schema.getColumns().toArray(new Column[0]));
+        } else {
+            return new ArrayRecord(schema.getColumns().toArray(new Column[0]));
+        }
     }
 
     public void abort() throws TunnelException {

@@ -1038,6 +1038,7 @@ public class TableTunnel {
 
   public interface FlushResult {
     public String getTraceId();
+    public long getBatchId();
     public long getFlushSize();
     public long getRecordCount();
   }
@@ -1141,6 +1142,10 @@ public class TableTunnel {
      */
     public String getQuotaName();
 
+    public long getLastBatchId() throws TunnelException;
+
+    public long getLastBatchCommitTime() throws TunnelException;
+
     /**
      * 创建一个无压缩{@Link StreamRecordPack}对象
      * @return StreamRecordPack对象
@@ -1170,6 +1175,7 @@ public class TableTunnel {
       private boolean createPartition = false;
       private String schemaVersion;
       protected boolean allowSchemaMismatch = true;
+      protected boolean dynamicPartition = false;
       public String getSchemaName() {
         return schemaName;
       }
@@ -1222,6 +1228,11 @@ public class TableTunnel {
 
       public Builder allowSchemaMismatch(boolean allowSchemaMismatch) {
         this.allowSchemaMismatch = allowSchemaMismatch;
+        return this;
+      }
+
+      public Builder setDynamicPartition(boolean dynamicPartition) {
+        this.dynamicPartition = dynamicPartition;
         return this;
       }
 
