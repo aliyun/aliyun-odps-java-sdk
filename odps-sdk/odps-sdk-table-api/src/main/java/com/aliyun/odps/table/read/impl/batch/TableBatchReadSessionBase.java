@@ -75,6 +75,10 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
     protected Set<DataFormat> supportDataFormats;
 
     public TableBatchReadSessionBase(TableReadSessionBuilder builder) throws IOException {
+        if (builder.getDetailsJson() != null) {
+            initializeFromJson(builder.getDetailsJson());
+            return;
+        }
         this.identifier = Preconditions.checkNotNull(builder.getIdentifier(), "Table identifier", "required");
         this.settings = Preconditions.checkNotNull(builder.getSettings(), "Environment settings", "required");
         this.sessionStatus = SessionStatus.UNKNOWN;
@@ -165,5 +169,9 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
     @Override
     public SessionStatus getStatus() {
         return this.sessionStatus;
+    }
+
+
+    protected void initializeFromJson(String json) {
     }
 }

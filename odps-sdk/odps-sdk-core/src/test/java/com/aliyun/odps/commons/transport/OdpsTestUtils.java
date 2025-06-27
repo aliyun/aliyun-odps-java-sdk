@@ -22,6 +22,7 @@ package com.aliyun.odps.commons.transport;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Properties;
 import java.util.UUID;
@@ -42,6 +43,8 @@ import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.VolumeTunnel;
 import com.aliyun.odps.tunnel.io.TunnelRecordWriter;
+import com.aliyun.odps.tunnel.streams.UpsertStream;
+import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -380,6 +383,40 @@ public class OdpsTestUtils {
       Long[] blocks = {0L};
       session.commit(blocks);
     }
+  }
+
+
+  public static void createDeltaTableForTest(Odps odps, String tableName)
+      throws OdpsException, IOException {
+    odps.tables().delete(tableName, true);
+    TableSchema schema = TableSchema.builder()
+        .withColumn(Column.newBuilder("c1", TypeInfoFactory.BIGINT).notNull().build())
+        .withStringColumn("c2")
+        .build();
+    odps.tables().newTableCreator(tableName, schema)
+        .withPrimaryKeys(Arrays.asList("c1"))
+        .withLifeCycle(1L)
+        .ifNotExists()
+        .deltaTable()
+        .create();
+
+    TableTunnel tunnel = newTableTunnel(odps);
+    TableTunnel.UpsertSession session = tunnel.buildUpsertSession(odps.getDefaultProject(),
+                                                                  tableName).build();
+    UpsertStream rw = session.buildUpsertStream().build();
+    Record record;
+    for (int i = 0; i < 20; ++i) {
+      record = session.newRecord();
+      record.set(0, 1L);
+      record.set(1, String.valueOf(i));
+      rw.upsert(record);
+    }
+    record = session.newRecord();
+    record.set(0, 0L);
+    record.set(1, "0");
+    rw.upsert(record);
+    rw.close();
+    session.commit(false);
   }
   
   public static void createBigTableForTest(String tableName) throws OdpsException, IOException {

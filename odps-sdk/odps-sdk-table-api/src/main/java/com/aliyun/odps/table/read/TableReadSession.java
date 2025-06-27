@@ -19,11 +19,12 @@
 
 package com.aliyun.odps.table.read;
 
+import com.aliyun.odps.data.JsonSerializable;
 import com.aliyun.odps.table.DataFormat;
 import com.aliyun.odps.table.DataSchema;
 import com.aliyun.odps.table.Session;
 
-public interface TableReadSession extends Session {
+public interface TableReadSession extends Session, JsonSerializable {
 
     /**
      * Returns the actual schema of this table read session

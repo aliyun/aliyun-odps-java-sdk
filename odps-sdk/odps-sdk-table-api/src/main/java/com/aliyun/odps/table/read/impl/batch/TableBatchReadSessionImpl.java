@@ -24,6 +24,7 @@ import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.table.DataFormat;
 import com.aliyun.odps.table.DataSchema;
 import com.aliyun.odps.table.SessionStatus;
+import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.configuration.ReaderOptions;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
 import com.aliyun.odps.table.read.SplitReader;
@@ -56,6 +58,7 @@ import com.aliyun.odps.table.utils.SchemaUtils;
 import com.aliyun.odps.table.utils.SessionUtils;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
+import com.aliyun.odps.utils.JsonUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -69,6 +72,8 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
     private transient RestClient restClient;
     private transient TunnelRetryHandler retryHandler;
+
+    private transient String details;
 
     public TableBatchReadSessionImpl(TableReadSessionBuilder builder) throws IOException {
         super(builder);
@@ -211,6 +216,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                     "GET", params, headers, null);
             if (resp.isOK()) {
                 String response = new String(resp.getBody());
+                this.details = response;
                 loadResultFromJson(response);
                 return response;
             } else {
@@ -370,6 +376,27 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
             }
         } catch (Exception e) {
             throw new TunnelException("Invalid session response: \n" + json, e);
+        }
+    }
+
+
+    @Override
+    public String toJson() {
+        Map<String, String> map = new HashMap<>();
+        map.put("identifier", JsonUtils.toJson(identifier));
+        map.put("details", details);
+        return JsonUtils.toJson(map);
+    }
+
+    protected void initializeFromJson(String jsonString) {
+        try {
+            Map<String, String>
+                map =
+                (Map<String, String>) JsonUtils.fromJson(jsonString, Map.class);
+            this.identifier = JsonUtils.fromJson(map.get("identifier"), TableIdentifier.class);
+            loadResultFromJson(map.get("details"));
+        } catch (TunnelException e) {
+            throw new RuntimeException(e);
         }
     }
 }
