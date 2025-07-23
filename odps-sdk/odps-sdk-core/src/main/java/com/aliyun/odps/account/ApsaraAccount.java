@@ -36,11 +36,14 @@ public class ApsaraAccount implements Account {
   /**
    * 构造AliyunAccount对象
    *
+   * Region must be set, use ApsaraAccount(String accessId, String accessKey, String region) instead
+   *
    * @param accessId
    *     AccessId
    * @param accessKey
    *     AccessKey
    */
+  @Deprecated
   public ApsaraAccount(String accessId, String accessKey) {
     this(accessId, accessKey, null);
   }

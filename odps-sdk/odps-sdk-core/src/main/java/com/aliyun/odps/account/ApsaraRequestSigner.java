@@ -48,10 +48,6 @@ public class ApsaraRequestSigner implements RequestSigner {
   private final String accessKey;
   private String regionName;
 
-  public ApsaraRequestSigner(String accessId, String accessKey) {
-    this(accessId, accessKey, null);
-  }
-
   public ApsaraRequestSigner(String accessId, String accessKey, String regionName) {
     if (StringUtils.isBlank(accessId)) {
       throw new IllegalArgumentException("AccessId should not be empty.");
@@ -70,6 +66,9 @@ public class ApsaraRequestSigner implements RequestSigner {
 
   @Override
   public void sign(String resource, Request req) {
+    if (StringUtils.isBlank(regionName)) {
+      throw new IllegalArgumentException("Region should not be empty. Call Account.setRegion first.");
+    }
     req.getHeaders().put(Headers.AUTHORIZATION, getSignature(resource, req));
   }
 
@@ -84,25 +83,12 @@ public class ApsaraRequestSigner implements RequestSigner {
     if (log.isLoggable(Level.FINE)) {
       log.fine("String to sign: " + strToSign);
     }
-    if (StringUtils.isNullOrEmpty(regionName)) {
-      return calculateSignatureV2(strToSign);
-    } else {
-      return calculateSignatureV4(strToSign, regionName);
-    }
-  }
-
-  private String calculateSignatureV2(String strToSign) {
-    byte[] crypto;
-    crypto = SecurityUtils.hmacsha1Signature(strToSign.getBytes(StandardCharsets.UTF_8),
-                                             accessKey.getBytes());
-
-    String signature = Base64.encodeBase64String(crypto).trim();
-    return "ODPS " + accessId + ":" + signature;
+    return calculateSignatureV4(strToSign, regionName);
   }
 
   private String calculateSignatureV4(String strToSign, String regionName) {
     String currentDate = getDate();
-    String credential = accessId + "/" + currentDate + "/" + regionName + "/odps/aliyun_v4_request";
+    String credential = accessId + "/" + currentDate + "/" + regionName + "/odps/apsara_v4_request";
 
     byte[] signatureKey = getSignatureKey(accessKey, currentDate, regionName);
     byte[]
@@ -116,7 +102,7 @@ public class ApsaraRequestSigner implements RequestSigner {
     byte[] kDate = hmacsha256Signature(date.getBytes(StandardCharsets.UTF_8), kSecret);
     byte[] kRegion = hmacsha256Signature(regionName.getBytes(StandardCharsets.UTF_8), kDate);
     byte[] kService = hmacsha256Signature("odps".getBytes(StandardCharsets.UTF_8), kRegion);
-    return hmacsha256Signature("aliyun_v4_request".getBytes(StandardCharsets.UTF_8), kService);
+    return hmacsha256Signature("apsara_v4_request".getBytes(StandardCharsets.UTF_8), kService);
   }
 
   private String getDate() {
