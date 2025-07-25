@@ -11,6 +11,7 @@
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-lot</artifactId>
+    <name>ODPS SDK Lot</name>
 
     <dependencies>
         <dependency>
