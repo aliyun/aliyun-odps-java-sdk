@@ -1,4 +1,37 @@
 # 更新日志
+## [0.53.0-public] - 2025-07-25
+
+### ✨ 新增功能
+*   **VectorizedOutputer**  
+    新增 `getWriteBytes()` 方法，支持获取写入字节数统计。
+*   **TableBatchReadSession**  
+    新增基于 JSON 的序列化/反序列化方法，提升数据交互灵活性。
+*   **CreateProjectParam**  
+    新增 `defaultQuota()` 方法，支持设置项目默认配额。
+*   **Aliyun V4 签名**  
+    支持配置 `corporation` 参数，适配专有云环境部署需求。
+*   **AklessAccount**  
+    完整支持 V4 签名协议。
+*   **TableTunnel**  
+    新增 ZSTD (Zstandard) 压缩算法支持，优化数据传输效率。
+*   **MaxCompute Query Acceleration (MaxQA)**  
+    支持并发读取超大结果集，显著提升性能（*注意：并发操作将增加内存消耗，需根据集群容量合理配置并发度*）。
+*   **Preview 功能**  
+    支持通过 Tunnel 执行标签（Tag）操作。
+*   **InstanceTunnel**  
+    新增 `getDownloadSession(String projectName, String instanceID, String sessionId)` 方法，简化下载会话获取流程。
+
+### 🐞 问题修复
+*   修复 `Predicate` 对 `DateTime` 类型处理时未使用本地时区的问题，确保时区一致性。
+*   修复 `Table` 类在调用 `reloadExtended()` 时可能覆盖 `reload()` 数据的问题。
+
+### 📦 依赖升级
+*   commons-codec: `1.13` → `1.18.1`
+*   jackson-databind: `2.15.2` → `2.18.2`
+*   commons-compress: `1.4` → `1.20`
+*   Apache Arrow: `4.0.0` → `17.0.0`
+*   新增 zstd-jni 依赖: `1.5.7-2`（支持 ZSTD 压缩）
+
 ## [0.52.3-public] - 2025-06-14
 ### 🎉 新增功能
 - **OdpsOptions**  

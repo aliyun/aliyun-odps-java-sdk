@@ -128,6 +128,11 @@ public class CreateProjectParam {
     return this;
   }
 
+  public CreateProjectParam defaultQuota(QuotaIdentifier defaultQuota) {
+    this.projectModel.defaultQuota = defaultQuota;
+    return this;
+  }
+
 
   /**
    * 设置 group, 可选

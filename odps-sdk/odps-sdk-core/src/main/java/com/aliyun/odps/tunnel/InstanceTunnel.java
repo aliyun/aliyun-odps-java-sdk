@@ -103,6 +103,21 @@ public class InstanceTunnel {
     return new InstanceTunnel.DownloadSession(projectName, instanceID, null, limitEnabled);
   }
 
+
+  /**
+   * 获取已经 create 过的 Download Session
+   *
+   * @param projectName  Project名
+   * @param instanceID  Instance ID
+   * @param sessionId 已经创建过的 Download SessionId
+   * @return {@link InstanceTunnel.DownloadSession}
+   * @throws TunnelException
+   */
+  public InstanceTunnel.DownloadSession getDownloadSession(String projectName, String instanceID, String sessionId)
+      throws TunnelException {
+    return new InstanceTunnel.DownloadSession(projectName, instanceID, sessionId);
+  }
+
   /**
    * 在 Instance 上创建下载long polling会话
    *

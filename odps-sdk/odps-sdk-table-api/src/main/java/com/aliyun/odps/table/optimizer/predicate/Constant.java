@@ -2,6 +2,7 @@ package com.aliyun.odps.table.optimizer.predicate;
 
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.TimeZone;
 
 import com.aliyun.odps.data.converter.OdpsRecordConverter;
 import com.aliyun.odps.type.TypeInfo;
@@ -20,6 +21,7 @@ public class Constant extends Predicate {
     formatter = OdpsRecordConverter.builder()
         .setStrictMode(false)
         .timezone("UTC")
+        .dateTimezone(TimeZone.getDefault().getID())
         .enableSqlStandardFormat()
         .build();
   }

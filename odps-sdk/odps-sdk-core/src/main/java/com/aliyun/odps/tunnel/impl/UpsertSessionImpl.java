@@ -484,6 +484,10 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 headers.put(Headers.CONTENT_ENCODING, "x-lz4-frame");
                 break;
             }
+            case ODPS_ZSTD: {
+                headers.put(Headers.CONTENT_ENCODING, "zstd");
+                break;
+            }
             default: {
                 throw new TunnelException("unsupported compression option.");
             }

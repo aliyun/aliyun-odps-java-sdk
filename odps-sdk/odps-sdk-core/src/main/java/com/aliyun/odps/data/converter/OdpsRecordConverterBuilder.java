@@ -47,6 +47,7 @@ public class OdpsRecordConverterBuilder {
         String timestampNtzParseFormat;
         String timestampNtzOutputFormat;
         ZoneId timezone = ZoneId.systemDefault();
+        ZoneId dateTimezone = null;
         String complexTypeFormat = ConverterConstant.COMPLEX_TYPE_FORMAT_DEFAULT;
         String binaryFormat = ConverterConstant.BINARY_FORMAT_DEFAULT;
         String nullFormat = ConverterConstant.NULL_OUTPUT_FORMAT_DEFAULT;
@@ -280,6 +281,18 @@ public class OdpsRecordConverterBuilder {
      */
     public OdpsRecordConverterBuilder timezone(String timezone) {
         this.config.timezone = ZoneId.of(timezone);
+        return this;
+    }
+
+    /**
+     * Configures OdpsRecordConverter to format/parse {@link OdpsType#DATE}  with timezone provided
+     * Priority is higher than {@link OdpsRecordConverterBuilder#timezone} method
+     *
+     * @param timezone timezone string
+     * @return this
+     */
+    public OdpsRecordConverterBuilder dateTimezone(String timezone) {
+        this.config.dateTimezone = ZoneId.of(timezone);
         return this;
     }
 

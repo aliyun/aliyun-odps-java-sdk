@@ -1,4 +1,38 @@
 # Changelog
+# Changelog
+## [0.53.0-public] - 2025-07-25
+
+### ✨ New Features
+*   **VectorizedOutputer**  
+    Added `getWriteBytes()` method to retrieve written byte count statistics.
+*   **TableBatchReadSession**  
+    Introduced JSON-based serialization/deserialization methods for enhanced data interoperability.
+*   **CreateProjectParam**  
+    Added `defaultQuota()` method to configure default project quotas.
+*   **V4 Signature**  
+    Added support for `corporation` configuration parameter, enabling compatibility with dedicated cloud environments.
+*   **AklessAccount**  
+    Full support for V4 signature protocol.
+*   **TableTunnel**  
+    Added ZSTD (Zstandard) compression algorithm support for optimized data transfer efficiency.
+*   **MaxCompute Query Acceleration (MaxQA)**  
+    Enabled concurrent reading for ultra-large result sets, significantly improving performance (*Note: Concurrent operations increase memory consumption; adjust concurrency levels based on cluster capacity*).
+*   **Preview Feature**  
+    Added support for tag operations via Tunnel.
+*   **InstanceTunnel**  
+    Added `getDownloadSession(String projectName, String instanceID, String sessionId)` method for simplified download session retrieval.
+
+### 🐞 Bug Fixes
+*   Fixed `DateTime` timezone handling in `Predicate` to consistently use local timezone.
+*   Resolved data overwrite issue where `reloadExtended()` could override `reload()` results in the `Table` class.
+
+### 📦 Dependency Upgrades
+*   commons-codec: `1.13` → `1.18.1`
+*   jackson-databind: `2.15.2` → `2.18.2`
+*   commons-compress: `1.4` → `1.20`
+*   Apache Arrow: `4.0.0` → `17.0.0`
+*   Added zstd-jni dependency: `1.5.7-2` (for ZSTD compression support)
+
 ## [0.52.3-public] - 2025-06-14
 ### 🎉 New Features
 - **OdpsOptions**  

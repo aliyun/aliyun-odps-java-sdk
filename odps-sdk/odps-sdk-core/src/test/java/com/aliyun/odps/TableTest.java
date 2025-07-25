@@ -67,7 +67,6 @@ import com.aliyun.odps.type.TypeInfoFactory;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.sun.org.apache.xml.internal.utils.URI;
 
 public class TableTest extends TestBase {
 
@@ -984,6 +983,15 @@ public class TableTest extends TestBase {
 
     Assert.assertNotEquals(schemaVersion, table.getSchemaVersion());
     odps.tables().delete(tableName, true);
+  }
+
+  @Test
+  public void testReloadTableNotOverwriteReloadExtended() throws OdpsException {
+    odps.tables().newTableCreator("testReloadTableNotOverwriteReloadExtended", schema).transactionTable().withLifeCycle(1L).ifNotExists().create();
+    Table table = odps.tables().get("testReloadTableNotOverwriteReloadExtended");
+    Assert.assertTrue(table.isTransactional());
+    table.reload();
+    Assert.assertTrue(table.isTransactional());
   }
 
   @Test

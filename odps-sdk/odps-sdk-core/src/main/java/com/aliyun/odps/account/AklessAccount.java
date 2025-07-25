@@ -27,21 +27,41 @@ public class AklessAccount implements Account {
 
   private ICredentialProvider credentialsProvider;
   private AlibabaCloudCredentialsProvider alibabaCloudCredentialsProvider;
+  private String region;
 
   public AklessAccount(ICredentialProvider credentialsProvider) {
+    this(credentialsProvider, null);
+  }
+
+  public AklessAccount(ICredentialProvider credentialsProvider, String region) {
     this.providerType = ProviderType.ICredentialProvider;
     this.credentialsProvider = credentialsProvider;
+    this.region = region;
   }
 
   public AklessAccount(AlibabaCloudCredentialsProvider credentialsProvider) {
+    this(credentialsProvider, null);
+  }
+
+  public AklessAccount(AlibabaCloudCredentialsProvider credentialsProvider, String region) {
     this.providerType = ProviderType.AlibabaCloudCredentialsProvider;
     this.alibabaCloudCredentialsProvider = credentialsProvider;
+    this.region = region;
   }
 
   @Override
   public AccountProvider getType() {
     // not exactly, when use AlibabaCloudCredentialsProvider, it may bearer_token
     return AccountProvider.STS;
+  }
+
+  /**
+   * Set regionId
+   * Can be used to upgrade the signature verification method to v4 signature
+   * @param region
+   */
+  public void setRegion(String region) {
+    this.region = region;
   }
 
   @Override
@@ -52,7 +72,8 @@ public class AklessAccount implements Account {
           ICredential credentials = credentialsProvider.getCredentials();
           return new StsRequestSigner(credentials.accessKeyId(),
                                       credentials.accessKeySecret(),
-                                      credentials.securityToken());
+                                      credentials.securityToken(),
+                                      region);
         case AlibabaCloudCredentialsProvider:
           AlibabaCloudCredentials
               alibabaCloudCredentials =
@@ -62,7 +83,8 @@ public class AklessAccount implements Account {
           } else {
             return new StsRequestSigner(alibabaCloudCredentials.getAccessKeyId(),
                                         alibabaCloudCredentials.getAccessKeySecret(),
-                                        alibabaCloudCredentials.getSecurityToken());
+                                        alibabaCloudCredentials.getSecurityToken(),
+                                        region);
           }
         default:
           throw new RuntimeException("Unsupported provider type: " + providerType);

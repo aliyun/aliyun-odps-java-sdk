@@ -18,7 +18,6 @@ public class UniqueIdentifyIDTest {
   @Test
   public void testCreateInstance() throws OdpsException {
     Odps odps = OdpsTestUtils.newDefaultOdps();
-    odps.setDefaultProject("meta");
 
     CreateInstanceOption createInstanceOption = new CreateInstanceOption.Builder()
         .setUniqueIdentifyID("123456")

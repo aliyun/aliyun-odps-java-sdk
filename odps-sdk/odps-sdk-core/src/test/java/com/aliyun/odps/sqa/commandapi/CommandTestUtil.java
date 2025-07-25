@@ -21,6 +21,7 @@ package com.aliyun.odps.sqa.commandapi;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -86,10 +87,11 @@ public class CommandTestUtil {
     return errorNum;
   }
 
-  public static List<Record> runCommandAndGetResult(Odps odps, String command) {
+  public static List<Record> runCommandAndGetResult(Odps odps, String command, Map<String, String> hints) {
     try {
       SQLExecutor sqlExecutor = getSQLExecutor(odps);
-      sqlExecutor.run(command, null);
+      sqlExecutor.run(command, hints);
+      System.out.println(sqlExecutor.getLogView());
       return sqlExecutor.getResult();
     } catch (OdpsException e) {
       e.printStackTrace();
@@ -97,6 +99,10 @@ public class CommandTestUtil {
       throw new RuntimeException(e);
     }
     return null;
+  }
+
+  public static List<Record> runCommandAndGetResult(Odps odps, String command) {
+    return runCommandAndGetResult(odps, command, null);
   }
 
   public static void runCommandAndPrintResult(Odps odps, String command) {

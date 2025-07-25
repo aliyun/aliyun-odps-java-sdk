@@ -515,7 +515,7 @@ class ObjectConverterFactory {
         DateConverter(OdpsRecordConverterBuilder.Config config) {
             this.strictMode = config.strictMode;
             this.useSqlFormat = config.useSqlFormat;
-            this.zoneId = config.timezone;
+            this.zoneId = config.dateTimezone == null ? config.timezone : config.dateTimezone;
 
             String outputPattern = config.dateOutputFormat;
             if (null == outputPattern) {
@@ -527,10 +527,10 @@ class ObjectConverterFactory {
             }
             if (!strictMode) {
                 legacyOutputFormatter =
-                    getLegacyDateTimeFormatter(outputPattern, config.timezone, OdpsType.DATE);
+                    getLegacyDateTimeFormatter(outputPattern, zoneId, OdpsType.DATE);
             }
-            outputFormatter = getDateTimeFormatter(outputPattern, config.timezone, OdpsType.DATE);
-            parseFormatter = getDateTimeFormatter(parsePattern, config.timezone, OdpsType.DATE);
+            outputFormatter = getDateTimeFormatter(outputPattern, zoneId, OdpsType.DATE);
+            parseFormatter = getDateTimeFormatter(parsePattern, zoneId, OdpsType.DATE);
         }
 
         @Override

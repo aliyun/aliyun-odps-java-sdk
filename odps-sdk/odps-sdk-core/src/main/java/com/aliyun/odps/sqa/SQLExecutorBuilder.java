@@ -46,6 +46,9 @@ public class SQLExecutorBuilder {
   private Quota quota = null;
   private int logviewVersion = 1;
   private boolean skipCheckIfSelect = false;
+  private long fetchResultSplitSize = 10000;
+  private int fetchResultPreloadSplitNum = 2;
+  private int fetchResultThreadNum = 2;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -80,6 +83,9 @@ public class SQLExecutorBuilder {
     builder.quota = this.quota;
     builder.logviewVersion = this.logviewVersion;
     builder.skipCheckIfSelect = this.skipCheckIfSelect;
+	builder.fetchResultSplitSize = this.fetchResultSplitSize;
+    builder.fetchResultPreloadSplitNum = this.fetchResultPreloadSplitNum;
+    builder.fetchResultThreadNum = this.fetchResultThreadNum;
     return builder;
   }
 
@@ -229,6 +235,21 @@ public class SQLExecutorBuilder {
     this.skipCheckIfSelect = skipCheckIfSelect;
     return this;
   }
+  
+    public SQLExecutorBuilder fetchResultSplitSize(long fetchResultSplitSize) {
+    this.fetchResultSplitSize = fetchResultSplitSize;
+    return this;
+  }
+
+  public SQLExecutorBuilder fetchResultPreloadSplitNum(int fetchResultPreloadSplitNum) {
+    this.fetchResultPreloadSplitNum = fetchResultPreloadSplitNum;
+    return this;
+  }
+
+  public SQLExecutorBuilder fetchResultThreadNum(int fetchResultThreadNum) {
+    this.fetchResultThreadNum = fetchResultThreadNum;
+    return this;
+  }
 
   public ExecuteMode getExecuteMode() {
     return executeMode;
@@ -332,5 +353,17 @@ public class SQLExecutorBuilder {
 
   public boolean isSkipCheckIfSelect() {
       return skipCheckIfSelect;
+  }
+  
+  public int getFetchResultPreloadSplitNum() {
+    return fetchResultPreloadSplitNum;
+  }
+
+  public long getFetchResultSplitSize() {
+    return fetchResultSplitSize;
+  }
+
+  public int getFetchResultThreadNum() {
+    return fetchResultThreadNum;
   }
 }

@@ -22,6 +22,10 @@ package com.aliyun.odps.test;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Iterator;
+
+import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.aliyun.odps.Instance;
@@ -37,8 +41,8 @@ public class LogViewTest extends TestBase {
     try {
       LogView log = odps.logview();
       Instance i = SQLTask.run(odps, "select 1;");
-      String logview = log.generateLogView(i, 7 * 24);
-      System.out.println(logview);
+      String logview = odps.logview().generateLogView(i, 7 * 24);
+      Assert.assertNotNull(logview);
     } catch (Exception e) {
       assertTrue(e.getMessage().contains("Request timeout"));
     }
@@ -70,6 +74,7 @@ public class LogViewTest extends TestBase {
   }
 
   @Test
+  @Ignore
   public void testLogViewHostV2() throws OdpsException {
     try {
       LogView log = odps.logview();

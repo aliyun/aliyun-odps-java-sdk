@@ -20,6 +20,11 @@ public abstract class VectorizedOutputer implements Closeable {
     public CommitMessage commit() { return null; }
 
     /**
+     * @return the number of physical bytes written by the outputer
+     */
+    public long getWriteBytes() { return -1; }
+
+    /**
      * Interface for operations upon outputer exit, implementation can be no-op
      **/
     public abstract void close() throws IOException;

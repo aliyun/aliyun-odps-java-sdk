@@ -51,6 +51,7 @@ import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.utils.StringUtils;
+import com.github.luben.zstd.ZstdInputStream;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.protobuf.CodedInputStream;
@@ -97,6 +98,8 @@ public class ProtobufRecordStreamReader implements RecordReader {
         this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
         this.in = CodedInputStream.newInstance(new LZ4FrameInputStream(bin));
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZSTD)) {
+        this.in = CodedInputStream.newInstance(new ZstdInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
         this.in = CodedInputStream.newInstance((bin));
       } else {
@@ -146,6 +149,8 @@ public class ProtobufRecordStreamReader implements RecordReader {
         this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
         this.in = CodedInputStream.newInstance(new LZ4FrameInputStream(bin));
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZSTD)) {
+        this.in = CodedInputStream.newInstance(new ZstdInputStream(bin));
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
         this.in = CodedInputStream.newInstance((bin));
       } else {

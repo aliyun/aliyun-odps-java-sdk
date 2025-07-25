@@ -503,6 +503,11 @@ public class ResourceBuilder {
     return CLUSTERS;
   }
 
+  public static String buildClusterResource(String clusterName) {
+    return CLUSTERS + "/" + encodeObjectName(clusterName);
+  }
+
+
   public static String buildStoragePrefix(String version) {
     StringBuilder sb = new StringBuilder();
 

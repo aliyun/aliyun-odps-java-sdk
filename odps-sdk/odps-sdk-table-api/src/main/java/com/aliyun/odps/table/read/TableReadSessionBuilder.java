@@ -48,6 +48,7 @@ public class TableReadSessionBuilder {
     private String sessionId;
     private String sessionProvider;
     private Predicate filterPredicate;
+    private String detailsJson;
 
     /**
      * Set the read session target to a specific table by {@link Table}.
@@ -147,6 +148,14 @@ public class TableReadSessionBuilder {
         return this;
     }
 
+    /**
+     * Initialize the session from json string
+     */
+    public TableReadSessionBuilder fromJson(String jsonString) {
+        this.detailsJson = jsonString;
+        return this;
+    }
+
     public String getSessionId() {
         return sessionId;
     }
@@ -185,6 +194,10 @@ public class TableReadSessionBuilder {
 
     public Predicate getFilterPredicate() {
         return filterPredicate;
+    }
+
+    public String getDetailsJson() {
+        return detailsJson;
     }
 
     /**

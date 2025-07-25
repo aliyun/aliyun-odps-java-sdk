@@ -206,6 +206,24 @@ public class Table extends LazyLoad {
     @Convert(TableTypeConverter.class)
     TableType type;
 
+    public void merge(TableModel model) {
+      this.name = model.name;
+      this.ID = model.ID;
+      this.format = model.format;
+      this.schema = model.schema;
+      this.comment = model.comment;
+      this.owner = model.owner;
+      this.projectName = model.projectName;
+      this.schemaName = model.schemaName;
+      this.tableLabel = model.tableLabel;
+      this.cryptoAlgoName = model.cryptoAlgoName;
+      this.tableMaskInfo = model.tableMaskInfo;
+      this.createdTime = model.createdTime;
+      this.lastModifiedTime = model.lastModifiedTime;
+      this.lastAccessTime = model.lastAccessTime;
+      this.type = model.type;
+    }
+
     Date lastMetaModifiedTime;
     Date lastMajorCompactTime;
     boolean isVirtualView;
@@ -427,8 +445,17 @@ public class Table extends LazyLoad {
         () -> {
           String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
           Map<String, String> params = initParamsWithSchema();
-          reload(client.request(TableModel.class, resource, "GET", params));
-          this.metadataJson = model.schema.content;
+          TableModel response = client.request(TableModel.class, resource, "GET", params);
+          if (this.model == null) {
+            this.model = response;
+          } else {
+            this.model.merge(response);
+          }
+          if (response.schema != null) {
+            tableSchema = loadSchemaFromJson(response.schema.content);
+            this.metadataJson = response.schema.content;
+          }
+          setLoaded(true);
           return null;
         }
     );

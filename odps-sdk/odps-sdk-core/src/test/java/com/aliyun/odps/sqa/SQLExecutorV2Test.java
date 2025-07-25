@@ -33,7 +33,7 @@ public class SQLExecutorV2Test {
   private static SQLExecutor tunnelExecutor;
   private static SQLExecutor commandApiExecutor;
   private static Odps odps;
-  private static final String QUOTA_NAME = "dailyrunnew_mcqa2_quota_nick";
+  public static final String QUOTA_NAME = "dailyrunnew_mcqa2_quota_nick";
 
   private static Map<String, String> hints;
 

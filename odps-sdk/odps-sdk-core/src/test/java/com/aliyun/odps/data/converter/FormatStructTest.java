@@ -3,6 +3,7 @@ package com.aliyun.odps.data.converter;
 import org.junit.Test;
 
 import com.aliyun.odps.Odps;
+import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.sqa.SQLExecutor;
@@ -25,7 +26,11 @@ public class FormatStructTest {
     @Test
     public void testListStruct() throws Exception {
       Odps odps = OdpsTestUtils.newDefaultOdps();
-      SQLExecutor sqlExecutor = SQLExecutorBuilder.builder().odps(odps)
+      odps.tables().create("test",
+                           TableSchema.builder().withStringColumn("c1").build(), true);
+
+      SQLExecutor sqlExecutor = SQLExecutorBuilder.builder().
+          odps(odps)
           .enableCommandApi(true)
           .useInstanceTunnel(true)
           .build();

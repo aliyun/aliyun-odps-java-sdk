@@ -19,6 +19,9 @@
 
 package com.aliyun.odps.sqa.commandapi;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -68,7 +71,13 @@ public class ArchiveCommandTest extends TestBase {
     instance.waitForSuccess();
 
     String archiveCommand = "alter table " + TEST_TABLE_NAME + " archive;";
-    CommandTestUtil.runCommandAndGetResult(odps, archiveCommand);
+    Map<String, String> hints = new HashMap<>();
+    hints.put("odps.merge.task.mode", "job");
+    CommandTestUtil.runCommandAndGetResult(odps, archiveCommand, hints);
+    /*
+     * archiveCommand must add set odps.merge.task.mode=job; within the group to execute.
+     * But even if it fails, there will be no error, it just won't take effect. Very magical
+     */
     Assert.assertTrue(odps.tables().get(TEST_TABLE_NAME).isArchived());
   }
 }

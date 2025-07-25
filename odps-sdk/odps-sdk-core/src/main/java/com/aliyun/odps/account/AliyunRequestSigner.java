@@ -44,6 +44,8 @@ public class AliyunRequestSigner implements RequestSigner {
   private static final Logger log = Logger.getLogger(AliyunRequestSigner.class.getName());
   private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+  private static String corporation = "aliyun";
+
   private final String accessId;
   private final String accessKey;
   private String regionName;
@@ -102,7 +104,7 @@ public class AliyunRequestSigner implements RequestSigner {
 
   private String calculateSignatureV4(String strToSign, String regionName) {
     String currentDate = getDate();
-    String credential = accessId + "/" + currentDate + "/" + regionName + "/odps/aliyun_v4_request";
+    String credential = accessId + "/" + currentDate + "/" + regionName + "/odps/" + corporation + "_v4_request";
 
     byte[] signatureKey = getSignatureKey(accessKey, currentDate, regionName);
     byte[]
@@ -112,15 +114,22 @@ public class AliyunRequestSigner implements RequestSigner {
   }
 
   private byte[] getSignatureKey(String key, String date, String regionName) {
-    byte[] kSecret = ("aliyun_v4" + key).getBytes(StandardCharsets.UTF_8);
+    byte[] kSecret = (corporation + "_v4" + key).getBytes(StandardCharsets.UTF_8);
     byte[] kDate = hmacsha256Signature(date.getBytes(StandardCharsets.UTF_8), kSecret);
     byte[] kRegion = hmacsha256Signature(regionName.getBytes(StandardCharsets.UTF_8), kDate);
     byte[] kService = hmacsha256Signature("odps".getBytes(StandardCharsets.UTF_8), kRegion);
-    return hmacsha256Signature("aliyun_v4_request".getBytes(StandardCharsets.UTF_8), kService);
+    return hmacsha256Signature((corporation + "_v4_request").getBytes(StandardCharsets.UTF_8), kService);
   }
 
   private String getDate() {
     LocalDateTime utcDate = LocalDateTime.now(ZoneOffset.UTC);
     return utcDate.format(dateFormat);
+  }
+
+  /**
+   * In some scenarios, we modify the corporation part in the signature_v4 in this way. (Very hack)
+   */
+  public static void setCorporation(String corp) {
+    corporation = corp;
   }
 }

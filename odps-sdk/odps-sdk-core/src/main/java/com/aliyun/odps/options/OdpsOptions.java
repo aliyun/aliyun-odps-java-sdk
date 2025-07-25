@@ -5,10 +5,7 @@ package com.aliyun.odps.options;
  */
 public class OdpsOptions {
 
-    /**
-     * true for S52, null after S53
-     */
-    private Boolean useLegacyLogview = true;
+    private Boolean useLegacyLogview;
 
     private Boolean skipCheckIfEpv2;
 

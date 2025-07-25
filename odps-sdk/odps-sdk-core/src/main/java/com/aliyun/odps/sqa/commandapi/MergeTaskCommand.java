@@ -71,18 +71,18 @@ abstract class MergeTaskCommand implements Command {
     }
     if (property == null || origSettings == null) {
       try {
-        addedSettings = new GsonBuilder().disableHtmlEscaping().create().toJson(setting);
+        addedSettings = new GsonBuilder().disableHtmlEscaping().create().toJson(config);
       } catch (Exception e) {
         return;
       }
 
       if (addedSettings != null) {
-        config.put("settings", addedSettings);
+        setting.put("settings", addedSettings);
       }
     } else {
       try {
         JsonObject jsonObject = new JsonParser().parse(origSettings).getAsJsonObject();
-        for (Entry<String, String> prop : setting.entrySet()) {
+        for (Entry<String, String> prop : config.entrySet()) {
           jsonObject.addProperty(prop.getKey(), prop.getValue());
         }
         addedSettings = jsonObject.toString();
@@ -91,7 +91,7 @@ abstract class MergeTaskCommand implements Command {
       }
 
       if (addedSettings != null) {
-        property.setValue(addedSettings);
+        setting.put("settings", addedSettings);
       }
     }
   }
@@ -117,7 +117,7 @@ abstract class MergeTaskCommand implements Command {
 
         addSetting(settings, map);
 
-        for (Entry<String, String> property : settings.entrySet()) {
+        for (Entry<String, String> property : map.entrySet()) {
           task.setProperty(property.getKey(), property.getValue());
         }
 

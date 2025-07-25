@@ -84,6 +84,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
         headers.put(Headers.ACCEPT_ENCODING, "x-lz4-frame");
         break;
       }
+      case ODPS_ZSTD: {
+        headers.put(Headers.ACCEPT_ENCODING, "zstd");
+        break;
+      }
       default: {
         throw new TunnelException("invalid compression option.");
       }
@@ -172,6 +176,9 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
         } else if (content_encoding.equals("x-lz4-frame")) {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME,
                   -1, 0);
+        } else if (content_encoding.equals("zstd")) {
+          option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_ZSTD,
+                                      -1, 0);
         } else {
           throw new TunnelException("invalid content encoding");
         }
@@ -273,6 +280,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
           headers.put(Headers.ACCEPT_ENCODING, "x-lz4-frame");
           break;
         }
+        case ODPS_ZSTD: {
+          headers.put(Headers.ACCEPT_ENCODING, "zstd");
+          break;
+        }
         default: {
           throw new TunnelException("invalid compression option.");
         }
@@ -336,6 +347,8 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY, -1, 0);
         } else if (content_encoding.equals("x-lz4-frame")) {
           option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME, -1, 0);
+        } else if (content_encoding.equals("zstd")) {
+          option = new CompressOption(CompressOption.CompressAlgorithm.ODPS_ZSTD, -1, 0);
         } else {
           throw new TunnelException("invalid content encoding");
         }

@@ -990,6 +990,10 @@ public class TableTunnel {
     if (acceptEncoding != null) {
       headers.put(Headers.ACCEPT_ENCODING, acceptEncoding);
     }
+    List<String> tags = this.config.getTags();
+    if (tags != null) {
+      headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
+    }
 
     Map<String, String> params = new HashMap<>();
     params.put("limit", String.valueOf(limit));
@@ -1915,6 +1919,10 @@ public class TableTunnel {
         }
         case ODPS_ARROW_LZ4_FRAME: {
           headers.put(Headers.CONTENT_ENCODING, "x-odps-lz4-frame");
+          break;
+        }
+        case ODPS_ZSTD: {
+          headers.put(Headers.CONTENT_ENCODING, "zstd");
           break;
         }
         default: {

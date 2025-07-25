@@ -63,6 +63,7 @@ import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.github.luben.zstd.ZstdOutputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
 
@@ -101,6 +102,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         tmpOut = new SnappyFramedOutputStream(out);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
         tmpOut = new LZ4FrameOutputStream(out);
+      } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZSTD)) {
+        tmpOut = new ZstdOutputStream(out);
       } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
         tmpOut = out;
       } else {

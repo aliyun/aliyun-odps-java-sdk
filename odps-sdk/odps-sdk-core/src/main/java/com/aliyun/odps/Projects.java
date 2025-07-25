@@ -164,7 +164,7 @@ public class Projects {
     properties.put("external_project_ref_project", refProjectName);
 
     String xml = marshal(projectName, Project.ProjectType.external, null,
-                         null, null, comment, properties, null);
+                         null, null, comment, properties, null, null);
 
     HashMap<String, String> headers = new HashMap<String, String>();
     headers.put(Headers.CONTENT_TYPE, "application/xml");
@@ -215,10 +215,30 @@ public class Projects {
                              final Map<String, String> properties,
                              List<Project.Cluster> clusters)
           throws OdpsException {
+    updateProject(projectName, status, owner, comment, properties, clusters, null);
+  }
+
+  /**
+   * 更新 Project，暂时不直接向用户开放
+   *
+   * @param status     Project状态，包括：AVAILABLE | DELETING | FROZEN。 AVAILABLE
+   *                   表示Project可以正常工作，AVAILABLE Project可以FROZEN。 FROZEN 表示Project被冻结，冻结后Project拒绝任何API访问。FROZEN
+   *                   Project可以AVAILABLE或者DELETING。 DELETING Project不可以转变为其他状态，表示15天后Project会被系统回收，数据全部清除。
+   * @param owner      Project所有者账号
+   * @param properties Project 属性。目前该API仅能够设置Project的属性。Project属性列表在每个ODPS版本下会有不同，
+   *                   建议用户直接忽略此参数（忽略此参数时，会依据系统默认值填充）。如果有明确的特殊需求，可以寻求技术支持。 目前，Project的属性： a.
+   *                   odps.security.ip.whitelist:能否访问Project的Ip白名单列表； b. READ_TABLE_MAX_ROW:select语句返回数据的最大行数；
+   * @param clusters   Project对应的计算集群列表
+   */
+  public void updateProject(final String projectName, final Project.Status status,
+                            final String owner, final String comment,
+                            final Map<String, String> properties,
+                            List<Project.Cluster> clusters, QuotaIdentifier defaultQuota)
+      throws OdpsException {
     String resource = ResourceBuilder.buildProjectResource(projectName);
 
     String xml =
-            marshal(projectName, null, owner, null, status, comment, properties, clusters);
+        marshal(projectName, null, owner, null, status, comment, properties, clusters, defaultQuota);
 
     HashMap<String, String> headers = new HashMap<String, String>();
     headers.put(Headers.CONTENT_TYPE, "application/xml");
@@ -381,7 +401,7 @@ public class Projects {
   private static String marshal(final String projectName, final Project.ProjectType projectType,
                                 final String projectOwner, final String groupName,
                                 final Project.Status status, final String comment,
-                                final Map<String, String> properties, List<Project.Cluster> clusters)
+                                final Map<String, String> properties, List<Project.Cluster> clusters, QuotaIdentifier defaultQuota)
           throws OdpsException {
     Project.ProjectModel model = new Project.ProjectModel();
 
@@ -421,6 +441,8 @@ public class Projects {
       model.clusters = new Project.Clusters();
       model.clusters.entries = clusters;
     }
+
+    model.defaultQuota = defaultQuota;
 
     return marshal(model);
   }

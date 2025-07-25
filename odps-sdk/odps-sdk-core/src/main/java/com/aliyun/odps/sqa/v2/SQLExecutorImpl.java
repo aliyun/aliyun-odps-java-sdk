@@ -20,6 +20,7 @@ import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Quota;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Response;
+import com.aliyun.odps.data.InstanceDataIterator;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.rest.RestClient;
@@ -65,6 +66,9 @@ public class SQLExecutorImpl implements SQLExecutor {
   private final String taskName;
   private final SQLExecutorPool pool;
   private final int logviewVersion;
+  private final long fetchResultSplitSize;
+  private final int fetchResultPreloadSplitNum;
+  private final int fetchResultThreadNum;
 
   public SQLExecutorImpl(SQLExecutorBuilder builder)
       throws OdpsException {
@@ -73,6 +77,10 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.odps = builder.getOdps().clone();
     this.odps.setTunnelEndpoint(builder.getTunnelEndpoint());
     this.useInstanceTunnel = builder.isUseInstanceTunnel();
+    this.fetchResultPreloadSplitNum = builder.getFetchResultPreloadSplitNum();
+    this.fetchResultSplitSize = builder.getFetchResultSplitSize();
+    this.fetchResultThreadNum = builder.getFetchResultThreadNum();
+
     if (useInstanceTunnel) {
       this.instanceTunnel = new InstanceTunnel(odps);
       if (builder.getTunnelSocketTimeout() >= 0) {
@@ -556,10 +564,6 @@ public class SQLExecutorImpl implements SQLExecutor {
             instanceTunnel.createDownloadSession(odps.getDefaultProject(), queryInfo.getInstance().getId(),
                                          limitEnabled);
       } catch (TunnelException e) {
-        if (e.getErrorCode().equals(SQLExecutorConstants.sessionNotSelectException)
-            || e.getErrorMsg().contains(SQLExecutorConstants.sessionNotSelectMessage)) {
-          return getResultSetDirectly();
-        }
         if (e.getErrorCode().equals("TaskFailed")) {
           // wait for success will check task status and throw exception
           queryInfo.getInstance().waitForSuccess();
@@ -574,29 +578,39 @@ public class SQLExecutorImpl implements SQLExecutor {
             new InMemoryRecordIterator(records),
             schema, 0);
       }
-      try (TunnelRecordReader reader =
-               downloadSession
-                   .openRecordReader(offset == null ? 0 : offset,
-                                     countLimit == null ? downloadSession.getRecordCount()
-                                                        : countLimit,
-                                     sizeLimit == null ? Long.MAX_VALUE : sizeLimit)) {
-        while (true) {
-          Record record = reader.read();
-          if (sizeLimit != null && sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
-            throw new IllegalArgumentException(
-                "InvalidArgument: sizeLimit, fetched data is larger than limit size");
-          }
-          if (record == null) {
-            break;
-          } else {
-            records.add(record);
+      offset = offset == null ? 0 : offset;
+      countLimit = countLimit == null ? downloadSession.getRecordCount() - offset : Math.min(downloadSession.getRecordCount() - offset, countLimit);
+
+      if (sizeLimit == null) {
+        InstanceDataIterator
+            instanceDataIterator =
+            new InstanceDataIterator(downloadSession, offset, countLimit, fetchResultSplitSize,
+                                     fetchResultPreloadSplitNum, fetchResultThreadNum);
+        return new ResultSet(instanceDataIterator, schema, instanceDataIterator.getRecordCount());
+      } else {
+        try (TunnelRecordReader reader =
+                 downloadSession
+                     .openRecordReader(offset,
+                                       countLimit,
+                                       sizeLimit)) {
+          while (true) {
+            Record record = reader.read();
+            if (sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
+              throw new IllegalArgumentException(
+                  "InvalidArgument: sizeLimit, fetched data is larger than limit size");
+            }
+            if (record == null) {
+              break;
+            } else {
+              records.add(record);
+            }
           }
         }
+        return new ResultSet(
+            new InMemoryRecordIterator(records),
+            schema,
+            records.size());
       }
-      return new ResultSet(
-          new InMemoryRecordIterator(records),
-          schema,
-          records.size());
     } else {
       // fall back to non-tunnel
       return getResultSetDirectly();

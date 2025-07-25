@@ -188,6 +188,10 @@ public class Project extends LazyLoad {
 
     @Element(name = "DefaultCtrlService", required = false)
     String defaultCtrlService;
+
+    @Element(name = "DefaultQuota", required = false)
+    @Convert(QuotaIdentifier.QuotaIdentifierConverter.class)
+    QuotaIdentifier defaultQuota = null;
   }
 
   public static class ExternalProjectProperties {
@@ -717,6 +721,18 @@ public class Project extends LazyLoad {
     return model.defaultCluster;
   }
 
+
+  /**
+   * Get default quota. This is an internal method for group-api.
+   *
+   * @return Default quota when called by group owner, otherwise ,null.
+   */
+  QuotaIdentifier getDefaultQuota() {
+    usedByGroupApi = true;
+    lazyLoad();
+    return model.defaultQuota;
+  }
+
   /**
    * Get information of clusters owned by this project. This is an internal method for group-api.
    *
@@ -878,5 +894,4 @@ public class Project extends LazyLoad {
 
     return autoMvMeta;
   }
-
 }
