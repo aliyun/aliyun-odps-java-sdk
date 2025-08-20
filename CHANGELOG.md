@@ -1,5 +1,16 @@
 # Changelog
 # Changelog
+## [0.53.1-public] - 2025-08-20
+
+### ✨ New Features
+*   **SQLExecutorImpl**  
+    Removed internal `SessionRecordSetIterator` class and extracted it as a standalone class to improve code organization.
+
+### 📦 Dependency Upgrades
+*   snappy-java: `1.1.10.3` → `1.1.10.7`
+*   guava: `32.1.1-jre` → `33.4.8-jre`
+*   netty-all: `4.1.86.Final` → `4.1.119.Final`
+
 ## [0.53.0-public] - 2025-07-25
 
 ### ✨ New Features
