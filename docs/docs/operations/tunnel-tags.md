@@ -1,6 +1,6 @@
 ---
 title: 对 Tunnel 操作打标
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 在**资源观测**场景下，可能会遇到对 Tunnel 操作打标的需求，用来后续统计 Tunnel 操作的数量和相关信息。本文档介绍如何对
