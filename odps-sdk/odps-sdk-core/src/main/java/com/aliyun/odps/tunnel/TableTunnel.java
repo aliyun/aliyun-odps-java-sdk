@@ -2420,7 +2420,7 @@ public class TableTunnel {
                   errorMsg));
         }
       } catch (OdpsException e) {
-        throw new TunnelException(e.getErrorCode(), e.getMessage());
+        throw new TunnelException(e.getRequestId(), e.getMessage(), e);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
@@ -2506,8 +2506,16 @@ public class TableTunnel {
       request.add("SplitMaxFileNum", new JsonPrimitive(0));
 
       JsonObject arrowOptions = new JsonObject();
-      arrowOptions.addProperty("TimestampUnit", "nano");
-      arrowOptions.addProperty("DatetimeUnit", "milli");
+      if (maxStorageOption != null && maxStorageOption.getTimestampUnit() != null) {
+        arrowOptions.addProperty("TimestampUnit", maxStorageOption.getTimestampUnit());
+      } else {
+        arrowOptions.addProperty("TimestampUnit", "nano");
+      }
+      if (maxStorageOption != null && maxStorageOption.getDateTimeUnit() != null) {
+        arrowOptions.addProperty("DatetimeUnit", maxStorageOption.getDateTimeUnit());
+      } else {
+        arrowOptions.addProperty("DatetimeUnit", "milli");
+      }
       request.add("ArrowOptions", arrowOptions);
 
       request.add("FilterPredicate", new JsonPrimitive(""));

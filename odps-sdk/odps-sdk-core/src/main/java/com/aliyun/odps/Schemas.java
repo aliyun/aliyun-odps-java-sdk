@@ -309,20 +309,8 @@ public class Schemas implements Iterable<Schema> {
       // and should not have any setting flag, except for opening the 3 layer model based on project attributes(user can choose use 2 or 3tier for 3 layer Project ).
       //warning filter not support in EPV2
       Map<String, String> queryHint = new HashMap<>();
-      InputStream is = null;
-      try {
-        is = Schemas.class.getResourceAsStream("/com/aliyun/odps/core/base.conf");
-        Properties properties = new Properties();
-        properties.load(is);
-        String majorVersion = properties.getProperty("epv2flighting");
-        if (majorVersion != null && !majorVersion.isEmpty() && !"default".equals(majorVersion)) {
-          queryHint.put("odps.task.major.version", majorVersion);
-        }
-
-      } catch (Exception e) {
-      } finally {
-        org.apache.commons.io.IOUtils.closeQuietly(is);
-      }
+      queryHint.put("odps.namespace.schema", "true");
+      queryHint.put("odps.sql.allow.namespace.schema", "true");
       queryHint.put("odps.sql.select.output.format", "csv");
       Instance i = SQLTask.run(odps, projectName, "show schemas;", queryHint, null);
       i.waitForSuccess();

@@ -45,10 +45,10 @@ public class SQLExecutorBuilder {
   private String regionId = null;
   private Quota quota = null;
   private int logviewVersion = 1;
-  private boolean skipCheckIfSelect = false;
   private long fetchResultSplitSize = 10000;
-  private int fetchResultPreloadSplitNum = 2;
-  private int fetchResultThreadNum = 2;
+  private int fetchResultPreloadSplitNum = 5;
+  private int fetchResultThreadNum = 5;
+  private boolean skipCheckIfSelect = false;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -82,10 +82,10 @@ public class SQLExecutorBuilder {
     builder.regionId = this.regionId;
     builder.quota = this.quota;
     builder.logviewVersion = this.logviewVersion;
-    builder.skipCheckIfSelect = this.skipCheckIfSelect;
-	builder.fetchResultSplitSize = this.fetchResultSplitSize;
+    builder.fetchResultSplitSize = this.fetchResultSplitSize;
     builder.fetchResultPreloadSplitNum = this.fetchResultPreloadSplitNum;
     builder.fetchResultThreadNum = this.fetchResultThreadNum;
+    builder.skipCheckIfSelect = this.skipCheckIfSelect;
     return builder;
   }
 
@@ -231,12 +231,7 @@ public class SQLExecutorBuilder {
     return this;
   }
 
-  public SQLExecutorBuilder setSkipCheckIfSelect(boolean skipCheckIfSelect) {
-    this.skipCheckIfSelect = skipCheckIfSelect;
-    return this;
-  }
-  
-    public SQLExecutorBuilder fetchResultSplitSize(long fetchResultSplitSize) {
+  public SQLExecutorBuilder fetchResultSplitSize(long fetchResultSplitSize) {
     this.fetchResultSplitSize = fetchResultSplitSize;
     return this;
   }
@@ -248,6 +243,11 @@ public class SQLExecutorBuilder {
 
   public SQLExecutorBuilder fetchResultThreadNum(int fetchResultThreadNum) {
     this.fetchResultThreadNum = fetchResultThreadNum;
+    return this;
+  }
+
+  public SQLExecutorBuilder setSkipCheckIfSelect(boolean skipCheckIfSelect) {
+    this.skipCheckIfSelect = skipCheckIfSelect;
     return this;
   }
 
@@ -352,9 +352,9 @@ public class SQLExecutorBuilder {
   }
 
   public boolean isSkipCheckIfSelect() {
-      return skipCheckIfSelect;
+    return skipCheckIfSelect;
   }
-  
+
   public int getFetchResultPreloadSplitNum() {
     return fetchResultPreloadSplitNum;
   }

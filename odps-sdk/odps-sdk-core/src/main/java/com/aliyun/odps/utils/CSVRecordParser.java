@@ -107,11 +107,8 @@ public class CSVRecordParser {
         } else {
           Record record = new ArrayRecord(schema);
           for (int i = 0; i < newline.length; i++) {
-            try {
-              record.set(i, formatter.parseObject(newline[i], columns.get(i).getTypeInfo()));
-            } catch (Exception ignored) {
-              record.set(i, null);
-            }
+            // TODO: maybe we should add a try-catch here
+            record.set(i, formatter.parseObject(newline[i], columns.get(i).getTypeInfo()));
           }
           records.add(record);
         }

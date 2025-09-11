@@ -147,12 +147,6 @@ public class SerializeRecordTest {
     stream.upsert(arrayRecord);
     stream.close();
     session.commit(false);
-
-    String
-        strRecord =
-        odps.tables().get("test_serialize_record2").read(1).stream().map(Object::toString).collect(
-            Collectors.joining(", "));
-    System.out.println(strRecord);
   }
 
   private void fillRecord(ArrayRecord record) {

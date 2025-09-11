@@ -82,6 +82,7 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
     private Metrics metrics;
     private BytesCount bytesCount;
     private RecordCount recordCount;
+    private OutputStream outputStream;
 
     public ArrowWriterImpl(String sessionId,
                            TableIdentifier identifier,
@@ -114,9 +115,9 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
         }
 
         if (batchWriter == null) {
+            outputStream = openWriterConnection(sessionId, identifier, blockNumber, attemptId);
             batchWriter = ArrowWriterFactory.getRecordBatchWriter(
-                    openWriterConnection(sessionId, identifier, blockNumber, attemptId),
-                    writerOptions);
+                    outputStream, writerOptions);
         }
         try {
             batchWriter.writeBatch(root);
@@ -138,6 +139,13 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
     @Override
     public void abort() throws IOException {
         disconnect();
+    }
+
+    @Override
+    public void flush() throws IOException {
+        if (outputStream != null) {
+            outputStream.flush();
+        }
     }
 
     @Override

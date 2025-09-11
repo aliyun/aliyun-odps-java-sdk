@@ -64,4 +64,11 @@ public interface BatchWriter<T> extends Closeable {
         return new Metrics();
     }
 
+    /**
+     * Flushes any buffered data to the underlying storage.
+     * @throws IOException if failure happens during IO.
+     */
+    default void flush() throws IOException {
+    }
+
 }

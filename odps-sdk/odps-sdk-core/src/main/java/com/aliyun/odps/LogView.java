@@ -35,13 +35,13 @@ import com.aliyun.odps.utils.StringUtils;
 public class LogView {
 
   private static final String POLICY_TYPE = "BEARER";
-  private static final String LOGVIEW_HOST_DEFAULT = "http://logview.alibaba-inc.com";
+  private static final String LOGVIEW_HOST_DEFAULT = "http://logview.aliyun.com";
   private String logViewHost = "";
 
   private static final String JOBINSIGHT_HOST_DEFAULT = "https://maxcompute.console.aliyun.com";
   private String jobInsightHost = "";
 
-  private final int version;
+  private Integer version;
 
   Odps odps;
 
@@ -51,6 +51,10 @@ public class LogView {
 
   public LogView(Odps odps, Integer version) {
     this.odps = odps;
+    this.version = version;
+  }
+
+  private void lazyLoadLogviewVersion() {
     if (version == null) {
       Boolean useLegacyLogview = odps.options().isUseLegacyLogview();
       if (useLegacyLogview == null) {
@@ -65,8 +69,6 @@ public class LogView {
       } else {
         this.version = 2;
       }
-    } else {
-      this.version = version;
     }
   }
 
@@ -75,6 +77,9 @@ public class LogView {
       return odps.getLogViewHost();
     } else {
       RestClient restClient = odps.clone().getRestClient();
+      restClient.setConnectTimeout(3);
+      restClient.setReadTimeout(10);
+      restClient.setRetryTimes(0);
       try {
         String resource = "/logview/host";
         HashMap<String, String> params = new HashMap<String, String>();
@@ -94,12 +99,15 @@ public class LogView {
 
 
   private String getJobInsightHost() {
-    if (odps.getJobInsightHost() != null) {
+    if (StringUtils.isNotBlank(this.jobInsightHost)) {
+      return this.jobInsightHost;
+    } else if (StringUtils.isNotBlank(odps.getJobInsightHost())) {
       return odps.getJobInsightHost();
     } else {
       RestClient restClient = odps.clone().getRestClient();
       restClient.setConnectTimeout(3);
       restClient.setReadTimeout(10);
+      restClient.setRetryTimes(0);
       try {
         String resource = "/webconsole/host";
         HashMap<String, String> params = new HashMap<String, String>();
@@ -117,6 +125,7 @@ public class LogView {
    * @return logview host 地址
    */
   public String getLogViewHost() {
+    lazyLoadLogviewVersion();
     if (version == 2) {
       if (StringUtils.isNullOrEmpty(jobInsightHost)) {
         jobInsightHost = getJobInsightHost();
@@ -208,6 +217,7 @@ public class LogView {
 
   private String generateLogView(Instance instance, long hours, Integer queryId, String token)
       throws OdpsException {
+    lazyLoadLogviewVersion();
     if (1 == version) {
       if (StringUtils.isNullOrEmpty(logViewHost)) {
         logViewHost = getLogviewHost();
@@ -234,9 +244,9 @@ public class LogView {
       } catch (Exception ignore) {
       }
       String url = jobInsightHost + "/" + regionId
-                   + "/job-insights?h=" + odps.getEndpoint()
-                   + "&p=" + instance.getProject()
-                   + "&i=" + instance.getId();
+             + "/job-insights?h=" + odps.getEndpoint()
+             + "&p=" + instance.getProject()
+             + "&i=" + instance.getId();
       if (queryId != null) {
         url += "&subQuery=" + queryId;
       }

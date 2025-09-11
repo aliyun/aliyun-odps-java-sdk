@@ -25,7 +25,7 @@ public class UpsertRecord extends ArrayRecord {
     }
 
     public UpsertRecord(Column[] columns, Object[] values, boolean caseSensitive) {
-        super(columns, true, null, caseSensitive);
+        super(columns);
         if (columns.length < 5) {
             throw new IllegalArgumentException("Incomplete schema");
         }
@@ -54,11 +54,7 @@ public class UpsertRecord extends ArrayRecord {
             this.columns[i] = columns[i];
         }
         for (int i = 0; i < columns.length; i++) {
-            if (caseSensitive) {
-                nameMap.put(columns[i].getName(), i);
-            } else {
-                nameMap.put(columns[i].getName().toLowerCase(), i);
-            }
+            nameMap.put(columns[i].getName().toLowerCase(), i);
         }
         if (values == null) {
             record = new ArrayRecord(columns, true, null, caseSensitive);
@@ -311,7 +307,7 @@ public class UpsertRecord extends ArrayRecord {
     }
 
     private int getColumnIndex(String name) {
-        Integer idx = nameMap.get(this.caseSensitive ? name : name.toLowerCase());
+        Integer idx = nameMap.get(name.toLowerCase());
         if (idx == null) {
             throw new IllegalArgumentException("No such column:" + name);
         }

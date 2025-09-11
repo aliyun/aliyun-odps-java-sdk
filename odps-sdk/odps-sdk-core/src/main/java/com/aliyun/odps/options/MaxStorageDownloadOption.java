@@ -14,9 +14,15 @@ public class MaxStorageDownloadOption {
    */
   private final Long splitSize;
 
+  // nano, micro, milli, second
+  private String timestampUnit;
+  private String dateTimeUnit;
+
   private MaxStorageDownloadOption(Builder builder) {
     this.requiredColumns = builder.requiredColumns;
     this.splitSize = builder.splitSize;
+    this.timestampUnit = builder.timestampUnit;
+    this.dateTimeUnit = builder.dateTimeUnit;
   }
 
   public List<String> getRequiredColumns() {
@@ -27,6 +33,18 @@ public class MaxStorageDownloadOption {
     return splitSize;
   }
 
+  public String getTimestampUnit() {
+    return timestampUnit;
+  }
+
+  public String getDateTimeUnit() {
+    return dateTimeUnit;
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
   /**
    * Builder class for MaxStorageDownloadOption.
    */
@@ -34,6 +52,9 @@ public class MaxStorageDownloadOption {
 
     private List<String> requiredColumns;
     private Long splitSize;
+    // nano, micro, milli, second
+    private String timestampUnit = "nano";
+    private String dateTimeUnit = "milli";
 
     public Builder setRequiredColumns(List<String> requiredColumns) {
       this.requiredColumns = requiredColumns;
@@ -42,6 +63,16 @@ public class MaxStorageDownloadOption {
 
     public Builder setSplitSize(Long splitSize) {
       this.splitSize = splitSize;
+      return this;
+    }
+
+    public Builder setDateTimeUnit(String dateTimeUnit) {
+      this.dateTimeUnit = dateTimeUnit;
+      return this;
+    }
+
+    public Builder setTimestampUnit(String timestampUnit) {
+      this.timestampUnit = timestampUnit;
       return this;
     }
 
