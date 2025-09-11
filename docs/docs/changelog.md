@@ -4,6 +4,45 @@ sidebar_position: 6
 ---
 
 # 更新日志
+
+## [0.53.2-public] - 2025-09-11
+
+### 🐞 问题修复
+*   **LogView**  
+    修复了 LogView 主机配置并改进了版本处理逻辑
+*   **UpsertRecord**  
+    修复了列名处理中的大小写敏感性问题
+*   **CSVRecordParser**  
+    移除了掩盖解析错误的不必要 try-catch 块
+*   **TableTunnel**  
+    增强了 upsert 操作中的错误处理并改进了 Arrow 选项配置
+*   **ArrowWriterImpl**  
+    添加了 flush 方法实现以更好地管理资源
+
+### ✨ 新增功能
+*   **MaxStorageDownloadOption**  
+    新增对时间戳和日期时间单位的配置支持，以更好地处理数据类型
+*   **SQLExecutorBuilder**  
+    优化了获取结果的配置并改进了线程管理
+*   **BatchWriter**  
+    添加了默认的 flush 方法以更好地符合接口规范
+*   **SessionRecordSetIterator**  
+    恢复了 SessionRecordSetIterator 类以保持向后兼容性
+
+### 📄 文档更新
+*   更新了附录文档并添加了 MaxCompute 类型的映射指南
+
+## [0.53.1-public] - 2025-08-20
+
+### ✨ 新增功能
+*   **SQLExecutorImpl**  
+    删除了内部“SessionRecordSetIterator”类并将其提取为独立类
+
+### 📦 依赖升级
+*   snappy-java: `1.1.10.3` → `1.1.10.7`
+*   guava: `32.1.1-jre` → `33.4.8-jre`
+*   netty-all: `4.1.86.Final` → `4.1.119.Final`
+
 ## [0.53.0-public] - 2025-07-25
 
 ### ✨ 新增功能

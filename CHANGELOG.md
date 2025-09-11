@@ -1,5 +1,32 @@
 # Changelog
 # Changelog
+## [0.53.2-public] - 2025-09-11
+
+### ✨ New Features
+*   **MaxStorageDownloadOption**  
+    Added support for configuring timestamp and datetime units for better data type handling
+*   **SQLExecutorBuilder**  
+    Optimized fetch result configuration and improved thread management
+*   **BatchWriter**  
+    Added default flush method for better interface compliance
+*   **SessionRecordSetIterator**  
+    Restored SessionRecordSetIterator class to maintain backward compatibility
+
+### 🐞 Bug Fixes
+*   **LogView**  
+    Fixed LogView host configuration and improved version handling logic
+*   **UpsertRecord**  
+    Fixed case sensitivity issues in column name handling
+*   **CSVRecordParser**  
+    Removed unnecessary try-catch block that was masking parsing errors
+*   **TableTunnel**  
+    Enhanced error handling in upsert operations and improved Arrow options configuration
+*   **ArrowWriterImpl**  
+    Added flush method implementation for better resource management
+
+### 📄 Documentation
+*   Updated appendix documentation and added type mapping guide for MaxCompute types
+
 ## [0.53.1-public] - 2025-08-20
 
 ### ✨ New Features
