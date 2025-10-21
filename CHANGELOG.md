@@ -1,5 +1,34 @@
 # Changelog
-# Changelog
+## [0.54.0-public] - 2025-10-21
+
+✨ New Features
+
+1. Java 21 Support - Added JDK 21 configuration files and build configurations
+2. New Data Types - Added support for GEOGRAPHY and BLOB data types
+3. AspectJ Support - Added AspectJ Maven plugin support for aspect-oriented programming
+4. ClassLoader Enhancements - Improved compatibility across Java versions with getLoadedJars method
+5. Blob Class - Added Blob class for handling large object references in storage services
+6. GeographyObject Interface - Added interface for handling geographic data types
+7. Proxy Support - Added ProxyConfig class supporting HTTP, HTTPS, SOCKS4, SOCKS5 configurations
+8. Incremental Read Support - Added support for version-based and timestamp-based incremental data reading in Table API
+
+🐞 Bug Fixes
+
+1. PartitionSpec - Fixed partition specification parsing issues and improved splitting logic
+2. Security Permissions - Removed direct dependency on sun.security.util.SecurityConstants, using standard RuntimePermission instead
+3. ClassLoader Compatibility - Fixed class loader compatibility issues across different Java versions
+4. OdpsOptions - Fixed instantiation issues ensuring correct Odps instance reference passing
+
+📦 Dependency Upgrades
+
+1. aspectjrt: 1.8.9 → 1.9.7
+2. mockito-core: 1.10.8 → 4.11.0
+3. maven-shade-plugin: 3.2.1 → 3.5.1
+4. maven-compiler-plugin: 3.1 → 3.13.0 (JDK 21)
+5. maven-surefire-plugin: 2.22.2 → 3.2.5 (JDK 21)
+6. maven-javadoc-plugin: 2.10.4 → 3.11.2 (JDK 21)
+7. Removed org.codehaus.jackson:jackson-mapper-asl dependency
+
 ## [0.53.2-public] - 2025-09-11
 
 ### ✨ New Features

@@ -1,26 +1,66 @@
 # 更新日志
+
+## [0.54.0-public] - 2025-10-21
+
+### ✨ 新增功能
+*   **Java 21 支持**
+    新增对 Java 21 的支持，添加了 JDK 21 配置文件和相关构建配置
+*   **新数据类型支持**
+    新增 GEOGRAPHY 和 BLOB 数据类型支持，扩展了数据处理能力
+*   **AspectJ 支持**
+    添加 AspectJ Maven 插件支持，为面向切面编程提供基础
+*   **类加载器增强**
+    改进了类加载器在不同 Java 版本中的兼容性，添加了 getLoadedJars 方法
+*   **Blob 类**
+    新增 Blob 类，用于处理存储服务中的大对象引用
+*   **GeographyObject 接口**
+    添加 GeographyObject 接口，用于处理地理数据类型
+*   **Proxy 支持**
+    新增 ProxyConfig 类，支持 HTTP、HTTPS、SOCKS4、SOCKS5 等多种代理配置
+*   **增量读取支持**
+    Table API 新增对增量读取的支持，支持基于版本或时间戳的增量数据读取
+
+### 🐞 问题修复
+*   **PartitionSpec**
+    修复了分区规范解析问题，改进了分割逻辑
+*   **安全权限**
+    移除了对 sun.security.util.SecurityConstants 的直接依赖，改用标准的 RuntimePermission
+*   **类加载器兼容性**
+    修复了类加载器在不同 Java 版本中的兼容性问题
+*   **OdpsOptions**
+    修复了 OdpsOptions 实例化问题，确保正确传递 Odps 实例引用
+
+### 📦 依赖升级
+*   aspectjrt: `1.8.9` → `1.9.7`
+*   mockito-core: `1.10.8` → `4.11.0`
+*   maven-shade-plugin: `3.2.1` → `3.5.1`
+*   maven-compiler-plugin: `3.1` → `3.13.0` (JDK 21)
+*   maven-surefire-plugin: `2.22.2` → `3.2.5` (JDK 21)
+*   maven-javadoc-plugin: `2.10.4` → `3.11.2` (JDK 21)
+*   移除了 org.codehaus.jackson:jackson-mapper-asl 依赖
+
 ## [0.53.2-public] - 2025-09-11
 
 ### 🐞 问题修复
-*   **LogView**  
+*   **LogView**
     修复了 LogView 主机配置并改进了版本处理逻辑
-*   **UpsertRecord**  
+*   **UpsertRecord**
     修复了列名处理中的大小写敏感性问题
-*   **CSVRecordParser**  
+*   **CSVRecordParser**
     移除了掩盖解析错误的不必要 try-catch 块
-*   **TableTunnel**  
+*   **TableTunnel**
     增强了 upsert 操作中的错误处理并改进了 Arrow 选项配置
-*   **ArrowWriterImpl**  
+*   **ArrowWriterImpl**
     添加了 flush 方法实现以更好地管理资源
 
 ### ✨ 新增功能
-*   **MaxStorageDownloadOption**  
+*   **MaxStorageDownloadOption**
     新增对时间戳和日期时间单位的配置支持，以更好地处理数据类型
-*   **SQLExecutorBuilder**  
+*   **SQLExecutorBuilder**
     优化了获取结果的配置并改进了线程管理
-*   **BatchWriter**  
+*   **BatchWriter**
     添加了默认的 flush 方法以更好地符合接口规范
-*   **SessionRecordSetIterator**  
+*   **SessionRecordSetIterator**
     恢复了 SessionRecordSetIterator 类以保持向后兼容性
 
 ### 📄 文档更新
@@ -29,8 +69,8 @@
 ## [0.53.1-public] - 2025-08-20
 
 ### ✨ 新增功能
-*   **SQLExecutorImpl**  
-    删除了内部“SessionRecordSetIterator”类并将其提取为独立类
+*   **SQLExecutorImpl**
+    删除了内部"SessionRecordSetIterator"类并将其提取为独立类
 
 ### 📦 依赖升级
 *   snappy-java: `1.1.10.3` → `1.1.10.7`
@@ -41,23 +81,23 @@
 ## [0.53.0-public] - 2025-07-25
 
 ### ✨ 新增功能
-*   **VectorizedOutputer**  
+*   **VectorizedOutputer**
     新增 `getWriteBytes()` 方法，支持获取写入字节数统计。
-*   **TableBatchReadSession**  
+*   **TableBatchReadSession**
     新增基于 JSON 的序列化/反序列化方法，提升数据交互灵活性。
-*   **CreateProjectParam**  
+*   **CreateProjectParam**
     新增 `defaultQuota()` 方法，支持设置项目默认配额。
-*   **Aliyun V4 签名**  
+*   **Aliyun V4 签名**
     支持配置 `corporation` 参数，适配专有云环境部署需求。
-*   **AklessAccount**  
+*   **AklessAccount**
     完整支持 V4 签名协议。
-*   **TableTunnel**  
+*   **TableTunnel**
     新增 ZSTD (Zstandard) 压缩算法支持，优化数据传输效率。
-*   **MaxCompute Query Acceleration (MaxQA)**  
+*   **MaxCompute Query Acceleration (MaxQA)**
     支持并发读取超大结果集，显著提升性能（*注意：并发操作将增加内存消耗，需根据集群容量合理配置并发度*）。
-*   **Preview 功能**  
+*   **Preview 功能**
     支持通过 Tunnel 执行标签（Tag）操作。
-*   **InstanceTunnel**  
+*   **InstanceTunnel**
     新增 `getDownloadSession(String projectName, String instanceID, String sessionId)` 方法，简化下载会话获取流程。
 
 ### 🐞 问题修复
@@ -73,19 +113,19 @@
 
 ## [0.52.3-public] - 2025-06-14
 ### 🎉 新增功能
-- **OdpsOptions**  
+- **OdpsOptions**
   新增 Odps 实例级别的一些变量，可以通过 `odps.options()` 获取。现有两个方法：
-  - `setUseLegacyLogview` = true/false/null  
-    当为 true，使用 logview，当为 false，使用 jobinsight（logview v2），当为 null（默认值），智能判断当前 region 是否能够使用 jobinsight，如是使用 jobinsight，否则使用 logview。  
+  - `setUseLegacyLogview` = true/false/null
+    当为 true，使用 logview，当为 false，使用 jobinsight（logview v2），当为 null（默认值），智能判断当前 region 是否能够使用 jobinsight，如是使用 jobinsight，否则使用 logview。
     ⚠️ **兼容性提示**：此前版本默认使用的是 logview，更新到此版本后，获取logview时可能获取到 jobinsight 地址，注意这点以避免兼容性问题。
-  - `setSkipCheckIfEpv2` = true/false  
+  - `setSkipCheckIfEpv2` = true/false
     默认为 false，在 0.51.7 版本中，getTable 等接口增加了对 EPv2 项目的支持，但会影响接口性能。可以通过将此配置设置 true，会跳过Epv2的项目，提高性能。
 
-- **ArrayRecord**  
-  在主要的初始化 Record 场景，比如通过构造函数初始化ArrayRecord，通过Tunnel Session newRecord 方法生成 Record，都新增了 caseSensitive 参数，用来标识使用该 Record setByName 时，是否区分大小写。  
+- **ArrayRecord**
+  在主要的初始化 Record 场景，比如通过构造函数初始化ArrayRecord，通过Tunnel Session newRecord 方法生成 Record，都新增了 caseSensitive 参数，用来标识使用该 Record setByName 时，是否区分大小写。
   ⚠️ **历史兼容说明**：在 0.51.8 版本中，我们让 Record 不再区分大小写（因为 MaxCompute 引擎不区分大小写），但这会导致一些性能损失。因此在本版本，我们提供了方式来恢复原行为。
 
-- **SchemaMismatchRuntimeException**  
+- **SchemaMismatchRuntimeException**
   新增了一种异常类型，来试图 try best 的告诉用户：在 Tunnel 写入过程中，传入的数据和表模式不匹配 可能是表模式发生了变化，请重建 Tunnel Session。该类是 `IllegalArgumentException` 的子类。
 
 
@@ -124,13 +164,13 @@
   - 新增 `BINARY_FORMAT_QUOTED_PRINTABLE` 格式解析支持
 
 ### 🛠️ 功能优化
-- **ArrowStreamRecordReader**  
+- **ArrowStreamRecordReader**
   重构类实现，支持将任意来源的 `ArrowReader` 转换为 `RecordReader`
 
 - **ArrayRecord**
-  - 优化类型校验逻辑：  
-    ✅ 将 `set` 方法可能抛出的 `ClassCastException` 改为 `IllegalArgumentException`  
-    ✅ 增强错误信息可读性  
+  - 优化类型校验逻辑：
+    ✅ 将 `set` 方法可能抛出的 `ClassCastException` 改为 `IllegalArgumentException`
+    ✅ 增强错误信息可读性
     ✅ 避免 JVM 对异常的隐式优化（如错误信息被截断为 null）
 
 
@@ -146,20 +186,20 @@
 
 ## [0.51.10-public] - 2025-03-11
 ### 功能增强
-- **TableTunnel 指标支持**  
-  Upload/Download 方法新增指标收集能力  
+- **TableTunnel 指标支持**
+  Upload/Download 方法新增指标收集能力
   [文档参考](link_to_document)
 
-- **TunnelBufferedReader 实现**  
+- **TunnelBufferedReader 实现**
   新增 `TunnelBufferedReader` 类，支持通过短连接下载表/实例数据
 
-- **可排序数据结构**  
-  新增 `ReorderableRecord` 和 `ReorderableStruct` 实体类  
+- **可排序数据结构**
+  新增 `ReorderableRecord` 和 `ReorderableStruct` 实体类
   [设计说明](https://github.com/aliyun/aliyun-odps-java-sdk/releases/tag/v0.51.10-SNAPSHOT)
 
 ## [0.51.9-public] - 2025-02-26
 ### 问题修复
-- **结构体字段转义修复**  
+- **结构体字段转义修复**
   修复 `TypeInfo` 中 `getName(true)` 方法未对嵌套结构体字段名添加反引号的问题
 
 ## [0.51.8-public] - 2025-02-20
@@ -199,7 +239,7 @@
 
 ### 变更
 - **UpsertStream** 在 0.51.0 版本，修改了 `close` 方法的函数签名（不再抛出 `TunnelException`），在本版本中恢复，以保证接口兼容性。
-- **ClusterInfo** 在 0.51.0 版本，toString 方法有所变更，在本版本中恢复，以保证接口兼容性。 
+- **ClusterInfo** 在 0.51.0 版本，toString 方法有所变更，在本版本中恢复，以保证接口兼容性。
 - **TunnelRetryStrategy**，**ConfigurationImpl** 类在 0.48.6 版本被移除，在本版本中恢复（但不会起到任何效果！），以保证接口兼容性。
 
 ## [0.51.3-public] - 2025-01-07
@@ -243,7 +283,7 @@
 - **Table.changeOwner** 修复 SQL 拼写错误。
 - **Instance.getTaskSummary** 移除自 0.50.2 版本开始的不合理打印的 debug 日志。
 - **TruncTime** 在建表/toString 时，使用反引号对 `columnName` 进行 quote。
-> **注意：** 此版本还包括“0.51.0-public.rc0”和“0.51.0-public.rc1”的所有更改。
+> **注意：** 此版本还包括"0.51.0-public.rc0"和"0.51.0-public.rc1"的所有更改。
 
 ## [0.50.6-public] - 2024-11-27
 - **Logview** 新增对 Logview V2 的支持，V2 版本保障了数据安全，更多信息参考 [2024年11月14日-MaxCompute Logview安全升级](https://help.aliyun.com/zh/maxcompute/product-overview/2024-service-notices) 。可以通过 `new Logview(odps, 2)` 创建，SQLExecutor 通过 `logviewVersion` 方法指定。
@@ -261,12 +301,12 @@
   - 新增`selectStatement`参数，用于`create table as` 和 `create view as` 场景
   - 新增`getSql`方法，用于获取创建表的 SQL 语句
   - 现在会对所有的 `Comment` 参数进行 quote，以支持包含特殊字符的 `Comment` 参数
-  - 将 DataHub 相关的建表参数（`hubLifecycle`, `shardNum`) 整合为 `DataHubInfo` 
+  - 将 DataHub 相关的建表参数（`hubLifecycle`, `shardNum`) 整合为 `DataHubInfo`
   - 重命名`withJars`方法为`withResources`，以表示不仅可以使用JAR类型资源
   - 重命名`withBucketNum`方法为`withDeltaTableBucketNum`，以表示该方法仅用于 Delta Table
   - 修改了 `withHints`，`withAlias`，`withTblProperties`，`withSerdeProperties` 方法的逻辑，现在会覆盖之前设置的值，而不是合并
   - 移除了`createExternal`方法，现在使用`create`方法即可
-- **Table** 
+- **Table**
   - 新增 `getSchemaVersion` 方法，用户获取当前表结构的版本，用户每次进行 SchemaEvolution 都会更新版本号，目前该字段仅用于在创建 StreamTunnel 时指定
   - 新增 `setLifeCycle`，`changeOwner`，`changeComment`，`touch`，`changeClusterInfo`，`rename`，`addColumns`，`dropColumns`方法，以支持对表结构进行修改
 - **StreamTunnel** 修改初始化逻辑，当指定 `allowSchemaMismatch` 为 `false` 时，会自动重试直到使用最新版本的表结构(超时时间为5min)
@@ -419,10 +459,8 @@
     - 能够根据 projectName 和 quotaNickName 获取到 quota 的详细信息，比如是否属于交互式 quota
 - **Quota 类**新增 `isInteractiveQuota` 方法，用来判断 quota 是否属于交互式 quota（适用于 MCQA 2.0）
 -
-
 新增 `getResultByInstanceTunnel(Instance instance, String taskName, Long limit, boolean limitEnabled)`
 方法：
-
 - 用来无限制地通过 instanceTunnel 获取结果（解除限制需要更高的权限）
 
 - **UpsertSession.Builder** 新增 `setLifecycle` 方法，用来配置 Session 生命周期
@@ -677,4 +715,3 @@ org.antlr 重定位至 com.aliyun.odps.thirdparty.antlr
     - 设置 Netty 线程池的数量（默认更改为 1）。
     - 设置最大并发量（默认值更改为 16）。
 - `TableTunnel` 支持设置 `quotaName` 选项。
-
