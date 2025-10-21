@@ -302,7 +302,7 @@ public class Table extends LazyLoad {
    */
   public static class ClusterInfo {
 
-    enum ClusterType {
+    public enum ClusterType {
       HASH,
       RANGE
     }

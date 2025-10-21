@@ -142,6 +142,16 @@ public enum OdpsType implements Serializable {
   TIMESTAMP_NTZ,
 
   /**
+   * 地理类型
+   */
+  GEOGRAPHY,
+
+  /**
+   * blob 类型
+   */
+  BLOB,
+
+  /**
    * Unsupported types from external systems
    */
   UNKNOWN;

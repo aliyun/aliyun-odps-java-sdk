@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.SimpleStruct;
@@ -29,6 +31,8 @@ enum ComplexObjectConverter implements OdpsObjectConverter {
 
     private final String type;
     private final boolean convertToString;
+
+    private static final Pattern UNKEYED_MAP_PATTERN = Pattern.compile("^\\{:(.*)}$");
 
     ComplexObjectConverter(String type) {
         this.type = type;
@@ -55,7 +59,15 @@ enum ComplexObjectConverter implements OdpsObjectConverter {
         // check type
         switch (typeInfo.getOdpsType()) {
             case ARRAY:
+                break;
             case MAP:
+                // fix json like {:NULL}, {:Hello}
+                Matcher matcher = UNKEYED_MAP_PATTERN.matcher(str);
+                if (matcher.matches()) {
+                    String extractedValue = matcher.group(1);
+                    str = "{\"\":" + extractedValue + "}";
+                }
+                break;
             case STRUCT:
                 break;
             default:

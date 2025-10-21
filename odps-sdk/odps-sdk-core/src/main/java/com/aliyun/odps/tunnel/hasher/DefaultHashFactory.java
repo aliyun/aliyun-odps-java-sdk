@@ -207,6 +207,15 @@ class DefaultHashFactory implements HasherFactory {
 
       return hashVal;
     }
+
+    @Override
+    public String normalizeType(Object value) {
+      if (value instanceof byte[]) {
+        return new String((byte[]) value, UTF8);
+      } else {
+        return (String) value;
+      }
+    }
   }
 
   /**

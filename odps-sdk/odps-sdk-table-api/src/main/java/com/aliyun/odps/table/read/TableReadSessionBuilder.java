@@ -26,6 +26,7 @@ import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.Table;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.configuration.ArrowOptions;
+import com.aliyun.odps.table.configuration.IncrementalOptions;
 import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.optimizer.predicate.Predicate;
@@ -48,8 +49,11 @@ public class TableReadSessionBuilder {
     private String sessionId;
     private String sessionProvider;
     private Predicate filterPredicate;
+    private boolean sessionRefresh = false;
+    private IncrementalOptions incrementalOptions;
     private String detailsJson;
-
+    private boolean enableEstimateStats;
+    private boolean allowFilterPredicateFallback = false;
     /**
      * Set the read session target to a specific table by {@link Table}.
      */
@@ -149,6 +153,32 @@ public class TableReadSessionBuilder {
     }
 
     /**
+     * refresh session
+     */
+    public TableReadSessionBuilder withSessionRefresh(boolean sessionRefresh) {
+        this.sessionRefresh = sessionRefresh;
+        return this;
+    }
+
+    /**
+     * Set the table
+     */
+    public TableReadSessionBuilder withIncrementalOptions(IncrementalOptions options) {
+        this.incrementalOptions = options;
+        return this;
+    }
+
+    public TableReadSessionBuilder enableEstimateStats(boolean enableEstimateStats) {
+        this.enableEstimateStats = enableEstimateStats;
+        return this;
+    }
+
+    public TableReadSessionBuilder allowFilterPredicateFallback(boolean allowFilterPredicateFallback) {
+        this.allowFilterPredicateFallback = allowFilterPredicateFallback;
+        return this;
+    }
+
+    /**
      * Initialize the session from json string
      */
     public TableReadSessionBuilder fromJson(String jsonString) {
@@ -196,8 +226,24 @@ public class TableReadSessionBuilder {
         return filterPredicate;
     }
 
+    public boolean isSessionRefresh() {
+        return sessionRefresh;
+    }
+
+    public IncrementalOptions getIncrementalOptions() {
+        return incrementalOptions;
+    }
+
     public String getDetailsJson() {
         return detailsJson;
+    }
+
+    public boolean isEnableEstimateStats() {
+        return enableEstimateStats;
+    }
+
+    public boolean isAllowFilterPredicateFallback() {
+        return allowFilterPredicateFallback;
     }
 
     /**
@@ -205,6 +251,13 @@ public class TableReadSessionBuilder {
      */
     public TableBatchReadSession buildBatchReadSession() throws IOException {
         return getProvider().createBatchReadSession(this);
+    }
+
+    /**
+     * Returns a logical {@link TableIncrementalReadSession}.
+     */
+    public TableIncrementalReadSession buildIncrementalReadSession() throws IOException {
+        return getProvider().createIncrementalReadSession(this);
     }
 
     private TableReadSessionProvider getProvider() throws IOException {

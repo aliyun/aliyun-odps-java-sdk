@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.table.enviroment;
 
+import java.net.Proxy;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,6 +51,10 @@ public class EnvironmentSettings {
 
     private final Long slotNum;
 
+    private final String httpProxy;
+
+    private final String httpsProxy;
+
     // TODO: Environment Credentials
 
     private EnvironmentSettings(Builder builder) {
@@ -64,6 +69,8 @@ public class EnvironmentSettings {
         this.tunnelEndpoint = builder.tunnelEndpoint;
         this.restOptions = builder.restOptions;
         this.slotNum = builder.slotNum;
+        this.httpProxy = builder.httpProxy;
+        this.httpsProxy = builder.httpsProxy;
     }
 
     public ExecutionMode getExecutionMode() {
@@ -110,6 +117,14 @@ public class EnvironmentSettings {
         return Optional.ofNullable(slotNum);
     }
 
+    public Optional<String> getHttpProxy() {
+        return Optional.ofNullable(httpProxy);
+    }
+
+    public Optional<String> getHttpsProxy() {
+        return Optional.ofNullable(httpsProxy);
+    }
+
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -132,6 +147,8 @@ public class EnvironmentSettings {
         private String tunnelEndpoint;
         private RestOptions restOptions;
         private Long slotNum;
+        private String httpProxy;
+        private String httpsProxy;
 
         public Builder inLocalMode() {
             this.executionMode = ExecutionMode.LOCAL;
@@ -201,6 +218,16 @@ public class EnvironmentSettings {
         public Builder withSlotNum(Long slotNum) {
             Preconditions.checkLong(slotNum, 1, "Slot num");
             this.slotNum = slotNum;
+            return this;
+        }
+
+        public Builder withHttpProxy(String httpProxy) {
+            this.httpProxy = httpProxy;
+            return this;
+        }
+
+        public Builder withHttpsProxy(String httpsProxy) {
+            this.httpsProxy = httpsProxy;
             return this;
         }
 

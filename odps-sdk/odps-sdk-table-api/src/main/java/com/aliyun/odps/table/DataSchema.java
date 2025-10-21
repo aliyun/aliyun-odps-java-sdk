@@ -41,6 +41,8 @@ public class DataSchema implements Serializable {
 
     private final List<String> partitionKeys;
 
+    private final List<String> systemColumnKeys;
+
     private transient List<Column> columns;
 
     public DataSchema(List<Column> columns) {
@@ -48,13 +50,20 @@ public class DataSchema implements Serializable {
     }
 
     public DataSchema(List<Column> columns, List<String> partitionKeys) {
+        this(columns, partitionKeys, new ArrayList<>());
+    }
+
+    public DataSchema(List<Column> columns, List<String> partitionKeys, List<String> systemColumnKeys) {
         Preconditions.checkNotNull(columns, "Columns must not be null.");
         Preconditions.checkNotNull(partitionKeys, "PartitionKeys must not be null.");
+        Preconditions.checkNotNull(systemColumnKeys, "SystemColumnKeys must not be null.");
+
         this.attributes = columns.stream()
                 .map(DataSchema::columnToAttribute)
                 .collect(Collectors.toList());
         this.columns = columns;
         this.partitionKeys = Collections.unmodifiableList(partitionKeys);
+        this.systemColumnKeys = Collections.unmodifiableList(systemColumnKeys);
     }
 
     @Override
@@ -65,6 +74,15 @@ public class DataSchema implements Serializable {
             sb.append(" |-- ");
             sb.append(column.toString());
             sb.append('\n');
+        }
+
+        if (!systemColumnKeys.isEmpty()) {
+            sb.append("SystemColumnKeys\n");
+            for (String partitionKey : systemColumnKeys) {
+                sb.append(" |-- ");
+                sb.append(partitionKey);
+                sb.append('\n');
+            }
         }
 
         if (!partitionKeys.isEmpty()) {
@@ -88,12 +106,13 @@ public class DataSchema implements Serializable {
         }
         DataSchema that = (DataSchema) o;
         return Objects.equals(attributes, that.attributes)
-                && Objects.equals(partitionKeys, that.partitionKeys);
+                && Objects.equals(partitionKeys, that.partitionKeys)
+                && Objects.equals(systemColumnKeys, that.systemColumnKeys);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(attributes, partitionKeys);
+        return Objects.hash(attributes, partitionKeys, systemColumnKeys);
     }
 
     private void readObject(ObjectInputStream inputStream)
@@ -114,6 +133,10 @@ public class DataSchema implements Serializable {
 
     public List<String> getPartitionKeys() {
         return partitionKeys;
+    }
+
+    public List<String> getSystemColumnKeys() {
+        return systemColumnKeys;
     }
 
     public List<String> getColumnNames() {
@@ -171,10 +194,12 @@ public class DataSchema implements Serializable {
 
         private List<Column> columns;
         private List<String> partitionKeys;
+        private List<String> systemColumnKeys;
 
         private Builder() {
             this.columns = new ArrayList<>();
             this.partitionKeys = new ArrayList<>();
+            this.systemColumnKeys = new ArrayList<>();
         }
 
         public Builder columns(List<Column> columns) {
@@ -187,8 +212,13 @@ public class DataSchema implements Serializable {
             return this;
         }
 
+        public Builder systemColumnKeys(List<String> systemColumnKeys) {
+            this.systemColumnKeys = systemColumnKeys;
+            return this;
+        }
+
         public DataSchema build() {
-            return new DataSchema(columns, partitionKeys);
+            return new DataSchema(columns, partitionKeys, systemColumnKeys);
         }
     }
 

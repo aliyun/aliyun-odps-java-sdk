@@ -23,7 +23,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
+
+import java.net.Proxy;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.Assert;
+import org.junit.Test;
 
 import com.aliyun.odps.account.AliyunAccount;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
@@ -32,10 +39,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.util.HashMap;
-import java.util.Map;
-import org.junit.Assert;
-import org.junit.Test;
 
 public class OdpsTest {
 
@@ -128,5 +131,36 @@ public class OdpsTest {
     JsonParser parser = new JsonParser();
     JsonObject jsonObject = parser.parse(settingsStr).getAsJsonObject();
     assertEquals(SETTING_VAL, jsonObject.get(SETTING_NAME).getAsString());
+  }
+
+  @Test
+  public void testProxyConfig() {
+    Odps odps = OdpsTestUtils.newProxyConfigOdps();
+
+    Proxy proxy = odps.getRestClient().getProxy();
+    assertEquals(Proxy.Type.HTTP, proxy.type());
+    assertEquals("proxy.example.com:8888", proxy.address().toString());
+  }
+
+  @Test
+  public void testSetProxy() throws OdpsException {
+    Odps odps = OdpsTestUtils.newDefaultOdps();
+
+    odps.options().setProxyConfig(
+      ProxyConfig.builder().withHttpsProxy("https://proxy.example.com:8888").build());
+    Proxy proxy = odps.getRestClient().getProxy();
+    assertNull( proxy);
+
+    odps.options().setProxyConfig(
+      ProxyConfig.builder().withHttpProxy("http://proxy.example.com:8888").build());
+    proxy = odps.getRestClient().getProxy();
+
+    assertEquals(Proxy.Type.HTTP, proxy.type());
+    assertEquals("proxy.example.com:8888", proxy.address().toString());
+
+    // clear proxy
+    odps.options().setProxyConfig(null);
+    // should be ok
+    odps.projects().get().reload();
   }
 }

@@ -56,4 +56,16 @@ public interface TableBatchReadSession extends TableReadSession {
     default SessionType getType() {
         return SessionType.BATCH_READ;
     }
+
+    /**
+     * Returns {@link TableSnapshotSpec}
+     */
+    default TableSnapshotSpec getSnapshot() {
+        return TableSnapshotSpec.TableVersionUnspecified.create();
+    }
+
+    /**
+     * Returns the estimated stats for table session.
+     */
+    SessionStats getEstimatedStats();
 }

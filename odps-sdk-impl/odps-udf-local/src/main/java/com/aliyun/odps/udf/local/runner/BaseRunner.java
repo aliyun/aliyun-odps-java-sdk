@@ -279,7 +279,7 @@ public abstract class BaseRunner {
    * @throws LocalRunException
    */
   public void runTest(Object[][] expectedOutputs) throws LocalRunException {
-    List<Object[]> yields = yield();
+    List<Object[]> yields = this.yield();
     if (expectedOutputs == null && yields == null) {
       return;
     } else if (expectedOutputs == null) {
@@ -327,7 +327,7 @@ public abstract class BaseRunner {
    */
   public void runTest(List<Object[]> expectedOutputs) throws LocalRunException {
     if (expectedOutputs == null) {
-      List<Object[]> yields = yield();
+      List<Object[]> yields = this.yield();
       if (expectedOutputs == null && yields == null) {
         return;
       } else if (expectedOutputs == null) {

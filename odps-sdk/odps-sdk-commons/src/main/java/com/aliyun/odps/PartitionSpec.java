@@ -63,7 +63,7 @@ public class PartitionSpec implements Serializable {
             String.format("Invalid partition spec: empty group in '%s'", spec)
         );
       }
-      String[] splits = group.split("=", 2);
+      String[] splits = group.split("=");
       if (splits.length != 2) {
         throw new IllegalArgumentException(
             String.format("Invalid partition spec: expected key=value in '%s'", group)

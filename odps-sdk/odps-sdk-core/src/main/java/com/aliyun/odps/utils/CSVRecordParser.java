@@ -74,20 +74,17 @@ public class CSVRecordParser {
     return new ParseResult(schema, records);
   }
 
-  private static final OdpsRecordConverter formatter;
-  static {
-    // TODO: timezone
-    formatter = OdpsRecordConverter.builder()
-        .enableParseNull()
-        .nullFormat("\\N")
-        .binaryFormatUtf8()
-        .build();
-  }
-
-  public static ParseResult parse(String csvString, TableSchema schema) throws OdpsException {
+  public static ParseResult parse(String csvString, TableSchema schema, String timeZone) throws OdpsException {
     if (schema == null) {
       return parse(csvString);
     }
+    OdpsRecordConverter formatter = OdpsRecordConverter.builder()
+      .enableParseNull()
+      .nullFormat("\\N")
+      .binaryFormatUtf8()
+      .timezone(timeZone)
+      .build();
+
     CsvReader reader = new CsvReader(new StringReader(csvString));
     reader.setSafetySwitch(false);
     int lineCount = 0;
@@ -107,7 +104,6 @@ public class CSVRecordParser {
         } else {
           Record record = new ArrayRecord(schema);
           for (int i = 0; i < newline.length; i++) {
-            // TODO: maybe we should add a try-catch here
             record.set(i, formatter.parseObject(newline[i], columns.get(i).getTypeInfo()));
           }
           records.add(record);

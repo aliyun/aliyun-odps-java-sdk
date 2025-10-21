@@ -33,8 +33,10 @@ import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.optimizer.predicate.Predicate;
+import com.aliyun.odps.table.read.SessionStats;
 import com.aliyun.odps.table.read.TableBatchReadSession;
 import com.aliyun.odps.table.read.TableReadSessionBuilder;
+import com.aliyun.odps.table.read.TableSnapshotSpec;
 import com.aliyun.odps.table.read.split.InputSplitAssigner;
 import com.aliyun.odps.table.utils.Preconditions;
 
@@ -58,6 +60,8 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
 
     protected transient Predicate filterPredicate;
 
+    protected transient TableReadSessionBuilder sessionBuilder;
+
     protected String sessionId;
 
     protected TableIdentifier identifier;
@@ -74,6 +78,16 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
 
     protected Set<DataFormat> supportDataFormats;
 
+    protected boolean sessionRefresh;
+
+    protected TableSnapshotSpec snapshotSpec;
+
+    protected boolean enableEstimateStats;
+
+    protected SessionStats estimateStats;
+
+    protected boolean allowFilterPredicateFallback;
+
     public TableBatchReadSessionBase(TableReadSessionBuilder builder) throws IOException {
         if (builder.getDetailsJson() != null) {
             initializeFromJson(builder.getDetailsJson());
@@ -82,6 +96,10 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
         this.identifier = Preconditions.checkNotNull(builder.getIdentifier(), "Table identifier", "required");
         this.settings = Preconditions.checkNotNull(builder.getSettings(), "Environment settings", "required");
         this.sessionStatus = SessionStatus.UNKNOWN;
+        this.sessionRefresh = builder.isSessionRefresh();
+        this.enableEstimateStats = builder.isEnableEstimateStats();
+        this.allowFilterPredicateFallback = builder.isAllowFilterPredicateFallback();
+        this.sessionBuilder = builder;
         if (builder.getSessionId() == null) {
             sanitize(builder.getRequiredPartitions(),
                     builder.getRequiredDataColumns(),
@@ -172,5 +190,14 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
     }
 
     protected void initializeFromJson(String json) {
+    }
+
+    @Override
+    public TableSnapshotSpec getSnapshot() {
+        if (this.snapshotSpec != null) {
+            return this.snapshotSpec;
+        } else {
+            return TableSnapshotSpec.TableLatest.create();
+        }
     }
 }

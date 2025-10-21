@@ -17,6 +17,8 @@ import org.junit.Test;
 import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
+import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.Table;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Binary;
@@ -97,7 +99,7 @@ public class CSVRecordParserTest {
     String selectResult = results.get(SQLTask.AnonymousSQLTaskName);
 
     if (selectResult != null) {
-      System.out.println(CSVRecordParser.parse(selectResult, allTypeSchema).getRecords());
+      System.out.println(CSVRecordParser.parse(selectResult, allTypeSchema, "UTC").getRecords());
     }
   }
 
@@ -142,8 +144,28 @@ public class CSVRecordParserTest {
     String selectResult = results.get(SQLTask.AnonymousSQLTaskName);
 
     if (selectResult != null) {
-      System.out.println(CSVRecordParser.parse(selectResult, allTypeSchema).getRecords());
+      System.out.println(
+        CSVRecordParser.parse(selectResult, allTypeSchema, "Asia/Shanghai").getRecords());
     }
   }
 
+  @Test
+  public void testMaxQA() throws OdpsException {
+    String
+      csv =
+      "\"test_case_description\",\"c_tinyint\",\"c_smallint\",\"c_int\",\"c_bigint\",\"c_float\",\"c_double\",\"c_decimal_std\",\"c_decimal_extended\",\"c_decimal_integer\",\"c_varchar\",\"c_char\",\"c_string\",\"c_binary\",\"c_date\",\"c_datetime\",\"c_timestamp\",\"c_timestamp_ntz\",\"c_boolean\"\n"
+      + "\"Zero and Empty Values\",0,0,0,0,0,0.0,\"0\",\"0\",\"0\",\"\",\"          \",\"\",\"\",\"1970-01-01\",1970-01-01 00:00:00,\"1970-01-01 00:00:00\",\"1970-01-01 00:00:00\",false\n"
+      + "\"All NULL values\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\",\"\\N\"\n"
+      + "\"Maximum Values\",127,32767,2147483647,9223372036854775807,3.402823e+38,1.7976931348623157e308,\"99999999999999999999.999999999999999999\",\"\\N\",\"99999999999999999999999999999999999999\",\"varchar_max_len_test\",\"char_max  \",\"A very long string test case with various characters:!@#$%^&*()_+{}[]:;\"\"<>,.?/~` and 中文、日語、한국어\",\"=FF=FE=FD\",\"9999-12-31\",9999-12-31 23:59:59,\"9999-12-31 23:59:59.999999999\",\"9999-12-31 23:59:59.999999999\",true\n"
+      + "\"Minimum Values\",-128,-32768,-2147483648,\"\\N\",-3.402823e+38,-1.7976931348623157e308,\"-9999999999999999999.999999999999999999\",\"\\N\",\"-9999999999999999999999999999999999999\",\"varchar_min_test\",\"char_min  \",\"Another string with escapes ' and \"\" and \\\",\"=00=01=02\",\"0001-01-03\",0001-01-01 00:00:00,\"0001-01-01 00:00:00\",\"0000-01-01 00:00:00\",false\n"
+      + "\"High and Low Precision\",1,1,1,1,1.401298e-45,5e-324,\"0.000000000000000001\",\"0\",\"1\",\"高精度低精度\",\"高精度       \",\"Test Precision\",\"abc\",\"2023-10-27\",2023-10-27 10:30:15,\"2023-10-27 10:30:15.123456789\",\"2023-10-27 10:30:15.123\",true";
+
+    if (odps.tables().exists("three_pangu2_odps2", "all_types_test_data")) {
+      Table table = odps.tables().get("three_pangu2_odps2", "all_types_test_data");
+      CSVRecordParser.ParseResult
+        parseResult =
+        CSVRecordParser.parse(csv, table.getSchema(), "Asia/Shanghai");
+      System.out.println(parseResult.getRecords());
+    }
+  }
 }

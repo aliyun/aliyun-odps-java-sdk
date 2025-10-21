@@ -20,9 +20,11 @@
 package com.aliyun.odps.table.read.impl;
 
 import com.aliyun.odps.table.read.TableBatchReadSession;
+import com.aliyun.odps.table.read.TableIncrementalReadSession;
 import com.aliyun.odps.table.read.TableReadSessionBuilder;
 import com.aliyun.odps.table.read.TableReadSessionProvider;
 import com.aliyun.odps.table.read.impl.batch.TableBatchReadSessionImpl;
+import com.aliyun.odps.table.read.impl.incremental.TableIncrementalReadSessionImpl;
 
 import java.io.IOException;
 
@@ -36,5 +38,10 @@ public class TableReadSessionProviderImpl implements TableReadSessionProvider {
     @Override
     public TableBatchReadSession createBatchReadSession(TableReadSessionBuilder builder) throws IOException {
         return new TableBatchReadSessionImpl(builder);
+    }
+
+    @Override
+    public TableIncrementalReadSession createIncrementalReadSession(TableReadSessionBuilder builder) throws IOException {
+        return new TableIncrementalReadSessionImpl(builder);
     }
 }

@@ -133,6 +133,7 @@ public abstract class ExecutionEnvironment {
             throw new IllegalArgumentException(
                     "Execution environment get service endpoint error:" + e.getMessage());
         }
+        // auto read from env to set proxy
         setRestOptions(odps.getRestClient());
         return odps;
     }

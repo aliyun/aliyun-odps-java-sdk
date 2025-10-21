@@ -859,11 +859,17 @@ public class RestClient {
   }
 
   public void setProxy(Proxy proxy) {
-    if (!Proxy.Type.HTTP.equals(proxy.type())) {
-      throw new IllegalArgumentException("Unsupported proxy type: " + proxy.type() + " support HTTP only");
+    if (proxy == null) {
+      this.proxy = null;
+      this.transport.setProxy(null);
+    } else {
+      if (!Proxy.Type.HTTP.equals(proxy.type())) {
+        throw new IllegalArgumentException(
+          "Unsupported proxy type: " + proxy.type() + " support HTTP only");
+      }
+      this.proxy = proxy;
+      this.transport.setProxy(proxy);
     }
-    this.proxy = proxy;
-    this.transport.setProxy(proxy);
   }
 
   public Proxy getProxy() {

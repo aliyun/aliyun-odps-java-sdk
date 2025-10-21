@@ -131,5 +131,20 @@ public class SplitOptions {
                     throw new IllegalArgumentException("Unexpected split mode");
             }
         }
+
+        public static SplitMode fromString(String mode) {
+            switch (mode) {
+                case "Size":
+                    return SIZE;
+                case "Parallelism":
+                    return PARALLELISM;
+                case "RowOffset":
+                    return ROW_OFFSET;
+                case "Bucket":
+                    return BUCKET;
+                default:
+                    throw new IllegalArgumentException("Unexpected split mode");
+            }
+        }
     }
 }

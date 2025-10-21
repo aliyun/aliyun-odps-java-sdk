@@ -62,6 +62,12 @@ public class TypeInfoFactory {
   public static final PrimitiveTypeInfo
       JSON = new SimplePrimitiveTypeInfo(OdpsType.JSON);
 
+  public static final PrimitiveTypeInfo
+      GEOGRAPHY = new SimplePrimitiveTypeInfo(OdpsType.GEOGRAPHY);
+
+  public static final PrimitiveTypeInfo
+      BLOB = new SimplePrimitiveTypeInfo(OdpsType.BLOB);
+
   private static HashMap<OdpsType, PrimitiveTypeInfo> typeInfoMap = new HashMap<OdpsType, PrimitiveTypeInfo>();
 
   static {
@@ -85,6 +91,8 @@ public class TypeInfoFactory {
 
     typeInfoMap.put(DECIMAL.getOdpsType(), DECIMAL);
     typeInfoMap.put(JSON.getOdpsType(), JSON);
+    typeInfoMap.put(GEOGRAPHY.getOdpsType(), GEOGRAPHY);
+    typeInfoMap.put(BLOB.getOdpsType(), BLOB);
   }
 
   public static PrimitiveTypeInfo getPrimitiveTypeInfo(OdpsType odpsType) {

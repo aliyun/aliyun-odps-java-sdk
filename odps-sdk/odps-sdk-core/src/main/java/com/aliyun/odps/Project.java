@@ -677,26 +677,12 @@ public class Project extends LazyLoad {
 
   /**
    * 获取 Project 全部可配置的属性, 包含从 group 继承来的配置信息
+   * Since S48, getAllProperties is same to getProperties
    *
    * @return 以key, value报错的配置信息
    */
   public Map<String, String> getAllProperties() throws OdpsException {
-    if (allProperties == null) {
-
-      String resource = ResourceBuilder.buildProjectResource(model.name);
-      Map<String, String> params = new LinkedHashMap<String, String>();
-      params.put("properties", "all");
-      Response resp = client.request(resource, "GET", params, null, null);
-      try {
-        ProjectModel model = SimpleXmlUtils.unmarshal(resp, ProjectModel.class);
-
-        allProperties = model.properties;
-      } catch (Exception e) {
-        throw new OdpsException("Can't bind xml to " + ProjectModel.class, e);
-      }
-    }
-
-    return allProperties;
+    return getProperties();
   }
 
   /**

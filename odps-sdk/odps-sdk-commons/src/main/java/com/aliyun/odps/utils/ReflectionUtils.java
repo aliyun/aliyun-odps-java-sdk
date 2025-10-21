@@ -30,11 +30,13 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.ReflectPermission;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +48,6 @@ import com.aliyun.odps.io.DataInputBuffer;
 import com.aliyun.odps.io.DataOutputBuffer;
 import com.aliyun.odps.io.NullWritable;
 import com.aliyun.odps.io.Writable;
-
-import sun.security.util.SecurityConstants;
 
 /**
  * General reflection utilities
@@ -105,7 +105,7 @@ public class ReflectionUtils {
       return;
     }
     // do permission check on other conditions!!!
-    s.checkPermission(SecurityConstants.CHECK_MEMBER_ACCESS_PERMISSION);
+    s.checkPermission(new RuntimePermission("accessDeclaredMembers"));
     s.checkPermission(new ReflectPermission("suppressAccessChecks"));
     //this.checkPackageAccess(ccl, checkProxyInterfaces);
   }
@@ -455,6 +455,36 @@ public class ReflectionUtils {
     buffer.moveData();
     dst.readFields(buffer.inBuffer);
   }
+
+
+  public static List<URL> getLoadedJars() {
+    ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    // Java8 context class loader
+    if (loader instanceof java.net.URLClassLoader) {
+      return new ArrayList<>(Arrays.asList(((java.net.URLClassLoader) loader).getURLs()));
+    } else {
+      return getUrlsFromModernClassLoader(loader);
+    }
+  }
+
+  private static List<URL> getUrlsFromModernClassLoader(ClassLoader loader) {
+    try {
+      // Avoid direct reference to BuiltinClassLoader, use class name strings for reflection loading
+      Class<?> loaderClass = Class.forName("jdk.internal.loader.BuiltinClassLoader");
+      // Get the ucp field (existing in BuiltinClassLoader or its parent class)
+      Field ucpField = loaderClass.getDeclaredField("ucp");
+      ucpField.setAccessible(true);
+      Object ucp = ucpField.get(loader); // 实际类型为 jdk.internal.loader.URLClassPath
+      // Get the path field in URLClassPath
+      Field pathField = ucp.getClass().getDeclaredField("path");
+      pathField.setAccessible(true);
+      return (ArrayList<URL>) pathField.get(ucp);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to get URLs from class loader " + loader.getClass().getName(), e);
+    }
+  }
+
+
 
   /**
    * A pair of input/output buffers that we use to clone writables.

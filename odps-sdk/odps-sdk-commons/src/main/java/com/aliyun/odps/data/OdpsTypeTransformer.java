@@ -71,6 +71,8 @@ public class OdpsTypeTransformer {
     ODPS_TYPE_MAPPER.put(OdpsType.INTERVAL_YEAR_MONTH, IntervalYearMonth.class);
     ODPS_TYPE_MAPPER.put(OdpsType.INTERVAL_DAY_TIME, IntervalDayTime.class);
     ODPS_TYPE_MAPPER.put(OdpsType.JSON, JsonValue.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.GEOGRAPHY, GeographyObject.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.BLOB, Blob.class);
 
     // fix date type mapping
     ODPS_TYPE_MAPPER_V2.putAll(ODPS_TYPE_MAPPER);

@@ -90,8 +90,6 @@ public class Schema extends LazyLoad {
    * Return the schema name
    */
   public String getName() {
-    lazyLoad();
-
     return model.name;
   }
 
@@ -99,8 +97,6 @@ public class Schema extends LazyLoad {
    * Return the project name
    */
   public String getProjectName() {
-    lazyLoad();
-
     return model.project;
   }
 

@@ -31,6 +31,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.ProxyConfig;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
@@ -255,6 +256,15 @@ public class OdpsTestUtils {
     odps.setDefaultProject(project);
     odps.setEndpoint(endpoint);
 
+    return odps;
+  }
+
+  public static Odps newProxyConfigOdps() {
+    Odps odps = newDefaultOdps();
+    ProxyConfig proxyConfig = ProxyConfig.builder()
+        .withHttpProxy("http://proxy.example.com:8888")
+          .build();
+    odps.options().setProxyConfig(proxyConfig);
     return odps;
   }
 

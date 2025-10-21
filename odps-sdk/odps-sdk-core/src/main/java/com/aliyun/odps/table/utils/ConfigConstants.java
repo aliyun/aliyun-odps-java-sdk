@@ -33,6 +33,7 @@ public class ConfigConstants {
 
     public static final String SESSION_ID = "session_id";
     public static final String SESSION_TYPE = "session_type";
+    public static final String SESSION_REFRESH = "session_refresh";
     public static final String SPLIT_INDEX = "split_index";
     public static final String ROW_INDEX = "row_index";
     public static final String ROW_COUNT = "row_count";

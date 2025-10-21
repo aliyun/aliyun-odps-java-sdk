@@ -533,6 +533,7 @@ public class TablesTest extends TestBase {
     try {
       odps.tables().reloadTables(expectedTables);
     } catch (OdpsException e) {
+      e.printStackTrace();
       assertTrue(e.getMessage().contains("limit"));
       throw e;
     }

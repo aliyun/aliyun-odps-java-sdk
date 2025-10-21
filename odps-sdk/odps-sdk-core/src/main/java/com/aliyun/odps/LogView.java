@@ -22,7 +22,6 @@ package com.aliyun.odps;
 import java.util.HashMap;
 
 import com.aliyun.odps.commons.transport.Response;
-import com.aliyun.odps.options.OdpsOptions;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.security.SecurityManager;
 import com.aliyun.odps.utils.StringUtils;

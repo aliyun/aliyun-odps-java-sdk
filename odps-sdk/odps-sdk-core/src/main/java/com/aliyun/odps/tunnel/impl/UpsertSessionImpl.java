@@ -1,6 +1,7 @@
 package com.aliyun.odps.tunnel.impl;
 
 import java.io.IOException;
+import java.net.Proxy;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,6 +16,7 @@ import com.aliyun.odps.Column;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.ProxyConfig;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.HttpStatus;
@@ -48,6 +50,9 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.proxy.HttpProxyHandler;
+import io.netty.handler.proxy.Socks4ProxyHandler;
+import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -414,10 +419,33 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                 @Override
                 protected void initChannel(Channel channel) throws Exception {
                     URI uri = new URI(odps.getEndpoint());
+                    ProxyConfig proxyConfig = odps.options().getProxyConfig();
+                    if (proxyConfig != null) {
+                        switch (uri.getScheme()) {
+                            case "http":
+                                proxyConfig.getProxy(ProxyConfig.Type.HTTP).ifPresent(proxy ->
+                                        channel.pipeline().addLast(new HttpProxyHandler(proxy.address())));
+                                break;
+                            case "https":
+                                proxyConfig.getProxy(ProxyConfig.Type.HTTPS).ifPresent(proxy ->
+                                        channel.pipeline().addLast(new HttpProxyHandler(proxy.address())));
+                                break;
+                            case "socks4":
+                                proxyConfig.getProxy(ProxyConfig.Type.SOCKS4).ifPresent(proxy ->
+                                        channel.pipeline().addLast(new Socks4ProxyHandler(proxy.address())));
+                                break;
+                            case "socks":
+                            case "socks5":
+                                proxyConfig.getProxy(ProxyConfig.Type.SOCKS5).ifPresent(proxy ->
+                                        channel.pipeline().addLast(new Socks5ProxyHandler(proxy.address())));
+                                break;
+                            default:
+                        }
+                    }
                     if ("https".equalsIgnoreCase(uri.getScheme())) {
                         SslContextBuilder builder = SslContextBuilder.forClient();
                         if (odps.getRestClient().isIgnoreCerts()) {
-                            builder = builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+                            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
                         }
                         SslContext sc = builder.build();
                         channel.pipeline().addLast(sc.newHandler(channel.alloc()));

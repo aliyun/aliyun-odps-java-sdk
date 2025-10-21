@@ -24,7 +24,8 @@ public enum SessionType {
     BATCH_READ,
     BATCH_WRITE,
     STREAMING_WRITE,
-    UPSERT;
+    UPSERT,
+    INCREMENTAL_READ;
 
     @Override
     public String toString() {
@@ -37,6 +38,8 @@ public enum SessionType {
                 return "streaming_write";
             case UPSERT:
                 return "upsert";
+            case INCREMENTAL_READ:
+                return "incremental_read";
             default:
                 throw new IllegalArgumentException("Unexpected session type!");
         }

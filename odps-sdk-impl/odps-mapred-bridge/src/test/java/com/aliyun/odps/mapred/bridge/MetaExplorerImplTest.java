@@ -19,7 +19,7 @@
 
 package com.aliyun.odps.mapred.bridge;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

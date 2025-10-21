@@ -36,6 +36,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
+
+import com.aliyun.odps.utils.ReflectionUtils;
 import com.aliyun.odps.utils.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -284,9 +286,8 @@ public class LocalGraphJobRunner implements JobRunner {
                             + " - define too many cache resources, must be <= " + maxResouceNum);
     }
     long resourceSize = 0;
-    URLClassLoader loader = (URLClassLoader) Thread.currentThread()
-        .getContextClassLoader();
-    ArrayList<URL> cp = new ArrayList<URL>(Arrays.asList(loader.getURLs()));
+
+    ArrayList<URL> cp = (ArrayList<URL>) ReflectionUtils.getLoadedJars();
     for (String name : names) {
 
       List<String> res = LocalRunUtils.parseResourceName(name, curProjName);
@@ -311,7 +312,7 @@ public class LocalGraphJobRunner implements JobRunner {
       }
     }
     URLClassLoader newLoader = new URLClassLoader(cp.toArray(new URL[0]),
-                                                  loader);
+                                                  Thread.currentThread().getContextClassLoader());
     Thread.currentThread().setContextClassLoader(newLoader);
     conf.setClassLoader(newLoader);
   }

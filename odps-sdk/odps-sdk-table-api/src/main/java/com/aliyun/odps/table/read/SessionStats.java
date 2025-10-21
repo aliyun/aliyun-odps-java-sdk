@@ -17,30 +17,34 @@
  * under the License.
  */
 
-package com.aliyun.odps.commons.util;
+package com.aliyun.odps.table.read;
 
-import java.io.IOException;
-
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonProcessingException;
-import org.codehaus.jackson.map.ObjectMapper;
+import java.io.Serializable;
 
 /**
- * Utilities for json parser and generate use jackson.
- *
- * @author shenggong.wang@alibaba-inc.com
+ * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-@Deprecated
-public class JacksonParser {
+public class SessionStats implements Serializable {
 
-  private static ObjectMapper mapper = new ObjectMapper();
+    private static final long serialVersionUID = 1L;
 
-  public static JsonNode parse(String json) throws JsonProcessingException,
-                                                   IOException {
-    return mapper.readTree(json);
-  }
+    private long estimatedSize;
 
-  public static ObjectMapper getObjectMapper() {
-    return mapper;
-  }
+    private long estimatedRowCount;
+
+    public long getEstimatedSize() {
+        return estimatedSize;
+    }
+
+    public void setEstimatedSize(long estimatedSize) {
+        this.estimatedSize = estimatedSize;
+    }
+
+    public long getEstimatedRowCount() {
+        return estimatedRowCount;
+    }
+
+    public void setEstimatedRowCount(long estimatedRowCount) {
+        this.estimatedRowCount = estimatedRowCount;
+    }
 }

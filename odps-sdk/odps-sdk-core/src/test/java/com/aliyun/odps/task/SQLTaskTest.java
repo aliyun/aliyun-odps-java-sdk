@@ -397,7 +397,7 @@ public class SQLTaskTest extends TestBase {
     String tempTable = "test_schema_evolution_download_reordered";
     dropTableIfExists(tempTable);
     executeSQL("create table " + tempTable
-               + " (id int, value string not null, value2 double, primary key(value)) tblproperties (\"transactional\"=\"true\");");
+               + " (id bigint, value string not null, value2 double, primary key(value)) tblproperties (\"transactional\"=\"true\");");
     // upsert some data
     executeSQL("insert into table " + tempTable + " values (1, 'hello', 2.0);");
     executeSQL("insert into table " + tempTable + " values (1, 'hello', 2.0);");

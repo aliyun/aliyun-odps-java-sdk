@@ -19,20 +19,6 @@
 
 package com.aliyun.odps.table.read.impl.batch;
 
-import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.aliyun.odps.Column;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
@@ -44,18 +30,22 @@ import com.aliyun.odps.table.DataSchema;
 import com.aliyun.odps.table.SessionStatus;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.configuration.ReaderOptions;
+import com.aliyun.odps.table.configuration.SplitOptions;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
-import com.aliyun.odps.table.read.SplitReader;
+import com.aliyun.odps.table.read.SessionStats;
 import com.aliyun.odps.table.read.TableReadSessionBuilder;
+import com.aliyun.odps.table.read.TableSnapshotSpec;
+import com.aliyun.odps.table.read.SplitReader;
 import com.aliyun.odps.table.read.split.InputSplit;
+import com.aliyun.odps.table.read.split.impl.BucketInputSplitAssigner;
 import com.aliyun.odps.table.read.split.impl.IndexedInputSplitAssigner;
 import com.aliyun.odps.table.read.split.impl.RowRangeInputSplitAssigner;
+import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.table.utils.HttpUtils;
 import com.aliyun.odps.table.utils.Preconditions;
-import com.aliyun.odps.table.utils.ConfigConstants;
-import com.aliyun.odps.table.utils.TableRetryHandler;
 import com.aliyun.odps.table.utils.SchemaUtils;
 import com.aliyun.odps.table.utils.SessionUtils;
+import com.aliyun.odps.table.utils.TableRetryHandler;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.utils.JsonUtils;
@@ -65,6 +55,19 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+
+import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
 public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
@@ -112,11 +115,13 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
 
         try {
-            String request = generateReadSessionRequest();
+            Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+            JsonObject request = generateReadSessionRequest();
+            String requestStr = gson.toJson(request);
             if (logger.isDebugEnabled()) {
                 logger.debug(String.format("Read table '%s'.\n"
                         + "Session request:\n"
-                        + "%s", identifier.toString(), request));
+                        + "%s", identifier.toString(), requestStr));
             }
 
             String response = retryHandler.executeWithRetry(() -> {
@@ -127,11 +132,11 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                                 identifier.getSchema(),
                                 identifier.getTable(),
                                 null),
-                        "POST", params, headers, request);
+                        "POST", params, headers, requestStr);
                 String body;
                 if (resp.isOK()) {
                     body = new String(resp.getBody());
-                    loadResultFromJson(body);
+                    loadResultFromJson(parseResponse(body));
                     return body;
                 } else {
                     throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
@@ -204,6 +209,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
         Map<String, String> params = HttpUtils.createCommonParams(settings);
         params.put(ConfigConstants.SESSION_TYPE, getType().toString());
+        params.put(ConfigConstants.SESSION_REFRESH, Boolean.toString(sessionRefresh));
 
         try {
             Response resp = restClient.request(
@@ -216,7 +222,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                     "GET", params, headers, null);
             if (resp.isOK()) {
                 String response = new String(resp.getBody());
-                loadResultFromJson(response);
+                loadResultFromJson(parseResponse(response));
                 return response;
             } else {
                 throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
@@ -249,7 +255,16 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         }
     }
 
-    private String generateReadSessionRequest() {
+    private JsonObject parseResponse(String resp) throws TunnelException {
+        try {
+            this.details = resp;
+            return new JsonParser().parse(resp).getAsJsonObject();
+        } catch (Exception e) {
+            throw new TunnelException("Invalid session response: \n" + resp, e);
+        }
+    }
+
+    protected JsonObject generateReadSessionRequest() {
         JsonObject request = new JsonObject();
 
         JsonArray dataColumns = new JsonArray();
@@ -284,98 +299,126 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         request.add("ArrowOptions", jsonArrowOptions);
 
         request.add("FilterPredicate", new JsonPrimitive(filterPredicate.toString()));
-
-        Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-        return gson.toJson(request);
+        request.add("EnableEstimateStats", new JsonPrimitive(enableEstimateStats));
+        request.add("FilterPredicateFallback", new JsonPrimitive(allowFilterPredicateFallback));
+        return request;
     }
 
-    private void loadResultFromJson(String json) throws TunnelException {
-        this.details = json;
-        try {
-            JsonObject tree = new JsonParser().parse(json).getAsJsonObject();
+    protected void loadResultFromJson(JsonObject tree) {
+        // session id
+        if (tree.has("SessionId")) {
+            sessionId = tree.get("SessionId").getAsString();
+        }
 
-            // session id
-            if (tree.has("SessionId")) {
-                sessionId = tree.get("SessionId").getAsString();
+        // ExpirationTime
+        if (tree.has("ExpirationTime")) {
+            expirationTime = tree.get("ExpirationTime").getAsLong();
+        }
+
+        if (tree.has("SessionType")) {
+            String sessionType = tree.get("SessionType").getAsString();
+            if (!getType().toString().equals(sessionType.toLowerCase())) {
+                throw new UnsupportedOperationException("Unsupported session type: " + sessionType);
             }
+        }
 
-            // ExpirationTime
-            if (tree.has("ExpirationTime")) {
-                expirationTime = tree.get("ExpirationTime").getAsLong();
-            }
+        // status
+        if (tree.has("SessionStatus")) {
+            String status = tree.get("SessionStatus").getAsString().toUpperCase();
+            sessionStatus = SessionStatus.valueOf(status);
+        }
 
-            if (tree.has("SessionType")) {
-                String sessionType = tree.get("SessionType").getAsString();
-                if (!getType().toString().equals(sessionType.toLowerCase())) {
-                    throw new UnsupportedOperationException("Unsupported session type: " + sessionType);
+        // error message
+        if (tree.has("Message")) {
+            errorMessage = tree.get("Message").getAsString();
+        }
+
+        // schema
+        if (tree.has("DataSchema")) {
+            JsonObject dataSchema = tree.get("DataSchema").getAsJsonObject();
+            List<Column> schemaColumns = new ArrayList<>();
+            List<String> systemColumnKeys = new ArrayList<>();
+            List<String> partitionKeys = new ArrayList<>();
+            if (dataSchema.has("DataColumns")) {
+                JsonArray dataColumns = dataSchema.get("DataColumns").getAsJsonArray();
+                for (int i = 0; i < dataColumns.size(); ++i) {
+                    JsonObject column = dataColumns.get(i).getAsJsonObject();
+                    schemaColumns.add(SchemaUtils.parseColumn(column));
                 }
             }
 
-            // status
-            if (tree.has("SessionStatus")) {
-                String status = tree.get("SessionStatus").getAsString().toUpperCase();
-                sessionStatus = SessionStatus.valueOf(status);
-            }
-
-            // error message
-            if (tree.has("Message")) {
-                errorMessage = tree.get("Message").getAsString();
-            }
-
-            // schema
-            if (tree.has("DataSchema")) {
-                JsonObject dataSchema = tree.get("DataSchema").getAsJsonObject();
-                List<Column> schemaColumns = new ArrayList<>();
-                List<String> partitionKeys = new ArrayList<>();
-                if (dataSchema.has("DataColumns")) {
-                    JsonArray dataColumns = dataSchema.get("DataColumns").getAsJsonArray();
-                    for (int i = 0; i < dataColumns.size(); ++i) {
-                        JsonObject column = dataColumns.get(i).getAsJsonObject();
-                        schemaColumns.add(SchemaUtils.parseColumn(column));
-                    }
-                }
-
-                if (dataSchema.has("PartitionColumns")) {
-                    JsonArray partitionColumns = dataSchema.get("PartitionColumns").getAsJsonArray();
-                    for (int i = 0; i < partitionColumns.size(); ++i) {
-                        JsonObject column = partitionColumns.get(i).getAsJsonObject();
-                        Column partitionCol = SchemaUtils.parseColumn(column);
-                        schemaColumns.add(partitionCol);
-                        partitionKeys.add(partitionCol.getName());
-                    }
-                }
-
-                readSchema = DataSchema.newBuilder()
-                        .columns(schemaColumns)
-                        .partitionBy(partitionKeys)
-                        .build();
-            }
-
-            // data format
-            if (tree.has("SupportedDataFormat")) {
-                supportDataFormats = new HashSet<>();
-                JsonArray formats = tree.get("SupportedDataFormat").getAsJsonArray();
-                formats.forEach(format -> supportDataFormats.add(
-                        SessionUtils.parseDataFormat(format.getAsJsonObject())));
-            }
-
-            // record count
-            if (tree.has("RecordCount")) {
-                long recordCount = tree.get("RecordCount").getAsLong();
-                if (recordCount >= 0) {
-                    inputSplitAssigner = new RowRangeInputSplitAssigner(sessionId, recordCount);
+            if (dataSchema.has("SystemColumns")) {
+                JsonArray systemColumns = dataSchema.get("SystemColumns").getAsJsonArray();
+                for (int i = 0; i < systemColumns.size(); ++i) {
+                    JsonObject column = systemColumns.get(i).getAsJsonObject();
+                    Column systemCol = SchemaUtils.parseColumn(column);
+                    schemaColumns.add(systemCol);
+                    systemColumnKeys.add(systemCol.getName());
                 }
             }
 
-            // splits count
-            if (tree.has("SplitsCount")) {
-                int splitsCount = tree.get("SplitsCount").getAsInt();
-                if (splitsCount >= 0) {
+            if (dataSchema.has("PartitionColumns")) {
+                JsonArray partitionColumns = dataSchema.get("PartitionColumns").getAsJsonArray();
+                for (int i = 0; i < partitionColumns.size(); ++i) {
+                    JsonObject column = partitionColumns.get(i).getAsJsonObject();
+                    Column partitionCol = SchemaUtils.parseColumn(column);
+                    schemaColumns.add(partitionCol);
+                    partitionKeys.add(partitionCol.getName());
+                }
+            }
+
+            readSchema = DataSchema.newBuilder()
+                    .columns(schemaColumns)
+                    .partitionBy(partitionKeys)
+                    .systemColumnKeys(systemColumnKeys)
+                    .build();
+        }
+
+        // data format
+        if (tree.has("SupportedDataFormat")) {
+            supportDataFormats = new HashSet<>();
+            JsonArray formats = tree.get("SupportedDataFormat").getAsJsonArray();
+            formats.forEach(format -> supportDataFormats.add(
+                    SessionUtils.parseDataFormat(format.getAsJsonObject())));
+        }
+
+        // record count
+        if (tree.has("RecordCount")) {
+            long recordCount = tree.get("RecordCount").getAsLong();
+            if (recordCount >= 0) {
+                inputSplitAssigner = new RowRangeInputSplitAssigner(sessionId, recordCount);
+            }
+        }
+
+        SplitOptions.SplitMode splitMode =
+            SplitOptions.SplitMode.fromString(tree.get("SplitMode").getAsString());
+        // splits count，splitMode = size / bucket
+        if (tree.has("SplitsCount")) {
+            int splitsCount = tree.get("SplitsCount").getAsInt();
+            if (splitsCount >= 0) {
+                if (splitMode == SplitOptions.SplitMode.SIZE) {
                     inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
+                } else if (splitMode == SplitOptions.SplitMode.BUCKET) {
+                    JsonArray splitBucketIdJson = tree.get("SplitBucketId").getAsJsonArray();
+                    List<Integer> splitBucketId = new ArrayList<>(splitsCount);
+                    splitBucketIdJson.forEach(bucketId -> splitBucketId.add(
+                        Integer.parseInt(bucketId.getAsString())));
+                    inputSplitAssigner =
+                        new BucketInputSplitAssigner(sessionId, splitsCount, splitBucketId);
                 }
             }
-        } catch (Exception e) {
-            throw new TunnelException("Invalid session response: \n" + json, e);
+        }
+
+        if (tree.has("LatestVersion")) {
+            long latestVersion = tree.get("LatestVersion").getAsLong();
+            snapshotSpec = TableSnapshotSpec.TableAsOfVersion.create(latestVersion);
+        }
+
+        if (tree.has("SessionStats")) {
+            JsonObject statsJson = tree.getAsJsonObject("SessionStats");
+            this.estimateStats = new SessionStats();
+            this.estimateStats.setEstimatedSize(statsJson.get("EstimatedSize").getAsLong());
+            this.estimateStats.setEstimatedRowCount(statsJson.get("EstimatedRowCount").getAsLong());
         }
     }
 
@@ -390,10 +433,11 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
     protected void initializeFromJson(String jsonString) {
         Map<String, String> map = (Map<String, String>) JsonUtils.fromJson(jsonString, Map.class);
         this.identifier = JsonUtils.fromJson(map.get("identifier"), TableIdentifier.class);
-        try {
-            loadResultFromJson(map.get("details"));
-        } catch (TunnelException e) {
-            throw new IllegalArgumentException("Invalid Json: \n" + jsonString);
-        }
+        loadResultFromJson(JsonUtils.parseJsonObject(map.get("details")));
+    }
+
+    @Override
+    public SessionStats getEstimatedStats() {
+        return estimateStats;
     }
 }

@@ -19,27 +19,23 @@
 
 package com.aliyun.odps.table.read;
 
-import com.aliyun.odps.table.Session;
+import com.aliyun.odps.table.SessionType;
+import com.aliyun.odps.table.configuration.IncrementalOptions;
 
-import java.io.IOException;
+public interface TableIncrementalReadSession extends TableBatchReadSession {
 
-/**
- * Session provider for {@link TableReadSession}
- */
-public interface TableReadSessionProvider extends Session.Provider {
+    @Override
+    default SessionType getType() {
+        return SessionType.INCREMENTAL_READ;
+    }
 
-    /**
-     * Creates a {@link TableBatchReadSession} instance
-     */
-    default TableBatchReadSession createBatchReadSession(TableReadSessionBuilder builder) throws IOException {
-        throw new UnsupportedOperationException("Cannot build table batch read session.");
+    @Override
+    default TableSnapshotSpec getSnapshot() {
+        throw new UnsupportedOperationException("Cannot get snapshot for incremental read.");
     }
 
     /**
-     * Creates a {@link TableIncrementalReadSession} instance
+     * Returns {@link IncrementalOptions}
      */
-    default TableIncrementalReadSession createIncrementalReadSession(TableReadSessionBuilder builder) throws IOException {
-        throw new UnsupportedOperationException("Cannot build table incremental read session.");
-    }
-
+    IncrementalOptions getIncrementalOptions();
 }

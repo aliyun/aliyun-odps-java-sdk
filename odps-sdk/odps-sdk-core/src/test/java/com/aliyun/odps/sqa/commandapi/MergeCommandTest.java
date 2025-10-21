@@ -90,8 +90,18 @@ public class MergeCommandTest extends TestBase {
 
     String archiveCommand = "alter table " + TEST_TABLE_NAME + " merge smallfiles;";
     long numBeforeMerge = odps.tables().get(TEST_TABLE_NAME).getFileNum();
-    CommandTestUtil.runCommandAndGetResult(odps, archiveCommand);
+    Map<String, String> hints = new HashMap<>();
+    hints.put("odps.merge.task.mode", "job");
+    hints.put("odps.merge.cross.paths", "true");
+    CommandTestUtil.runCommandAndGetResult(odps, archiveCommand, hints);
+    /*
+     * MergeCommand must add set odps.merge.task.mode=job and odps.merge.cross.paths=true in test env to execute.
+     * But even if it fails, there will be no error, it just won't take effect. Very magical
+     */
     long numAfterMerge = odps.tables().get(TEST_TABLE_NAME).getFileNum();
+
+    System.out.println(numAfterMerge);
+    System.out.println(numBeforeMerge);
     Assert.assertTrue(numAfterMerge < numBeforeMerge);
   }
 

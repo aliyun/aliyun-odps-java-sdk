@@ -289,20 +289,29 @@ class ObjectConverterFactory {
         public Object parse(String str, TypeInfo typeInfo, OdpsRecordConverter converter) {
             DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) typeInfo;
             BigDecimal bigDecimal = new BigDecimal(str);
-            int valueIntLength = bigDecimal.precision() - bigDecimal.scale();
-            int typeIntLength = decimalTypeInfo.getPrecision() - decimalTypeInfo.getScale();
-            if (valueIntLength > typeIntLength) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "InvalidData: decimal value %s overflow, max integer digit number is %s.",
-                                str,
-                                typeIntLength));
+
+            int typePrecision = decimalTypeInfo.getPrecision();
+            int typeScale = decimalTypeInfo.getScale();
+            int typeIntLength = typePrecision - typeScale;
+
+            if (bigDecimal.abs().compareTo(BigDecimal.ONE) < 0) {
+                // 整数位为0，可以通过任何整数长度检查，直接跳过
+            } else {
+                // 对于非零值，计算其绝对值的整数部分的位数
+                long integerPartLength = bigDecimal.abs().toBigInteger().toString().length();
+
+                if (integerPartLength > typeIntLength) {
+                    throw new IllegalArgumentException(
+                      String.format(
+                        "InvalidData: decimal value %s overflow, max integer digit number is %s.",
+                        str,
+                        typeIntLength));
+                }
             }
             // tunnel is half_down mode
             bigDecimal = bigDecimal.setScale(decimalTypeInfo.getScale(), RoundingMode.HALF_DOWN);
             return bigDecimal;
         }
-
     }
 
     private enum CharConverter implements OdpsObjectConverter {

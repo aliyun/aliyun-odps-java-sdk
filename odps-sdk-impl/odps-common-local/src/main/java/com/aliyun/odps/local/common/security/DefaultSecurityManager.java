@@ -19,12 +19,9 @@
 
 package com.aliyun.odps.local.common.security;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.List;
 
-import sun.security.util.SecurityConstants;
 
 public class DefaultSecurityManager extends SecurityManager {
 
@@ -46,7 +43,7 @@ public class DefaultSecurityManager extends SecurityManager {
     }
 
     try {
-      checkPermission(SecurityConstants.MODIFY_THREADGROUP_PERMISSION);
+      checkPermission(new RuntimePermission("modifyThreadGroup"));
     } catch (SecurityException e) {
       throw new SecurityException("ODPS-0730001: " + e.getMessage());
     }
@@ -60,7 +57,7 @@ public class DefaultSecurityManager extends SecurityManager {
     }
 
     try {
-      checkPermission(SecurityConstants.MODIFY_THREADGROUP_PERMISSION);
+      checkPermission(new RuntimePermission("modifyThreadGroup"));
     } catch (SecurityException e) {
       throw new SecurityException("ODPS-0730001: " + e.getMessage());
     }

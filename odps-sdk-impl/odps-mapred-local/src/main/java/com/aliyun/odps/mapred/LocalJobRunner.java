@@ -78,6 +78,7 @@ import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.OutputUtils;
 import com.aliyun.odps.pipeline.Pipeline;
 import com.aliyun.odps.pipeline.Pipeline.TransformNode;
+import com.aliyun.odps.utils.ReflectionUtils;
 
 
 public class LocalJobRunner implements JobRunner {
@@ -530,8 +531,7 @@ public class LocalJobRunner implements JobRunner {
     Set<String> names = new HashSet<String>(Arrays.asList(resources));
     LOG.info("Start to process resources: " + StringUtils.join(resources, ','));
 
-    URLClassLoader loader = (URLClassLoader) Thread.currentThread().getContextClassLoader();
-    ArrayList<URL> cp = new ArrayList<URL>(Arrays.asList(loader.getURLs()));
+    ArrayList<URL> cp = (ArrayList<URL>) ReflectionUtils.getLoadedJars();
     String curProjName = wareHouse.getOdps().getDefaultProject();
     File resDir = jobDirecotry.getResourceDir();
     for (String name : names) {
@@ -550,7 +550,8 @@ public class LocalJobRunner implements JobRunner {
                              wareHouse.getInputColumnSeperator());
       cp.add(new File(resDir, resName).toURI().toURL());
     }
-    URLClassLoader newLoader = new URLClassLoader(cp.toArray(new URL[0]), loader);
+    URLClassLoader newLoader =
+        new URLClassLoader(cp.toArray(new URL[0]), Thread.currentThread().getContextClassLoader());
     Thread.currentThread().setContextClassLoader(newLoader);
     conf.setClassLoader(newLoader);
   }

@@ -16,11 +16,14 @@ import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Quota;
+import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.sqa.v2.InfoResultSet;
+import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.utils.StringUtils;
 
 /**
@@ -244,4 +247,37 @@ public class SQLExecutorV2Test {
     Assert.assertTrue(result != null && !result.isEmpty());
     result.forEach(r -> System.out.println(r.toString()));
   }
+
+  @Test
+  public void testGetResultByTunnel() throws Exception {
+    odps.tables().delete("bigTable", true);
+
+    odps.tables().newTableCreator("bigTable", TableSchema.builder().withStringColumn("c1").build())
+        .withLifeCycle(1L)
+        .ifNotExists()
+        .create();
+    TableTunnel.UploadSession uploadSession = odps.tableTunnel()
+        .createUploadSession(odps.getDefaultProject(), "bigTable");
+    RecordWriter recordWriter = uploadSession.openRecordWriter(0);
+    for(int i = 0; i < 100000; i++) {
+      Record record = uploadSession.newRecord();
+      record.set(0, "test");
+      recordWriter.write(record);
+    }
+    recordWriter.close();
+    uploadSession.commit();
+
+    tunnelExecutor.run("select * from bigTable;", null);
+    ResultSet resultSet = tunnelExecutor.getResultSet();
+    Assert.assertEquals(100000, resultSet.getRecordCount());
+
+    int count = 0;
+    while (resultSet.hasNext()) {
+      count++;
+      resultSet.next();
+    }
+    System.out.println(count);
+    Assert.assertEquals(100000, count);
+  }
+
 }

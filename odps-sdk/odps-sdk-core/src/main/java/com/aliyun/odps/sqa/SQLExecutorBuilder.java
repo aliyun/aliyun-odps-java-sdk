@@ -46,9 +46,10 @@ public class SQLExecutorBuilder {
   private Quota quota = null;
   private int logviewVersion = 1;
   private long fetchResultSplitSize = 10000;
-  private int fetchResultPreloadSplitNum = 5;
-  private int fetchResultThreadNum = 5;
+  private int fetchResultPreloadSplitNum = 2;
+  private int fetchResultThreadNum = -1;
   private boolean skipCheckIfSelect = false;
+  private boolean enableTypedResult = true;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -86,6 +87,7 @@ public class SQLExecutorBuilder {
     builder.fetchResultPreloadSplitNum = this.fetchResultPreloadSplitNum;
     builder.fetchResultThreadNum = this.fetchResultThreadNum;
     builder.skipCheckIfSelect = this.skipCheckIfSelect;
+    builder.enableTypedResult = this.enableTypedResult;
     return builder;
   }
 
@@ -251,6 +253,11 @@ public class SQLExecutorBuilder {
     return this;
   }
 
+  public SQLExecutorBuilder setEnableTypedResult(boolean enableTypedResult) {
+    this.enableTypedResult = enableTypedResult;
+    return this;
+  }
+
   public ExecuteMode getExecuteMode() {
     return executeMode;
   }
@@ -365,5 +372,9 @@ public class SQLExecutorBuilder {
 
   public int getFetchResultThreadNum() {
     return fetchResultThreadNum;
+  }
+
+  public boolean isEnableTypedResult() {
+    return enableTypedResult;
   }
 }

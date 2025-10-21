@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,7 +35,6 @@ import com.aliyun.odps.sqa.commandapi.Command;
 import com.aliyun.odps.sqa.commandapi.CommandInfo;
 import com.aliyun.odps.sqa.commandapi.RecordIter;
 import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
-import com.aliyun.odps.sqa.commandapi.utils.SqlParserUtil;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
@@ -69,6 +69,8 @@ public class SQLExecutorImpl implements SQLExecutor {
   private final long fetchResultSplitSize;
   private final int fetchResultPreloadSplitNum;
   private final int fetchResultThreadNum;
+  private String stmtTimezone = TimeZone.getDefault().getID();
+  private boolean enableTypedResults;
 
   public SQLExecutorImpl(SQLExecutorBuilder builder)
       throws OdpsException {
@@ -80,6 +82,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.fetchResultPreloadSplitNum = builder.getFetchResultPreloadSplitNum();
     this.fetchResultSplitSize = builder.getFetchResultSplitSize();
     this.fetchResultThreadNum = builder.getFetchResultThreadNum();
+    this.enableTypedResults = builder.isEnableTypedResult();
 
     if (useInstanceTunnel) {
       this.instanceTunnel = new InstanceTunnel(odps);
@@ -142,6 +145,9 @@ public class SQLExecutorImpl implements SQLExecutor {
       if (hint.containsKey(SQLExecutorConstants.WLM_QUOTA_FLAG)) {
         useQuotaName = hint.get(SQLExecutorConstants.WLM_QUOTA_FLAG);
         loadQuota(useQuotaName, null, null);
+      }
+      if (hint.containsKey(SQLExecutorConstants.TIMEZONE_FLAG)) {
+        stmtTimezone = hint.get(SQLExecutorConstants.TIMEZONE_FLAG);
       }
     }
 
@@ -328,7 +334,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (useInstanceTunnel) {
       return getResultByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
     } else {
-      return getResultDirectly();
+      return getResultDirectly(limitEnabled);
     }
   }
 
@@ -388,8 +394,8 @@ public class SQLExecutorImpl implements SQLExecutor {
     return records;
   }
 
-  private List<Record> getResultDirectly() throws OdpsException {
-    ResultSet resultSet = getResultSetDirectly();
+  private List<Record> getResultDirectly(boolean limitEnabled) throws OdpsException, IOException {
+    ResultSet resultSet = getResultSetDirectly(limitEnabled);
     List<Record> records = new ArrayList<>();
     while (resultSet.hasNext()) {
       records.add(resultSet.next());
@@ -472,7 +478,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (useInstanceTunnel) {
       return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
     } else {
-      return getResultSetDirectly();
+      return getResultSetDirectly(limitEnabled);
     }
   }
 
@@ -527,7 +533,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   }
 
 
-  private ResultSet getResultSetDirectly() throws OdpsException {
+  private ResultSet getResultSetDirectly(boolean limitEnabled) throws OdpsException, IOException {
     Instance.Result result = getResultString();
     Instance.ResultDescriptor resultDescriptor =
         queryInfo.getInstance().getResultDescriptor(taskName);
@@ -536,8 +542,17 @@ public class SQLExecutorImpl implements SQLExecutor {
       if (BooleanUtils.isTrue(resultDescriptor.isSelect()) && "csv".equalsIgnoreCase(
           result.getFormat())) {
         try {
-          parseResult = CSVRecordParser.parse(result.getString(), resultDescriptor.getSchema());
+          if (enableTypedResults) {
+            parseResult = CSVRecordParser.parse(result.getString(), resultDescriptor.getSchema(),
+                                                stmtTimezone);
+          } else {
+            parseResult = CSVRecordParser.parse(result.getString());
+          }
         } catch (Exception e) {
+          if (enableTypedResults) {
+            log.add("Warning: typed result parse failed, fallback to get result by tunnel.");
+            return getResultSetByInstanceTunnel(null, null, null, limitEnabled);
+          }
           throw new OdpsException(result.getString(), e);
         }
         List<Record> records = parseResult.getRecords();
@@ -595,10 +610,6 @@ public class SQLExecutorImpl implements SQLExecutor {
                                        sizeLimit)) {
           while (true) {
             Record record = reader.read();
-            if (sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
-              throw new IllegalArgumentException(
-                  "InvalidArgument: sizeLimit, fetched data is larger than limit size");
-            }
             if (record == null) {
               break;
             } else {
@@ -613,7 +624,7 @@ public class SQLExecutorImpl implements SQLExecutor {
       }
     } else {
       // fall back to non-tunnel
-      return getResultSetDirectly();
+      return getResultSetDirectly(limitEnabled);
     }
   }
 

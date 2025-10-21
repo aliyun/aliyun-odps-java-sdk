@@ -29,7 +29,6 @@ import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.ml.OfflineModels;
-import com.aliyun.odps.options.OdpsOptions;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -140,6 +139,7 @@ public class Odps {
 
     setEndpoint(defaultEndpoint);
 
+    options = new OdpsOptions(this);
     tenant = new Tenant(this);
     projects = new Projects(this);
     schemas = new Schemas(this);
@@ -153,7 +153,6 @@ public class Odps {
     offlineModels = new OfflineModels(this);
     classifications = new Classifications(this);
     quotas = new Quotas(this);
-    options = new OdpsOptions();
   }
 
   public Odps(Odps odps) {
@@ -167,7 +166,7 @@ public class Odps {
     setCurrentSchema(odps.getCurrentSchema());
     setAccountFormat(odps.getAccountFormat());
     setGlobalSettings(odps.getGlobalSettings());
-    setOptions(odps.options);
+    setOptions(odps.options.clone(this));
     client.setIgnoreCerts(odps.getRestClient().isIgnoreCerts());
     client.setPrefix(odps.getRestClient().getPrefix());
     odps.getRestClient().getUserDefinedHeaders()

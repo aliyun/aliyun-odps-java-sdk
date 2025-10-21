@@ -1,24 +1,47 @@
 package com.aliyun.odps.data.converter;
 
-import com.aliyun.odps.Column;
-import com.aliyun.odps.OdpsType;
-import com.aliyun.odps.data.*;
-import com.aliyun.odps.tunnel.TunnelException;
-import com.aliyun.odps.type.*;
-import com.google.gson.Gson;
-import com.google.gson.JsonParser;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.*;
-import java.util.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.aliyun.odps.Column;
+import com.aliyun.odps.OdpsType;
+import com.aliyun.odps.data.ArrayRecord;
+import com.aliyun.odps.data.Binary;
+import com.aliyun.odps.data.Char;
+import com.aliyun.odps.data.JsonValue;
+import com.aliyun.odps.data.Record;
+import com.aliyun.odps.data.SimpleJsonValue;
+import com.aliyun.odps.data.SimpleStruct;
+import com.aliyun.odps.data.Varchar;
+import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.type.DecimalTypeInfo;
+import com.aliyun.odps.type.StructTypeInfo;
+import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
+import com.aliyun.odps.type.TypeInfoParser;
+import com.google.gson.Gson;
+import com.google.gson.JsonParser;
 
 
 public class OdpsRecordConverterTest {
