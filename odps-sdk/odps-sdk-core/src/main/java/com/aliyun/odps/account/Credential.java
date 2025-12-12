@@ -17,17 +17,32 @@
  * under the License.
  */
 
+package com.aliyun.odps.account;
 
-package com.aliyun.odps.table.metrics;
+/**
+ * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
+ */
+public class Credential {
 
-public class MetricNames {
+    String accessKeyId;
+    String accessKeySecret;
+    String securityToken;
 
-    private MetricNames() {}
+    public Credential(String accessKeyId, String accessKeySecret, String securityToken) {
+        this.accessKeyId = accessKeyId;
+        this.accessKeySecret = accessKeySecret;
+        this.securityToken = securityToken;
+    }
 
-    public static final String RECORD_COUNT = "recordCount";
-    public static final String BYTES_COUNT = "bytesCount";
+    public String getAccessKeyId() {
+        return accessKeyId;
+    }
 
-    public static final String SERVER_PROCESS_COST = "serverProcessCost";
-    public static final String RATE_LIMIT_COST = "rateLimitCost";
+    public String getAccessKeySecret() {
+        return accessKeySecret;
+    }
 
+    public String getSecurityToken() {
+        return securityToken;
+    }
 }

@@ -88,6 +88,10 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
 
     protected boolean allowFilterPredicateFallback;
 
+    protected boolean enableExtendedArrowIPC;
+
+    protected boolean extendedArrowIPCEnabled;
+
     public TableBatchReadSessionBase(TableReadSessionBuilder builder) throws IOException {
         if (builder.getDetailsJson() != null) {
             initializeFromJson(builder.getDetailsJson());
@@ -99,6 +103,7 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
         this.sessionRefresh = builder.isSessionRefresh();
         this.enableEstimateStats = builder.isEnableEstimateStats();
         this.allowFilterPredicateFallback = builder.isAllowFilterPredicateFallback();
+        this.enableExtendedArrowIPC = builder.isEnableExtendedArrowIPC();
         this.sessionBuilder = builder;
         if (builder.getSessionId() == null) {
             sanitize(builder.getRequiredPartitions(),
@@ -189,9 +194,6 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
         return this.sessionStatus;
     }
 
-    protected void initializeFromJson(String json) {
-    }
-
     @Override
     public TableSnapshotSpec getSnapshot() {
         if (this.snapshotSpec != null) {
@@ -199,5 +201,8 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
         } else {
             return TableSnapshotSpec.TableLatest.create();
         }
+    }
+
+    protected void initializeFromJson(String json) {
     }
 }

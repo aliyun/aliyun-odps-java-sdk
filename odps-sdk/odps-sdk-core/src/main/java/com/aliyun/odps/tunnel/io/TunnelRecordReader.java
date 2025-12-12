@@ -167,6 +167,26 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
     createNewReader();
   }
 
+  public TunnelRecordReader(long start, long count, long sizeLimit, List<Column> columns,
+                            CompressOption option, RestClient tunnelRestClient,
+                            TableTunnel.DownloadSession session, boolean disableModifiedCheck)
+    throws TunnelException, IOException {
+    this.start = start;
+    this.count = count;
+    this.sizeLimit = sizeLimit;
+    this.offset = 0;
+    this.option = option;
+    this.columnList = columns;
+    this.tableSession = session;
+    this.reader = null;
+    this.instanceSession = null;
+    this.tunnelServiceClient = tunnelRestClient;
+    this.disableModifiedCheck = disableModifiedCheck;
+
+    createNewReader();
+  }
+
+
   @Override
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;
@@ -328,7 +348,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
         }
         if (tableSession != null) {
           reader = RawTunnelRecordReader
-                  .createTableTunnelReader(start + offset, count - offset, option, columnList,
+                  .createTableTunnelReader(start + offset, count - offset, sizeLimit, option, columnList,
                                            tunnelServiceClient, tableSession, disableModifiedCheck);
           reader.setTransform(this.shouldTransform);
         }

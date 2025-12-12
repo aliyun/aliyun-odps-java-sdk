@@ -142,10 +142,6 @@ public class SQLExecutorImpl implements SQLExecutor {
       hint = new HashMap<>();
     } else {
       hint = new HashMap<>(hint);
-      if (hint.containsKey(SQLExecutorConstants.WLM_QUOTA_FLAG)) {
-        useQuotaName = hint.get(SQLExecutorConstants.WLM_QUOTA_FLAG);
-        loadQuota(useQuotaName, null, null);
-      }
       if (hint.containsKey(SQLExecutorConstants.TIMEZONE_FLAG)) {
         stmtTimezone = hint.get(SQLExecutorConstants.TIMEZONE_FLAG);
       }

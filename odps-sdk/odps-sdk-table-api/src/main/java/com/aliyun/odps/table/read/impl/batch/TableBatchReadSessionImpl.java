@@ -301,6 +301,8 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         request.add("FilterPredicate", new JsonPrimitive(filterPredicate.toString()));
         request.add("EnableEstimateStats", new JsonPrimitive(enableEstimateStats));
         request.add("FilterPredicateFallback", new JsonPrimitive(allowFilterPredicateFallback));
+        request.add("EnableExtendedArrowIPC", new JsonPrimitive(enableExtendedArrowIPC));
+
         return request;
     }
 
@@ -419,6 +421,10 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
             this.estimateStats = new SessionStats();
             this.estimateStats.setEstimatedSize(statsJson.get("EstimatedSize").getAsLong());
             this.estimateStats.setEstimatedRowCount(statsJson.get("EstimatedRowCount").getAsLong());
+        }
+
+        if (tree.has("ExtendedArrowIPCEnabled")) {
+            this.extendedArrowIPCEnabled = tree.get("ExtendedArrowIPCEnabled").getAsBoolean();
         }
     }
 

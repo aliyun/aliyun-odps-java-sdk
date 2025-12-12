@@ -127,6 +127,7 @@ public class SessionState {
   private final static String OLD_ENDPOINT_KEY = "odps.end.point";
   private final static String OLD_ACCESSID_KEY = "odps.access.id";
   private final static String OLD_ACCESSKEY_KEY = "odps.access.key";
+  private final static String OLD_REGION_ID_KEY = "odps.region.id";
   private final static String OLD_APP_ACCESS_ID = "odps.app.access.id";
   private final static String OLD_APP_ACCESS_KEY = "odps.app.access.key";
   private final static String OLD_STS_TOKEN_KEY = "odps.sts.token";
@@ -270,6 +271,7 @@ public class SessionState {
       String appAccessId = prop.getProperty(OLD_APP_ACCESS_ID);
       String appAccessKey = prop.getProperty(OLD_APP_ACCESS_KEY);
       String stsToken = prop.getProperty(OLD_STS_TOKEN_KEY);
+      String regionId = prop.getProperty(OLD_REGION_ID_KEY);
       String runmode = prop.getProperty(OLD_RUNMODE_KEY, "remote");
       this.tunnelEndpoint = prop.getProperty(LOCAL_TUNNEL_ENDPOINT);
 
@@ -293,10 +295,10 @@ public class SessionState {
       Account account;
       switch (accountProvider) {
         case ALIYUN:
-          account = new AliyunAccount(accessId, accessKey);
+          account = new AliyunAccount(accessId, accessKey, regionId);
           break;
         case STS:
-          account = new StsAccount(accessId, accessKey, stsToken);
+          account = new StsAccount(accessId, accessKey, stsToken, regionId);
           break;
         default:
           throw new RuntimeException("Unsupported account provider:" + accountProvider);
@@ -304,7 +306,7 @@ public class SessionState {
 
       AppAccount appAccount = null;
       if (!StringUtils.isNullOrEmpty(appAccessId) && !StringUtils.isNullOrEmpty(appAccessKey)) {
-        appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey));
+        appAccount = new AppAccount(new AliyunAccount(appAccessId, appAccessKey, regionId));
       }
 
       Odps odps = new Odps(account, appAccount);

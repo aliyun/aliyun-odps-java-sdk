@@ -22,6 +22,7 @@ package com.aliyun.odps.account;
 public class StsAccount extends AliyunAccount {
 
   private StsRequestSigner signer;
+  private String stsToken;
 
   public StsAccount(String accessId, String accessKey, String stsToken) {
     this(accessId, accessKey, stsToken, null);
@@ -29,6 +30,7 @@ public class StsAccount extends AliyunAccount {
 
   public StsAccount(String accessId, String accessKey, String stsToken, String region) {
     super(accessId, accessKey, region);
+    this.stsToken = stsToken;
     this.signer = new StsRequestSigner(accessId, accessKey, stsToken, region);
   }
 
@@ -40,5 +42,10 @@ public class StsAccount extends AliyunAccount {
   @Override
   public RequestSigner getRequestSigner() {
     return signer;
+  }
+
+  @Override
+  public Credential getCredential() {
+    return new Credential(super.getAccessId(), super.getAccessKey(), stsToken);
   }
 }

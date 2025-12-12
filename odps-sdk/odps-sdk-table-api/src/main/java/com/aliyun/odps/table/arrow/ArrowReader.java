@@ -20,6 +20,7 @@
 package com.aliyun.odps.table.arrow;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -45,4 +46,21 @@ public interface ArrowReader extends Closeable {
      * Return the current read bytes.
      */
     long bytesRead();
+
+    /**
+     * Close resources, including vector schema root and dictionary vectors. If the flag
+     * closeReadSource is true then close the underlying read source, otherwise leave it open.
+     *
+     * @param closeReadSource Flag to control if closing the underlying read source
+     * @throws IOException on error
+     */
+    void close(boolean closeReadSource) throws IOException;
+
+    /**
+     * Returns the schema describing the structure of data in this ArrowReader.
+     * The schema becomes available **only after** the first batch has been read via {@code nextBatch()}.
+     *
+     * @return the schema object
+     */
+    Schema getSchema();
 }

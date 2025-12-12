@@ -42,4 +42,9 @@ public class AppStsAccount implements Account {
   public RequestSigner getRequestSigner() {
     return signer;
   }
+
+  @Override
+  public Credential getCredential() {
+    return new Credential(null, null, stsToken);
+  }
 }

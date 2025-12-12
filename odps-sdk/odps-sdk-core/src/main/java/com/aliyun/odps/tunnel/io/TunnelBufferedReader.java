@@ -19,7 +19,9 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
 
   private long start;
   private long count;
+  private long currOffset;
   private final long batchSize;
+  private final long bufferSize;
   private final List<Column> columnList;
   private final CompressOption option;
   private final InstanceTunnel.DownloadSession instanceSession;
@@ -36,17 +38,20 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
    * @param option               {@link CompressOption}
    * @param start                本次要读取记录的起始位置
    * @param count                本次要读取记录的数量
-   * @param batchSize            每次读取的记录数量
+   * @param batchSize            每次读取的记录数量, 与 bufferSize 只会有一个生效
+   * @param bufferSize           每次读取的记录大小，与 batchSize 只会有一个生效
    * @param session              本次读取所在 session
    * @param disableModifiedCheck 不检查下载的数据是否是表中最新数据
    * @throws IOException
    */
-  public TunnelBufferedReader(long start, long count, long batchSize, List<Column> columns,
+  public TunnelBufferedReader(long start, long count, long batchSize, long bufferSize,
+                              List<Column> columns,
                               CompressOption option,
                               TableTunnel.DownloadSession session, boolean disableModifiedCheck) {
     this.start = start;
     this.count = count;
     this.batchSize = batchSize <= 0 ? 1000 : batchSize;
+    this.bufferSize = bufferSize;
     this.option = option;
     this.columnList = columns;
     this.tableSession = session;
@@ -54,12 +59,15 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
     this.disableModifiedCheck = disableModifiedCheck;
   }
 
-  public TunnelBufferedReader(long start, long count, long batchSize, List<Column> columns,
+  public TunnelBufferedReader(long start, long count, long batchSize,
+                              long bufferSize,
+                              List<Column> columns,
                               CompressOption option,
                               InstanceTunnel.DownloadSession session) {
     this.start = start;
     this.count = count;
     this.batchSize = batchSize <= 0 ? 1000 : batchSize;
+    this.bufferSize = bufferSize;
     this.option = option;
     this.columnList = columns;
     this.instanceSession = session;
@@ -75,27 +83,30 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
           return null;
         }
       }
-      return recordBuffer.pollFirst();
+      Record record = recordBuffer.pollFirst();
+      currOffset++;
+      return record;
     } catch (TunnelException e) {
       throw new IOException(e);
     }
   }
 
   private void openReader() throws IOException, TunnelException {
-    if (count <= 0) {
+    if (count - currOffset <= 0) {
       return;
     }
-    long recordNum = Math.min(count, batchSize);
+    long recordNum = Math.min(count - currOffset, batchSize);
     TunnelRecordReader recordReader;
     if (tableSession != null) {
       recordReader =
-          tableSession.openRecordReader(start, recordNum, option, columnList, disableModifiedCheck);
+          tableSession.openRecordReader(start + currOffset, recordNum, bufferSize, option, columnList, disableModifiedCheck);
     } else if (instanceSession != null) {
       recordReader =
-          instanceSession.openRecordReader(start, recordNum, option, columnList);
+          instanceSession.openRecordReader(start + currOffset, recordNum, bufferSize, option, columnList);
     } else {
       throw new IllegalArgumentException("Cannot create record reader if session is null.");
     }
+
     recordReader.setTransform(this.shouldTransform);
     Record record = recordReader.read();
     while (record != null) {
@@ -104,8 +115,6 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
     }
     recordReader.close();
     metrics.add(recordReader.getMetrics());
-    start += recordNum;
-    count -= recordNum;
   }
 
   public void setTransform(boolean shouldTransform) {

@@ -1007,7 +1007,11 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     if (isSync) {
       taskResult = results.values().iterator().next();
     } else {
-      taskResult = getRawTaskResults().get(0);
+      List<TaskResult> rawTaskResults = getRawTaskResults();
+      if (rawTaskResults.isEmpty()) {
+        throw new OdpsException("No task result found.");
+      }
+      taskResult = rawTaskResults.get(0);
     }
     throwExceptionIfTaskFailed(taskResult);
     return taskResult.getResult();

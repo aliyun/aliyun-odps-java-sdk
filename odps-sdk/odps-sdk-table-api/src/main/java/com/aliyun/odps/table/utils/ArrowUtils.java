@@ -21,6 +21,12 @@ package com.aliyun.odps.table.utils;
 
 import com.aliyun.odps.table.DataFormat;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.util.AutoCloseables;
+import org.apache.arrow.vector.BaseIntVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.dictionary.Dictionary;
+import org.apache.arrow.vector.util.TransferPair;
 
 public final class ArrowUtils {
 
@@ -45,5 +51,60 @@ public final class ArrowUtils {
                 RootAllocator.configBuilder()
                         .maxAllocation(maxAllocation)
                         .build());
+    }
+
+    /**
+     * Decodes a dictionary encoded array using the provided dictionary.
+     *
+     * @param indices dictionary encoded values, must be int type
+     * @param dictionary dictionary used to decode the values
+     * @return vector with values restored from dictionary
+     */
+    public static ValueVector decode(ValueVector indices, Dictionary dictionary) {
+        int count = indices.getValueCount();
+        ValueVector dictionaryVector = dictionary.getVector();
+        int dictionaryCount = dictionaryVector.getValueCount();
+        // copy the dictionary values into the decoded vector
+        TransferPair transfer = dictionaryVector.getTransferPair(indices.getName(), indices.getAllocator());
+        transfer.getTo().allocateNewSafe();
+        try {
+            BaseIntVector baseIntVector = (BaseIntVector) indices;
+            retrieveIndexVector(baseIntVector, transfer, dictionaryCount, 0, count);
+            ValueVector decoded = transfer.getTo();
+            decoded.setValueCount(count);
+            return decoded;
+        } catch (Exception e) {
+            AutoCloseables.close(e, transfer.getTo());
+            throw e;
+        }
+    }
+
+    /**
+     * Retrieve values to target vector from index vector.
+     *
+     * @param indices the index vector
+     * @param transfer the {@link TransferPair} to copy dictionary data into target vector.
+     * @param dictionaryCount the value count of dictionary vector.
+     * @param start the start index
+     * @param end the end index
+     */
+    public static void retrieveIndexVector(
+            BaseIntVector indices, TransferPair transfer, int dictionaryCount, int start, int end) {
+        for (int i = start; i < end; i++) {
+            if (!indices.isNull(i)) {
+                int indexAsInt = (int) indices.getValueAsLong(i);
+                if (indexAsInt >= dictionaryCount) {
+                                    throw new IllegalArgumentException(
+                                            "Provided dictionary does not contain value for index " + indexAsInt);
+                                }
+                transfer.copyValueSafe(indexAsInt, i);
+            }
+        }
+    }
+
+    public static boolean hasDictionaryEncoding(FieldVector fieldVector) {
+        return fieldVector.getField().getDictionary() != null ||
+                fieldVector.getChildrenFromFields().stream()
+                        .anyMatch(ArrowUtils::hasDictionaryEncoding);
     }
 }

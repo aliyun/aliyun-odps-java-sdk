@@ -499,14 +499,15 @@ public class InstanceTunnel {
      * @param start 本次要读取记录的起始位置
      * @param count 本次要读取记录的数量
      * @param batchSize 每次读取的记录数量
+     * @param bufferSize 每次读取的记录大小
      * @param compress 数据传输是否进行压缩；即使设置了压缩选项，如果server 不支持压缩，传输数据也不会被压缩
      * @param columns 本次需要下载的列
      * @return TunnelBufferedReader
      */
-    public RecordReader openBufferedRecordReader(long start, long count, long batchSize, CompressOption compress,
+    public RecordReader openBufferedRecordReader(long start, long count, long batchSize, long bufferSize, CompressOption compress,
                                                List<Column> columns) {
       TunnelBufferedReader reader =
-          new TunnelBufferedReader(start, count, batchSize, columns, compress, this);
+          new TunnelBufferedReader(start, count, batchSize, bufferSize, columns, compress, this);
       reader.setTransform(shouldTransform);
       return reader;
     }

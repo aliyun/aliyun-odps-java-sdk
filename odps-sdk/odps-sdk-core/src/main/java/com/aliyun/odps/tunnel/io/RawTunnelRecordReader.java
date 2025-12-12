@@ -150,6 +150,11 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
     } else {
       params.put(TunnelConstants.DOWNLOADID, session.getId());
       params.put(TunnelConstants.ROW_RANGE, "(" + start + "," + count + ")");
+
+      if (sizeLimit > 0) {
+        //limit result size if necessary
+        params.put(TunnelConstants.RAW_SIZE, Long.toString(sizeLimit));
+      }
     }
     Connection conn = null;
     try {
@@ -247,9 +252,9 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
                                                               RestClient restClient,
                                                               TableTunnel.DownloadSession session)
       throws IOException, TunnelException {
-      return createTableTunnelReader(start, count, compress, columns, restClient, session, false);
+      return createTableTunnelReader(start, count, 0, compress, columns, restClient, session, false);
   }
-  public static RawTunnelRecordReader createTableTunnelReader(long start, long count,
+  public static RawTunnelRecordReader createTableTunnelReader(long start, long count, long sizeLimit,
                                                               CompressOption compress,
                                                               List<Column> columns,
                                                               RestClient restClient,
@@ -322,6 +327,10 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
 
     if (disableModifiedCheck) {
       params.put(TunnelConstants.PARAM_DISABLE_MODIFIED_CHECK, "true");
+    }
+
+    if (sizeLimit > 0) {
+      params.put(TunnelConstants.RAW_SIZE, Long.toString(sizeLimit));
     }
 
     Connection conn = null;

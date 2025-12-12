@@ -12,7 +12,7 @@ import com.aliyun.odps.commons.transport.OdpsTestUtils;
 import com.aliyun.odps.sqa.ExecuteMode;
 import com.aliyun.odps.sqa.SQLExecutor;
 import com.aliyun.odps.sqa.SQLExecutorBuilder;
-import com.aliyun.odps.sqa.SQLExecutorV2Test;
+import com.aliyun.odps.sqa.MaxQATest;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
@@ -45,6 +45,7 @@ public class InstanceDataIteratorTest {
     uploadSession.commit(new Long[]{0L});
 
     instance = SQLTask.run(odps, "select * from " + TABLE_NAME + ";");
+    instance.waitForSuccess();
   }
 
   @Test
@@ -143,7 +144,7 @@ public class InstanceDataIteratorTest {
     SQLExecutor executor = SQLExecutorBuilder.builder()
         .odps(odps)
         .enableMcqaV2(true)
-        .quotaName(SQLExecutorV2Test.QUOTA_NAME)
+        .quotaName(MaxQATest.QUOTA_NAME)
         .fetchResultSplitSize(500)
         .fetchResultPreloadSplitNum(10)
         .fetchResultThreadNum(3)

@@ -20,10 +20,12 @@
 package com.aliyun.odps.table.arrow.readers;
 
 import com.aliyun.odps.table.arrow.ArrowReader;
+import com.aliyun.odps.table.utils.ArrowUtils;
 import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.compression.CompressionCodec;
@@ -56,6 +58,7 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
     private VectorSchemaRoot currentBatch;
     private Schema originalSchema;
     private List<Field> fieldList;
+    private boolean hasDictionaries = false;
 
     public ArrowBatchNonReusedReader(InputStream is,
                                      BufferAllocator allocator) {
@@ -78,22 +81,33 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
     }
 
     @Override
+    public Schema getSchema() {
+        return originalSchema;
+    }
+
+    @Override
     public boolean nextBatch() throws IOException {
         boolean hasNext = loadNextBatch();
         if (!hasNext) {
-            this.currentBatch = null;
+            currentBatch.close();
+            currentBatch = null;
         }
         return hasNext;
     }
 
     @Override
     public void close() throws IOException {
-        if (initialized) {
-            for (Dictionary dictionary : dictionaries.values()) {
-                dictionary.getVector().close();
-            }
-        }
+        closeDictionary();
         messageReader.close();
+    }
+
+    @Override
+    public void close(boolean closeReadSource) throws IOException {
+        closeDictionary();
+
+        if (closeReadSource) {
+            messageReader.close();
+        }
     }
 
     @Override
@@ -101,6 +115,13 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
         return messageReader.bytesRead();
     }
 
+    private void closeDictionary() {
+        if (initialized) {
+            for (Dictionary dictionary : dictionaries.values()) {
+                dictionary.getVector().close();
+            }
+        }
+    }
 
     /**
      * Load the next ArrowRecordBatch to the vector schema root if available.
@@ -133,6 +154,10 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
                 batch.close();
             }
             checkDictionaries();
+
+            if (hasDictionaries) {
+                loadDictionaries();
+            }
             return true;
         } else if (result.getMessage().headerType() == MessageHeader.DictionaryBatch) {
             // if it's dictionary message, read dictionary message out and continue to read unless get a batch or eos.
@@ -180,6 +205,7 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
             this.fieldList.add(updated);
         }
         this.dictionaries = Collections.unmodifiableMap(dictionaries);
+        this.hasDictionaries = !dictionaries.isEmpty();
     }
 
     private Schema readSchema() throws IOException {
@@ -258,5 +284,41 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
                 }
             }
         }
+    }
+
+    private void loadDictionaries() throws IOException {
+        List<FieldVector> updateFieldVectors = new ArrayList<>();
+
+        for (FieldVector vector : currentBatch.getFieldVectors()) {
+            Field field = vector.getField();
+            DictionaryEncoding encoding = field.getDictionary();
+            List<FieldVector> children = vector.getChildrenFromFields();
+
+            if (encoding == null) {
+                if (!children.isEmpty()) {
+                    for (FieldVector child : children) {
+                        if (ArrowUtils.hasDictionaryEncoding(child)) {
+                            throw new IOException("The dictionary encoding was not available for field: " + field.getName());
+                        }
+                    }
+                }
+                updateFieldVectors.add(vector);
+            } else {
+                if (!dictionaries.containsKey(encoding.getId())) {
+                    throw new IOException("The dictionary was not available, id was: " + encoding.getId());
+                }
+                if (!children.isEmpty()) {
+                    throw new IOException("The dictionary encoding was not available for field: " + field.getName());
+                }
+
+                Dictionary dict = dictionaries.get(encoding.getId());
+                ValueVector newVector = ArrowUtils.decode(vector, dict);
+
+                vector.close();
+                updateFieldVectors.add((FieldVector) newVector);
+            }
+        }
+
+        this.currentBatch = new VectorSchemaRoot(updateFieldVectors);
     }
 }

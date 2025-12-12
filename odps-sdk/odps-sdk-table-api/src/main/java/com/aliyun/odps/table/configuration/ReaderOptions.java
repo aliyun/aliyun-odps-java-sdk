@@ -25,6 +25,8 @@ import com.aliyun.odps.table.utils.ArrowUtils;
 import com.aliyun.odps.table.utils.Preconditions;
 import org.apache.arrow.memory.BufferAllocator;
 
+import java.util.concurrent.BlockingQueue;
+
 import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_BUFFERED_ROW_COUNT;
 
 public class ReaderOptions {
@@ -33,6 +35,8 @@ public class ReaderOptions {
     private long batchRawSize;
     private BufferAllocator bufferAllocator;
     private boolean reuseBatch;
+    private boolean async;
+    private BlockingQueue<Object> asyncQueue;
     private EnvironmentSettings settings;
     private CompressionCodec compressionCodec;
     private DataFormat dataFormat;
@@ -59,6 +63,13 @@ public class ReaderOptions {
 
     public boolean isReuseBatch() {
         return reuseBatch;
+    }
+
+    public boolean isAsync() {
+        return async;
+    }
+    public BlockingQueue<Object> getAsyncQueue() {
+        return asyncQueue;
     }
 
     public EnvironmentSettings getSettings() {
@@ -116,6 +127,15 @@ public class ReaderOptions {
 
         public Builder withMaxBatchRawSize(long batchRawSize) {
             this.readerOptions.batchRawSize = batchRawSize;
+            return this;
+        }
+
+        public Builder withAsync(boolean async) {
+            this.readerOptions.async = async;
+            return this;
+        }
+        public Builder withAsyncQueue(BlockingQueue<Object> asyncQueue) {
+            this.readerOptions.asyncQueue = asyncQueue;
             return this;
         }
 

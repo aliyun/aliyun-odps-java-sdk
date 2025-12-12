@@ -8,33 +8,6 @@ import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelMetrics;
 import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 
-class FlushResultImpl implements TableTunnel.FlushResult {
-  private String traceId;
-  private long flushSize;
-  private long recordCount;
-
-  public FlushResultImpl(String traceId, long flushSize, long recordCount) {
-    this.traceId = traceId;
-    this.flushSize = flushSize;
-    this.recordCount = recordCount;
-  }
-
-  @Override
-  public String getTraceId() {
-    return traceId;
-  }
-
-  @Override
-  public long getFlushSize() {
-    return flushSize;
-  }
-
-  @Override
-  public long getRecordCount() {
-    return recordCount;
-  }
-}
-
 public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
   private ProtobufRecordPack pack;
   private StreamUploadSessionImpl session;
@@ -76,14 +49,18 @@ public class StreamRecordPackImpl implements TableTunnel.StreamRecordPack {
 
   @Override
   public TableTunnel.FlushResult flush(TableTunnel.FlushOption opt) throws IOException {
+    return flush(opt, null);
+  }
+
+  public TableTunnel.FlushResult flush(TableTunnel.FlushOption opt, String partitionSpec) throws IOException {
     flushing = true;
     long recordCount = pack.getSize();
     pack.checkTransConsistency(false);
     pack.complete();
-    String id = session.writeBlock(pack, opt.getTimeout());
+    StreamUploadSessionImpl.WriteResult result = session.writeBlock(pack, opt.getTimeout(), partitionSpec);
     long size = pack.getTotalBytes();
     reset();
-    return new FlushResultImpl(id, size, recordCount);
+    return new FlushResultImpl(result, size, recordCount);
   }
 
   @Override

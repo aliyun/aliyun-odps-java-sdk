@@ -37,6 +37,7 @@ public interface TunnelConstants {
   public static String DOWNLOADID = "downloadid";
   public static String BLOCKID = "blockid";
   public static String ROW_RANGE = "rowrange";
+  public static String RAW_SIZE = "raw_size";
   public static String SIZE_LIMIT = "sizelimit";
   public static String RANGE = "range";
   public static String TARGET = "target";
@@ -86,6 +87,7 @@ public interface TunnelConstants {
   public static String PARAM_SHARING_QUOTA_TOKEN= "sharingQuotaToken";
   public static String PARAM_BLOCK_VERSION = "block_version";
   public static String PARAM_CHECK_LATEST_SCHEMA = "check_latest_schema";
+  public static String PARAM_DYNAMIC_PARTITION = "dynamic_partition";
   public static String ENABLE_PARTIAL_UPDATE = "enable_partial_update";
   public static String SCHEMA_VERSION = "schema_version";
   public static String PARAM_DISABLE_MODIFIED_CHECK = "disable_modified_check";
@@ -93,4 +95,5 @@ public interface TunnelConstants {
   static final String INSTANCE_NOT_TERMINATED = "InstanceNotTerminate";
   static final String TASK_FAILED = "TaskFailed";
   public static String LIFECYCLE = "lifecycle";
+  public static String PARAM_READ_ONLY = "read_only";
 }

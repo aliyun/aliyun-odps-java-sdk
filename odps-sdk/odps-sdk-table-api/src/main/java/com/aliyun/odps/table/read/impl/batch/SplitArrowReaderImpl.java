@@ -20,9 +20,11 @@
 package com.aliyun.odps.table.read.impl.batch;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Headers;
@@ -38,6 +40,8 @@ import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
 import com.aliyun.odps.table.metrics.Metrics;
 import com.aliyun.odps.table.metrics.count.BytesCount;
 import com.aliyun.odps.table.metrics.count.RecordCount;
+import com.aliyun.odps.table.metrics.count.RateLimitCost;
+import com.aliyun.odps.table.metrics.count.ServerProcessCost;
 import com.aliyun.odps.table.read.SplitReader;
 import com.aliyun.odps.table.read.split.InputSplit;
 import com.aliyun.odps.table.read.split.InputSplitWithIndex;
@@ -55,13 +59,22 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
 
     private static final Logger logger = LoggerFactory.getLogger(SplitArrowReaderImpl.class.getName());
 
-    private final ArrowReader reader;
+    private final ReaderOptions readerOptions;
+    private final InputStream in;
+
+    private ArrowReader reader;
     private Connection connection;
     private boolean isClosed;
     private Metrics metrics;
     private BytesCount bytesCount;
     private RecordCount recordCount;
+    private RateLimitCost rateLimitCost;
+    private ServerProcessCost serverProcessCost;
+
     private String requestId;
+    private long bytesRead;
+    private boolean extendedArrowIPCEnabled;
+    private int streamTag;
 
     public SplitArrowReaderImpl(TableIdentifier identifier,
                                 InputSplit split,
@@ -70,12 +83,39 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
         initMetrics();
         this.isClosed = false;
         this.reader = ArrowReaderFactory.getRecordBatchReader(connection.getInputStream(), options);
+        this.readerOptions = options;
+        this.in = connection.getInputStream();
+        this.bytesRead = 0;
+        this.streamTag = -1;
     }
 
     @Override
     public boolean hasNext() throws IOException {
         try {
-            return this.reader.nextBatch();
+            if (!extendedArrowIPCEnabled) {
+                return reader.nextBatch();
+            }
+
+            while (true) {
+                if (streamTag == -1) {
+                    streamTag = in.read();
+                    if (streamTag == -1) {
+                        return false;
+                    }
+                }
+
+                if (!reader.nextBatch()) {
+                    if (streamTag == 2) {
+                        loadServerMetrics();
+                    }
+                    bytesRead += reader.bytesRead();
+                    reader.close(false);
+                    reader = ArrowReaderFactory.getRecordBatchReader(in, readerOptions);
+                    streamTag = -1;
+                    continue;
+                }
+                return true;
+            }
         } catch (IOException e) {
             logger.error("Get next record batch failed, requestId=" + requestId, e);
             throw e;
@@ -86,7 +126,7 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
     public VectorSchemaRoot get() {
         VectorSchemaRoot root = reader.getCurrentValue();
         recordCount.inc(root.getRowCount());
-        bytesCount.setValue(reader.bytesRead());
+        bytesCount.setValue(bytesRead + reader.bytesRead());
         return root;
     }
 
@@ -112,6 +152,13 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
         this.metrics = new Metrics();
         metrics.register(bytesCount);
         metrics.register(recordCount);
+
+        if (extendedArrowIPCEnabled) {
+            this.rateLimitCost = new RateLimitCost();
+            this.serverProcessCost = new ServerProcessCost();
+            metrics.register(rateLimitCost);
+            metrics.register(serverProcessCost);
+        }
     }
 
     private void openReaderConnection(TableIdentifier identifier,
@@ -175,6 +222,8 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                     this.connection = restClient.connect(resource, "GET", params, headers);
                     Response resp = connection.getResponse();
                     this.requestId = resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID);
+                    this.extendedArrowIPCEnabled = "true".equals(resp.getHeader(HttpHeaders.HEADER_EXTENDED_ARROW_IPC_ENABLED));
+
                     if (!resp.isOK()) {
                         throw new TunnelException(requestId, connection.getInputStream(),
                                 resp.getStatus());
@@ -195,6 +244,19 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
     private void disconnect() throws IOException {
         if (connection != null) {
             connection.disconnect();
+        }
+    }
+
+    private void loadServerMetrics() {
+        Schema schema = reader.getSchema();
+        if (schema != null) {
+            schema.getCustomMetadata().forEach((key, value) -> {
+                if (key.equals("server_processing_duration_us")) {
+                    serverProcessCost.inc(Long.parseLong(value));
+                } else if (key.equals("rate_limit_duration_us")) {
+                    rateLimitCost.inc(Long.parseLong(value));
+                }
+            });
         }
     }
 }

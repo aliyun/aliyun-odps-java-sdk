@@ -52,4 +52,9 @@ public class AppAccount implements Account {
     public AppRequestSigner getRequestSigner() {
         return signer;
     }
+
+    @Override
+    public Credential getCredential() {
+        return appAccount.getCredential();
+    }
 }

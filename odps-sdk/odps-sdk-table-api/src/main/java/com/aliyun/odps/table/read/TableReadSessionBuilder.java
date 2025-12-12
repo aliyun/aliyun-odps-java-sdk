@@ -54,6 +54,7 @@ public class TableReadSessionBuilder {
     private String detailsJson;
     private boolean enableEstimateStats;
     private boolean allowFilterPredicateFallback = false;
+    private boolean enableExtendedArrowIPC = false;
     /**
      * Set the read session target to a specific table by {@link Table}.
      */
@@ -178,6 +179,11 @@ public class TableReadSessionBuilder {
         return this;
     }
 
+    public TableReadSessionBuilder enableExtendedArrowIPC(boolean enableExtendedArrowIPC) {
+        this.enableExtendedArrowIPC = enableExtendedArrowIPC;
+        return this;
+    }
+
     /**
      * Initialize the session from json string
      */
@@ -244,6 +250,10 @@ public class TableReadSessionBuilder {
 
     public boolean isAllowFilterPredicateFallback() {
         return allowFilterPredicateFallback;
+    }
+
+    public boolean isEnableExtendedArrowIPC() {
+        return enableExtendedArrowIPC;
     }
 
     /**

@@ -61,4 +61,11 @@ public interface Account {
    * @return {@link RequestSigner}对象
    */
   public RequestSigner getRequestSigner();
+
+  /**
+   * 获取当前账号的凭证信息
+   *
+   * @return {@link Credential}对象
+   */
+  public Credential getCredential();
 }

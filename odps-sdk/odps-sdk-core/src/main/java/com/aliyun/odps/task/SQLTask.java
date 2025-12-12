@@ -791,7 +791,9 @@ public class SQLTask extends Task {
         }
 
         String json = new GsonBuilder().disableHtmlEscaping().create().toJson(hints);
-        task.setProperty("settings", json);
+        if (json != null) {
+          task.setProperty("settings", json);
+        }
       } catch (Exception e) {
         throw new OdpsException(e.getMessage(), e);
       }

@@ -17,17 +17,15 @@
  * under the License.
  */
 
+package com.aliyun.odps.table.metrics.count;
 
-package com.aliyun.odps.table.metrics;
+import com.aliyun.odps.table.metrics.MetricNames;
 
-public class MetricNames {
+public class ServerProcessCost extends SimpleCounter {
 
-    private MetricNames() {}
-
-    public static final String RECORD_COUNT = "recordCount";
-    public static final String BYTES_COUNT = "bytesCount";
-
-    public static final String SERVER_PROCESS_COST = "serverProcessCost";
-    public static final String RATE_LIMIT_COST = "rateLimitCost";
+    @Override
+    public String name() {
+        return MetricNames.SERVER_PROCESS_COST;
+    }
 
 }

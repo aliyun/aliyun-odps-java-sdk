@@ -12,6 +12,9 @@ import com.aliyun.odps.utils.StringUtils;
  */
 public class AklessAccount implements Account {
 
+  // 用于缓存最近一次获取的凭证信息
+  private volatile Credential cachedCredential;
+
   enum ProviderType {
     /**
      * provided by aliyun-java-auth
@@ -70,6 +73,10 @@ public class AklessAccount implements Account {
       switch (providerType) {
         case ICredentialProvider:
           ICredential credentials = credentialsProvider.getCredentials();
+          // 缓存凭证信息
+          cachedCredential = new Credential(credentials.accessKeyId(),
+              credentials.accessKeySecret(),
+              credentials.securityToken());
           return new StsRequestSigner(credentials.accessKeyId(),
                                       credentials.accessKeySecret(),
                                       credentials.securityToken(),
@@ -79,8 +86,14 @@ public class AklessAccount implements Account {
               alibabaCloudCredentials =
               alibabaCloudCredentialsProvider.getCredentials();
           if (StringUtils.isNotBlank(alibabaCloudCredentials.getBearerToken())) {
+            // BearerToken类型的凭证
+            cachedCredential = new Credential(null, null, alibabaCloudCredentials.getBearerToken());
             return new BearerTokenRequestSigner(alibabaCloudCredentials.getBearerToken());
           } else {
+            // STS类型的凭证
+            cachedCredential = new Credential(alibabaCloudCredentials.getAccessKeyId(),
+                alibabaCloudCredentials.getAccessKeySecret(),
+                alibabaCloudCredentials.getSecurityToken());
             return new StsRequestSigner(alibabaCloudCredentials.getAccessKeyId(),
                                         alibabaCloudCredentials.getAccessKeySecret(),
                                         alibabaCloudCredentials.getSecurityToken(),
@@ -92,5 +105,14 @@ public class AklessAccount implements Account {
     } catch (CredentialException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public Credential getCredential() {
+    // 如果还没有缓存凭证信息，则先调用getRequestSigner来获取
+    if (cachedCredential == null) {
+      getRequestSigner();
+    }
+    return cachedCredential;
   }
 }

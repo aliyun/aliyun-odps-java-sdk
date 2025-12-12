@@ -201,6 +201,15 @@ public class Quota extends LazyLoad {
     @Element(name = "IsMetaOnly", required = false)
     public Boolean isMetaOnly;
 
+    @Element(name = "AutoScaleCPULimit", required = false)
+    public Long autoScaleCPULimit;
+
+    @Element(name = "AutoScaleMemoryLimit", required = false)
+    public Long autoScaleMemoryLimit;
+
+    @Element(name = "AutoScaleGPULimit", required = false)
+    public Long autoScaleGPULimit;
+
     @Element(name = "Properties", required = false)
     @Convert(SimpleXmlUtils.JsonMapConverter.class)
     public Map<String, String> properties;

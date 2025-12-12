@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
+import com.aliyun.odps.tunnel.io.ArrowTunnelBufferedReader;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.compression.CompressionCodec;
@@ -1042,6 +1043,7 @@ public class TableTunnel {
 
   public interface FlushResult {
     public String getTraceId();
+    public long getBatchId();
     public long getFlushSize();
     public long getRecordCount();
   }
@@ -1145,6 +1147,10 @@ public class TableTunnel {
      */
     public String getQuotaName();
 
+    public long getLastBatchId() throws TunnelException;
+
+    public long getLastBatchCommitTime() throws TunnelException;
+
     /**
      * 创建一个无压缩{@Link StreamRecordPack}对象
      * @return StreamRecordPack对象
@@ -1174,6 +1180,7 @@ public class TableTunnel {
       private boolean createPartition = false;
       private String schemaVersion;
       protected boolean allowSchemaMismatch = true;
+      protected boolean dynamicPartition = false;
       public String getSchemaName() {
         return schemaName;
       }
@@ -1226,6 +1233,11 @@ public class TableTunnel {
 
       public Builder allowSchemaMismatch(boolean allowSchemaMismatch) {
         this.allowSchemaMismatch = allowSchemaMismatch;
+        return this;
+      }
+
+      public Builder setDynamicPartition(boolean dynamicPartition) {
+        this.dynamicPartition = dynamicPartition;
         return this;
       }
 
@@ -2280,6 +2292,8 @@ public class TableTunnel {
      */
     private String RAPInstanceId;
 
+    private boolean supportReadByRawSize;
+
     private RestClient tunnelServiceClient;
     private boolean shouldTransform = false;
     private final boolean enableMaxStorage;
@@ -2697,13 +2711,35 @@ public class TableTunnel {
       return reader;
     }
 
-    public RecordReader openBufferedRecordReader(long start, long count, long batchSize, CompressOption compress,
+    public TunnelRecordReader openRecordReader(long start, long count, long sizeLimit,
+                                               CompressOption compress,
+                                               List<Column> columns, boolean disableModifiedCheck)
+      throws TunnelException, IOException {
+
+      if (columns != null && columns.isEmpty()) {
+        throw new TunnelException("Specified column list is empty.");
+      }
+      if (isDeltaTable) {
+        throw new IllegalArgumentException(
+          "Delta table does not support openRecordReader, use openArrowRecordReader instead.");
+      }
+
+      TunnelRecordReader
+        reader =
+        new TunnelRecordReader(start, count, sizeLimit, columns, compress, tunnelServiceClient,
+                               this, disableModifiedCheck);
+      reader.setTransform(shouldTransform);
+
+      return reader;
+    }
+
+    public RecordReader openBufferedRecordReader(long start, long count, long batchSize, long bufferSize, CompressOption compress,
                                                List<Column> columns, boolean disableModifiedCheck)
         throws TunnelException {
       if (columns != null && columns.isEmpty()) {
         throw new TunnelException("Specified column list is empty.");
       }
-      TunnelBufferedReader reader = new TunnelBufferedReader(start, count, batchSize, columns, compress, this, disableModifiedCheck);
+      TunnelBufferedReader reader = new TunnelBufferedReader(start, count, batchSize, bufferSize, columns, compress, this, disableModifiedCheck);
       reader.setTransform(shouldTransform);
       return reader;
     }
@@ -2754,6 +2790,17 @@ public class TableTunnel {
     public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator, CompressOption compress, boolean disableModifiedCheck)
         throws TunnelException, IOException {
       return new ArrowTunnelRecordReader(start, count, columns, this.tunnelServiceClient, this, allocator, compress, disableModifiedCheck);
+    }
+
+    public ArrowRecordReader openBufferedArrowRecordReader(long start, long count, long batchSize, List<Column> columns, BufferAllocator allocator,
+                                                           CompressOption compress, boolean disableModifiedCheck) {
+        if (isUseMaxStorage()) {
+            throw new UnsupportedOperationException("Delta table does not support ArrowBufferedReader, use openArrowRecordReader instead.");
+        }
+        if (compress == null) {
+          compress = new CompressOption(CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
+        }
+        return new ArrowTunnelBufferedReader(start, count, batchSize, columns, this, allocator, compress, disableModifiedCheck);
     }
 
     // initiate a new download session
@@ -2940,6 +2987,10 @@ public class TableTunnel {
 
     public String getRAPInstanceId() { return RAPInstanceId; }
 
+    public boolean isSupportReadByRawSize() {
+      return supportReadByRawSize;
+    }
+
     private String getResource() {
       return conf.getResource(projectName, schemaName, tableName);
     }
@@ -2977,6 +3028,10 @@ public class TableTunnel {
 
         if (tree.has("RAPInstanceId")) {
           RAPInstanceId = tree.get("RAPInstanceId").getAsString();
+        }
+
+        if (tree.has("SupportReadByRawSize")) {
+          supportReadByRawSize = tree.get("SupportReadByRawSize").getAsBoolean();
         }
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);

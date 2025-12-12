@@ -560,6 +560,11 @@ public class ResourceTest extends TestBase {
 
   @Test
   public void testSimpleTag() throws OdpsException, FileNotFoundException {
+    try {
+      odps.resources().delete("testSimpleTag.jar");
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
     String filename = ResourceTest.class
         .getClassLoader()
         .getResource("resource.jar")
