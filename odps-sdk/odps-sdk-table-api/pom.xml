@@ -17,10 +17,17 @@
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-core</artifactId>
         </dependency>
-
         <dependency>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-compression</artifactId>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.lz4</groupId>
+            <artifactId>lz4-pure-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
         </dependency>
     </dependencies>
 

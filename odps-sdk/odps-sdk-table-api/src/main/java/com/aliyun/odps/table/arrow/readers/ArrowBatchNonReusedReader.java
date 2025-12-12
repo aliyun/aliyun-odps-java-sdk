@@ -259,7 +259,7 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
         VectorSchemaRoot root = new VectorSchemaRoot(
                 Collections.singletonList(vector.getField()),
                 Collections.singletonList(vector), 0);
-        VectorLoader loader = new VectorLoader(root);
+        VectorLoader loader = new VectorLoader(root, compressionFactory);
         try {
             loader.load(dictionaryBatch.getDictionary());
         } finally {

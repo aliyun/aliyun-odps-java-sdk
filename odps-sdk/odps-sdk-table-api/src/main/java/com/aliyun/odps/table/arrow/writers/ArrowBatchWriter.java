@@ -20,7 +20,7 @@
 package com.aliyun.odps.table.arrow.writers;
 
 import com.aliyun.odps.table.arrow.ArrowWriter;
-import org.apache.arrow.compression.CommonsCompressionFactory;
+import com.aliyun.odps.table.arrow.compression.OdpsCompressionFactory;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.compression.CompressionUtil;
@@ -71,10 +71,9 @@ public class ArrowBatchWriter implements ArrowWriter {
             // TODO: arrow 12.0 support compress unloader, remove it
             // See: https://github.com/apache/arrow/pull/15223
             unloader = new ArrowCompressVectorUnloader(root, true,
-                    CommonsCompressionFactory.INSTANCE.createCodec(codecType), true);
+                    OdpsCompressionFactory.INSTANCE.createCodec(codecType), true);
         }
         ensureStarted(root);
-        // TODO: validate root schema
         try (ArrowRecordBatch batch = unloader.getRecordBatch()) {
             MessageSerializer.serialize(out, batch, option);
         }
