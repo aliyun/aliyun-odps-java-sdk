@@ -54,19 +54,8 @@ public static Odps buildWithStsToken(String accessId, String accessKey, String s
 此方法适用于如使用默认凭据链，或ECS实例上的RAM角色授权等场景。
 
 ### 示例代码
-使用 [credential-java](https://github.com/aliyun/credentials-java) 包
 ```java
-public static Odps buildWithCredentialProvider(AlibabaCloudCredentialsProvider credentialProvider) {
-  Account account = new AklessAccount(credentialProvider);
-  Odps odps = new Odps(account);
-  odps.setEndpoint(SAMPLE_ENDPOINT);
-  return odps;
-}
-```
-
-使用 aliyun-java-auth 包
-```java
-public static Odps buildWithCredentialProvider(ICredentialProvider credentialProvider) {
+public static Odps buildWithCredentialProvider(ICredentialsProvider credentialProvider) {
   Account account = new AklessAccount(credentialProvider);
   Odps odps = new Odps(account);
   odps.setEndpoint(SAMPLE_ENDPOINT);
@@ -75,9 +64,13 @@ public static Odps buildWithCredentialProvider(ICredentialProvider credentialPro
 ```
 
 ### 说明
-CredentialProvider 是阿里云提供的一种无AK认证方式，它实际上提供了一种基于STS Token的生成和自动轮换机制。
-阿里云的`credential-java`包提供了`AlibabaCloudCredentialsProvider`接口和多种实现，
-阿里云的`aliyun-java-auth`包提供了`ICredentialProvider`接口和多种实现，
+ICredentialsProvider 是 [credentials-api](https://github.com/aliyun/alibabacloud-credentials-api/tree/master/java) 包提供的接口类，
+[credential-java](https://github.com/aliyun/credentials-java) 包提供了若干该接口的实现，
+另外，用户也可以自行编写实现，用于获取鉴权信息。
+
+需要注意的是，ICredentialsProvider 需要管理鉴权信息缓存，轮换等功能，以保障性能不发生回退。
+
+
 用户可以根据需要选择不同的实现。
 
 ## 使用双重签名认证构建客户端
