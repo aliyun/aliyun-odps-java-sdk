@@ -1,4 +1,31 @@
 # Changelog
+## [0.56.0-public] - 2026-01-22
+
+### ✨ New Features
+* **[Account]**: **Refactored Authentication System** - Adopted new `Credentials` class to replace the legacy `Credential`, and added `getRegionId()` method to support region ID configuration, making the authentication mechanism more flexible and standardized.
+    * *Related APIs*: `Account.getCredentials()`, `Account.getRegionId()`
+* **[Instance]**: **Enhanced MCQA 2.0 Query Result Status Management** - Added `SelectResultStatus` enum to distinguish query result completeness states (FULL/TRUNCATED/NO), allowing users to determine whether data has been returned completely.
+    * *Related APIs*: `Instance.ResultDescriptor.SelectResultStatus`, `Instance.ResultDescriptor.getSelectResultStatus()`
+* **[ProxyConfig]**: **Added Netty DNS Resolver Control Option** - Allows disabling the local Netty DNS resolver via `withDisableNettyLocalResolver()`, suitable for scenarios requiring the proxy server to perform DNS resolution.
+    * *Related APIs*: `ProxyConfig.Builder.withDisableNettyLocalResolver()`
+
+### 🚀 Enhancements & Performance
+* **[Arrow]**: **Optimized Arrow Data Reader** - Unified use of `CommonsCompressionFactory` for handling compressed data, improving large-scale data read performance and compatibility.
+* **[Tunnel]**: **Improved Tunnel Endpoint Resolution Logic** - Now prioritizes the `odps.getTunnelEndpoint()` configuration item, simplifying the endpoint configuration process.
+* **[RestClient]**: **Optimized Retry Wait Time Calculation** - Now uses only the connection timeout instead of the sum of connection + read timeout, making the retry strategy more precise.
+* **[TableSchema]**: **Added Batch Partition Column Configuration Method** `withPartitionColumns()`, simplifying the creation of multiple partition columns.
+    * *Related APIs*: `TableSchema.Builder.withPartitionColumns()`
+
+### 🐛 Bug Fixes
+* **[Instance]**: **Fixed Error Handling for Task Failures** - Added `checkTaskFailed()` check in `waitForSuccess()` and `isSelect()` methods, ensuring timely exception throwing with detailed failure information when tasks fail.
+
+### 📦 Dependency Updates
+* **Upgrade**: `commons-io`: `2.11.0` → `2.14.0`
+* **Replace**: `commons-lang:2.6` → `org.apache.commons:commons-lang3:3.18.0`
+* **Upgrade**: `io.netty:netty-all`: `4.1.119.Final` → `4.1.130.Final`
+* **Add**: `org.locationtech.jts:jts-core:1.19.0`
+* **Replace**: `com.aliyun:aliyun-java-auth:0.2.16-beta` → `com.aliyun:credentials-api:1.0.0`
+
 ## [0.55.1-public] - 2026-01-22
 
 ### 🐛 Bug Fixes
