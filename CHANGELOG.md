@@ -1,4 +1,46 @@
 # Changelog
+## [0.55.1-public] - 2026-01-22
+
+### 🐛 Bug Fixes
+*   **Arrow Dictionary Decoding**
+    Fixed an issue where dictionary decoding was not using the compression factory from the ArrowBatchNonReusedReader, improving Arrow data reading stability and performance.
+
+## [0.55.0-public] - 2025-12-12
+
+### ✨ New Features
+*   **Account Credential Information Retrieval**
+    All Account implementations now support the `getCredential()` method, allowing users to retrieve the AccessKey ID, AccessKey Secret, and Security Token for account management and security auditing.
+*   **Tunnel Dynamic Partition Writing**
+    Added `DynamicPartitionRecordPack` and `PartitionRecord` to support writing to multiple partitions in a single operation, significantly improving multi-partition data writing efficiency. Enable via `TableTunnel.StreamUploadSession.Builder.setDynamicPartition()`.
+*   **Tunnel Arrow Buffered Reader**
+    Added high-performance buffered reading capability based on Arrow format for non-Delta tables, optimizing large-scale data reading performance. Use via `DownloadSession.openBufferedArrowRecordReader()`.
+*   **Tunnel Batch Tracking**
+    Added `getBatchId()` method to `FlushResult` interface, and `getLastBatchId()` and `getLastBatchCommitTime()` methods to `StreamUploadSession` for tracking flush batch IDs and commit times.
+*   **Arrow Async Streaming Reader**
+    Added `ArrowStreamAsyncReader` class to support asynchronous Arrow data stream reading in a separate thread, improving performance in IO-intensive scenarios. Configure via `ReaderOptions.Builder.withAsync()` and `withAsyncQueue()`.
+*   **Performance Monitoring Metrics**
+    Added two counter metrics, `RateLimitCost` and `ServerProcessCost`, for monitoring rate limiting costs and server processing time, helping users optimize read performance.
+*   **Quota Auto-Scaling Configuration**
+    Added `autoScaleCPULimit`, `autoScaleMemoryLimit`, and `autoScaleGPULimit` fields to the `Quota` class to support retrieving project auto-scaling quota information.
+*   **Project Properties Retrieval Improvement**
+    The `Project.getAllProperties()` method now retrieves complete configuration information including inherited properties from group, providing a more comprehensive view of project properties.
+
+### 🚀 Enhancements & Performance
+*   **Arrow Dictionary Decoding Optimization**
+    Improved dictionary encoding handling in `ArrowBatchNonReusedReader` and `ArrowBatchReusedReader`, fixing the issue where dictionary decoding was not using the compression factory, enhancing Arrow data reading stability and performance.
+*   **TunnelRecordReader Enhancement**
+    Added `openRecordReader()` method to `DownloadSession`, supporting control of data size limit via `sizeLimit` parameter.
+*   **Buffered Reader Parameter Optimization**
+    Added `bufferSize` parameter to `openBufferedRecordReader()` method, allowing users to fine-tune buffer size for optimal memory usage.
+*   **Read by Raw Size Support**
+    Added `isSupportReadByRawSize()` method to `DownloadSession` to support checking if the current session supports reading by raw data size.
+
+### 🐛 Bug Fixes
+*   **Instance Async Task Result Retrieval**
+    Fixed an issue where `getTaskResult()` would return null when the task result list is empty in async scenarios. Now throws a clear exception message.
+*   **Arrow Dictionary Encoded Field Processing**
+    Improved Arrow Reader's handling of dictionary encoded fields in nested structures, ensuring dictionary data is loaded and decoded correctly.
+
 ## [0.54.0-public] - 2025-10-21
 
 ✨ New Features

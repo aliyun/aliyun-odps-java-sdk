@@ -1,5 +1,47 @@
 # 更新日志
 
+## [0.55.1-public] - 2026-01-22
+
+### 🐛 问题修复
+*   **Arrow 字典解码**
+    修复了 ArrowBatchNonReusedReader 中字典解码未使用压缩工厂的问题，提升 Arrow 数据读取的稳定性和性能。
+
+## [0.55.0-public] - 2025-12-12
+
+### ✨ 新增功能
+*   **Account 凭证信息获取**
+    所有 Account 实现类新增 `getCredential()` 方法，支持获取当前账号的 AccessKey ID、AccessKey Secret 和 Security Token 信息，便于账号信息管理和安全审计。
+*   **Tunnel 动态分区写入**
+    新增 `DynamicPartitionRecordPack` 和 `PartitionRecord`，支持单次写入多个分区，大幅提升多分区数据写入效率。通过 `TableTunnel.StreamUploadSession.Builder.setDynamicPartition()` 启用。
+*   **Tunnel Arrow 缓冲读取器**
+    为非 Delta 表新增基于 Arrow 格式的高性能缓冲读取能力，优化大规模数据读取性能。通过 `DownloadSession.openBufferedArrowRecordReader()` 使用。
+*   **Tunnel 批次追踪**
+    `FlushResult` 接口新增 `getBatchId()` 方法，`StreamUploadSession` 新增 `getLastBatchId()` 和 `getLastBatchCommitTime()` 方法，支持追踪 flush 批次 ID 和提交时间。
+*   **Arrow 异步流式读取**
+    新增 `ArrowStreamAsyncReader` 类，支持在独立线程中异步读取 Arrow 数据流，提升 IO 密集型场景下的读取性能。通过 `ReaderOptions.Builder.withAsync()` 和 `withAsyncQueue()` 配置。
+*   **性能监控指标**
+    新增 `RateLimitCost` 和 `ServerProcessCost` 两个计数器指标，用于监控限流成本和服务器处理时间，帮助用户优化读取性能。
+*   **Quota 自动扩容配置**
+    `Quota` 类新增 `autoScaleCPULimit`、`autoScaleMemoryLimit` 和 `autoScaleGPULimit` 字段，支持获取项目的自动扩容配额信息。
+*   **Project 属性获取改进**
+    `Project.getAllProperties()` 方法现在会从服务器获取包含从 group 继承来的完整配置信息，提供更全面的项目属性视图。
+
+### 🚀 功能优化
+*   **Arrow 字典解码优化**
+    `ArrowBatchNonReusedReader` 和 `ArrowBatchReusedReader` 改进了字典编码的处理逻辑，修复了字典解码未使用压缩工厂的问题，提升 Arrow 数据读取的稳定性和性能。
+*   **TunnelRecordReader 增强**
+    `DownloadSession` 新增 `openRecordReader()` 方法，支持通过 `sizeLimit` 参数控制读取的数据大小限制。
+*   **缓冲读取器参数优化**
+    `openBufferedRecordReader()` 方法新增 `bufferSize` 参数，允许用户更精细地控制缓冲区大小，优化内存使用。
+*   **按原始大小读取支持**
+    `DownloadSession` 新增 `isSupportReadByRawSize()` 方法，支持判断当前会话是否支持按原始数据大小进行读取。
+
+### 🐛 问题修复
+*   **Instance 异步任务结果获取**
+    修复了在异步场景下调用 `getTaskResult()` 方法时，如果任务结果列表为空会返回 null 的问题，现在会抛出明确的异常信息。
+*   **Arrow 字典编码字段处理**
+    改进了 Arrow Reader 对嵌套结构中字典编码字段的处理逻辑，确保字典数据正确加载和解码。
+
 ## [0.54.0-public] - 2025-10-21
 
 ### ✨ 新增功能
