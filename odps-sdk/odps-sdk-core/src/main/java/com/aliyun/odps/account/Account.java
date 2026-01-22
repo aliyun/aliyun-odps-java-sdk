@@ -19,6 +19,9 @@
 
 package com.aliyun.odps.account;
 
+import com.aliyun.credentials.api.ICredentials;
+import com.aliyun.odps.credentials.Credentials;
+
 /**
  * 用于认证的账号信息
  *
@@ -65,7 +68,10 @@ public interface Account {
   /**
    * 获取当前账号的凭证信息
    *
-   * @return {@link Credential}对象
+   * @return {@link Credentials}对象
    */
-  public Credential getCredential();
+  public ICredentials getCredentials();
+
+
+  public String getRegionId();
 }

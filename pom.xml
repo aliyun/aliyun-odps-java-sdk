@@ -145,13 +145,13 @@
             <dependency>
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
-                <version>2.11.0</version>
+                <version>2.14.0</version>
             </dependency>
 
             <dependency>
-                <groupId>commons-lang</groupId>
-                <artifactId>commons-lang</artifactId>
-                <version>2.6</version>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.18.0</version>
             </dependency>
 
             <dependency>
@@ -219,6 +219,7 @@
                 <artifactId>jackson-databind</artifactId>
                 <version>2.18.2</version>
             </dependency>
+
 
             <dependency>
                 <groupId>org.xerial.snappy</groupId>
@@ -351,7 +352,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
-                <version>4.1.119.Final</version>
+                <version>4.1.130.Final</version>
             </dependency>
             <dependency>
                 <groupId>org.yaml</groupId>
@@ -365,14 +366,14 @@
             </dependency>
 
             <dependency>
-                <groupId>com.aliyun</groupId>
-                <artifactId>aliyun-java-auth</artifactId>
-                <version>0.2.16-beta</version>
+                <groupId>org.locationtech.jts</groupId>
+                <artifactId>jts-core</artifactId>
+                <version>1.19.0</version>
             </dependency>
             <dependency>
                 <groupId>com.aliyun</groupId>
-                <artifactId>credentials-java</artifactId>
-                <version>0.3.12</version>
+                <artifactId>credentials-api</artifactId>
+                <version>1.0.0</version>
             </dependency>
             <dependency>
                 <groupId>com.aliyun</groupId>

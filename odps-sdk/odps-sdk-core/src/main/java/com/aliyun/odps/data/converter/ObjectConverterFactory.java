@@ -39,6 +39,8 @@ import org.apache.commons.codec.binary.Hex;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.Char;
+import com.aliyun.odps.data.GeographyObject;
+import com.aliyun.odps.data.JtsGeographyObject;
 import com.aliyun.odps.data.SimpleJsonValue;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.type.DecimalTypeInfo;
@@ -784,6 +786,24 @@ class ObjectConverterFactory {
         }
     }
 
+    private enum GeographyConverter implements OdpsObjectConverter {
+        INSTANCE;
+
+        @Override
+        public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
+            if (object instanceof JtsGeographyObject) {
+                return ((JtsGeographyObject) object).asText();
+            } else {
+                return JtsGeographyObject.fromWkb(((GeographyObject) object).asBinary()).asText();
+            }
+        }
+
+        @Override
+        public Object parse(String str, TypeInfo typeInfo, OdpsRecordConverter converter) {
+            return JtsGeographyObject.fromWkt(str);
+        }
+    }
+
     static OdpsObjectConverter getFormatter(OdpsType odpsType, OdpsRecordConverterBuilder.Config config) {
         switch (odpsType) {
             case TINYINT:
@@ -865,6 +885,8 @@ class ObjectConverterFactory {
                     case COMPLEX_TYPE_OUTPUT_FORMAT_HUMAN_READABLE:
                         return ComplexObjectConverter.HUMAN_READABLE;
                 }
+            case GEOGRAPHY:
+                return GeographyConverter.INSTANCE;
             default:
                 throw new IllegalArgumentException("unsupported data type");
         }

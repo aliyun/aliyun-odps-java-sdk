@@ -313,7 +313,8 @@ public class OdpsTestUtils {
     _gcc492, // daily
     _test_trunk,
     _test_release,
-    _5ktest
+    _5ktest,
+    _vpcdaily
   }
 
   public static Env getEnv() {

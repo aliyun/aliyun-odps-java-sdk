@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.account;
 
+import com.aliyun.odps.credentials.Credentials;
+
 /**
  * 阿里云认证账号
  *
@@ -30,6 +32,7 @@ public class AliyunAccount implements Account {
 
   private String accessId;
   private String accessKey;
+  private String regionId;
 
   private AliyunRequestSigner signer;
 
@@ -50,13 +53,14 @@ public class AliyunAccount implements Account {
    *
    * @param accessId  AccessId
    * @param accessKey AccessKey
-   * @param region region name
+   * @param regionId region id
    */
-  public AliyunAccount(String accessId, String accessKey, String region) {
+  public AliyunAccount(String accessId, String accessKey, String regionId) {
     this.accessId = accessId;
     this.accessKey = accessKey;
+    this.regionId = regionId;
 
-    signer = new AliyunRequestSigner(accessId, accessKey, region);
+    signer = new AliyunRequestSigner(accessId, accessKey, regionId);
   }
 
   /**
@@ -97,7 +101,12 @@ public class AliyunAccount implements Account {
   }
 
   @Override
-  public Credential getCredential() {
-    return new Credential(accessId, accessKey, null);
+  public Credentials getCredentials() {
+    return new Credentials(accessId, accessKey, null);
+  }
+
+  @Override
+  public String getRegionId() {
+    return regionId;
   }
 }

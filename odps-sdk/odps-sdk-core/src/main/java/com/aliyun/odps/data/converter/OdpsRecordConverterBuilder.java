@@ -482,7 +482,9 @@ public class OdpsRecordConverterBuilder {
 
             OdpsType.ARRAY,
             OdpsType.MAP,
-            OdpsType.STRUCT
+            OdpsType.STRUCT,
+
+            OdpsType.GEOGRAPHY
     };
 
     /**

@@ -17,43 +17,50 @@
  * under the License.
  */
 
-package com.aliyun.odps.account;
+package com.aliyun.odps.data;
 
-import com.aliyun.odps.credentials.Credentials;
+import java.util.Arrays;
+import java.util.Objects;
 
-public class AppStsAccount implements Account {
+public final class RawGeographyObject implements GeographyObject {
 
-  private Account account;
-  private String stsToken;
-  private RequestSigner signer;
+  private static final long serialVersionUID = 1L;
 
-  public AppStsAccount(Account account, String stsToken) {
-    this.account = account;
-    this.stsToken = stsToken;
-    this.signer = new AppStsRequestSigner(account, stsToken);
-  }
+  private final byte[] binary;
 
-  public String getStsToken() {
-    return stsToken;
+  public RawGeographyObject(byte[] binary) {
+    this.binary = Objects.requireNonNull(binary, "binary must not be null").clone();
   }
 
   @Override
-  public AccountProvider getType() {
-    return AccountProvider.STS;
+  public byte[] asBinary() {
+    return binary.clone();
   }
 
   @Override
-  public RequestSigner getRequestSigner() {
-    return signer;
+  public String asText() {
+    return null;
   }
 
   @Override
-  public Credentials getCredentials() {
-    return new Credentials(null, null, stsToken);
+  public String toString() {
+    return "RawGeographyObject{binaryLength=" + binary.length + "}";
   }
 
   @Override
-  public String getRegionId() {
-    return account.getRegionId();
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof RawGeographyObject)) {
+      return false;
+    }
+    RawGeographyObject that = (RawGeographyObject) o;
+    return Arrays.equals(binary, that.binary);
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.hashCode(binary);
   }
 }

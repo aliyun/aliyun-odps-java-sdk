@@ -55,6 +55,8 @@ public class EnvironmentSettings {
 
     private final String httpsProxy;
 
+    private final boolean disableNettyLocalResolver;
+
     // TODO: Environment Credentials
 
     private EnvironmentSettings(Builder builder) {
@@ -71,6 +73,7 @@ public class EnvironmentSettings {
         this.slotNum = builder.slotNum;
         this.httpProxy = builder.httpProxy;
         this.httpsProxy = builder.httpsProxy;
+        this.disableNettyLocalResolver = builder.disableNettyLocalResolver;
     }
 
     public ExecutionMode getExecutionMode() {
@@ -125,6 +128,10 @@ public class EnvironmentSettings {
         return Optional.ofNullable(httpsProxy);
     }
 
+    public boolean isDisableNettyLocalResolver() {
+        return disableNettyLocalResolver;
+    }
+
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -149,6 +156,7 @@ public class EnvironmentSettings {
         private Long slotNum;
         private String httpProxy;
         private String httpsProxy;
+        private boolean disableNettyLocalResolver;
 
         public Builder inLocalMode() {
             this.executionMode = ExecutionMode.LOCAL;
@@ -228,6 +236,11 @@ public class EnvironmentSettings {
 
         public Builder withHttpsProxy(String httpsProxy) {
             this.httpsProxy = httpsProxy;
+            return this;
+        }
+
+        public Builder withDisableNettyLocalResolver(boolean disableNettyLocalResolver) {
+            this.disableNettyLocalResolver = disableNettyLocalResolver;
             return this;
         }
 

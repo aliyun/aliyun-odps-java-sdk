@@ -24,6 +24,8 @@ import com.aliyun.odps.table.arrow.readers.ArrowBatchNonReusedReader;
 import com.aliyun.odps.table.arrow.readers.ArrowBatchReusedReader;
 import com.aliyun.odps.table.configuration.CompressionCodec;
 import com.aliyun.odps.table.configuration.ReaderOptions;
+import org.apache.arrow.compression.CommonsCompressionFactory;
+import org.apache.arrow.vector.compression.NoCompressionCodec;
 
 import java.io.InputStream;
 
@@ -34,18 +36,13 @@ public class ArrowReaderFactory {
 
     public static ArrowReader getRecordBatchReader(InputStream is,
                                                    ReaderOptions options) {
+        org.apache.arrow.vector.compression.CompressionCodec.Factory compress =
+                options.getCompressionCodec().equals(CompressionCodec.NO_COMPRESSION) ?
+                        NoCompressionCodec.Factory.INSTANCE : CommonsCompressionFactory.INSTANCE;
         if (options.isReuseBatch()) {
-            if (options.getCompressionCodec().equals(CompressionCodec.NO_COMPRESSION)) {
-                return new ArrowBatchReusedReader(is, options.getBufferAllocator());
-            } else {
-                return new ArrowBatchReusedReader(is, options.getBufferAllocator(), OdpsCompressionFactory.INSTANCE);
-            }
+            return new ArrowBatchReusedReader(is, options.getBufferAllocator(), compress, options.isAsync(), options.getAsyncQueue());
         } else {
-            if (options.getCompressionCodec().equals(CompressionCodec.NO_COMPRESSION)) {
-                return new ArrowBatchNonReusedReader(is, options.getBufferAllocator());
-            } else {
-                return new ArrowBatchNonReusedReader(is, options.getBufferAllocator(), OdpsCompressionFactory.INSTANCE);
-            }
+            return new ArrowBatchNonReusedReader(is, options.getBufferAllocator(), compress);
         }
     }
 }

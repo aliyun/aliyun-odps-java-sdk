@@ -468,6 +468,8 @@ public class TablesTest extends TestBase {
 
 
     List<Table> actualTables = grantOdps.tables().reloadTables(expectedTables);
+    System.out.println(grantOdps.getDefaultProject());
+    System.out.println(expectedTables.get(0).getName());
     assertEquals(1, actualTables.size());
     assertEquals(tableName.toLowerCase(), actualTables.get(0).getName());
     assertEquals(odps.getDefaultProject(), actualTables.get(0).getProject());

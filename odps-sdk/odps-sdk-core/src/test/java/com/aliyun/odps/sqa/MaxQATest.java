@@ -491,7 +491,12 @@ public class MaxQATest {
     recordWriter.close();
     uploadSession.commit();
 
-    executor.run("select * from bigTable;", null);
+    executor.run("select char_matchcount(c1, \"te\") from bigTable limit 10002;", null);
+
+    System.out.println(executor.getLogView());
+    System.out.println(executor.getInstance().getResultDescriptor(executor.getTaskName())
+                         .getSelectResultStatus());
+
     ResultSet resultSet = executor.getResultSet();
     Assert.assertEquals(100000, resultSet.getRecordCount());
 
@@ -501,8 +506,8 @@ public class MaxQATest {
       resultSet.next();
     }
     System.out.println(count);
+
+    executor.getExecutionLog().forEach(System.out::println);
     Assert.assertEquals(100000, count);
   }
-
-
 }

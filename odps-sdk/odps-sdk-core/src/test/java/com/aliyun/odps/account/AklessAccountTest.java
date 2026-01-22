@@ -3,8 +3,8 @@ package com.aliyun.odps.account;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.aliyun.auth.credentials.ICredential;
-import com.aliyun.auth.credentials.provider.ICredentialProvider;
+import com.aliyun.credentials.api.ICredentials;
+import com.aliyun.credentials.api.ICredentialsProvider;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.OdpsTestUtils;
@@ -25,11 +25,11 @@ public class AklessAccountTest {
     System.out.println(ramRole);
 //    CredentialProviderConfig credentialProviderConfig =
 //        new CredentialProviderConfig(ramRole, "office", "odps-sdk-java", "", "testing", 60L);
-    ICredentialProvider credentialsProvider = null;
-    ICredential credentials = credentialsProvider.getCredentials();
-    System.out.println(credentials.accessKeyId());
-    System.out.println(credentials.accessKeySecret());
-    System.out.println(credentials.securityToken());
+    ICredentialsProvider credentialsProvider = null;
+    ICredentials credentials = credentialsProvider.getCredentials();
+    System.out.println(credentials.getAccessKeyId());
+    System.out.println(credentials.getAccessKeySecret());
+    System.out.println(credentials.getSecurityToken());
 
     Account account = new AklessAccount(credentialsProvider);
 

@@ -22,7 +22,7 @@ package com.aliyun.odps.mapred.unittest;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.aliyun.odps.local.common.Constants;
 import com.aliyun.odps.local.common.WareHouse;

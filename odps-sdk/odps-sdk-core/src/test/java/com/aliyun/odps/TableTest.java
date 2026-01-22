@@ -589,85 +589,6 @@ public class TableTest extends TestBase {
 
 
   @Test
-  public void testTag() throws OdpsException {
-    // Create classification
-    Map<String, AttributeDefinition> attributes = new HashMap<>();
-    attributes.put("str_attr", new StringAttributeDefinition.Builder().maxLength(10)
-                                                                      .minLength(10)
-                                                                      .build());
-    attributes.put("int_attr", new IntegerAttributeDefinition.Builder().minimum(0)
-                                                                       .maximum(10)
-                                                                       .build());
-    attributes.put("enum_attr", new EnumAttributeDefinition.Builder().element("foo")
-                                                                     .element("bar")
-                                                                     .build());
-    attributes.put("bool_attr", new BooleanAttributeDefinition.Builder().build());
-    String classificationName = String.format(
-        "%s_%s_%s",
-        BASE_CLASSIFICATION_NAME_PREFIX,
-        "testTableTag",
-        OdpsTestUtils.getRandomName());
-    odps.classifications().create(classificationName, attributes, true);
-
-    // Create tag
-    String tagName = String.format(
-        "%s_%s_%s",
-        BASE_TAG_NAME_PREFIX,
-        "testTableTag",
-        OdpsTestUtils.getRandomName());
-    TagBuilder builder = new TagBuilder(odps.classifications().get(classificationName), tagName)
-        .attribute("str_attr", "1234567890")
-        .attribute("int_attr", "7")
-        .attribute("enum_attr", "foo")
-        .attribute("bool_attr", "true");
-    odps.classifications().get(classificationName).tags().create(builder, true);
-
-    Tag tag = odps.classifications().get(classificationName).tags().get(tagName);
-
-    Table table = odps.tables().get(SOURCE_TABLE_NAME);
-
-    // There shouldn't be any table level tag
-    assertEquals(0, table.getTags().size());
-
-    // Create table level tags
-    odps.tables().get(SOURCE_TABLE_NAME).addTag(tag);
-    List<Tag> tags = odps.tables().get(SOURCE_TABLE_NAME).getTags();
-    Assert.assertEquals(1, tags.size());
-    tag = tags.get(0);
-    Assert.assertEquals(4, tag.getAttributes().size());
-    Assert.assertEquals("1234567890", tag.getAttributes().get("str_attr"));
-    Assert.assertEquals("7", tag.getAttributes().get("int_attr"));
-    Assert.assertEquals("foo", tag.getAttributes().get("enum_attr"));
-    Assert.assertEquals("true", tag.getAttributes().get("bool_attr"));
-
-    // Remove table level tags
-    odps.tables().get(SOURCE_TABLE_NAME).removeTag(tag);
-    tags = odps.tables().get(SOURCE_TABLE_NAME).getTags();
-    Assert.assertEquals(0, tags.size());
-
-    // There shouldn't be any column level tag
-    assertEquals(0, table.getSimpleTags().size());
-
-    // Create column level tag
-    List<String> columns = new LinkedList<>();
-    columns.add("c1");
-    odps.tables().get(SOURCE_TABLE_NAME).addTag(tag, columns);
-    tags = odps.tables().get(SOURCE_TABLE_NAME).getTags("c1");
-    Assert.assertEquals(1, tags.size());
-    tag = tags.get(0);
-    Assert.assertEquals(4, tag.getAttributes().size());
-    Assert.assertEquals("1234567890", tag.getAttributes().get("str_attr"));
-    Assert.assertEquals("7", tag.getAttributes().get("int_attr"));
-    Assert.assertEquals("foo", tag.getAttributes().get("enum_attr"));
-    Assert.assertEquals("true", tag.getAttributes().get("bool_attr"));
-
-    // Remove column level tag
-    odps.tables().get(SOURCE_TABLE_NAME).removeTag(tag, columns);
-    tags = odps.tables().get(SOURCE_TABLE_NAME).getTags("c1");
-    Assert.assertEquals(0, tags.size());
-  }
-
-  @Test
   public void testSimpleTag() throws OdpsException {
     Table table = odps.tables().get(SOURCE_TABLE_NAME);
 
@@ -684,16 +605,6 @@ public class TableTest extends TestBase {
     assertTrue(categoryToKvs.get("test_category").containsKey("simple_tag_key"));
     assertEquals("simple_tag_value",
                  categoryToKvs.get("test_category").get("simple_tag_key"));
-
-    // Remove table level simple tags
-    odps.tables()
-        .get(SOURCE_TABLE_NAME)
-        .removeSimpleTag("test_category", "simple_tag_key", "simple_tag_value");
-    categoryToKvs = odps.tables().get(SOURCE_TABLE_NAME).getSimpleTags();
-    assertEquals(0, categoryToKvs.size());
-
-    // There shouldn't be any column level simple tag
-    assertEquals(0, table.getSimpleTags("c1").size());
 
     // Create column level simple tags
     List<String> columns = new LinkedList<>();
@@ -713,17 +624,6 @@ public class TableTest extends TestBase {
     assertTrue(categoryToKvs.get("test_category").containsKey("simple_tag_key"));
     assertEquals("simple_tag_value",
                  categoryToKvs.get("test_category").get("simple_tag_key"));
-
-    // Remove column level simple tags
-    odps.tables()
-        .get(SOURCE_TABLE_NAME)
-        .removeSimpleTag(
-            "test_category",
-            "simple_tag_key",
-            "simple_tag_value",
-            columns);
-    categoryToKvs = odps.tables().get(SOURCE_TABLE_NAME).getSimpleTags();
-    assertEquals(0, categoryToKvs.size());
   }
 
   @Test

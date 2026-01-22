@@ -333,7 +333,7 @@ public class RestClient {
     if (retryWaitTime > 0) {
       waitTime = retryWaitTime;
     } else {
-      waitTime = getConnectTimeout() + getReadTimeout();
+      waitTime = getConnectTimeout();
     }
     FixedBackOffStrategy backOffStrategy = new FixedBackOffStrategy(waitTime);
     RetryStrategy retryStrategy = new RestRetryStrategy(retryTimes, backOffStrategy);

@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.account;
 
+import com.aliyun.odps.credentials.Credentials;
+
 public class StsAccount extends AliyunAccount {
 
   private StsRequestSigner signer;
@@ -45,7 +47,7 @@ public class StsAccount extends AliyunAccount {
   }
 
   @Override
-  public Credential getCredential() {
-    return new Credential(super.getAccessId(), super.getAccessKey(), stsToken);
+  public Credentials getCredentials() {
+    return new Credentials(super.getAccessId(), super.getAccessKey(), stsToken);
   }
 }

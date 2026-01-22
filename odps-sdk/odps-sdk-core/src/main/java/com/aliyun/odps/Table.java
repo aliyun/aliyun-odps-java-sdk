@@ -40,6 +40,7 @@ import org.apache.arrow.vector.ipc.ArrowStreamReader;
 
 import com.aliyun.odps.Partition.PartitionModel;
 import com.aliyun.odps.Partition.PartitionSpecModel;
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.data.ArrowReaderWrapper;
 import com.aliyun.odps.data.ArrowStreamRecordReader;
 import com.aliyun.odps.data.RecordReader;

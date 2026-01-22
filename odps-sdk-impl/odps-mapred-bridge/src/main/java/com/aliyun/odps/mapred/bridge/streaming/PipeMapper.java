@@ -28,7 +28,7 @@ import java.util.Map;
 import com.aliyun.odps.utils.GsonObjectBuilder;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.mapred.Mapper;

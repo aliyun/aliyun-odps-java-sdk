@@ -22,8 +22,12 @@ public class ProxyConfig {
 
   private final Map<Type, Proxy> proxyMap;
 
-  private ProxyConfig(Map<Type, Proxy> proxyMap) {
+  // whether to disable netty dns resolver in local, if set true, the proxy server should be able to resolve it
+  private final boolean disableNettyLocalResolver;
+
+  private ProxyConfig(Map<Type, Proxy> proxyMap, boolean disableNettyLocalResolver) {
     this.proxyMap = Collections.unmodifiableMap(new EnumMap<>(proxyMap));
+    this.disableNettyLocalResolver = disableNettyLocalResolver;
   }
 
   public static Builder builder() {
@@ -34,10 +38,15 @@ public class ProxyConfig {
     return Optional.ofNullable(proxyMap.get(type));
   }
 
+  public boolean isDisableNettyLocalResolver() {
+    return disableNettyLocalResolver;
+  }
+
   public static class Builder {
 
     private final Map<Type, Proxy> internalMap = new EnumMap<>(Type.class);
     private boolean loadEnv = false;
+    private boolean disableNettyLocalResolver = false;
 
     public Builder withHttpProxy(String endpoint) {
       parseAndAdd(endpoint, Type.HTTP, Proxy.Type.HTTP);
@@ -64,6 +73,11 @@ public class ProxyConfig {
       return this;
     }
 
+    public Builder withDisableNettyLocalResolver(boolean disableNettyLocalResolver) {
+      this.disableNettyLocalResolver = disableNettyLocalResolver;
+      return this;
+    }
+
     public ProxyConfig build() {
       if (loadEnv) {
         tryLoadFromEnv("HTTP_PROXY", Type.HTTP, Proxy.Type.HTTP);
@@ -71,7 +85,7 @@ public class ProxyConfig {
         tryLoadFromEnv("SOCKS_PROXY", Type.SOCKS4, Proxy.Type.SOCKS);
         tryLoadFromEnv("SOCKS_PROXY", Type.SOCKS4, Proxy.Type.SOCKS);
       }
-      return new ProxyConfig(internalMap);
+      return new ProxyConfig(internalMap, disableNettyLocalResolver);
     }
 
     private void tryLoadFromEnv(String envVar, Type type, Proxy.Type proxyType) {

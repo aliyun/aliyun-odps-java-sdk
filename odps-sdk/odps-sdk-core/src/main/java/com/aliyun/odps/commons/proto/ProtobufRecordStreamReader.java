@@ -44,6 +44,8 @@ import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.Char;
+import com.aliyun.odps.data.JtsGeographyObject;
+import com.aliyun.odps.data.RawGeographyObject;
 import com.aliyun.odps.data.IntervalDayTime;
 import com.aliyun.odps.data.IntervalYearMonth;
 import com.aliyun.odps.data.Record;
@@ -406,6 +408,10 @@ public class ProtobufRecordStreamReader implements RecordReader {
             }
             case STRUCT: {
                 return readStruct(type);
+            }
+
+            case GEOGRAPHY: {
+                return JtsGeographyObject.fromWkb(readBytes());
             }
             default:
                 throw new IOException("Unsupported type " + type.getTypeName());

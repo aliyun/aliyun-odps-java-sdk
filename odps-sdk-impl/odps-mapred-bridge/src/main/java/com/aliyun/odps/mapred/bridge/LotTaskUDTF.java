@@ -22,7 +22,7 @@ package com.aliyun.odps.mapred.bridge;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.io.Writable;

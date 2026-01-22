@@ -2,7 +2,7 @@ package com.aliyun.odps.udf.example.speech.transform;
 
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.udf.UDF;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
 public class RevertBytes extends UDF {
   public Binary evaluate(Binary bytes) {

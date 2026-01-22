@@ -40,12 +40,7 @@ public class DecimalTest extends TestBase {
 
   @Before
   public void setup() throws OdpsException, IOException {
-    try {
-      odps.tables().delete(tableName);
-    } catch (OdpsException e) {
-
-    }
-
+    odps.tables().delete(tableName, true);
     TableSchema schema = new TableSchema();
     schema.addColumn(new Column("c0", OdpsType.DECIMAL));
 

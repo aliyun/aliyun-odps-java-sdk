@@ -335,6 +335,13 @@ public class TableSchema implements Serializable {
       return this;
     }
 
+    public Builder withPartitionColumns(List<Column> columns) {
+      for (Column column : columns) {
+        withPartitionColumn(column);
+      }
+      return this;
+    }
+
     /**
      * easy method to add specific type column.
      * for more column type, please use withColumn

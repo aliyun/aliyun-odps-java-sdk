@@ -27,7 +27,7 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Instance.StageProgress;

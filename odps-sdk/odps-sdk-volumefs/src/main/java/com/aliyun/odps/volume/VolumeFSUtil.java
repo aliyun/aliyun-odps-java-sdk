@@ -121,7 +121,7 @@ public class VolumeFSUtil {
 
     String symlinkPath;
     try {
-      symlinkPath = org.apache.commons.lang.StringUtils.isBlank(file.getSymlink()) ? getExternalLocation(file) : file.getSymlink();
+      symlinkPath = org.apache.commons.lang3.StringUtils.isBlank(file.getSymlink()) ? getExternalLocation(file) : file.getSymlink();
     } catch (ReloadException e) {
       OdpsException exception = (OdpsException) e.getCause();
       System.err.println(file.getPath() + ": ls error: RequestId=" + exception.getRequestId() + ", ErrorCode="
@@ -156,7 +156,7 @@ public class VolumeFSUtil {
    * @param path
    */
   public static boolean checkPathIsJustVolume(String path) {
-    if (org.apache.commons.lang.StringUtils.isBlank(path)) {
+    if (org.apache.commons.lang3.StringUtils.isBlank(path)) {
       return false;
     }
     if (path.startsWith("/")) {
@@ -178,7 +178,7 @@ public class VolumeFSUtil {
    * @param path
    */
   public static boolean checkPathIsRoot(String path) {
-    if (org.apache.commons.lang.StringUtils.isBlank(path)) {
+    if (org.apache.commons.lang3.StringUtils.isBlank(path)) {
       return false;
     }
     path = path.replaceAll("//", "/");

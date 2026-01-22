@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.account;
 
+import com.aliyun.credentials.api.ICredentials;
+
 /**
  * This class is for keeping track of the behaviors of a certain application.
  *
@@ -54,7 +56,12 @@ public class AppAccount implements Account {
     }
 
     @Override
-    public Credential getCredential() {
-        return appAccount.getCredential();
+    public ICredentials getCredentials() {
+        return appAccount.getCredentials();
+    }
+
+    @Override
+    public String getRegionId() {
+        return appAccount.getRegionId();
     }
 }

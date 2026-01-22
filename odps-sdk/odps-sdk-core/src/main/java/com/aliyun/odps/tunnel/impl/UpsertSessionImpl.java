@@ -22,6 +22,7 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.HttpStatus;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -414,12 +415,12 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                                                    EventLoopGroup group) {
         Bootstrap bootstrap = new Bootstrap();
         Odps odps = configuration.getOdps();
+        ProxyConfig proxyConfig = odps.options().getProxyConfig();
         bootstrap.group(group).channel(NioSocketChannel.class)
             .handler(new ChannelInitializer<Channel>() {
                 @Override
                 protected void initChannel(Channel channel) throws Exception {
                     URI uri = new URI(odps.getEndpoint());
-                    ProxyConfig proxyConfig = odps.options().getProxyConfig();
                     if (proxyConfig != null) {
                         switch (uri.getScheme()) {
                             case "http":
@@ -457,6 +458,9 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
             });
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,
                          configuration.getSocketConnectTimeout() * 1000);
+        if (proxyConfig != null && proxyConfig.isDisableNettyLocalResolver()) {
+            bootstrap.disableResolver();
+        }
         return bootstrap;
     }
 

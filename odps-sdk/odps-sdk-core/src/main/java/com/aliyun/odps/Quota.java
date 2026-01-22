@@ -607,10 +607,6 @@ public class Quota extends LazyLoad {
     lazyLoad();
     if (model.resourceSystemType != null && model.resourceSystemType.equalsIgnoreCase(
         ResourceSystemType.FUXI_VW.name())) {
-      // current mcqa 1.5 type is also fuxi_vw
-      if (model.userDefinedTag != null && model.userDefinedTag.containsKey(MCQA_VERSION)) {
-        return false;
-      }
       return true;
     }
     return false;

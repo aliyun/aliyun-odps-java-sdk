@@ -12,7 +12,7 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang3.BooleanUtils;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.LogView;
@@ -84,15 +84,14 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.fetchResultThreadNum = builder.getFetchResultThreadNum();
     this.enableTypedResults = builder.isEnableTypedResult();
 
-    if (useInstanceTunnel) {
-      this.instanceTunnel = new InstanceTunnel(odps);
-      if (builder.getTunnelSocketTimeout() >= 0) {
-        instanceTunnel.getConfig().setSocketConnectTimeout(builder.getTunnelSocketTimeout());
-      }
-      if (builder.getTunnelReadTimeout() >= 0) {
-        instanceTunnel.getConfig().setSocketTimeout(builder.getTunnelReadTimeout());
-      }
+    this.instanceTunnel = new InstanceTunnel(odps);
+    if (builder.getTunnelSocketTimeout() >= 0) {
+      instanceTunnel.getConfig().setSocketConnectTimeout(builder.getTunnelSocketTimeout());
     }
+    if (builder.getTunnelReadTimeout() >= 0) {
+      instanceTunnel.getConfig().setSocketTimeout(builder.getTunnelReadTimeout());
+    }
+
     this.log = new ArrayList<>();
     // each executor has a uuid
     this.id = UUID.randomUUID().toString();
@@ -330,7 +329,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (useInstanceTunnel) {
       return getResultByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
     } else {
-      return getResultDirectly(limitEnabled);
+      return getResultDirectly(offset, countLimit, sizeLimit, limitEnabled);
     }
   }
 
@@ -390,8 +389,9 @@ public class SQLExecutorImpl implements SQLExecutor {
     return records;
   }
 
-  private List<Record> getResultDirectly(boolean limitEnabled) throws OdpsException, IOException {
-    ResultSet resultSet = getResultSetDirectly(limitEnabled);
+  private List<Record> getResultDirectly(Long offset, Long countLimit, Long sizeLimit,
+                                         boolean limitEnabled) throws OdpsException, IOException {
+    ResultSet resultSet = getResultSetDirectly(offset, countLimit, sizeLimit, limitEnabled);
     List<Record> records = new ArrayList<>();
     while (resultSet.hasNext()) {
       records.add(resultSet.next());
@@ -474,7 +474,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (useInstanceTunnel) {
       return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
     } else {
-      return getResultSetDirectly(limitEnabled);
+      return getResultSetDirectly(offset, countLimit, sizeLimit, limitEnabled);
     }
   }
 
@@ -529,10 +529,20 @@ public class SQLExecutorImpl implements SQLExecutor {
   }
 
 
-  private ResultSet getResultSetDirectly(boolean limitEnabled) throws OdpsException, IOException {
+  private ResultSet getResultSetDirectly(Long offset, Long countLimit, Long sizeLimit,
+                                         boolean limitEnabled) throws OdpsException, IOException {
     Instance.Result result = getResultString();
     Instance.ResultDescriptor resultDescriptor =
         queryInfo.getInstance().getResultDescriptor(taskName);
+    if (resultDescriptor.isSelect() &&
+        resultDescriptor.getSelectResultStatus() != Instance.ResultDescriptor.SelectResultStatus.FULL) {
+      if (limitEnabled && resultDescriptor.getSelectResultStatus() == Instance.ResultDescriptor.SelectResultStatus.TRUNCATED) {
+        log.add("Warning: result has been truncated, at most 10000 records return.");
+      } else {
+        log.add("Result is truncated, use instance tunnel to get unlimited result.");
+        return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, false);
+      }
+    }
     CSVRecordParser.ParseResult parseResult;
     if (result != null) {
       if (BooleanUtils.isTrue(resultDescriptor.isSelect()) && "csv".equalsIgnoreCase(
@@ -547,7 +557,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         } catch (Exception e) {
           if (enableTypedResults) {
             log.add("Warning: typed result parse failed, fallback to get result by tunnel.");
-            return getResultSetByInstanceTunnel(null, null, null, limitEnabled);
+            return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
           }
           throw new OdpsException(result.getString(), e);
         }
@@ -619,8 +629,8 @@ public class SQLExecutorImpl implements SQLExecutor {
             records.size());
       }
     } else {
-      // fall back to non-tunnel
-      return getResultSetDirectly(limitEnabled);
+      // fall back to non-tunnel when isSelect = false
+      return getResultSetDirectly(offset, countLimit, sizeLimit, limitEnabled);
     }
   }
 

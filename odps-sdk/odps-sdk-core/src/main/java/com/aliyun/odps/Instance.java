@@ -964,7 +964,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    */
   public void waitForSuccess(long interval) throws OdpsException {
     waitForTerminated(interval, false);
+    checkTaskFailed();
+  }
 
+  private void checkTaskFailed() throws OdpsException {
     if (!isSuccessful()) {
       for (Entry<String, TaskStatus> e : getTaskStatus().entrySet()) {
         if (e.getValue().getStatus() == TaskStatus.Status.FAILED) {
@@ -1789,9 +1792,11 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   /**
    * 判断当前作业是否是屏显作业，比如 select 语句。只有结束的 MCQA 2.0 作业可以进行此判断
    */
-  public boolean isSelect(String taskName) {
+  public boolean isSelect(String taskName) throws OdpsException {
     Boolean isSelect = getResultDescriptor(taskName).isSelect();
     if (isSelect == null) {
+      // the most possible reason is job failed, here check task tailed
+      checkTaskFailed();
       throw new IllegalStateException(
           "Cannot infer whether the job type is a select job. Currently, only MCQA 2.0 jobs are supported. \nTaskResult:\n"
           + results.get(taskName).result.getString());
@@ -1849,10 +1854,29 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   public static class ResultDescriptor {
     private Boolean isSelect;
     private TableSchema schema;
+    private SelectResultStatus selectResultStatus;
+
+    public enum SelectResultStatus {
+      NO,
+      TRUNCATED,
+      FULL;
+
+      public static SelectResultStatus fromString(String value) {
+        for (SelectResultStatus status : values()) {
+          if (status.name().equalsIgnoreCase(value)) {
+            return status;
+          }
+        }
+        return null;
+      }
+    }
 
     // Setter
     public void setIsSelect(boolean isSelect) { this.isSelect = isSelect; }
     public void setSchema(TableSchema schema) {this.schema = schema; }
+    public void setSelectResultStatus(SelectResultStatus selectResultStatus) {
+      this.selectResultStatus = selectResultStatus;
+    }
 
     public Boolean isSelect() {
       return isSelect;
@@ -1860,6 +1884,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
     public TableSchema getSchema() {
       return schema;
+    }
+
+    public SelectResultStatus getSelectResultStatus() {
+      return selectResultStatus;
     }
   }
 
@@ -1888,6 +1916,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
           }
         }
         resultDescriptor.setSchema(schema);
+      }
+      if (json.has("SelectResultStatus")) {
+        resultDescriptor.setSelectResultStatus(
+          ResultDescriptor.SelectResultStatus.fromString(json.get("SelectResultStatus").getAsString()));
       }
       return resultDescriptor;
     }

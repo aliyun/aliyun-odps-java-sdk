@@ -212,7 +212,19 @@ public class Resources implements Iterable<Resource> {
    * @throws OdpsException
    */
   public void create(String projectName, VolumeResource resource) throws OdpsException {
-    addVolumeResource(projectName, resource, false);
+    addVolumeResource(projectName, null, resource, false);
+  }
+
+  /**
+   * 创建 Volume 资源
+   *
+   * @param projectName
+   * @param resource
+   *     {@link VolumeResource}类型对象
+   * @throws OdpsException
+   */
+  public void create(String projectName, String schemaName, VolumeResource resource) throws OdpsException {
+    addVolumeResource(projectName, schemaName, resource, false);
   }
 
   /**
@@ -235,14 +247,27 @@ public class Resources implements Iterable<Resource> {
    * @throws OdpsException
    */
   public void update(String projectName, VolumeResource r) throws OdpsException {
-    addVolumeResource(projectName, r, true);
+    addVolumeResource(projectName, null, r, true);
+  }
+
+  /**
+   * 更新 Volume 资源
+   *
+   * @param projectName
+   * @param r
+   *     {@link VolumeResource}类型对象
+   * @throws OdpsException
+   */
+  public void update(String projectName, String schemaName, VolumeResource r) throws OdpsException {
+    addVolumeResource(projectName, schemaName, r, true);
   }
 
 
   private void addVolumeResource(
-      String projectName,
-      VolumeResource r,
-      boolean isUpdate) throws OdpsException {
+    String projectName,
+    String schemaName,
+    VolumeResource r,
+    boolean isUpdate) throws OdpsException {
     if (StringUtils.isNullOrEmpty(projectName)) {
       throw new IllegalArgumentException("Argument 'projectName' cannot be null or empty");
     }
@@ -261,6 +286,8 @@ public class Resources implements Iterable<Resource> {
       resource = ResourceBuilder.buildResourcesResource(projectName);
     }
 
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+
     HashMap<String, String> headers = new HashMap<>();
     headers.put(Headers.ODPS_RESOURCE_TYPE, r.model.type.toLowerCase());
     headers.put(Headers.ODPS_RESOURCE_NAME, r.getName());
@@ -270,7 +297,7 @@ public class Resources implements Iterable<Resource> {
       headers.put(Headers.ODPS_COMMENT, r.getComment());
     }
 
-    client.request(resource, method, null, headers, null);
+    client.request(resource, method, params, headers, null);
   }
 
   /**

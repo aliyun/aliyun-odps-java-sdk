@@ -34,7 +34,7 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.mapred.bridge.utils.VersionUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
 import com.aliyun.odps.type.TypeInfo;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.counter.Counter;

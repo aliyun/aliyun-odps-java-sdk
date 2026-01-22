@@ -11,7 +11,7 @@ import com.aliyun.odps.udf.DataAttributes;
 import com.aliyun.odps.udf.ExecutionContext;
 import com.aliyun.odps.udf.Extractor;
 import com.aliyun.odps.utils.StringUtils;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -106,7 +106,7 @@ public class TextExtractor extends Extractor {
     }
 
     System.out.println(
-      org.apache.commons.lang.StringEscapeUtils.escapeJava(("TextExtractor set up with delimiter [" + this.delimiterChar + "], " +
+      org.apache.commons.lang3.StringEscapeUtils.escapeJava(("TextExtractor set up with delimiter [" + this.delimiterChar + "], " +
         " line terminator [" + linebreakChar + "], with complex text flag set to "
         + this.complexText + " and reading gzip file set to " + this.isGzip)));
     // note: more properties can be inited from attributes if needed

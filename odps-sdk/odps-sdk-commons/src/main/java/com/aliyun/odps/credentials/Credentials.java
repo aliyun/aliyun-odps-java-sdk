@@ -17,32 +17,42 @@
  * under the License.
  */
 
-package com.aliyun.odps.account;
+package com.aliyun.odps.credentials;
+
+import com.aliyun.credentials.api.ICredentials;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-public class Credential {
+public class Credentials implements ICredentials {
 
     String accessKeyId;
     String accessKeySecret;
     String securityToken;
 
-    public Credential(String accessKeyId, String accessKeySecret, String securityToken) {
+    public Credentials(String accessKeyId, String accessKeySecret, String securityToken) {
         this.accessKeyId = accessKeyId;
         this.accessKeySecret = accessKeySecret;
         this.securityToken = securityToken;
     }
 
+    @Override
     public String getAccessKeyId() {
         return accessKeyId;
     }
 
+    @Override
     public String getAccessKeySecret() {
         return accessKeySecret;
     }
 
+    @Override
     public String getSecurityToken() {
         return securityToken;
+    }
+
+    @Override
+    public String getProviderName() {
+        return "static";
     }
 }

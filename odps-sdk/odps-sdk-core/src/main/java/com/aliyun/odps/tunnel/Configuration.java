@@ -89,6 +89,10 @@ public class Configuration extends GeneralConfiguration {
       return endpoint;
     }
 
+    if (StringUtils.isNotBlank(odps.getTunnelEndpoint())) {
+      return URI.create(odps.getTunnelEndpoint());
+    }
+
     URI u = null;
     try {
       u = new URI(odps.projects().get(projectName).getTunnelEndpoint(quotaName));
@@ -136,11 +140,7 @@ public class Configuration extends GeneralConfiguration {
     odpsServiceClient.setConnectTimeout(getSocketConnectTimeout());
     odpsServiceClient.setRetryTimes(getSocketRetryTimes());
 
-    if (StringUtils.isNullOrEmpty(odps.getTunnelEndpoint())) {
-      odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
-    } else {
-      odpsServiceClient.setEndpoint(odps.getTunnelEndpoint());
-    }
+    odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
     return odpsServiceClient;
   }
 

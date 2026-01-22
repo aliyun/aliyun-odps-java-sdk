@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.account;
 
+import com.aliyun.odps.credentials.Credentials;
+
 /**
  * 使用临时授权 Token 的认证账号
  *
@@ -67,7 +69,12 @@ public class BearerTokenAccount implements Account {
   }
 
   @Override
-  public Credential getCredential() {
-    return new Credential(null, null, token);
+  public Credentials getCredentials() {
+    return new Credentials(null, null, token);
+  }
+
+  @Override
+  public String getRegionId() {
+    return "unknown";
   }
 }

@@ -31,7 +31,7 @@ import java.util.Collections;
 import com.aliyun.odps.mapred.conf.SessionState;
 import com.aliyun.odps.mapred.utils.InputUtils;
 import com.aliyun.odps.mapred.utils.SchemaUtils;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
