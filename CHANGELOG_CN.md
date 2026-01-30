@@ -1,11 +1,11 @@
 # 更新日志
 
-## [0.56.0-public] - 2026-01-22
+## [0.56.0-public] - 2026-01-30
 
 ### ✨ 新功能
 * **[Account]**: **重构认证体系**，采用新的 `Credentials` 类替代旧版 `Credential`，并新增 `getRegionId()` 方法支持区域 ID 配置，使认证机制更加灵活和标准化。
     * *相关 API*: `Account.getCredentials()`, `Account.getRegionId()`
-* **[Instance]**: **增强 MCQA 2.0 查询结果状态管理**，新增 `SelectResultStatus` 枚举以区分查询结果的完整状态（完整/截断/无结果），便于用户判断数据是否完整返回。
+* **[Instance]**: **增强 MaxQA 查询结果状态管理**，新增 `SelectResultStatus` 枚举以区分查询结果的完整状态（完整/截断/无结果），便于用户判断数据是否完整返回。
     * *相关 API*: `Instance.ResultDescriptor.SelectResultStatus`, `Instance.ResultDescriptor.getSelectResultStatus()`
 * **[ProxyConfig]**: **新增 Netty DNS 解析器控制选项**，允许通过 `withDisableNettyLocalResolver()` 禁用本地 Netty DNS 解析器，适用于需要代理服务器进行 DNS 解析的场景。
     * *相关 API*: `ProxyConfig.Builder.withDisableNettyLocalResolver()`

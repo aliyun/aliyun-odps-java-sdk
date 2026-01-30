@@ -1,10 +1,10 @@
 # Changelog
-## [0.56.0-public] - 2026-01-22
+## [0.56.0-public] - 2026-01-30
 
 ### ✨ New Features
 * **[Account]**: **Refactored Authentication System** - Adopted new `Credentials` class to replace the legacy `Credential`, and added `getRegionId()` method to support region ID configuration, making the authentication mechanism more flexible and standardized.
     * *Related APIs*: `Account.getCredentials()`, `Account.getRegionId()`
-* **[Instance]**: **Enhanced MCQA 2.0 Query Result Status Management** - Added `SelectResultStatus` enum to distinguish query result completeness states (FULL/TRUNCATED/NO), allowing users to determine whether data has been returned completely.
+* **[Instance]**: **Enhanced MaxQA Query Result Status Management** - Added `SelectResultStatus` enum to distinguish query result completeness states (FULL/TRUNCATED/NO), allowing users to determine whether data has been returned completely.
     * *Related APIs*: `Instance.ResultDescriptor.SelectResultStatus`, `Instance.ResultDescriptor.getSelectResultStatus()`
 * **[ProxyConfig]**: **Added Netty DNS Resolver Control Option** - Allows disabling the local Netty DNS resolver via `withDisableNettyLocalResolver()`, suitable for scenarios requiring the proxy server to perform DNS resolution.
     * *Related APIs*: `ProxyConfig.Builder.withDisableNettyLocalResolver()`
