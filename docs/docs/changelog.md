@@ -1,5 +1,38 @@
 # 更新日志
 
+## [0.56.1-public] - 2026-02-04
+
+### 🐛 问题修复
+* **[CVE]**: **更新 commons-io 至 2.20.0** - 通过将 commons-io 库升级到 2.20.0 版本，修复了安全漏洞。
+* **[CVE]**: **使用 at.yawk.lz4 替代 org.lz4.pure-java** - 将 org.lz4.pure-java 依赖替换为 at.yawk.lz4，以解决安全漏洞问题。
+
+## [0.56.0-public] - 2026-01-30
+
+### ✨ 新功能
+* **[Account]**: **重构认证体系**，采用新的 `Credentials` 类替代旧版 `Credential`，并新增 `getRegionId()` 方法支持区域 ID 配置，使认证机制更加灵活和标准化。
+    * *相关 API*: `Account.getCredentials()`, `Account.getRegionId()`
+* **[Instance]**: **增强 MaxQA 查询结果状态管理**，新增 `SelectResultStatus` 枚举以区分查询结果的完整状态（完整/截断/无结果），便于用户判断数据是否完整返回。
+    * *相关 API*: `Instance.ResultDescriptor.SelectResultStatus`, `Instance.ResultDescriptor.getSelectResultStatus()`
+* **[ProxyConfig]**: **新增 Netty DNS 解析器控制选项**，允许通过 `withDisableNettyLocalResolver()` 禁用本地 Netty DNS 解析器，适用于需要代理服务器进行 DNS 解析的场景。
+    * *相关 API*: `ProxyConfig.Builder.withDisableNettyLocalResolver()`
+
+### 🚀 功能增强与性能优化
+* **[Arrow]**: **优化 Arrow 数据读取器**，统一使用 `CommonsCompressionFactory` 处理压缩数据，提升大规模数据读取性能和兼容性。
+* **[Tunnel]**: **改进 Tunnel Endpoint 解析逻辑**，优先使用 `odps.getTunnelEndpoint()` 配置项，简化端点配置流程。
+* **[RestClient]**: **优化重试等待时间计算**，仅使用连接超时时间而非连接+读取超时时间总和，使重试策略更加精准。
+* **[TableSchema]**: **新增批量分区列配置方法** `withPartitionColumns()`，简化多分区列的创建流程。
+    * *相关 API*: `TableSchema.Builder.withPartitionColumns()`
+
+### 🐛 问题修复
+* **[Instance]**: **修复任务失败时的错误处理**，在 `waitForSuccess()` 和 `isSelect()` 方法中增加 `checkTaskFailed()` 检查，确保在任务失败时能及时抛出异常并提供详细的失败信息。
+
+### 📦 依赖更新
+* **升级**: `commons-io`: `2.11.0` → `2.14.0`
+* **替换**: `commons-lang:2.6` → `org.apache.commons:commons-lang3:3.18.0`
+* **升级**: `io.netty:netty-all`: `4.1.119.Final` → `4.1.130.Final`
+* **新增**: `org.locationtech.jts:jts-core:1.19.0`
+* **替换**: `com.aliyun:aliyun-java-auth:0.2.16-beta` → `com.aliyun:credentials-api:1.0.0`
+
 ## [0.55.1-public] - 2026-01-22
 
 ### 🐛 问题修复

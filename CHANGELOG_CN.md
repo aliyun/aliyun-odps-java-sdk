@@ -1,4 +1,9 @@
 # 更新日志
+## [0.56.1-public] - 2026-02-04
+
+### 🐛 问题修复
+* **[CVE]**: **更新 commons-io 至 2.20.0** - 通过将 commons-io 库升级到 2.20.0 版本，修复了安全漏洞。
+* **[CVE]**: **使用 at.yawk.lz4 替代 org.lz4.pure-java** - 将 org.lz4.pure-java 依赖替换为 at.yawk.lz4，以解决安全漏洞问题。
 
 ## [0.56.0-public] - 2026-01-30
 

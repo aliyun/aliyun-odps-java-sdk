@@ -1,4 +1,10 @@
 # Changelog
+## [0.56.1-public] - 2026-02-04
+
+### 🐛 Bug Fixes
+* **[CVE]**: **Update commons-io to 2.20.0** - Fixed security vulnerabilities in commons-io library by upgrading to version 2.20.0.
+* **[CVE]**: **Use at.yawk.lz4 instead of org.lz4.pure-java** - Replaced org.lz4.pure-java dependency with at.yawk.lz4 to address security vulnerabilities.
+
 ## [0.56.0-public] - 2026-01-30
 
 ### ✨ New Features
