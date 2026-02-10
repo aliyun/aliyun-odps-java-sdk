@@ -1,5 +1,7 @@
 package com.aliyun.odps.options;
 
+import com.aliyun.odps.sqa.v2.MaxQAConnInfo;
+
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
@@ -9,7 +11,7 @@ public class CreateInstanceOption {
   private Integer priority;
   private String runningCluster;
   private String jobName;
-  private String mcqaConnHeader;
+  private MaxQAConnInfo maxQAConnInfo;
   private boolean tryWait;
   private String uniqueIdentifyID;
 
@@ -19,7 +21,7 @@ public class CreateInstanceOption {
     this.priority = builder.priority;
     this.runningCluster = builder.runningCluster;
     this.jobName = builder.jobName;
-    this.mcqaConnHeader = builder.mcqaConnHeader;
+    this.maxQAConnInfo = builder.maxQAConnInfo;
     this.tryWait = builder.tryWait;
     this.uniqueIdentifyID = builder.uniqueIdentifyID;
   }
@@ -41,8 +43,8 @@ public class CreateInstanceOption {
     return jobName;
   }
 
-  public String getMcqaConnHeader() {
-    return mcqaConnHeader;
+  public MaxQAConnInfo getMaxQAConnInfo() {
+    return maxQAConnInfo;
   }
 
   public boolean isTryWait() {
@@ -60,7 +62,7 @@ public class CreateInstanceOption {
     private Integer priority;
     private String runningCluster;
     private String jobName;
-    private String mcqaConnHeader;
+    private MaxQAConnInfo maxQAConnInfo;
     private boolean tryWait;
     private String uniqueIdentifyID;
 
@@ -84,8 +86,8 @@ public class CreateInstanceOption {
       return this;
     }
 
-    public Builder setMcqaConnHeader(String mcqaConnHeader) {
-      this.mcqaConnHeader = mcqaConnHeader;
+    public Builder setMaxQAConnInfo(MaxQAConnInfo maxQAConnInfo) {
+      this.maxQAConnInfo = maxQAConnInfo;
       return this;
     }
 

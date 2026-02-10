@@ -24,7 +24,6 @@ import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.table.utils.Preconditions;
 
-import java.io.Serializable;
 import java.util.Optional;
 
 /**

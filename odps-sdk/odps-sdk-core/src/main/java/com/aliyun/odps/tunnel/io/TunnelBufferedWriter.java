@@ -20,6 +20,9 @@
 package com.aliyun.odps.tunnel.io;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.data.Record;
@@ -98,6 +101,11 @@ public class TunnelBufferedWriter implements RecordWriter {
 
   private ProtobufRecordPack bufferedPack;
   private TableTunnel.UploadSession session;
+
+  private ProtobufRecordPack flushPack; // For async mode
+  private Future<?> flushFuture; // For async mode
+  private ExecutorService flushService; // For async mode
+
   private long bufferSize;
   private float flushThreshold;
   private long bytesWritten;
@@ -105,6 +113,7 @@ public class TunnelBufferedWriter implements RecordWriter {
   private long timeout;
   private TunnelMetrics metrics;
   private TableTunnel.BlockVersionProvider versionProvider;
+  private final CompressOption compressOption;
 
 
   private static final long BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
@@ -129,6 +138,7 @@ public class TunnelBufferedWriter implements RecordWriter {
       throws IOException {
     this.bufferedPack = (ProtobufRecordPack)session.newRecordPack(option);
     this.session = session;
+    this.compressOption = option;
     this.bufferSize = BUFFER_SIZE_DEFAULT;
     this.flushThreshold = FLUSH_THRESHOLD_DEFAULT;
     this.bytesWritten = 0;
@@ -215,19 +225,27 @@ public class TunnelBufferedWriter implements RecordWriter {
    */
   @Override
   public void write(Record r) throws IOException {
-    checkStatus();
+    checkStatusAndError();
 
     if (bufferedPack.getTotalBytes() > bufferSize * flushThreshold) {
-      flush();
+      if (flushService != null) {
+        flush(false);
+      } else {
+        flush();
+      }
     }
     long time = System.currentTimeMillis();
     bufferedPack.append(r);
     bufferedPack.addLocalWallTimeMs(System.currentTimeMillis() - time);
   }
 
-  private void checkStatus() throws IOException {
-    if (isClosed) {
+  private void checkStatusAndError() throws IOException {
+    if (this.isClosed) {
       throw new IOException("Writer is closed.");
+    }
+    // Proactively check for background errors without waiting
+    if (flushFuture != null && flushFuture.isDone()) {
+      waitUntilFlushFinish(); // This will get the exception if there is one
     }
   }
 
@@ -239,7 +257,10 @@ public class TunnelBufferedWriter implements RecordWriter {
    */
   @Override
   public void close() throws IOException {
-    flush();
+    if (isClosed) {
+      return;
+    }
+    sync();
     isClosed = true;
   }
 
@@ -249,35 +270,81 @@ public class TunnelBufferedWriter implements RecordWriter {
    * @return
    */
   public long getTotalBytes() throws IOException {
-    flush();
+    sync();
     return bytesWritten;
   }
 
   public void flush() throws IOException {
-    checkStatus();
-    // 得到实际序列化的的字节数，如果等于 0，说明没有写，跳过即可
-    long delta = bufferedPack.getTotalBytesWritten();
-    if (delta > 0) {
-      Long blockId = session.getAvailBlockId();
-      long version = 0;
-      if (versionProvider != null) {
-        version = versionProvider.generateVersion(blockId);
+    flushImpl(bufferedPack);
+  }
+
+  public synchronized void flush(boolean blocking) throws IOException {
+    try {
+      // Wait for the previous flush to finish. This provides backpressure.
+      waitUntilFlushFinish();
+
+      // Use getSize() to check if there's data, as getTotalBytesWritten() may return 0
+      // if data is still in internal buffers (protobuf/deflater) and not yet flushed
+      if (bufferedPack.getSize() == 0) {
+        return;
       }
 
-      if (versionProvider != null) {
-        try {
-          // write block already have retry logic.
-          session.writeBlock(blockId, bufferedPack, timeout, version);
-        } catch (TunnelException e) {
-          throw new IOException("Generate block version invalid", e);
-        }
-      } else {
-        session.writeBlock(blockId, bufferedPack, timeout);
+      // Swap buffers
+      ProtobufRecordPack swap = flushPack;
+      flushPack = bufferedPack;
+      bufferedPack = swap;
+
+      // Should always be null here, but for safety.
+      if (bufferedPack == null) {
+        bufferedPack = (ProtobufRecordPack) session.newRecordPack(compressOption);
       }
-      bufferedPack.reset();
-      bytesWritten += delta;
+      bufferedPack.reset(); // Ensure the new buffer is clean
+
+      // Submit the flush task
+      flushFuture = flushService.submit(() -> {
+        // Run the real flush logic in the background thread
+        flushImpl(flushPack);
+        return null; // For Callable
+      });
+
+      if (blocking) {
+        waitUntilFlushFinish();
+      }
+    } catch (IOException e) {
+      throw e; // rethrow directly
+    } catch (Exception e) {
+      // FIX: Wrap other exceptions in IOException
+      throw new IOException("Flush operation failed.", e);
     }
   }
+
+  private void flushImpl(ProtobufRecordPack pack) throws IOException {
+    if (isClosed && pack.getTotalBytesWritten() == 0) {
+      return;
+    }
+
+    long delta = pack.getTotalBytesWritten();
+    if (delta > 0L) {
+      Long blockId = this.session.getAvailBlockId();
+      long version = 0L;
+      if (this.versionProvider != null) {
+        version = this.versionProvider.generateVersion(blockId);
+      }
+
+      try {
+        if (this.versionProvider != null) {
+          this.session.writeBlock(blockId, pack, this.timeout, version);
+        } else {
+          this.session.writeBlock(blockId, pack, this.timeout);
+        }
+      } catch (TunnelException e) {
+        throw new IOException("Failed to write block " + blockId, e);
+      }
+      pack.reset();
+      this.bytesWritten += delta;
+    }
+  }
+
 
   public TunnelMetrics getMetrics() {
     return metrics;
@@ -289,5 +356,37 @@ public class TunnelBufferedWriter implements RecordWriter {
 
   public void setTimeout(long timeout) {
     this.timeout = timeout;
+  }
+
+  private void waitUntilFlushFinish() throws IOException {
+    if (flushFuture != null) {
+      try {
+        flushFuture.get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Flush wait was interrupted.", e);
+      } catch (ExecutionException e) {
+        // This is an error from the background thread. Unwrap and throw it.
+        throw new IOException("Async flush failed in background.", e.getCause());
+      } finally {
+        flushFuture = null;
+      }
+    }
+  }
+
+  public void sync() throws IOException {
+    if (flushService != null) {
+      flush(true); // Call blocking flush
+    } else {
+      flush(); // Call normal sync flush
+    }
+  }
+
+
+  public void setFlushService(ExecutorService flushService) throws IOException {
+    this.flushService = flushService;
+    if (flushService != null && this.flushPack == null) {
+      this.flushPack = (ProtobufRecordPack) session.newRecordPack(compressOption);
+    }
   }
 }

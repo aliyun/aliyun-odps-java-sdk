@@ -46,6 +46,7 @@ import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.sqa.v2.MaxQAConnInfo;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.io.TunnelRecordReader;
@@ -738,8 +739,8 @@ public class SQLTask extends Task {
    */
   public static Instance run(Odps odps, String project, String sql,
                              String taskName, Map<String, String> hints,
-                             Map<String, String> aliases, Integer priority, String mcqaConnHeader) throws OdpsException {
-    return run(odps, project, sql, taskName, hints, aliases, priority, "sql", mcqaConnHeader);
+                             Map<String, String> aliases, Integer priority, MaxQAConnInfo maxQAConnInfo) throws OdpsException {
+    return run(odps, project, sql, taskName, hints, aliases, priority, "sql", maxQAConnInfo);
   }
 
   static Instance run(Odps odps, String project, String sql,
@@ -751,7 +752,7 @@ public class SQLTask extends Task {
   private static Instance run(Odps odps, String project, String sql, String taskName,
                               Map<String, String> hints, Map<String, String> aliases,
                               Integer priority,
-                              String type, String mcqaConnHeader) throws OdpsException {
+                              String type,  MaxQAConnInfo maxQAConnInfo) throws OdpsException {
     SQLTaskOption sqlTaskOption = new SQLTaskOption.Builder()
         .setType(type)
         .setTaskName(taskName)
@@ -760,7 +761,7 @@ public class SQLTask extends Task {
         .setInstanceOption(new CreateInstanceOption.Builder()
                                .setProjectName(project)
                                .setPriority(priority)
-                               .setMcqaConnHeader(mcqaConnHeader)
+                               .setMaxQAConnInfo(maxQAConnInfo)
                                .build())
         .build();
     return run(odps, sql, sqlTaskOption);

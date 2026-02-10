@@ -30,6 +30,10 @@ public class SimpleJsonValue implements JsonValue, Serializable {
     this.value = jsonNode;
   }
 
+  public SimpleJsonValue(JsonValue jsonValue) {
+    this(jsonValue.toString());
+  }
+
   @Override
   public int size() {
     lazyLoad();

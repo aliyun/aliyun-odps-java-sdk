@@ -92,6 +92,8 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
 
     protected boolean extendedArrowIPCEnabled;
 
+    protected boolean enableUniqueMapKey;
+
     public TableBatchReadSessionBase(TableReadSessionBuilder builder) throws IOException {
         if (builder.getDetailsJson() != null) {
             initializeFromJson(builder.getDetailsJson());
@@ -104,6 +106,7 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
         this.enableEstimateStats = builder.isEnableEstimateStats();
         this.allowFilterPredicateFallback = builder.isAllowFilterPredicateFallback();
         this.enableExtendedArrowIPC = builder.isEnableExtendedArrowIPC();
+        this.enableUniqueMapKey = builder.isEnableUniqueMapKey();
         this.sessionBuilder = builder;
         if (builder.getSessionId() == null) {
             sanitize(builder.getRequiredPartitions(),

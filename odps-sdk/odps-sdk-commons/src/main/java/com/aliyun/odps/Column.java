@@ -40,6 +40,7 @@ public final class Column implements Serializable {
   private TypeInfo typeInfo;
   private String comment;
   private String label;
+  private Long columnId;
 
   private String defaultValue = null;
   private boolean isNullable = true;
@@ -92,11 +93,11 @@ public final class Column implements Serializable {
    * @param extendedLabels Column extended labels.
    */
   public Column(
-      String name,
-      TypeInfo typeInfo,
-      String comment,
-      String label,
-      List<String> extendedLabels) {
+    String name,
+    TypeInfo typeInfo,
+    String comment,
+    String label,
+    List<String> extendedLabels) {
     this.name = name;
     this.comment = comment;
     this.typeInfo = typeInfo;
@@ -114,10 +115,18 @@ public final class Column implements Serializable {
   }
 
   public Column(ColumnBuilder columnBuilder) {
-    this(columnBuilder.name, columnBuilder.typeInfo, columnBuilder.comment, columnBuilder.label,
-         columnBuilder.extendedLabels);
+    this.name = columnBuilder.name;
+    this.comment = columnBuilder.comment;
+    this.typeInfo = columnBuilder.typeInfo;
+    this.label = columnBuilder.label;
+    this.type = typeInfo.getOdpsType();
+    this.extendedLabels = columnBuilder.extendedLabels;
+
     this.isNullable = !columnBuilder.notNull;
     this.generateExpression = columnBuilder.generateExpression;
+    this.columnId = columnBuilder.columnId;
+    this.hasDefaultValue = columnBuilder.hasDefaultValue;
+    this.defaultValue = columnBuilder.defaultValue;
   }
 
   /**
@@ -211,9 +220,9 @@ public final class Column implements Serializable {
       throw new IllegalArgumentException("Error genericOdpsTypeList for Map.");
     }
     TypeInfo keyType =
-        TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(0));
+      TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(0));
     TypeInfo valueType =
-        TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(1));
+      TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(1));
 
     typeInfo = TypeInfoFactory.getMapTypeInfo(keyType, valueType);
   }
@@ -228,7 +237,7 @@ public final class Column implements Serializable {
     }
 
     TypeInfo valueType =
-        TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(0));
+      TypeInfoFactory.getPrimitiveTypeInfo(genericOdpsTypeList.get(0));
 
     typeInfo = TypeInfoFactory.getArrayTypeInfo(valueType);
   }
@@ -252,6 +261,10 @@ public final class Column implements Serializable {
     return type;
   }
 
+  public Long getColumnId() {
+    return columnId;
+  }
+
   /**
    * 获得列类型
    *
@@ -261,7 +274,7 @@ public final class Column implements Serializable {
     // if the GenericTypeList have not set before, the typeInfo is null for array and map type
     if (typeInfo == null) {
       throw new IllegalArgumentException(
-          "Failed to get TypeInfo for " + type.toString() + ", please set generic type list first.");
+        "Failed to get TypeInfo for " + type.toString() + ", please set generic type list first.");
     }
 
     return typeInfo;
@@ -406,8 +419,8 @@ public final class Column implements Serializable {
            && Objects.equals(comment, column.comment) && Objects.equals(label,
                                                                         column.label)
            && Objects.equals(defaultValue, column.defaultValue) && Objects.equals(
-        genericOdpsTypeList, column.genericOdpsTypeList) && Objects.equals(extendedLabels,
-                                                                           column.extendedLabels);
+      genericOdpsTypeList, column.genericOdpsTypeList) && Objects.equals(extendedLabels,
+                                                                         column.extendedLabels);
   }
 
   @Override
@@ -425,6 +438,10 @@ public final class Column implements Serializable {
     private List<String> extendedLabels;
     private GenerateExpression generateExpression;
     private boolean notNull = false;
+
+    private boolean hasDefaultValue;
+    private String defaultValue;
+    private Long columnId;
 
     private ColumnBuilder(String name, TypeInfo typeInfo) {
       this.name = name;
@@ -453,6 +470,17 @@ public final class Column implements Serializable {
 
     public ColumnBuilder withGenerateExpression(GenerateExpression expression) {
       this.generateExpression = expression;
+      return this;
+    }
+
+    public ColumnBuilder withDefaultValue(String defaultValue) {
+      this.defaultValue = defaultValue;
+      this.hasDefaultValue = true;
+      return this;
+    }
+
+    public ColumnBuilder withColumnId(Long columnId) {
+      this.columnId = columnId;
       return this;
     }
 

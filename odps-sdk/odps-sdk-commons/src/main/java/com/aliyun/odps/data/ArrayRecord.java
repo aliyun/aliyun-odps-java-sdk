@@ -31,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -434,9 +435,7 @@ public class ArrayRecord implements Record, Serializable {
   }
 
   public void clear() {
-    for (int i = 0; i < values.length; i++) {
-      values[i] = null;
-    }
+    Arrays.fill(values, null);
   }
 
   public void setArray(String columnName, List list) {

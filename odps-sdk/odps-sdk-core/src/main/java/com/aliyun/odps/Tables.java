@@ -21,14 +21,12 @@ package com.aliyun.odps;
 
 import static com.aliyun.odps.task.SQLTask.parseCsvRecord;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -46,7 +44,6 @@ import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.type.NestedTypeInfo;
-import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.utils.CommonUtils;

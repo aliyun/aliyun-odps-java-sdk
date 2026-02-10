@@ -484,7 +484,8 @@ public class OdpsRecordConverterBuilder {
             OdpsType.MAP,
             OdpsType.STRUCT,
 
-            OdpsType.GEOGRAPHY
+            OdpsType.GEOGRAPHY,
+            OdpsType.BLOB
     };
 
     /**

@@ -26,16 +26,19 @@ public class SplitOptions {
     private static final long DEFAULT_SPLIT_SIZE = 256 * 1024L * 1024L;
     private static final boolean DEFAULT_CROSS_PARTITION = true;
     private static final SplitMode DEFAULT_SPLIT_MODE = SplitMode.SIZE;
+    private static final boolean DEFAULT_BUCKET_SORT = false;
 
     private SplitMode splitMode;
     private long splitNumber;
     private boolean crossPartition;
+    private boolean bucketSort;
     private int splitMaxFileNum;
 
     private SplitOptions() {
         this.splitMode = DEFAULT_SPLIT_MODE;
         this.splitNumber = DEFAULT_SPLIT_SIZE;
         this.crossPartition = DEFAULT_CROSS_PARTITION;
+        this.bucketSort = DEFAULT_BUCKET_SORT;
     }
 
     public static SplitOptions.Builder newBuilder() {
@@ -60,6 +63,10 @@ public class SplitOptions {
 
     public int getSplitMaxFileNum() {
         return splitMaxFileNum;
+    }
+
+    public boolean isBucketSort() {
+        return bucketSort;
     }
 
     public static class Builder {
@@ -97,6 +104,12 @@ public class SplitOptions {
         public SplitOptions.Builder withCrossPartition(boolean crossPartition) {
             Preconditions.checkNotNull(this.splitOptions, "Split option");
             this.splitOptions.crossPartition = crossPartition;
+            return this;
+        }
+
+        public SplitOptions.Builder withBucketSort(boolean bucketSort) {
+            Preconditions.checkNotNull(this.splitOptions, "Split option");
+            this.splitOptions.bucketSort = bucketSort;
             return this;
         }
 

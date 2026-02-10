@@ -19,11 +19,14 @@
 
 package com.aliyun.odps.rest;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -143,5 +146,29 @@ public class RestClientTest extends TestBase {
         restClient.buildRequest("/projects/project_name/instances/instance_name", "POST", params,
                                 headers);
     assertTrue(request.getHeaders().containsKey(Headers.APP_AUTHENTICATION));
+  }
+
+  @Test
+  public void testRequestInterceptor() throws OdpsException {
+    String resource = "/projects/" + odps.getDefaultProject();
+    String method = "GET";
+    Map<String, String> params = null;
+    Map<String, String> headers = null;
+    List<String> testList = new ArrayList<>();
+    odps.getRestClient().addRequestInterceptor(context -> {
+      testList.add("request");
+      context.getRequest().setHeader("UNIT-TEST", "TRUE");
+      return context.getRequest();
+    });
+    odps.getRestClient().addResponseInterceptor(context -> {
+      testList.add("response");
+      assertEquals("TRUE", context.getRequest().getHeaders().getOrDefault("UNIT-TEST", ""));
+      assertEquals(200, context.getResponse().getStatus());
+      return context.getResponse();
+    });
+    Response response = odps.getRestClient().request(resource, method, params, headers, null, 0);
+    System.out.println(new String(response.getBody()));
+    assertEquals("request", testList.get(0));
+    assertEquals("response", testList.get(1));
   }
 }

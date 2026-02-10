@@ -26,7 +26,9 @@ import java.util.List;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.GeneralConfiguration;
+import com.aliyun.odps.credentials.StaticCredentialProvider;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.storage.MaxStorageClient;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import com.aliyun.odps.utils.StringUtils;
@@ -142,6 +144,16 @@ public class Configuration extends GeneralConfiguration {
 
     odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
     return odpsServiceClient;
+  }
+
+  public MaxStorageClient newStorageClient(String projectName) {
+    return MaxStorageClient.builder()
+      .project(projectName)
+      .endpoint(odps.getEndpoint())
+      .credentialsProvider(StaticCredentialProvider.of(odps.getAccount().getCredentials()))
+      .tunnelEndpoint(odps.getTunnelEndpoint())
+      .quota(quotaName)
+      .build();
   }
 
   public Builder toBuilder() {

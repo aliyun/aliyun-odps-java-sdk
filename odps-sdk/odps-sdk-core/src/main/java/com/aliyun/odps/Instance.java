@@ -434,7 +434,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
     if (isMcqaV2) {
       reload();
-      return new ArrayList<>(results.values());
+      if (!results.isEmpty()) {
+        return new ArrayList<>(results.values());
+      }
     }
     Map<String, String> params = new HashMap<>();
     params.put("result", null);
@@ -1804,8 +1806,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     return isSelect;
   }
 
-  public ResultDescriptor getResultDescriptor(String taskName) {
+  public ResultDescriptor getResultDescriptor(String taskName) throws OdpsException {
     if (!results.containsKey(taskName)) {
+      checkTaskFailed();
       throw new IllegalStateException("The result with taskName " + taskName
                                       + " cannot be found. Maybe the instance has not terminated yet.");
     }

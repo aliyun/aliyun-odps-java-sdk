@@ -13,7 +13,7 @@ public class TypeInfoParser {
   private String typeInfoName;
   private int index = 0;
 
-  TypeInfoParser(String name) {
+  protected TypeInfoParser(String name) {
     typeInfoName = name.toUpperCase();
     tokenize(typeInfoName);
   }
@@ -45,7 +45,7 @@ public class TypeInfoParser {
     }
   }
 
-  private TypeInfo parseTypeInfo() {
+  protected TypeInfo parseTypeInfo() {
     TypeInfo type = parseTypeInfoInternal();
     if (index != tokens.size()) {
       throw new IllegalArgumentException("Parse type info failed, pls check: " + typeInfoName);
@@ -54,7 +54,7 @@ public class TypeInfoParser {
     return type;
   }
 
-  private TypeInfo parseTypeInfoInternal() {
+  protected TypeInfo parseTypeInfoInternal() {
     OdpsType typeCategory = OdpsType.valueOf(peek());
 
     switch (typeCategory) {
@@ -82,12 +82,19 @@ public class TypeInfoParser {
     }
   }
 
-  private String peek() {
+  protected String peek() {
     if (index >= tokens.size()) {
       throw new IllegalArgumentException("Parse type info failed, pls check: " + typeInfoName);
     }
 
     return tokens.get(index++);
+  }
+
+  protected String current() {
+    if (index >= tokens.size()) {
+      throw new IllegalArgumentException("Parse type info failed, pls check: " + typeInfoName);
+    }
+    return tokens.get(index);
   }
 
   private int getPosition(int tokenIndex) {
@@ -125,7 +132,7 @@ public class TypeInfoParser {
     return length;
   }
 
-  private int[] getDecimalParams() {
+  protected int[] getDecimalParams() {
     // no param decimal.
     if ((index >= tokens.size()) || !tokens.get(index).equals("(")) {
       return null;
@@ -197,12 +204,11 @@ public class TypeInfoParser {
   }
 
 
-  private TypeInfo parseComplexDecimalTypeInfo() {
+  protected TypeInfo parseComplexDecimalTypeInfo() {
     int[] params = getDecimalParams();
     if (params == null) {
       return TypeInfoFactory.DECIMAL;
     }
-
     return TypeInfoFactory.getDecimalTypeInfo(params[0], params[1]);
   }
 

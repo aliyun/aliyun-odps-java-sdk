@@ -129,6 +129,21 @@ public class TypeInfoParserTest {
     Assert.assertEquals(typeInfo.getTypeName(), decimal.toUpperCase());
     Assert.assertEquals(((DecimalTypeInfo) typeInfo).getPrecision(), 5);
     Assert.assertEquals(((DecimalTypeInfo) typeInfo).getScale(), 0);
+
+    decimal = "DecimaL(256,56)";
+    typeInfo = TypeInfoParser.getTypeInfoFromTypeString(decimal);
+    Assert.assertTrue(typeInfo instanceof DecimalTypeInfo);
+    Assert.assertEquals(typeInfo.getTypeName(), decimal.toUpperCase());
+    Assert.assertEquals(((DecimalTypeInfo) typeInfo).getPrecision(), 256);
+    Assert.assertEquals(((DecimalTypeInfo) typeInfo).getScale(), 56);
+
+    decimal = "DecimaL";
+    typeInfo = TypeInfoParser.getTypeInfoFromTypeString(decimal);
+    Assert.assertTrue(typeInfo instanceof DecimalTypeInfo);
+    Assert.assertEquals(typeInfo.getTypeName(), decimal.toUpperCase());
+    Assert.assertEquals(((DecimalTypeInfo) typeInfo).getPrecision(), 54);
+    Assert.assertEquals(((DecimalTypeInfo) typeInfo).getScale(), 18);
+    Assert.assertEquals(((DecimalTypeInfo) typeInfo).isLegacyDecimal(), true);
   }
 
   @Test

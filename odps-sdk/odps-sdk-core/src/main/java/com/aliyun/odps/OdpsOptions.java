@@ -33,6 +33,23 @@ public class OdpsOptions {
 
   private ProxyConfig proxyConfig;
 
+  /**
+   * 是否允许读取可能过时（stale）的中心化元数据。
+   *
+   * <p><b>默认值为 {@code false}</b>。在此模式下，SDK会始终尝试从权威数据源获取元数据，
+   * 以保证最高的数据一致性（例如，写后立即可读）。如果权威数据源暂时不可用，请求将会失败。
+   *
+   * <p>当设置为 {@code true} 时，SDK 在特定情况下（如为了提高可用性或读取性能）可能会从一个非权威的、
+   * 存在数据同步延迟的副本读取元数据。
+   *
+   * <p><b>重要提示:</b> 启用此选项意味着您的应用必须能够容忍读到旧的元数据。
+   * 例如，在您刚刚修改了Project的属性后，立即发起的读请求可能仍然返回修改前的值。
+   *
+   * <p><b>影响范围:</b> 此参数当前仅影响对Project和Tenant元数据的读取，具体为
+   * {@code odps.project().reload()} 和 {@code odps.tenant().reload()} 两个接口。
+   */
+  private boolean allowStaleMetadataRead;
+
 
   private final Odps odps;
 
@@ -86,12 +103,21 @@ public class OdpsOptions {
     return proxyConfig;
   }
 
+  public void setAllowStaleMetadataRead(boolean allowStaleMetadataRead) {
+    this.allowStaleMetadataRead = allowStaleMetadataRead;
+  }
+
+  public boolean isAllowStaleMetadataRead() {
+    return allowStaleMetadataRead;
+  }
+
   OdpsOptions clone(Odps newOdps) {
     OdpsOptions options = new OdpsOptions(newOdps);
     options.useLegacyLogview = useLegacyLogview;
     options.skipCheckIfEpv2 = skipCheckIfEpv2;
     // proxy config is unmodified, shallow copy is enough
     options.proxyConfig = proxyConfig;
+    options.allowStaleMetadataRead = allowStaleMetadataRead;
     return options;
   }
 }

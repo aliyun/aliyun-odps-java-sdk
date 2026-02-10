@@ -21,6 +21,7 @@ package com.aliyun.odps.data;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -196,20 +197,24 @@ public class ArrowStreamRecordReader extends DefaultRecordReader {
       throws IOException {
     for (int rowId = 0; rowId < vectorSchemaRoot.getRowCount(); rowId++) {
       ArrayRecord arrayRecord = new ArrayRecord(columns.toArray(new Column[0]));
-      for (Column column : columns) {
+      for (int colIndex = 0; colIndex < columns.size(); colIndex++) {
+        Column column = columns.get(colIndex);
         FieldVector vector = vectorSchemaRoot.getVector(column.getName());
         TypeInfo typeInfo = column.getTypeInfo();
         ArrowVectorAccessor
             columnVectorAccessor =
-            ArrowToRecordConverter.createColumnVectorAccessor(vector, typeInfo, this.isExtensionArrowType);
-        Object data = ArrowToRecordConverter.getData(columnVectorAccessor, typeInfo, rowId, this.isExtensionArrowType);
+            ArrowToRecordConverter.createColumnVectorAccessor(vector, typeInfo, this.isExtensionArrowType, true);
+        Object data = ArrowToRecordConverter.getData(columnVectorAccessor, typeInfo, rowId, this.isExtensionArrowType, true);
         if (typeInfo.getOdpsType() == OdpsType.DATETIME) {
           data = data == null ? null : ((ZonedDateTime) data).withZoneSameInstant(timeZone);
+        }
+        if (typeInfo.getOdpsType() == OdpsType.JSON) {
+          data = new SimpleJsonValue((JsonValue) data);
         }
         if (useLegacyOutputFormat) {
           data = transformToLegacyType(data, typeInfo);
         }
-        arrayRecord.set(column.getName(), data);
+        arrayRecord.setWithoutValidation(colIndex, (Serializable) data);
       }
       records.addLast(arrayRecord);
     }

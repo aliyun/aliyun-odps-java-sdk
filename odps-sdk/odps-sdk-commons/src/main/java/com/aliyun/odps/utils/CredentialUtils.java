@@ -52,12 +52,17 @@ public class CredentialUtils {
 
   static final String CONTENT_MD5 = "Content-MD5";
   static final String CONTENT_TYPE = "Content-Type";
-  static final String DATE = "Date";
   static final String PREFIX = "x-odps-";
+  public static final String DATE = "Date";
+  public static final String AUTHORIZATION = "Authorization";
+  public static final String AUTHORIZATION_STS_TOKEN = "authorization-sts-token";
 
   public static String buildCanonicalString(String method, String resource,
                                             Map<String, String> params,
                                             Map<String, String> headers) {
+    if (!resource.startsWith("/")) {
+      resource = "/" + resource;
+    }
     StringBuilder builder = new StringBuilder();
     builder.append(method + "\n");
     TreeMap<String, String> headersToSign = new TreeMap<String, String>();

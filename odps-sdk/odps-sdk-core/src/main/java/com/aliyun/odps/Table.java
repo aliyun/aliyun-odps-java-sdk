@@ -2220,6 +2220,10 @@ public class Table extends LazyLoad {
     return true;
   }
 
+  public void setPartitionState(PartitionSpec spec, Partition.State state) throws OdpsException {
+    getPartition(spec).setState(state);
+  }
+
   /**
    * 删除表数据
    *

@@ -11,14 +11,25 @@ import com.aliyun.odps.OdpsType;
  */
 public class DecimalTypeInfo extends AbstractPrimitiveTypeInfo {
   private static final long serialVersionUID = 1L;
-  static final int DEFAULT_PRECISION = 54;
+
+  static final int LEGACY_DEFAULT_PRECISION = 54;
+  static final int DEFAULT_PRECISION = 38;
   static final int DEFAULT_SCALE = 18;
 
   private final int precision;
   private final int scale;
+  private final boolean legacyDecimal;
 
-  DecimalTypeInfo() {
-    this(DEFAULT_PRECISION, DEFAULT_SCALE);
+  DecimalTypeInfo(boolean legacyDecimal) {
+    super(OdpsType.DECIMAL);
+
+    if (legacyDecimal) {
+      this.precision = LEGACY_DEFAULT_PRECISION;
+    } else {
+      this.precision = DEFAULT_PRECISION;
+    }
+    this.scale = DEFAULT_SCALE;
+    this.legacyDecimal = legacyDecimal;
   }
 
   /**
@@ -35,6 +46,7 @@ public class DecimalTypeInfo extends AbstractPrimitiveTypeInfo {
     validateParameter(precision, scale);
     this.precision = precision;
     this.scale = scale;
+    this.legacyDecimal = false;
   }
 
   private void validateParameter(int precision, int scale) {
@@ -53,10 +65,9 @@ public class DecimalTypeInfo extends AbstractPrimitiveTypeInfo {
 
   @Override
   public String getTypeName() {
-    if ((precision == DEFAULT_PRECISION) && (scale == DEFAULT_SCALE)) {
+    if (legacyDecimal) {
       return super.getTypeName();
     }
-
     return String.format("%s(%s,%s)", super.getTypeName(), precision, scale);
   }
 
@@ -95,5 +106,9 @@ public class DecimalTypeInfo extends AbstractPrimitiveTypeInfo {
   @Override
   public int hashCode() {
     return Objects.hash(super.hashCode(), precision, scale);
+  }
+
+  public boolean isLegacyDecimal() {
+    return legacyDecimal;
   }
 }

@@ -1,11 +1,10 @@
 package com.aliyun.odps.data;
 
+import java.io.InputStream;
 import java.io.Serializable;
-
-
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.Objects;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * Immutable entity class representing a Blob reference in the storage service.
@@ -21,19 +20,57 @@ import java.util.Objects;
  */
 public class Blob implements Serializable {
 
-    private final byte[] referenceBytes;
+    private final String blobReference;  // 已就绪的引用, BASE64 格式
+
+    private transient final InputStream rawStream; // 原始流
+
+    private transient Function<Void, Blob> uploadTask; // 懒加载的上传任务
 
     /**
      * Constructs a Blob from raw bytes (defensive copy is made).
      *
-     * @param referenceBytes the reference bytes (must not be null)
+     * @param blobReference the reference bytes
      * @throws IllegalArgumentException if referenceBytes is null
      */
-    public Blob(byte[] referenceBytes) {
-        if (referenceBytes == null) {
-            throw new IllegalArgumentException("Blob cannot be created from null bytes");
+    private Blob(InputStream rawStream, String blobReference, Function<Void, Blob> uploadTask) {
+        this.rawStream = rawStream;
+        this.blobReference = blobReference;
+        this.uploadTask = uploadTask;
+    }
+
+    public static Blob fromInputStream(InputStream stream) {
+        // 创建一个最原始的、只包含流的Blob
+        return new Blob(stream, null, null);
+    }
+
+    public static Blob fromReference(String blobReference) {
+        return new Blob(null, blobReference, null);
+    }
+
+    public boolean isRawStream() {
+        return this.rawStream != null;
+    }
+
+    public boolean isPending() {
+        return this.uploadTask != null;
+    }
+
+    public Blob withUploader(BiFunction<InputStream, Long, Blob> uploader, Long columnId) {
+        if (!isRawStream()) {
+            throw new IllegalStateException("Cannot upload null blob.");
         }
-        this.referenceBytes = referenceBytes.clone();
+        Function<Void, Blob> task = (ignored) -> uploader.apply(this.rawStream, columnId);
+        return new Blob(null, null, task);
+    }
+
+    public String getReferenceAndUploadIfNecessary() {
+        if (isPending()) {
+            return this.uploadTask.apply(null).getReference();
+        } else if (blobReference != null) {
+            return blobReference;
+        } else {
+            throw new IllegalStateException("Blob was not properly prepared for upload. Ensure it is set on a Record created by a RecordWriter.");
+        }
     }
 
     /**
@@ -42,33 +79,11 @@ public class Blob implements Serializable {
      * @return a new byte array containing the reference
      */
     public byte[] getReferenceBytes() {
-        return referenceBytes.clone();
+        return Base64.getDecoder().decode(blobReference);
     }
 
-    /**
-     * Converts the reference to a Base64-encoded string (for human-readable logging, serialization, or storage).
-     *
-     * @return Base64 string representation (e.g., "aGVsbG8=")
-     */
-    public String toBase64() {
-        return Base64.getEncoder().encodeToString(referenceBytes);
-    }
-
-    /**
-     * Creates a Blob from a Base64-encoded string.
-     *
-     * @param base64String the Base64 string (must not be null or invalid)
-     * @return a new Blob instance
-     * @throws IllegalArgumentException if base64String is invalid
-     */
-    public static Blob fromBase64(String base64String) {
-        Objects.requireNonNull(base64String, "Base64 string cannot be null");
-        try {
-            byte[] bytes = Base64.getDecoder().decode(base64String);
-            return new Blob(bytes);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid Base64 string for Blob", e);
-        }
+    public String getReference() {
+        return blobReference;
     }
 
     @Override
@@ -80,20 +95,20 @@ public class Blob implements Serializable {
             return false;
         }
         Blob that = (Blob) o;
-        return Arrays.equals(referenceBytes, that.referenceBytes);
+        return blobReference.equals(that.blobReference);
     }
 
     @Override
     public int hashCode() {
-        return Arrays.hashCode(referenceBytes);
+        return blobReference.hashCode();
     }
 
     @Override
     public String toString() {
         // Use Base64 for readable output (truncate if too long)
-        String base64 = toBase64();
+        String ref = blobReference == null ? "null" : blobReference;
         return "Blob{" +
-               "reference=" + (base64.length() > 20 ? base64.substring(0, 17) + "..." : base64) +
+               "reference=" + (ref.length() > 20 ? ref.substring(0, 17) + "..." : ref) +
                '}';
     }
 }

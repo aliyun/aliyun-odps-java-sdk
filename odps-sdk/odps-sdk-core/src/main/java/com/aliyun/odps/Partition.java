@@ -19,6 +19,7 @@
 
 package com.aliyun.odps;
 
+import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Attribute;
 import com.aliyun.odps.simpleframework.xml.Element;
@@ -29,6 +30,7 @@ import com.aliyun.odps.simpleframework.xml.convert.Convert;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,8 +46,11 @@ import com.aliyun.odps.utils.TagUtils.ObjectTagInfo;
 import com.aliyun.odps.utils.TagUtils.SetObjectTagInput;
 import com.aliyun.odps.utils.TagUtils.SimpleTag;
 import com.aliyun.odps.utils.TagUtils.TagRef;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.annotations.SerializedName;
 
 /**
  * Partition类的对象表示ODPS分区表中一个特定的分区
@@ -81,6 +86,7 @@ public class Partition extends LazyLoad {
 
     long cdcSize = -1;
     long cdcRecordNum = -1;
+    boolean ingestingDone = false;
   }
 
   @Root(name = "Column", strict = false)
@@ -350,6 +356,11 @@ public class Partition extends LazyLoad {
     return model.cdcRecordNum;
   }
 
+  public boolean isIngestingDone() {
+    lazyLoadExtendInfo();
+    return model.ingestingDone;
+  }
+
   public String getExtendedInfoJson() {
     lazyLoadExtendInfo();
     return extendedInfoJson;
@@ -560,6 +571,40 @@ public class Partition extends LazyLoad {
     TagUtils.updateTagInternal(setObjectTagInput, getPartitionSpec(), client);
   }
 
+  private static class PartitionAlter {
+
+    @SerializedName("partitionName")
+    public String partitionName;
+
+    @SerializedName("properties")
+    public Map<String, String> properties;
+  }
+
+  public enum State {
+    WRITE_DONE,
+  }
+
+  public void setState(State state) throws OdpsException {
+    String resource = ResourceBuilder.buildTableResource(projectName, table);
+    Map<String, String> params = NameSpaceSchemaUtils.initParamsWithSchema(schemaName);
+    params.put("op", "alterPartition");
+
+    HashMap<String, String> headers = new HashMap<>();
+    headers.put(Headers.CONTENT_TYPE, "application/json");
+
+    PartitionAlter partitionAlter = new PartitionAlter();
+    partitionAlter.partitionName = getPartitionSpec().toString(false, true);
+    partitionAlter.properties = new HashMap<>();
+    if (State.WRITE_DONE == state) {
+      partitionAlter.properties.put("table.partition.data.ingesting.progress", "done");
+    } else {
+      throw new UnsupportedOperationException("Unsupported state: " + state);
+    }
+
+    Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+    client.stringRequest(resource, "PUT", params, headers, gson.toJson(partitionAlter));
+  }
+
   @Root(name = "Partition", strict = false)
   private static class PartitionMeta {
 
@@ -683,5 +728,8 @@ public class Partition extends LazyLoad {
 
     model.cdcRecordNum = reservedJson.has("cdc_record_num") ? Long.parseLong(
         reservedJson.get("cdc_record_num").getAsString()) : -1;
+
+    model.ingestingDone = reservedJson.has("table.partition.data.ingesting.progress") &&
+            reservedJson.get("table.partition.data.ingesting.progress").getAsString().equals("done");
   }
 }

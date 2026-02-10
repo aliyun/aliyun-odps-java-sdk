@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.aliyun.odps.Instance;
@@ -41,7 +40,9 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.rest.SimpleXmlUtils;
+import com.aliyun.odps.sqa.v2.FallbackInfo;
 import com.aliyun.odps.sqa.v2.InfoResultSet;
+import com.aliyun.odps.sqa.v2.MaxQAConnInfo;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -54,7 +55,8 @@ public class MaxQATest {
   private static SQLExecutor tunnelExecutor;
   private static SQLExecutor commandApiExecutor;
   private static Odps odps;
-  public static final String QUOTA_NAME = "maxqa_huigui_quota_nick";
+  public static final String QUOTA_NAME = "maxqa_huigui_quota";
+  public static final String PROJECT_NAME = "three_pangu2_odps2";
 
   private static Map<String, String> hints;
 
@@ -68,17 +70,17 @@ public class MaxQATest {
           sqlExecutorBuilder.odps(odps)
               .quotaName(QUOTA_NAME)
               .useInstanceTunnel(false)
-              .enableMcqaV2(true)
+            .enableMaxQA(true)
               .build();
       tunnelExecutor = new SQLExecutorBuilder().odps(odps)
-          .quotaName(QUOTA_NAME)
           .useInstanceTunnel(true)
-          .enableMcqaV2(true)
+        .enableMaxQA(true)
+        .maxQAConnInfo(MaxQAConnInfo.builder().quotaName(QUOTA_NAME).build())
           .build();
       commandApiExecutor = new SQLExecutorBuilder().odps(odps)
           .quotaName(QUOTA_NAME)
           .enableCommandApi(true)
-          .enableMcqaV2(true)
+        .enableMaxQA(true)
           .build();
       hints = new HashMap<>();
 
@@ -183,7 +185,7 @@ public class MaxQATest {
                + "     -128Y,                                         -- c_tinyint\n"
                + "     -32768S,                                       -- c_smallint\n"
                + "     -2147483648,                                   -- c_int\n"
-               + "     -9223372036854775808L,                         -- c_bigint (注意：ODPS文档写的是-2^63+1，但实际通常是-2^63)\n"
+               + "     -9223372036854775807L,                         -- c_bigint (注意：ODPS文档写的是-2^63+1，但实际通常是-2^63)\n"
                + "     CAST('-3.4028235E+38' AS FLOAT),               -- c_float (approx min)\n"
                + "     CAST('-1.7976931348623157E+308' AS DOUBLE),    -- c_double (approx min)\n"
                + "     -9999999999999999999.999999999999999999BD,     -- c_decimal_std (38, 18) min\n"
@@ -472,7 +474,6 @@ public class MaxQATest {
   }
 
   @Test
-  @Ignore("temp")
   public void testGetBigResultByApi() throws Exception {
     odps.tables().delete("bigTable", true);
 
@@ -491,11 +492,14 @@ public class MaxQATest {
     recordWriter.close();
     uploadSession.commit();
 
-    executor.run("select char_matchcount(c1, \"te\") from bigTable limit 10002;", null);
+    executor.run("select * from bigTable;", null);
 
     System.out.println(executor.getLogView());
     System.out.println(executor.getInstance().getResultDescriptor(executor.getTaskName())
                          .getSelectResultStatus());
+    Assert.assertEquals(Instance.ResultDescriptor.SelectResultStatus.TRUNCATED,
+                        executor.getInstance().getResultDescriptor(executor.getTaskName())
+                          .getSelectResultStatus());
 
     ResultSet resultSet = executor.getResultSet();
     Assert.assertEquals(100000, resultSet.getRecordCount());
@@ -509,5 +513,34 @@ public class MaxQATest {
 
     executor.getExecutionLog().forEach(System.out::println);
     Assert.assertEquals(100000, count);
+  }
+
+  @Test
+  public void notSpecificQuotaTest() {
+    try {
+      SQLExecutor sqlExecutor = new SQLExecutorBuilder()
+        .odps(odps)
+        .enableMaxQA(true)
+        .build();
+    } catch (OdpsException e) {
+      e.printStackTrace();
+      Assert.assertTrue("Expect error contains 'Cannot find MCQA quota'",
+                        e.getMessage().contains("Cannot find MCQA quota to start connection"));
+    }
+  }
+
+  @Test
+  public void fallbackTest() throws Exception {
+      SQLExecutor sqlExecutor = new SQLExecutorBuilder()
+        .odps(odps)
+        .enableMaxQA(true)
+        .maxQAConnInfo(MaxQAConnInfo.builder().
+                         quotaName(QUOTA_NAME)
+                         .fallbackInfo(FallbackInfo.enable("default")).
+                         build())
+        .build();
+
+      sqlExecutor.run("select 1;", null);
+
   }
 }

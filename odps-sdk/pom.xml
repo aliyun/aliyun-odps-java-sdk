@@ -14,15 +14,17 @@
     <packaging>pom</packaging>
 
     <modules>
+        <!-- MR/UDF/Graph commons -->
+        <module>odps-sdk-commons</module>
+
         <!-- ODPS SDK -->
+        <module>odps-arrow-helper</module>
+        <module>odps-sdk-storage-api</module>
         <module>odps-sdk-core</module>
         <module>odps-sdk-table-api</module>
 
         <!-- Tunnel SDK UT -->
         <!-- Quota SDK UT -->
-
-        <!-- MR/UDF/Graph commons -->
-        <module>odps-sdk-commons</module>
         <module>odps-sdk-udf</module>
         <module>odps-sdk-mapred</module>
         <module>odps-sdk-graph</module>

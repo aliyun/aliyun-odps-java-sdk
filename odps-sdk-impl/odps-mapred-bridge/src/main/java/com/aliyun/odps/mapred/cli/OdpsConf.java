@@ -44,6 +44,7 @@ public class OdpsConf extends Configuration {
   private final static String ENDPOINT = "odps.end.point";
   private final static String ACCESSID = "odps.access.id";
   private final static String STS_TOKEN = "odps.sts.token";
+  private final static String REGION_ID = "odps.region.id";
   private final static String ACCESSKEY = "odps.access.key";
   private final static String APP_ACCESS_ID = "odps.app.access.id";
   private final static String APP_ACCESS_KEY = "odps.app.access.key";
@@ -95,6 +96,24 @@ public class OdpsConf extends Configuration {
    */
   public void setEndpoint(String endpoint) {
     set(ENDPOINT, endpoint);
+  }
+
+  /**
+   * 获取连接ODPS服务的 Region Id, 用于配置 V4 签名.
+   *
+   * @return
+   */
+  public String getRegionId() {
+    return get(REGION_ID);
+  }
+
+  /**
+   * 设置连接ODPS服务的 Region Id, 用于配置 V4 签名.
+   *
+   * @param regionId
+   */
+  public void setRegionId(String regionId) {
+    set(REGION_ID, regionId);
   }
 
   /**

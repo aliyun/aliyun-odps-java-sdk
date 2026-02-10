@@ -1,4 +1,48 @@
 # 更新日志
+## [0.57.0-public] - 待定
+
+### ✨ 新功能
+* **[Storage API]**: **全新 `odps-sdk-storage-api` 模块** - 引入高性能 Storage API 客户端 `MaxStorageClient`，基于 Arrow 列式格式对 MaxCompute 表进行读写。支持通过 InputSplit 分片实现分布式并行读取、写入会话的 commit/abort 生命周期管理、表数据预览、Blob 下载以及 Instance 结果读取。
+    * *相关 API*: `MaxStorageClient`, `MaxStorageClient.Builder`, `TableReadSession`, `TableWriteSession`, `InstanceReadSession`, `BlobManager`
+* **[Storage API]**: **表读取会话** - 支持将表数据按 Size 或行范围切分为独立的 `InputSplit` 分片，每个分片可独立以 Arrow 流读取，天然支持并行处理。
+    * *相关 API*: `TableReadSessionBuilder`, `TableReaderBuilder`, `InputSplit`, `IndexedInputSplit`, `RowRangeInputSplit`
+* **[Storage API]**: **表写入会话** - 支持通过 Arrow 格式流写入 MaxCompute 表，提供显式的 commit/abort 语义保证数据一致性。
+    * *相关 API*: `TableWriteSessionBuilder`, `TableWriterBuilder`, `TableArrowWriter`, `AppendTableRecordWriter`, `DeltaTableRecordWriter`
+* **[Storage API]**: **Instance 读取会话** - 支持通过 Storage API 读取 MaxCompute Instance 的查询结果集。
+    * *相关 API*: `InstanceReadSessionBuilder`, `InstanceReadSession`, `InstanceReaderBuilder`
+* **[Storage API]**: **Blob 下载** - 支持从 MaxCompute 存储中单条或批量下载 Blob 数据。
+    * *相关 API*: `BlobManager.download()`, `BlobManager.batchDownload()`, `BlobDataIterator`
+* **[Arrow Helper]**: **全新 `odps-arrow-helper` 模块** - 将 Arrow 相关工具类抽取为独立模块，包含 `TableIdentifier`、`InstanceIdentifier`、`StreamIdentifier`、各类型 Arrow Accessor、`ArrowReaderBuilder`、`ArrowStreamRecordReader`、`SchemaUtils` 等。
+    * *相关 API*: `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, `ArrowReaderBuilder`
+* **[SQLExecutor]**: **Storage API 结果集集成** - `SQLExecutorImpl` 在查询结果包含 `BLOB` 列时，自动通过 Storage API（`StorageAPIResultSet`）下载结果，提升兼容性与数据传输效率。
+    * *相关 API*: `StorageAPIResultSet`, `InternalBlobHelper`
+* **[SQLExecutor]**: **MaxQA Fallback 配置** - 新增 `FallbackInfo` 和 `MaxQAConnInfo`，支持配置 MaxQA Quota 的回退策略，当主 Quota 不可用时可自动回退到指定 Quota。
+    * *相关 API*: `FallbackInfo`, `MaxQAConnInfo`, `SQLExecutorBuilder.maxQAConnInfo()`, `SQLExecutorBuilder.enableMaxQA()`
+* **[RestClient]**: **请求/响应拦截器链** - 新增 `InterceptorChain`、`RequestInterceptor`、`ResponseInterceptor`、`InterceptorContext`，支持可插拔的 HTTP 请求响应拦截。
+    * *相关 API*: `InterceptorChain`, `RequestInterceptor`, `ResponseInterceptor`
+* **[Commons]**: **新增 `JsonString` 类型** - 新增 `JsonString`，作为轻量级 `JsonValue` 实现，封装原始 JSON 字符串，适用于无需解析 JSON 结构的场景。
+    * *相关 API*: `JsonString`
+* **[Commons]**: **新增 `RecordReader` / `RecordWriter` 接口** - 将通用的 `RecordReader` 和 `RecordWriter` 接口下沉至 `odps-sdk-commons`，便于跨模块复用。
+    * *相关 API*: `RecordReader`, `RecordWriter`
+* **[Odps]**: **Catalog API Host 及过期元数据读取配置** - `Odps` 新增 `setCatalogApiHost()` / `getCatalogApiHost()` 和 `setAllowStaleMetadataRead()` / `isAllowStaleMetadataRead()`，分别用于配置 Catalog API 端点和允许读取过期元数据。
+    * *相关 API*: `Odps.setCatalogApiHost()`, `OdpsOptions.allowStaleMetadataRead`
+* **[Quota]**: **获取 MaxQA 连接信息** - 新增 `Quotas.getMaxQAConnInfo(quotaName)`，支持获取指定 Quota 的 MaxQA 连接信息。
+    * *相关 API*: `Quotas.getMaxQAConnInfo()`
+* **[Partition]**: **分区状态管理** - 新增 `Partition.State` 枚举和 `setState()` 方法，支持设置分区状态。
+    * *相关 API*: `Partition.State`, `Partition.setState()`
+
+### 🚀 功能增强与性能优化
+* **[OdpsType]**: **`OdpsType` 枚举新增数字编码** - 每个 `OdpsType` 枚举值携带稳定的整型 code，并支持通过 `OdpsType.fromCode(int)` 反向查找，便于序列化和协议兼容。
+* **[Arrow Helper]**: **Arrow Accessor 层重构** - 将所有按类型实现的 Arrow 列访问器（`ArrowBigIntAccessor`、`ArrowDecimalAccessor`、`ArrowTimestampAccessor` 等）迁移至新的 `odps-arrow-helper` 模块，提升模块化程度和可复用性。
+* **[TunnelBufferedWriter]**: **异步 flush 支持** - `TunnelBufferedWriter` 新增非阻塞异步 flush 能力，采用双 buffer 交换机制（`flush(boolean blocking)`），提供背压控制，提升流式上传的写入吞吐量。
+    * *相关 API*: `TunnelBufferedWriter.flush(boolean blocking)`
+* **[UpsertStream]**: **异步 flush 及 Buffer 优化** - `UpsertStreamImpl` 支持通过可配置的 `ExecutorService` 执行异步 flush，采用按 bucket 双 buffer 交换机制，并新增 `sync()` 方法支持显式屏障同步。
+    * *相关 API*: `UpsertStream.Builder.setAsyncFlushService()`, `UpsertStreamImpl.sync()`
+* **[CI]**: **接入 CodeQL 安全扫描** - 集成 GitHub Actions CodeQL 工作流，实现自动化安全漏洞扫描。
+
+### 📦 依赖更新
+* **新增**: `com.squareup.okhttp3:okhttp:4.12.0`（在 `odps-sdk-storage-api` 中已 shade）
+
 ## [0.56.1-public] - 2026-02-04
 
 ### 🐛 问题修复

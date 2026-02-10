@@ -40,6 +40,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
+import com.aliyun.odps.data.Blob;
+import com.aliyun.odps.storage.MaxStorageClient;
 import com.aliyun.odps.tunnel.io.ArrowTunnelBufferedReader;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -927,6 +929,11 @@ public class TableTunnel {
     return new UpsertSessionImpl.Builder().setConfig(this.config)
                                           .setProjectName(projectName)
                                           .setTableName(tableName);
+  }
+
+  public InputStream readBlob(Blob blob) {
+    MaxStorageClient maxStorageClient = this.config.newStorageClient(odps.getDefaultProject());
+    return maxStorageClient.openBlobManager().download(blob);
   }
 
   /**

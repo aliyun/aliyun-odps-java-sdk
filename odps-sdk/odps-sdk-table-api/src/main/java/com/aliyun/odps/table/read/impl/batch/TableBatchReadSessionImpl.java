@@ -290,6 +290,8 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         jsonSplitOptions.addProperty("SplitMode", splitOptions.getSplitMode().toString());
         jsonSplitOptions.addProperty("SplitNumber", splitOptions.getSplitNumber());
         jsonSplitOptions.addProperty("CrossPartition", splitOptions.isCrossPartition());
+        jsonSplitOptions.addProperty("BucketSort", splitOptions.isBucketSort());
+
         request.add("SplitOptions", jsonSplitOptions);
         request.addProperty("SplitMaxFileNum", splitOptions.getSplitMaxFileNum());
 
@@ -302,6 +304,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         request.add("EnableEstimateStats", new JsonPrimitive(enableEstimateStats));
         request.add("FilterPredicateFallback", new JsonPrimitive(allowFilterPredicateFallback));
         request.add("EnableExtendedArrowIPC", new JsonPrimitive(enableExtendedArrowIPC));
+        request.add("UniqueMapKey", new JsonPrimitive(enableUniqueMapKey));
 
         return request;
     }

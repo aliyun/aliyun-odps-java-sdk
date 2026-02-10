@@ -423,4 +423,9 @@ public interface Record {
    * @return 当前Record的拷贝
    */
   public Record clone();
+
+  /**
+   * 清空 Record 中的数据（但不清空 schema）
+   */
+  void clear();
 }

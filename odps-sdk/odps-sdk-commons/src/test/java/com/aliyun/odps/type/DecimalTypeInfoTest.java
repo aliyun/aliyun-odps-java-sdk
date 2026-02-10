@@ -14,15 +14,15 @@ public class DecimalTypeInfoTest {
 
     decimalTypeInfo = TypeInfoFactory.getDecimalTypeInfo(DecimalTypeInfo.DEFAULT_PRECISION,
                                                          DecimalTypeInfo.DEFAULT_SCALE);
-    Assert.assertEquals("DECIMAL", decimalTypeInfo.getTypeName());
+    Assert.assertEquals("DECIMAL(38,18)", decimalTypeInfo.getTypeName());
   }
 
   @Test
-  public void testDefaultDecimal() {
+  public void testLegacyDecimal() {
     DecimalTypeInfo decimalTypeInfo = TypeInfoFactory.DECIMAL;
 
     Assert.assertEquals("DECIMAL", decimalTypeInfo.getTypeName());
-    Assert.assertEquals(DecimalTypeInfo.DEFAULT_PRECISION, decimalTypeInfo.getPrecision());
+    Assert.assertEquals(DecimalTypeInfo.LEGACY_DEFAULT_PRECISION, decimalTypeInfo.getPrecision());
     Assert.assertEquals(DecimalTypeInfo.DEFAULT_SCALE, decimalTypeInfo.getScale());
   }
 

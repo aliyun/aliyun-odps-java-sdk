@@ -2056,4 +2056,89 @@ public class SQLExecutorTest extends TestBase {
       System.out.println("");
     }
   }
+
+  /**
+   * 测试通过 hints 设置 odps.instance.priority 优先级
+   */
+  @Test
+  public void testPriorityHint() throws OdpsException, IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.OFFLINE)
+        .properties(properties)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    // 测试设置优先级为 5
+    Map<String, String> hint = new HashMap<>();
+    hint.put(SQLExecutorConstants.ODPS_INSTANCE_PRIORITY, "5");
+    sqlExecutor.run("select 1 as c1;", hint);
+    
+    try {
+      List<Record> records = sqlExecutor.getResult();
+      Assert.assertNotNull(records);
+      // 验证作业成功执行
+      Assert.assertEquals(1, records.size());
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  /**
+   * 测试无效的优先级 hint 值（应回退到默认行为，不抛出异常）
+   */
+  @Test
+  public void testInvalidPriorityHint() throws OdpsException, IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.OFFLINE)
+        .properties(properties)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    // 测试设置无效的优先级值
+    Map<String, String> hint = new HashMap<>();
+    hint.put(SQLExecutorConstants.ODPS_INSTANCE_PRIORITY, "invalid");
+    sqlExecutor.run("select 1 as c1;", hint);
+    
+    try {
+      List<Record> records = sqlExecutor.getResult();
+      Assert.assertNotNull(records);
+      // 验证作业成功执行（即使优先级解析失败）
+      Assert.assertEquals(1, records.size());
+    } finally {
+      sqlExecutor.close();
+    }
+  }
+
+  /**
+   * 测试不设置优先级 hint（应使用默认值）
+   */
+  @Test
+  public void testNoPriorityHint() throws OdpsException, IOException {
+    Map<String, String> properties = new HashMap<>();
+    SQLExecutorBuilder builder = SQLExecutorBuilder.builder();
+    builder.odps(odps)
+        .executeMode(ExecuteMode.OFFLINE)
+        .properties(properties)
+        .fallbackPolicy(FallbackPolicy.nonFallbackPolicy());
+    SQLExecutorImpl sqlExecutor = (SQLExecutorImpl)builder.build();
+    Assert.assertNotNull(sqlExecutor.getId());
+
+    // 不设置优先级 hint
+    Map<String, String> hint = new HashMap<>();
+    sqlExecutor.run("select 1 as c1;", hint);
+    
+    try {
+      List<Record> records = sqlExecutor.getResult();
+      Assert.assertNotNull(records);
+      Assert.assertEquals(1, records.size());
+    } finally {
+      sqlExecutor.close();
+    }
+  }
 }

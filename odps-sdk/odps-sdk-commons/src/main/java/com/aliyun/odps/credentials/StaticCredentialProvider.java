@@ -28,18 +28,22 @@ import com.aliyun.credentials.api.ICredentialsProvider;
  */
 public class StaticCredentialProvider implements ICredentialsProvider {
 
-  private final Credentials credentials;
+  private final ICredentials credentials;
 
   public StaticCredentialProvider(String accessKeyId, String accessKeySecret) {
     this.credentials = new Credentials(accessKeyId, accessKeySecret, null);
   }
 
-  public StaticCredentialProvider(Credentials credentials) {
+  public StaticCredentialProvider(ICredentials credentials) {
     this.credentials = credentials;
   }
 
   public static StaticCredentialProvider of(String accessKeyId, String accessKeySecret) {
     return new StaticCredentialProvider(accessKeyId, accessKeySecret);
+  }
+
+  public static StaticCredentialProvider of(ICredentials credentials) {
+    return new StaticCredentialProvider(credentials);
   }
 
 

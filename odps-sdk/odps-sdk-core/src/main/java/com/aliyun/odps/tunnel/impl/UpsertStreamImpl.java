@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -65,8 +68,11 @@ public class UpsertStreamImpl implements UpsertStream {
   private TunnelTableSchema schema;
 
   // buffer
-  private final Map<Integer, ProtobufRecordPack> bucketBuffer = new HashMap<>();
-  private long totalBufferSize = 0;
+  private Map<Integer, ProtobufRecordPack> writeBuffer;
+  private Map<Integer, ProtobufRecordPack> flushBuffer; // For async mode
+  private long totalWriteBufferSize = 0;
+  private ExecutorService asyncFlushService; // For async mode
+  private Future<?> flushFuture; // For async mode
 
   // netty
   private final Bootstrap bootstrap;
@@ -97,6 +103,7 @@ public class UpsertStreamImpl implements UpsertStream {
     private long slotBufferSize = 1024 * 1024;
     private CompressOption compressOption = new CompressOption();
     private Listener listener = null;
+    private ExecutorService asyncFlushService = null;
 
     public Builder setSession(UpsertSessionImpl session) {
       this.session = session;
@@ -148,6 +155,16 @@ public class UpsertStreamImpl implements UpsertStream {
     }
 
     @Override
+    public Builder setAsyncFlushService(ExecutorService service) {
+      this.asyncFlushService = service;
+      return this;
+    }
+
+    public ExecutorService getAsyncFlushService() {
+      return this.asyncFlushService;
+    }
+
+    @Override
     public UpsertStream build() throws IOException, TunnelException {
       return new UpsertStreamImpl(this);
     }
@@ -168,14 +185,22 @@ public class UpsertStreamImpl implements UpsertStream {
     this.readTimeout = session.getReadTimeout();
     this.listener = builder.getListener();
 
-    newBucketBuffer();
-  }
+    this.asyncFlushService = builder.getAsyncFlushService();
+    this.writeBuffer = createNewBucketBuffer();
 
-  private void newBucketBuffer() throws IOException {
-    for (Integer slot : this.buckets.keySet()) {
-      this.bucketBuffer.put(slot, new ProtobufRecordPack(this.schema, new Checksum(), 0, compressOption));
+    if (this.asyncFlushService != null) {
+      this.flushBuffer = createNewBucketBuffer();
     }
   }
+
+  private Map<Integer, ProtobufRecordPack> createNewBucketBuffer() throws IOException {
+    Map<Integer, ProtobufRecordPack> newBuffer = new HashMap<>();
+    for (Integer slot : this.buckets.keySet()) {
+      newBuffer.put(slot, new ProtobufRecordPack(this.schema, new Checksum(), 0, compressOption));
+    }
+    return newBuffer;
+  }
+
   @Override
   public void upsert(Record record) throws IOException, TunnelException {
     write(record, UpsertStreamImpl.Operation.UPSERT, null);
@@ -207,32 +232,53 @@ public class UpsertStreamImpl implements UpsertStream {
 
   @Override
   public void flush() throws IOException, TunnelException {
-    flush(true);
+    // flush() is now a convenience method for a full, blocking sync
+    sync();
+  }
+
+  public void sync() throws IOException, TunnelException {
+    if (asyncFlushService != null) {
+      // For async mode, trigger a blocking, full flush
+      asyncFlush(true);
+    } else {
+      // For sync mode, trigger a standard full flush
+      syncFlush(true);
+    }
   }
 
   @Override
   public void close() throws IOException, TunnelException {
     if (status == Status.NORMAL) {
-      flush();
+      sync();
       status = Status.CLOSED;
     }
   }
 
   @Override
   public void reset() throws IOException {
-    if (!bucketBuffer.isEmpty()) {
-      for (ProtobufRecordPack pack : bucketBuffer.values()) {
+    try {
+      waitUntilFlushFinish();
+    } catch (TunnelException e) {
+      throw new IOException("The latest async flush is failed. " + e.getMessage(), e);
+    }
+    if (writeBuffer != null) {
+      for (ProtobufRecordPack pack : writeBuffer.values()) {
+        pack.reset();
+      }
+    }
+    if (flushBuffer != null) {
+      for (ProtobufRecordPack pack : flushBuffer.values()) {
         pack.reset();
       }
     }
 
-    totalBufferSize = 0;
+    totalWriteBufferSize = 0;
     status = Status.NORMAL;
   }
 
   private void write(Record record, UpsertStreamImpl.Operation op, List<String> valueColumns)
           throws TunnelException, IOException {
-    checkStatus();
+    checkStatusAndError();
 
     List<Integer> hashValues = new ArrayList<>();
     for (int key : hashKeys) {
@@ -257,12 +303,12 @@ public class UpsertStreamImpl implements UpsertStream {
 
     int bucket = TypeHasher.CombineHashVal(hashValues) % buckets.size();
 
-    if (!bucketBuffer.containsKey(bucket)) {
+    if (!writeBuffer.containsKey(bucket)) {
       throw new TunnelException(
               "Tunnel internal error! Do not have bucket for hash key " + bucket);
     }
 
-    ProtobufRecordPack pack = bucketBuffer.get(bucket);
+    ProtobufRecordPack pack = writeBuffer.get(bucket);
     UpsertRecord r = (UpsertRecord) record;
     r.setOperation(op == UpsertStreamImpl.Operation.UPSERT ? (byte)'U' : (byte)'D');
     ArrayList<Long> valueCols = new ArrayList<>();
@@ -275,14 +321,78 @@ public class UpsertStreamImpl implements UpsertStream {
     long bytes = pack.getTotalBytes();
     pack.append(r.getRecord());
     bytes = pack.getTotalBytes() - bytes;
-    totalBufferSize += bytes;
-    if (pack.getTotalBytes() > slotBufferSize) {
-      flush(false);
-    } else if (totalBufferSize > maxBufferSize) {
-      flush(true);
+    totalWriteBufferSize += bytes;
+
+    boolean isSlotFull = pack.getTotalBytes() > slotBufferSize;
+    boolean isTotalFull = totalWriteBufferSize > maxBufferSize;
+
+    if (isSlotFull || isTotalFull) {
+      boolean flushAll = isTotalFull; // If total is full, flush everything
+      if (asyncFlushService != null) {
+        // In async mode, any flush trigger results in a full flush of the buffer.
+        asyncFlush(false);
+      } else {
+        syncFlush(flushAll);
+      }
     }
   }
-  private void flush(boolean flushAll) throws TunnelException, IOException {
+
+  /**
+   * Triggers a synchronous flush. Blocks until completion.
+   */
+  private void syncFlush(boolean flushAll) throws IOException, TunnelException {
+    flushInternal(this.writeBuffer, flushAll);
+  }
+
+  /**
+   * Triggers an asynchronous flush. Manages buffer swapping and task submission.
+   */
+  private synchronized void asyncFlush(boolean blocking)
+    throws IOException, TunnelException {
+    try {
+      // Wait for the previous flush to finish. This provides backpressure.
+      waitUntilFlushFinish();
+
+      if (totalWriteBufferSize <= 0) {
+        // Check if there's any data in writeBuffer (getSize() is more reliable than getTotalBytes())
+        // because getTotalBytes() may not reflect buffered data immediately after append
+        boolean hasData = writeBuffer.values().stream().anyMatch(p -> p.getSize() > 0);
+        if (!hasData) {
+          return;
+        }
+      }
+
+      // Swap buffers
+      Map<Integer, ProtobufRecordPack> temp = flushBuffer;
+      flushBuffer = writeBuffer;
+      writeBuffer = temp;
+
+      if (writeBuffer == null) {
+        writeBuffer = createNewBucketBuffer();
+      }
+      
+      // After swapping, the new write buffer is empty, so reset the counter.
+      totalWriteBufferSize = 0;
+
+      flushFuture =
+        asyncFlushService.submit(
+          () -> {
+            flushInternal(flushBuffer, true);
+            return null;
+          });
+
+      if (blocking) {
+        waitUntilFlushFinish();
+      }
+    } catch (IOException | TunnelException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException("Asynchronous flush operation failed to start.", e);
+    }
+  }
+
+  private void flushInternal(Map<Integer, ProtobufRecordPack> bufferToFlush,
+                             boolean flushAll) throws TunnelException, IOException {
     List<FlushResultHandler> handlers = new ArrayList<>();
     boolean success;
     int retry = 0;
@@ -300,9 +410,9 @@ public class UpsertStreamImpl implements UpsertStream {
       handlers.clear();
       Channel channel = null;
       try {
-        checkStatus();
-        latch = new CountDownLatch(bucketBuffer.size());
-        for (Map.Entry<Integer, ProtobufRecordPack> entry : bucketBuffer.entrySet()) {
+        checkStatusAndError();
+        latch = new CountDownLatch(bufferToFlush.size());
+        for (Map.Entry<Integer, ProtobufRecordPack> entry : bufferToFlush.entrySet()) {
           ProtobufRecordPack pack = entry.getValue();
           if (pack.getSize() > 0) {
             if (pack.getTotalBytes() > slotBufferSize || flushAll) {
@@ -312,7 +422,7 @@ public class UpsertStreamImpl implements UpsertStream {
               pack.complete();
               bytes = pack.getTotalBytes() - bytes;
               if (!flushAll) {
-                totalBufferSize += bytes;
+                totalWriteBufferSize += bytes;
               }
               Request request = session.buildRequest("PUT", bucketId, buckets.get(bucketId), pack.getTotalBytes(), pack.getSize(), compressOption);
               channel = channelPool.acquire();
@@ -365,22 +475,48 @@ public class UpsertStreamImpl implements UpsertStream {
           }
         } else {
           if (!flushAll) {
-            totalBufferSize -= handler.getFlushResult().flushSize;
+            totalWriteBufferSize -= handler.getFlushResult().flushSize;
           }
         }
       }
       ++retry;
     } while (!success);
     if (flushAll) {
-      totalBufferSize = 0;
+      totalWriteBufferSize = 0;
     }
   }
 
-  private void checkStatus() throws TunnelException {
+  private void waitUntilFlushFinish() throws IOException, TunnelException {
+    if (flushFuture != null) {
+      try {
+        flushFuture.get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Flush wait was interrupted.", e);
+      } catch (ExecutionException e) {
+        // Exception from the background thread. Unwrap and rethrow.
+        Throwable cause = e.getCause();
+        if (cause instanceof IOException) {
+          throw (IOException) cause;
+        } else if (cause instanceof TunnelException) {
+          throw (TunnelException) cause;
+        } else {
+          throw new IOException("Async flush failed in background.", cause);
+        }
+      } finally {
+        flushFuture = null;
+      }
+    }
+  }
+
+  private void checkStatusAndError() throws TunnelException, IOException {
     if (Status.CLOSED == status) {
       throw new TunnelException("Stream is closed!");
     } else if (Status.ERROR == status) {
       throw new TunnelException("Stream has error!");
+    }
+    if (flushFuture != null && flushFuture.isDone()) {
+      waitUntilFlushFinish();
     }
   }
 

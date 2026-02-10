@@ -116,8 +116,10 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
 
         if (batchWriter == null) {
             outputStream = openWriterConnection(sessionId, identifier, blockNumber, attemptId);
-            batchWriter = ArrowWriterFactory.getRecordBatchWriter(
-                    outputStream, writerOptions);
+            batchWriter = ArrowWriterFactory.newBuilder(
+                    outputStream)
+              .withCompression(writerOptions.getCompressionCodec())
+              .build();
         }
         try {
             batchWriter.writeBatch(root);

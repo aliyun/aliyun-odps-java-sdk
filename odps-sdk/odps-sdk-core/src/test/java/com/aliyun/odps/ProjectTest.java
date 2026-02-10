@@ -145,4 +145,18 @@ public class ProjectTest extends TestBase {
     String unmarshalled = SimpleXmlUtils.marshal(model);
     assertEquals(xml, unmarshalled);
   }
+
+  @Test
+  public void testGetProjectCached() throws OdpsException {
+    Odps cacheOdps = odps.clone();
+    Project p = cacheOdps.projects().get();
+    cacheOdps.options().setAllowStaleMetadataRead(true);
+    cacheOdps.getRestClient().addRequestInterceptor(context -> {
+      // test get project and extended info
+      assertEquals("true", context.getRequest().getParameters().getOrDefault("cached", ""));
+      return context.getRequest();
+    });
+    p.getType();
+    p.getExtendedProperties();
+  }
 }

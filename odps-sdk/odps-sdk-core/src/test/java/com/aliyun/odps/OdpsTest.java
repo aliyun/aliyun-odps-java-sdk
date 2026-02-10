@@ -163,4 +163,26 @@ public class OdpsTest {
     // should be ok
     odps.projects().get().reload();
   }
+
+
+  @Test
+  public void testCatalogApiHost() throws Exception {
+    Odps odps = OdpsTestUtils.newDefaultOdps();
+    long start = System.currentTimeMillis();
+    try {
+      String catalogApiHost = odps.getCatalogApiHost();
+      System.out.println(catalogApiHost);
+    } catch (Exception e) {
+      boolean
+        catalogApiEndpointNotAvailable =
+        e.getMessage().contains("Catalog API endpoint not available");
+      System.out.println(catalogApiEndpointNotAvailable);
+    }
+    long cost = System.currentTimeMillis() - start;
+    System.out.println("Get catalog api endpoint cost " + cost + "ms");
+
+    odps.setCatalogApiHost("https://catalogapi.example.com");
+
+    Assert.assertEquals("https://catalogapi.example.com", odps.getCatalogApiHost());
+  }
 }

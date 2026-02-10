@@ -76,6 +76,18 @@
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
+                <artifactId>odps-arrow-helper</artifactId>
+                <version>0.56.1-public</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun.odps</groupId>
+                <artifactId>odps-sdk-storage-api</artifactId>
+                <version>0.56.1-public</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-core</artifactId>
                 <version>0.56.1-public</version>
             </dependency>
@@ -173,6 +185,10 @@
                 <version>4.11.1</version>
             </dependency>
 
+            <!-- protobuf-java have 3 CVE vulnerability, however we don't have to upgrade it since below reasons -->
+            <!-- CVE-2024-7254: Vulnerability is not exploitable as we only parse Protobuf data from our Server-Side. -->
+            <!-- CVE-2022-3509: Vulnerability is in the TextFormat parser, which is not used; this code only performs binary serialization. -->
+            <!-- CVE-2021-22569: Vulnerability is not exploitable as we only parse Protobuf data from our Server-Side. -->
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
@@ -189,6 +205,13 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>1.7.5</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>1.7.5</version>
+                <scope>test</scope>
             </dependency>
 
             <dependency>

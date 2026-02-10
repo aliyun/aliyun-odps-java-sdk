@@ -21,6 +21,7 @@ package com.aliyun.odps.tunnel.io;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 import org.xerial.snappy.PureJavaCrc32C;
 

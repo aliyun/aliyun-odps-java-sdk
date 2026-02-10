@@ -3,9 +3,11 @@ package com.aliyun.odps.tunnel.streams;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.impl.UpsertStreamImpl;
 import com.aliyun.odps.tunnel.io.CompressOption;
 
 public interface UpsertStream extends AutoCloseable {
@@ -89,6 +91,10 @@ public interface UpsertStream extends AutoCloseable {
     public Listener getListener();
 
     public Builder setListener(Listener listener);
+
+    public Builder  setAsyncFlushService(ExecutorService service);
+
+    public ExecutorService getAsyncFlushService();
 
     public UpsertStream build() throws IOException, TunnelException;
   }

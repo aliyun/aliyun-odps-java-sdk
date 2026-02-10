@@ -57,7 +57,7 @@ public class TypeInfoFactory {
       UNKNOWN = new SimplePrimitiveTypeInfo(OdpsType.UNKNOWN);
 
   public static final DecimalTypeInfo
-      DECIMAL = new DecimalTypeInfo();
+      DECIMAL = new DecimalTypeInfo(true);
 
   public static final PrimitiveTypeInfo
       JSON = new SimplePrimitiveTypeInfo(OdpsType.JSON);
@@ -125,9 +125,6 @@ public class TypeInfoFactory {
   }
 
   public static DecimalTypeInfo getDecimalTypeInfo(int precision, int scale) {
-    if ((precision == DecimalTypeInfo.DEFAULT_PRECISION) && (scale == DecimalTypeInfo.DEFAULT_SCALE)) {
-      return DECIMAL;
-    }
     return new DecimalTypeInfo(precision, scale);
   }
 

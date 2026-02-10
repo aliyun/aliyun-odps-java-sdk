@@ -99,6 +99,7 @@ public class Headers {
   public static final String ODPS_INSTSNCE_TOKEN = "x-odps-instance-token";
 
   public static final String ODPS_MCQA_CONN = "x-odps-mcqa-conn";
+  public static final String ODPS_FALLBACK_INFOS = "x-odps-fallback-infos";
 
   public static final Map<String, String>
       LOWER_CASE_HEADER_NAME_TO_HEADER_NAME =

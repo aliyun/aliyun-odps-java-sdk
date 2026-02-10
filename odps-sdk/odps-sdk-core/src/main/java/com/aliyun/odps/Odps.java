@@ -28,10 +28,12 @@ import com.aliyun.odps.account.AccountFormat;
 import com.aliyun.odps.account.AppAccount;
 import com.aliyun.odps.account.AppStsAccount;
 import com.aliyun.odps.commons.transport.DefaultTransport;
+import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.ml.OfflineModels;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.utils.StringUtils;
 
 /**
  * Odps类是ODPS SDK的入口
@@ -101,6 +103,7 @@ public class Odps {
 
   private String logViewHost;
   private String jobInsightHost;
+  private String catalogApiHost;
   private AccountFormat accountFormat = null;
 
   public void setAccount(Account account) {
@@ -319,7 +322,9 @@ public class Odps {
   }
 
   public void setTunnelEndpoint(String tunnelEndpoint) {
-    this.tunnelEndpoint = tunnelEndpoint;
+    if (StringUtils.isNotBlank(tunnelEndpoint)) {
+      this.tunnelEndpoint = tunnelEndpoint;
+    }
   }
 
   public String getTunnelEndpoint() {
@@ -500,5 +505,26 @@ public class Odps {
    */
   public Map<String, String> getGlobalSettings() {
     return Task.getGlobalSettings();
+  }
+
+  public void setCatalogApiHost(String catalogApiHost) {
+    this.catalogApiHost = catalogApiHost;
+  }
+
+  public String getCatalogApiHost() throws OdpsException {
+    if (StringUtils.isBlank(catalogApiHost)) {
+      RestClient restClient = clone().getRestClient();
+      restClient.setRetryTimes(0);
+      String resource = "/catalogapi";
+
+      Response resp = restClient.request(resource, "GET", null, null, null);
+
+      if (resp.isOK()) {
+        this.catalogApiHost = new String(resp.getBody());
+      } else {
+        throw new OdpsException("Can't get catalog api server address: " + resp.getStatus());
+      }
+    }
+    return this.catalogApiHost;
   }
 }

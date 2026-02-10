@@ -13,12 +13,12 @@ import com.aliyun.odps.TableSchema;
  * @author emerson
  *
  */
-public class ResultSet implements Iterable<Record>, Iterator<Record> {
+public class ResultSet implements Iterable<Record>, Iterator<Record>, AutoCloseable {
 
   public static final ResultSet EMPTY = emptyResultSet();
 
   private Iterator<Record> recordIterator;
-  private long recordCount;
+  protected long recordCount;
   private TableSchema schema;
 
   /**
@@ -72,5 +72,12 @@ public class ResultSet implements Iterable<Record>, Iterator<Record> {
         return null;
       }
     }, null, 0);
+  }
+
+  @Override
+  public void close() throws Exception {
+    if (recordIterator instanceof AutoCloseable) {
+      ((AutoCloseable) recordIterator).close();
+    }
   }
 }

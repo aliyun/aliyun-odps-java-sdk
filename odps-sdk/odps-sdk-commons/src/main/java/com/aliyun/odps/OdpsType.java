@@ -20,7 +20,11 @@
 package com.aliyun.odps;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * ODPS表支持的字段类型
@@ -29,132 +33,149 @@ public enum OdpsType implements Serializable {
   /**
    * 8字节有符号整型
    */
-  BIGINT,
+  BIGINT(0),
 
   /**
    * 双精度浮点
    */
-  DOUBLE,
+  DOUBLE(1),
 
   /**
    * 布尔型
    */
-  BOOLEAN,
+  BOOLEAN(2),
 
   /**
    * 日期类型
    */
-  DATETIME,
+  DATETIME(3),
 
   /**
    * 字符串类型
    */
-  STRING,
+  STRING(4),
 
   /**
    * 精确小数类型
    */
-  DECIMAL,
-
-  /**
-   * MAP类型
-   */
-  MAP,
-
-  /**
-   * ARRAY类型
-   */
-  ARRAY,
-
-  /**
-   * 空
-   */
-  VOID,
+  DECIMAL(5),
 
   /**
    * 1字节有符号整型
    */
-  TINYINT,
+  TINYINT(6),
 
   /**
    * 2字节有符号整型
    */
-  SMALLINT,
+  SMALLINT(7),
 
   /**
    * 4字节有符号整型
    */
-  INT,
-
-  /**
-   * 单精度浮点
-   */
-  FLOAT,
+  INT(8),
 
   /**
    * 固定长度字符串
    */
-  CHAR,
+  CHAR(9),
 
   /**
    * 可变长度字符串
    */
-  VARCHAR,
+  VARCHAR(10),
+  /**
+   * 字节数组
+   */
+  BINARY(11),
 
   /**
    * 时间类型
    */
-  DATE,
+  DATE(12),
 
   /**
    * 时间戳
    */
-  TIMESTAMP,
+  TIMESTAMP(13),
 
   /**
-   * 字节数组
+   * 单精度浮点
    */
-  BINARY,
-
-  /**
-   * 日期间隔
-   */
-  INTERVAL_DAY_TIME,
+  FLOAT(14),
 
   /**
    * 年份间隔
    */
-  INTERVAL_YEAR_MONTH,
+  INTERVAL_YEAR_MONTH(15),
+
+  /**
+   * 日期间隔
+   */
+  INTERVAL_DAY_TIME(16),
+
+  /**
+   * ARRAY类型
+   */
+  ARRAY(17),
+
+  /**
+   * MAP类型
+   */
+  MAP(18),
 
   /**
    * 结构体
    */
-  STRUCT,
+  STRUCT(19),
+
 
   /**
    * JSON类型
    */
-  JSON,
+  JSON(20),
 
   /**
    * 时区无关的时间戳
    */
-  TIMESTAMP_NTZ,
-
-  /**
-   * 地理类型
-   */
-  GEOGRAPHY,
+  TIMESTAMP_NTZ(21),
 
   /**
    * blob 类型
    */
-  BLOB,
+  BLOB(22),
+
+  /**
+   * 空
+   */
+  VOID(-3),
+
+  /**
+   * 地理类型
+   */
+  GEOGRAPHY(-2),
 
   /**
    * Unsupported types from external systems
    */
-  UNKNOWN;
+  UNKNOWN(-1);
+
+
+  private final int value;
+  private static final Map<Integer, OdpsType> intToTypeMap =
+    Arrays.stream(values()).collect(Collectors.toMap(OdpsType::getValue, Function.identity()));
+
+  OdpsType(int value) {
+    this.value = value;
+  }
+
+  public int getValue() {
+    return value;
+  }
+
+  public static OdpsType fromInt(int i) {
+    return intToTypeMap.getOrDefault(i, UNKNOWN);
+  }
 
   @Deprecated
   public static String getFullTypeString(OdpsType type, List<OdpsType> genericTypeList) {

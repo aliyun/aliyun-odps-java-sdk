@@ -55,6 +55,7 @@ public class TableReadSessionBuilder {
     private boolean enableEstimateStats;
     private boolean allowFilterPredicateFallback = false;
     private boolean enableExtendedArrowIPC = false;
+    private boolean enableUniqueMapKey = false;
     /**
      * Set the read session target to a specific table by {@link Table}.
      */
@@ -184,6 +185,11 @@ public class TableReadSessionBuilder {
         return this;
     }
 
+    public TableReadSessionBuilder enableUniqueMapKey(boolean enableUniqueMapKey) {
+        this.enableUniqueMapKey = enableUniqueMapKey;
+        return this;
+    }
+
     /**
      * Initialize the session from json string
      */
@@ -254,6 +260,10 @@ public class TableReadSessionBuilder {
 
     public boolean isEnableExtendedArrowIPC() {
         return enableExtendedArrowIPC;
+    }
+
+    public boolean isEnableUniqueMapKey() {
+        return enableUniqueMapKey;
     }
 
     /**

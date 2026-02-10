@@ -776,4 +776,9 @@ public class WritableRecord implements Record {
     }
     return record;
   }
+
+  @Override
+  public void clear() {
+    Arrays.fill(values, null);
+  }
 }

@@ -186,6 +186,7 @@ public class DownloadUtilsTest {
       session.commit(blocks);
     }
 
+    odps.tables().delete(complexTable);
     if (!odps.tables().exists(complexTable)) {
       TableSchema schema = new TableSchema();
       schema.addColumn(new Column("c1", TypeInfoFactory.getMapTypeInfo(TypeInfoFactory.STRING, TypeInfoFactory.STRING)));

@@ -19,7 +19,6 @@
 
 package com.aliyun.odps.table.enviroment;
 
-import java.net.Proxy;
 import java.util.List;
 import java.util.Optional;
 

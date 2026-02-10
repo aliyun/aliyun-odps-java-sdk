@@ -62,6 +62,10 @@ import com.aliyun.odps.commons.util.RetryStrategy;
 import com.aliyun.odps.commons.util.SvnRevisionUtils;
 import com.aliyun.odps.commons.util.backoff.BackOffStrategy;
 import com.aliyun.odps.commons.util.backoff.FixedBackOffStrategy;
+import com.aliyun.odps.rest.interceptor.InterceptorChain;
+import com.aliyun.odps.rest.interceptor.InterceptorContext;
+import com.aliyun.odps.rest.interceptor.RequestInterceptor;
+import com.aliyun.odps.rest.interceptor.ResponseInterceptor;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.GsonBuilder;
 
@@ -155,6 +159,7 @@ public class RestClient {
 
   private String userAgent;
   private Proxy proxy;
+  private InterceptorChain interceptorChain = InterceptorChain.create();
 
   public RetryLogger getRetryLogger() {
     return logger;
@@ -473,9 +478,14 @@ public class RestClient {
       req.setBody(body);
       req.setBodyLength(bodyLen);
 
-      resp = transport.request(req);
+      InterceptorContext context = InterceptorContext.create();
+      context.setRequest(req);
+      interceptorChain.modifyRequest(context);
+      resp = transport.request(context.getRequest());
+      context.setResponse(resp);
+      interceptorChain.modifyResponse(context);
 
-      return resp;
+      return context.getResponse();
 
     } catch (SSLHandshakeException e) {
       // FOR HTTPS CERTS CHECK FAILED
@@ -874,6 +884,14 @@ public class RestClient {
 
   public Proxy getProxy() {
     return this.proxy;
+  }
+
+  public void addRequestInterceptor(RequestInterceptor requestInterceptor) {
+    this.interceptorChain.addRequestInterceptor(requestInterceptor);
+  }
+
+  public void addResponseInterceptor(ResponseInterceptor responseInterceptor) {
+    this.interceptorChain.addResponseInterceptor(responseInterceptor);
   }
 
   private final Map<String, String> userDefinedHeaders = new HashMap<>();

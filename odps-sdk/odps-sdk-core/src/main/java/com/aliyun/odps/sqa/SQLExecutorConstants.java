@@ -29,4 +29,5 @@ public class SQLExecutorConstants {
   public static final String WLM_QUOTA_FLAG = "odps.task.wlm.quota";
   public static final String TIMEZONE_FLAG = "odps.sql.timezone";
   public static final String QUOTA_BILLING_METHOD = "billingMethod";
+  public static final String ODPS_INSTANCE_PRIORITY = "odps.instance.priority";
 }

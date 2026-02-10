@@ -40,7 +40,8 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
   private int currentSplit = 0;
 
-  private Record currentRecord;
+  // This field holds the next record to be returned. It is the "look-ahead" buffer.
+  private Record nextRecord;
 
   public InstanceDataIterator(InstanceTunnel.DownloadSession downloadSession, long offset, long readCount, long splitSize, int preloadSplitNum, int threadNum) throws TunnelException {
     this.downloadSession = downloadSession;
@@ -98,40 +99,80 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
     });
   }
 
-  private synchronized boolean hasNextInternal() {
-    checkError();
-    if (currentSplit >= splitNum) {
-      currentRecord = EOF_RECORD;
-      return false;
-    }
-    BlockingQueue<Record> currentQueue = queues[currentSplit];
-    try {
-      Record record = currentQueue.take();
-      if (record == EOF_RECORD) {
-        queues[currentSplit] = null;
-        submitNextSplit(currentSplit + preloadSplitNum); // Submit next split after current is done
-        currentSplit++;
-        return hasNextInternal();
+  /**
+   * Tries to fetch the next record and store it in the `nextRecord` field.
+   * This method contains the core logic of blocking and advancing through splits.
+   * It's synchronized to protect shared state like `currentSplit`.
+   */
+  private synchronized void tryToFetchNext() {
+    // This loop will continue until a data record is found or all splits are exhausted.
+    while (true) {
+      checkError();
+      if (currentSplit >= splitNum) {
+        this.nextRecord = EOF_RECORD;
+        return;
       }
-      this.currentRecord = record;
-      return true;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException("Interrupted during read", e);
+
+      BlockingQueue<Record> currentQueue = queues[currentSplit];
+      try {
+        // Block and wait for a record from the background thread.
+        Record record = currentQueue.take();
+
+        if (record == EOF_RECORD) {
+          // End of the current split, let's move to the next one.
+          queues[currentSplit] = null; // Allow GC to collect the queue
+          submitNextSplit(currentSplit + preloadSplitNum); // Submit a new split to keep the preload window full
+          currentSplit++;
+          // Continue the loop to fetch from the new current split
+          continue;
+        } else {
+          // We found a valid data record. Store it and exit the method.
+          this.nextRecord = record;
+          return;
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException("Interrupted while waiting for next record", e);
+      }
     }
   }
 
+  /**
+   * Checks if there is another record in the iteration.
+   * This method is now idempotent. Multiple calls without calling next() will
+   * return the same result and not consume any elements.
+   *
+   * @return {@code true} if the iteration has more elements.
+   */
   @Override
   public boolean hasNext() {
-    return hasNextInternal();
+    // If we haven't fetched the next record yet (or it was consumed by next()), fetch it.
+    if (this.nextRecord == null) {
+      tryToFetchNext();
+    }
+    // The iterator has a next element if the fetched record is not our special EOF marker.
+    return this.nextRecord != EOF_RECORD;
   }
 
+  /**
+   * Returns the next record in the iteration.
+   *
+   * @return the next record.
+   * @throws NoSuchElementException if the iteration has no more elements.
+   */
   @Override
   public Record next() {
-    if (currentRecord == EOF_RECORD) {
+    // First, ensure the next record is available and the iterator hasn't reached the end.
+    // hasNext() will call tryToFetchNext() if needed.
+    if (!hasNext()) {
       throw new NoSuchElementException("No more records.");
     }
-    return currentRecord;
+    // Get the pre-fetched record.
+    Record result = this.nextRecord;
+    // VERY IMPORTANT: Clear the pre-fetched record. This signals that the record
+    // has been "consumed" and forces the next call to hasNext() to fetch a new one.
+    this.nextRecord = null;
+    return result;
   }
 
   private void checkError() {
@@ -185,14 +226,11 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void set(int idx, Object value) {
-
     }
-
     @Override public Object get(int i) { return null; }
 
     @Override
     public void set(String columnName, Object value) {
-
     }
 
     @Override
@@ -202,7 +240,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setBigint(int idx, Long value) {
-
     }
 
     @Override
@@ -212,7 +249,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setBigint(String columnName, Long value) {
-
     }
 
     @Override
@@ -222,7 +258,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setDouble(int idx, Double value) {
-
     }
 
     @Override
@@ -232,7 +267,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setDouble(String columnName, Double value) {
-
     }
 
     @Override
@@ -242,7 +276,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setBoolean(int idx, Boolean value) {
-
     }
 
     @Override
@@ -252,7 +285,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setBoolean(String columnName, Boolean value) {
-
     }
 
     @Override
@@ -262,7 +294,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setDatetime(int idx, Date value) {
-
     }
 
     @Override
@@ -272,7 +303,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setDatetime(String columnName, Date value) {
-
     }
 
     @Override
@@ -282,7 +312,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setDecimal(int idx, BigDecimal value) {
-
     }
 
     @Override
@@ -292,7 +321,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setDecimal(String columnName, BigDecimal value) {
-
     }
 
     @Override
@@ -302,7 +330,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setString(int idx, String value) {
-
     }
 
     @Override
@@ -312,7 +339,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setString(String columnName, String value) {
-
     }
 
     @Override
@@ -322,12 +348,10 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void setString(int idx, byte[] value) {
-
     }
 
     @Override
     public void setString(String columnName, byte[] value) {
-
     }
 
     @Override
@@ -342,7 +366,6 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
 
     @Override
     public void set(Object[] values) {
-
     }
 
     @Override
@@ -354,6 +377,9 @@ public class InstanceDataIterator implements Iterator<Record>, AutoCloseable {
     public Record clone() {
       return null;
     }
-    // Implement other Record methods as no-op
+
+    @Override
+    public void clear() {
+    }
   }
 }

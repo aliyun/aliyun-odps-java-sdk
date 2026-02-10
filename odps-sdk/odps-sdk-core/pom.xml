@@ -20,6 +20,16 @@
             <artifactId>odps-sdk-commons</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.aliyun.odps</groupId>
+            <artifactId>odps-arrow-helper</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.aliyun.odps</groupId>
+            <artifactId>odps-sdk-storage-api</artifactId>
+        </dependency>
+
         <!-- Base64 -->
         <dependency>
             <groupId>commons-codec</groupId>

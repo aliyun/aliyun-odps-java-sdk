@@ -33,7 +33,7 @@ import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.arrow.ArrowReader;
-import com.aliyun.odps.table.arrow.ArrowReaderFactory;
+import com.aliyun.odps.table.arrow.ArrowReaderBuilder;
 import com.aliyun.odps.table.configuration.CompressionCodec;
 import com.aliyun.odps.table.configuration.ReaderOptions;
 import com.aliyun.odps.table.enviroment.ExecutionEnvironment;
@@ -82,9 +82,15 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
         openReaderConnection(identifier, split, options);
         initMetrics();
         this.isClosed = false;
-        this.reader = ArrowReaderFactory.getRecordBatchReader(connection.getInputStream(), options);
         this.readerOptions = options;
         this.in = connection.getInputStream();
+        this.reader = ArrowReaderBuilder.newBuilder(in,
+                        options.getBufferAllocator())
+                .withReuseBatch(options.isReuseBatch())
+                .withCompression(options.getCompressionCodec())
+                .withAsync(options.isAsync())
+                .withAsyncQueue(options.getAsyncQueue())
+                .build();
         this.bytesRead = 0;
         this.streamTag = -1;
     }
@@ -110,7 +116,13 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                     }
                     bytesRead += reader.bytesRead();
                     reader.close(false);
-                    reader = ArrowReaderFactory.getRecordBatchReader(in, readerOptions);
+                    reader = ArrowReaderBuilder.newBuilder(in,
+                                    readerOptions.getBufferAllocator())
+                            .withReuseBatch(readerOptions.isReuseBatch())
+                            .withCompression(readerOptions.getCompressionCodec())
+                            .withAsync(readerOptions.isAsync())
+                            .withAsyncQueue(readerOptions.getAsyncQueue())
+                            .build();
                     streamTag = -1;
                     continue;
                 }

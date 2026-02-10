@@ -7,6 +7,8 @@ import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Quota;
+import com.aliyun.odps.sqa.v2.FallbackInfo;
+import com.aliyun.odps.sqa.v2.MaxQAConnInfo;
 import com.aliyun.odps.table.utils.Preconditions;
 
 /**
@@ -40,16 +42,17 @@ public class SQLExecutorBuilder {
   private int tunnelReadTimeout = -1;
 
   private boolean sessionSupportNonSelect = false;
-  private boolean useMcqaV2 = false;
+  private boolean useMaxQA = false;
   private Integer offlineJobPriority = null;
   private String regionId = null;
-  private Quota quota = null;
   private int logviewVersion = 1;
   private long fetchResultSplitSize = 10000;
   private int fetchResultPreloadSplitNum = 2;
   private int fetchResultThreadNum = -1;
   private boolean skipCheckIfSelect = false;
   private boolean enableTypedResult = true;
+
+  private MaxQAConnInfo maxQAConnInfo;
 
   public static SQLExecutorBuilder builder() {
     return new SQLExecutorBuilder();
@@ -78,32 +81,34 @@ public class SQLExecutorBuilder {
     builder.tunnelSocketTimeout = this.tunnelSocketTimeout;
     builder.tunnelReadTimeout = this.tunnelReadTimeout;
     builder.sessionSupportNonSelect = this.sessionSupportNonSelect;
-    builder.useMcqaV2 = this.useMcqaV2;
+    builder.useMaxQA = this.useMaxQA;
     builder.offlineJobPriority = this.offlineJobPriority;
     builder.regionId = this.regionId;
-    builder.quota = this.quota;
     builder.logviewVersion = this.logviewVersion;
     builder.fetchResultSplitSize = this.fetchResultSplitSize;
     builder.fetchResultPreloadSplitNum = this.fetchResultPreloadSplitNum;
     builder.fetchResultThreadNum = this.fetchResultThreadNum;
     builder.skipCheckIfSelect = this.skipCheckIfSelect;
     builder.enableTypedResult = this.enableTypedResult;
+    builder.maxQAConnInfo = this.maxQAConnInfo;
     return builder;
   }
 
   public SQLExecutor build() throws OdpsException {
-    if (useMcqaV2 || executeMode == ExecuteMode.INTERACTIVE_V2) {
+    if (useMaxQA || executeMode == ExecuteMode.INTERACTIVE_V2) {
       Preconditions.checkArgument(executeMode != ExecuteMode.OFFLINE,
                                   "offline executeMode is not supported in mcqa");
+      if (maxQAConnInfo == null) {
+        maxQAConnInfo = odps.quotas().getMaxQAConnInfo(quotaName);
+      } else if (maxQAConnInfo.getConnInfo() == null) {
+        FallbackInfo fallbackInfo = maxQAConnInfo.getFallbackInfo();
+        // reload MaxQA Connection to init conn Info
+        maxQAConnInfo = odps.quotas().getMaxQAConnInfo(maxQAConnInfo.getQuotaName());
+        maxQAConnInfo.setFallbackInfo(fallbackInfo);
+      }
       return new com.aliyun.odps.sqa.v2.SQLExecutorImpl(this);
     }
-    return new SQLExecutorImpl(odps, serviceName, taskName, tunnelEndpoint,
-                               properties, executeMode, fallbackPolicy, enableReattach,
-                               useInstanceTunnel, pool, recoverInstance, runningCluster,
-                               tunnelGetResultMaxRetryTime,
-                               useCommandApi, quotaName, attachTimeout, odpsNamespaceSchema,
-                               tunnelSocketTimeout, tunnelReadTimeout, sessionSupportNonSelect,
-                               offlineJobPriority, logviewVersion, skipCheckIfSelect);
+    return new SQLExecutorImpl(this);
   }
 
   public SQLExecutorBuilder odps(Odps odps) {
@@ -132,14 +137,13 @@ public class SQLExecutorBuilder {
     return this;
   }
 
-  public SQLExecutorBuilder quota(Quota quota) {
-    this.quota = quota;
-    this.quotaName = quota.getNickname();
+  public SQLExecutorBuilder quotaName(String quotaName) {
+    this.quotaName = quotaName;
     return this;
   }
 
-  public SQLExecutorBuilder quotaName(String quotaName) {
-    this.quotaName = quotaName;
+  public SQLExecutorBuilder maxQAConnInfo(MaxQAConnInfo connInfo) {
+    this.maxQAConnInfo = connInfo;
     return this;
   }
 
@@ -213,8 +217,8 @@ public class SQLExecutorBuilder {
     return this;
   }
 
-  public SQLExecutorBuilder enableMcqaV2(boolean mcqaV2) {
-    this.useMcqaV2 = mcqaV2;
+  public SQLExecutorBuilder enableMaxQA(boolean enableMaxQA) {
+    this.useMaxQA = enableMaxQA;
     return this;
   }
 
@@ -294,8 +298,8 @@ public class SQLExecutorBuilder {
     return quotaName;
   }
 
-  public Quota getQuota() {
-    return quota;
+  public MaxQAConnInfo getMaxQAConnInfo() {
+    return maxQAConnInfo;
   }
 
   public SQLExecutorPool getPool() {
@@ -342,8 +346,8 @@ public class SQLExecutorBuilder {
     return sessionSupportNonSelect;
   }
 
-  public boolean isUseMcqaV2() {
-    return useMcqaV2;
+  public boolean isUseMaxQA() {
+    return useMaxQA;
   }
 
   public Integer getOfflineJobPriority() {

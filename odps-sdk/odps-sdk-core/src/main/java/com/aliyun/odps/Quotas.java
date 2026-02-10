@@ -8,11 +8,14 @@ import java.util.Map;
 
 import com.aliyun.odps.Quota.QuotaModel;
 import com.aliyun.odps.commons.transport.Params;
+import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.SimpleXmlUtils;
 import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.sqa.v2.MaxQAConnInfo;
+import com.aliyun.odps.utils.JsonUtils;
 import com.aliyun.odps.utils.StringUtils;
 
 public class Quotas implements Iterable<Quota> {
@@ -96,13 +99,18 @@ public class Quotas implements Iterable<Quota> {
   }
 
   public Quota getWlmQuota(String project, String name, String regionId) throws OdpsException {
+    String tenantId = odps.projects().get(project).getTenantId();
+    return getWlmQuota(project, name, regionId, tenantId);
+  }
+
+
+  public Quota getWlmQuota(String project, String name, String regionId, String tenantId) throws OdpsException {
     if (StringUtils.isNullOrEmpty(name)) {
       throw new IllegalArgumentException("Argument 'name' cannot be null or empty");
     }
     if (StringUtils.isNullOrEmpty(project)) {
       throw new IllegalArgumentException("Argument 'project' cannot be null or empty");
     }
-    String tenantId = odps.projects().get(project).getTenantId();
     return new Quota(odps, regionId, name, tenantId);
   }
 
@@ -134,5 +142,19 @@ public class Quotas implements Iterable<Quota> {
   @Override
   public Iterator<Quota> iterator() {
     return iterator(null);
+  }
+
+  public MaxQAConnInfo getMaxQAConnInfo(String quotaName) throws OdpsException {
+    String resource = "/connection/mcqa";
+    Map<String, String> params = new HashMap<>();
+    if (StringUtils.isNotBlank(quotaName)) {
+      params.put("quota", quotaName);
+    }
+    params.put("project", odps.getDefaultProject());
+
+    Response resp = odps.getRestClient()
+      .request(resource, "GET", params, null, null);
+    String body = new String(resp.getBody());
+    return JsonUtils.fromJson(body, MaxQAConnInfo.class);
   }
 }

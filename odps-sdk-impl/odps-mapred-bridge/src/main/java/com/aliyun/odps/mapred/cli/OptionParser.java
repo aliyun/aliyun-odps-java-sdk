@@ -186,13 +186,14 @@ public class OptionParser {
 
     switch (accountProvider) {
       case ALIYUN:
-        return new AliyunAccount(odpsConf.getAccessId(), odpsConf.getAccessKey());
+        return new AliyunAccount(odpsConf.getAccessId(), odpsConf.getAccessKey(), odpsConf.getRegionId());
 
 
       case STS:
         return new StsAccount(odpsConf.getAccessId(),
                               odpsConf.getAccessKey(),
-                              odpsConf.getStsToken());
+                              odpsConf.getStsToken(),
+                              odpsConf.getRegionId());
       default:
         throw new OdpsException("unsupport account provider:" + accountProvider);
     }

@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,14 +39,18 @@ import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Session;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.TunnelEndpointLocalCache;
+import com.aliyun.odps.commons.util.EmptyIterator;
+import com.aliyun.odps.data.InstanceDataIterator;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
+import com.aliyun.odps.data.StorageAPIResultSet;
 import com.aliyun.odps.sqa.commandapi.Command;
 import com.aliyun.odps.sqa.commandapi.CommandInfo;
 import com.aliyun.odps.sqa.commandapi.RecordIter;
 import com.aliyun.odps.sqa.commandapi.utils.CommandUtil;
 import com.aliyun.odps.sqa.commandapi.utils.SqlParserUtil;
 import com.aliyun.odps.sqa.v2.InMemoryRecordIterator;
+import com.aliyun.odps.table.InstanceIdentifier;
 import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TunnelConstants;
@@ -122,78 +125,39 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   /**
    * 创建一个Executor
-   *
-   * @param odps              odps 对象
-   * @param serviceName       指定 service 的名字
-   * @param taskName          task名字
-   * @param tunnelEndpoint    默认tunnel地址,若不配置,则走路由
-   * @param properties        执行连接参数
-   * @param executeMode       默认执行模式,INTERACTIVE/OFFLINE
-   * @param fallbackPolicy    允许回退到离线执行的策略
-   * @param enableReattach    允许内部重连
-   * @param useInstanceTunnel 默认使用instanceTunnel获取结果,如果设置为false,获取的结果将会全部转为string
-   * @param pool              如果为连接池模式,则保存连接池,在close时将Executor释放回连接池,否则为null
-   * @param recoverInstance   若设置,则从该instance恢复状态,若该instance无效或未设置,则重新attach
-   * @param runningCluster    设置运行集群
-   * @param useCommandApi     是否开启CommandApi，开启后将能够使用SDK内封装的拓展命令
-   * @param odpsNamespaceSchema 是否开启三层模型
-   * @return
-   * @throws OdpsException
    */
-  SQLExecutorImpl(
-      Odps odps,
-      String serviceName,
-      String taskName,
-      String tunnelEndpoint,
-      Map<String, String> properties,
-      ExecuteMode executeMode,
-      FallbackPolicy fallbackPolicy,
-      boolean enableReattach,
-      boolean useInstanceTunnel,
-      SQLExecutorPool pool,
-      Instance recoverInstance,
-      String runningCluster,
-      int tunnelGetResultMaxRetryTime,
-      boolean useCommandApi,
-      String quotaName,
-      Long timeout,
-      boolean odpsNamespaceSchema,
-      int tunnelSocketTimeout,
-      int tunnelReadTimeout,
-      boolean sessionSupportNonSelect,
-      Integer offlineJobPriority,
-      int logviewVersion,
-      boolean skipCheckIfSelect) throws OdpsException {
-    this.properties.putAll(properties);
-    this.serviceName = serviceName;
-    this.taskName = taskName;
-    this.odps = odps;
-    this.executeMode = executeMode;
-    this.fallbackPolicy = fallbackPolicy;
-    this.enableReattach = enableReattach;
-    this.useInstanceTunnel = useInstanceTunnel;
-    this.pool = pool;
-    this.runningCluster = runningCluster;
-    this.tunnelGetResultMaxRetryTime = tunnelGetResultMaxRetryTime;
-    this.useCommandApi = useCommandApi;
-    this.odpsNamespaceSchema = odpsNamespaceSchema;
-    this.fallbackQuota = quotaName;
+  SQLExecutorImpl(SQLExecutorBuilder builder) throws OdpsException {
+    this.properties.putAll(builder.getProperties());
+    this.serviceName = builder.getServiceName();
+    this.taskName = builder.getTaskName();
+    this.odps = builder.getOdps().clone();
+    this.executeMode = builder.getExecuteMode();
+    this.fallbackPolicy = builder.getFallbackPolicy();
+    this.enableReattach = builder.isEnableReattach();
+    this.useInstanceTunnel = builder.isUseInstanceTunnel();
+    this.pool = builder.getPool();
+    this.runningCluster = builder.getRunningCluster();
+    this.tunnelGetResultMaxRetryTime = builder.getTunnelGetResultMaxRetryTime();
+    this.useCommandApi = builder.isUseCommandApi();
+    this.odpsNamespaceSchema = builder.isOdpsNamespaceSchema();
+    this.fallbackQuota = builder.getQuotaName();
     this.commandApi = new CommandApi(odps);
-    this.sessionSupportNonSelect = sessionSupportNonSelect;
-    this.offlineJobPriority = offlineJobPriority;
-    this.logviewVersion = logviewVersion;
-    this.skipCheckIfSelect = skipCheckIfSelect;
-    if (timeout != null) {
-      this.attachTimeout = timeout;
+    this.sessionSupportNonSelect = builder.isSessionSupportNonSelect();
+    this.offlineJobPriority = builder.getOfflineJobPriority();
+    this.logviewVersion = builder.getLogviewVersion();
+    this.skipCheckIfSelect = builder.isSkipCheckIfSelect();
+    this.tunnelEndpoint = builder.getTunnelEndpoint();
+    if (builder.getAttachTimeout() != null) {
+      this.attachTimeout = builder.getAttachTimeout();
     }
-    if (!StringUtils.isNullOrEmpty(quotaName)) {
-      this.properties.put(SQLExecutorConstants.WLM_QUOTA_FLAG, quotaName);
+    if (!StringUtils.isNullOrEmpty(builder.getQuotaName())) {
+      this.properties.put(SQLExecutorConstants.WLM_QUOTA_FLAG, builder.getQuotaName());
     }
     if (executeMode.equals(ExecuteMode.INTERACTIVE)) {
       // try recover
-      if (recoverInstance != null) {
-        if (recoverInstance.getStatus() == Instance.Status.RUNNING) {
-          session = new Session(odps, recoverInstance);
+      if (builder.getRecoverInstance() != null) {
+        if (builder.getRecoverInstance().getStatus() == Instance.Status.RUNNING) {
+          session = new Session(odps, builder.getRecoverInstance());
           attachSuccess = true;
         }
       }
@@ -221,11 +185,11 @@ public class SQLExecutorImpl implements SQLExecutor {
     this.id = UUID.randomUUID().toString();
     if (useInstanceTunnel) {
       instanceTunnel = new InstanceTunnel(odps);
-      if (tunnelSocketTimeout >= 0) {
-        instanceTunnel.getConfig().setSocketConnectTimeout(tunnelSocketTimeout);
+      if (builder.getTunnelSocketTimeout() >= 0) {
+        instanceTunnel.getConfig().setSocketConnectTimeout(builder.getTunnelSocketTimeout());
       }
-      if (tunnelReadTimeout >= 0) {
-        instanceTunnel.getConfig().setSocketTimeout(tunnelReadTimeout);
+      if (builder.getTunnelReadTimeout() >= 0) {
+        instanceTunnel.getConfig().setSocketTimeout(builder.getTunnelReadTimeout());
       }
       if (StringUtils.isNullOrEmpty(tunnelEndpoint)) {
         //try to get tunnelEndpoint from local cache
@@ -236,9 +200,11 @@ public class SQLExecutorImpl implements SQLExecutor {
           throw new OdpsException(
               "Get tunnel endpoint from localCache exception:" + e.getMessage());
         }
+        odps.setTunnelEndpoint(tunnelEndpoint);
         instanceTunnel.setEndpoint(tunnelEndpoint);
         this.tunnelEndpoint = tunnelEndpoint;
       } else {
+        odps.setTunnelEndpoint(tunnelEndpoint);
         instanceTunnel.setEndpoint(tunnelEndpoint);
         this.tunnelEndpoint = tunnelEndpoint;
       }
@@ -537,17 +503,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public List<Record> getResult(Long countLimit)
       throws OdpsException, IOException {
-    if (queryInfo == null) {
-      throw new OdpsException("No query running now.");
-    }
-    if (!useInstanceTunnel && countLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    try {
-      return getResultInternal(null, countLimit, null, false);
-    } catch (Exception e) {
-      throw e;
-    }
+    return getResult(countLimit, null);
   }
 
   /**
@@ -564,21 +520,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public List<Record> getResult(Long countLimit, Long sizeLimit)
       throws OdpsException, IOException {
-    if (queryInfo == null) {
-      throw new OdpsException("No query running now.");
-    }
-    if (!useInstanceTunnel && countLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && sizeLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    try {
-      return getResultInternal(null, countLimit, sizeLimit, false);
-    } catch (Exception e) {
-      throw e;
-    } finally {
-    }
+    return getResult(null, countLimit, sizeLimit);
   }
 
   /**
@@ -597,24 +539,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public List<Record> getResult(Long offset, Long countLimit, Long sizeLimit)
       throws OdpsException, IOException {
-    if (queryInfo == null) {
-      throw new OdpsException("No query running now.");
-    }
-    if (!useInstanceTunnel && offset != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && countLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && sizeLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    try {
-      return getResultInternal(offset, countLimit, sizeLimit, false);
-    } catch (Exception e) {
-      throw e;
-    } finally {
-    }
+      return getResult(offset, countLimit, sizeLimit, false);
   }
 
 
@@ -635,24 +560,19 @@ public class SQLExecutorImpl implements SQLExecutor {
    */
   public List<Record> getResult(Long offset, Long countLimit, Long sizeLimit, boolean limitEnabled)
       throws OdpsException, IOException {
-    if (queryInfo == null) {
-      throw new OdpsException("No query running now.");
+    ResultSet resultSet = getResultSet(offset, countLimit, sizeLimit, limitEnabled);
+    if (resultSet == null) {
+      return Collections.emptyList();
     }
-    if (!useInstanceTunnel && offset != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && countLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && sizeLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
+    List<Record> records = new ArrayList<>();
+    for (Record record : resultSet) {
+      records.add(record);
     }
     try {
-      return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
-    } catch (Exception e) {
-      throw e;
-    } finally {
+      resultSet.close();
+    } catch (Exception ignored) {
     }
+    return records;
   }
 
   /**
@@ -666,18 +586,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public ResultSet getResultSet(Long countLimit)
       throws OdpsException, IOException {
-    if (queryInfo == null) {
-      throw new OdpsException("No query running now.");
-    }
-    if (!useInstanceTunnel && countLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    try {
-      return getResultSetInternal(null, countLimit, null, false);
-    } catch (Exception e) {
-      throw e;
-    } finally {
-    }
+    return getResultSet(countLimit, null);
   }
 
   /**
@@ -693,21 +602,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public ResultSet getResultSet(Long countLimit, Long sizeLimit)
       throws OdpsException, IOException {
-    if (queryInfo == null) {
-      throw new OdpsException("No query running now.");
-    }
-    if (!useInstanceTunnel && countLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && sizeLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    try {
-      return getResultSetInternal(null, countLimit, sizeLimit, false);
-    } catch (Exception e) {
-      throw e;
-    } finally {
-    }
+    return getResultSet(null, countLimit, sizeLimit);
   }
 
   /**
@@ -724,24 +619,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public ResultSet getResultSet(Long offset, Long countLimit, Long sizeLimit)
       throws OdpsException, IOException {
-    if (queryInfo == null) {
-      throw new OdpsException("No query running now.");
-    }
-    if (!useInstanceTunnel && offset != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && countLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    if (!useInstanceTunnel && sizeLimit != null) {
-      throw new OdpsException("Please enable instance tunnel if you want to get limited result.");
-    }
-    try {
-      return getResultSetInternal(offset, countLimit, sizeLimit, false);
-    } catch (Exception e) {
-      throw e;
-    } finally {
-    }
+    return getResultSet(offset, countLimit, sizeLimit, false);
   }
 
   /**
@@ -776,7 +654,6 @@ public class SQLExecutorImpl implements SQLExecutor {
       return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
     } catch (Exception e) {
       throw e;
-    } finally {
     }
   }
 
@@ -1003,29 +880,6 @@ public class SQLExecutorImpl implements SQLExecutor {
     return new ResultSet(records.iterator(), schema, records.size());
   }
 
-  private List<Record> getResultInternal(Long offset, Long countLimit, Long sizeLimit,
-      boolean limitEnabled)
-      throws OdpsException, IOException {
-    // 如果解析成功 走语法树的处理逻辑
-    if (parseSuccess) {
-      return getCommandResult(offset, countLimit, sizeLimit, limitEnabled);
-    }
-
-    if (useInstanceTunnel) {
-      if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
-        return getSessionResultByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
-      } else {
-        return getOfflineResultByInstanceTunnel(countLimit, limitEnabled);
-      }
-    } else {
-      if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
-        return getSessionResult();
-      } else {
-        return getOfflineResult();
-      }
-    }
-  }
-
   private ResultSet getResultSetInternal(Long offset, Long countLimit, Long sizeLimit,
       boolean limitEnabled)
       throws OdpsException, IOException {
@@ -1038,7 +892,7 @@ public class SQLExecutorImpl implements SQLExecutor {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
         return getSessionResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       } else {
-        return getOfflineResultSetByInstanceTunnel(countLimit, limitEnabled);
+        return getOfflineResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
       }
     } else {
       if (queryInfo.getExecuteMode() == ExecuteMode.INTERACTIVE && attachSuccess) {
@@ -1046,123 +900,6 @@ public class SQLExecutorImpl implements SQLExecutor {
       } else {
         return getOfflineResultSet();
       }
-    }
-  }
-
-  private List<Record> getSessionResult()
-      throws OdpsException, IOException {
-    Session.SubQueryResult result = null;
-    try {
-      if (queryInfo.isSelect()) {
-        result = session.getSubQueryResult(queryInfo.getId(), skipCheckIfSelect);
-      } else {
-        result = session.getRawSubQueryResult(queryInfo.getId());
-      }
-    } catch (OdpsException e) {
-      ExecuteMode executeMode = handleSessionException(e.getErrorCode(), e.getMessage());
-      runQueryInternal(executeMode, e.getMessage(), true);
-      return getResultInternal(null, null, null, true);
-    }
-    return result.getRecords();
-  }
-
-  private List<Record> getSessionResultByInstanceTunnel(Long offset, Long countLimit,
-      Long sizeLimit, boolean limitEnabled)
-      throws OdpsException, IOException, RuntimeException {
-    Instance instance = queryInfo.getInstance();
-    List<Record> records = new ArrayList<>();
-    try {
-      InstanceTunnel.DownloadSession downloadSession =
-          instanceTunnel.createDirectDownloadSession(
-              instance.getProject(),
-              instance.getId(),
-              taskName,
-              queryInfo.getId(),
-              limitEnabled);
-      TunnelRecordReader
-          reader =
-          downloadSession
-              .openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit,
-                  sizeLimit == null ? -1 : sizeLimit);
-      while (true) {
-        Record record = reader.read();
-        if (sizeLimit != null && sizeLimit > 0 && reader.getTotalBytes() > sizeLimit) {
-          throw new RuntimeException("InvalidArgument: sizeLimit, fetched data is larger than limit size");
-        }
-        if (record == null) {
-          break;
-        } else {
-          records.add(record);
-        }
-      }
-    } catch (TunnelException e) {
-      TunnelRetryInfo retryInfo = handleTunnelException(e.getErrorCode(), e.getMessage());
-      if (retryInfo.status.equals(TunnelRetryStatus.NEED_RETRY)) {
-        return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
-      } else if (retryInfo.status.equals(TunnelRetryStatus.NON_SELECT_QUERY)) {
-        // non-select may have result.
-        runQueryInternal(ExecuteMode.OFFLINE, retryInfo.errMsg, true);
-        return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
-      } else {
-        ExecuteMode executeMode = handleSessionException(retryInfo.errCode, retryInfo.errMsg);
-        runQueryInternal(executeMode, retryInfo.errMsg, true);
-        return getResultInternal(offset, countLimit, sizeLimit, limitEnabled);
-      }
-    }
-    return records;
-  }
-
-  private List<Record> getOfflineResult() throws OdpsException {
-    queryInfo.getInstance().waitForSuccess();
-    Map<String, Instance.Result> results = queryInfo.getInstance().getTaskResultsWithFormat();
-    Instance.Result result = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
-    String selectResult = result.getString();
-
-    if (selectResult != null) {
-      if (queryInfo.isSelect() && "csv".equalsIgnoreCase(result.getFormat())) {
-        return SQLTask.parseCsvRecord(selectResult);
-      } else {
-        // 非select但是具备结果集的命令
-        return CommandUtil.toRecord(selectResult, "Info");
-      }
-    }
-
-    return new ArrayList<>();
-  }
-
-  private List<Record> getOfflineResultByInstanceTunnel(Long limit, boolean limitEnabled)
-      throws OdpsException, IOException {
-    queryInfo.getInstance().waitForSuccess();
-    if (queryInfo.isSelect()) {
-      try {
-        return SQLTask.getResultByInstanceTunnel(queryInfo.getInstance(),
-                                                 SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
-                                                 limit, limitEnabled);
-      } catch (TunnelException tunnelException) {
-        boolean
-            isSelect =
-            checkIsSelect(tunnelException.getErrorCode(), tunnelException.getMessage());
-        // Tunnel may throw the following exceptions when task failed. In this case, we should
-        // get the error message by API
-        if (!isSelect || TunnelConstants.INSTANCE_NOT_TERMINATED.equals(
-            tunnelException.getErrorCode())
-            || TunnelConstants.TASK_FAILED.equals(tunnelException.getErrorCode())) {
-          queryInfo.addLog(
-              "Use instance tunnel to fetch result failed, fallback to get result by API. Error: ["
-              + tunnelException.getErrorCode() + "] " + tunnelException.getMessage());
-          return getOfflineResult();
-        } else {
-          throw tunnelException;
-        }
-      }
-    } else {
-      queryInfo.addLog("Not select query, fetch result by API instead of instance tunnel.");
-      Map<String, String> results = queryInfo.getInstance().getTaskResults();
-      String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
-      if (StringUtils.isNullOrEmpty(selectResult)) {
-        return new ArrayList<>();
-      }
-      return CommandUtil.toRecord(selectResult, "Info");
     }
   }
 
@@ -1201,14 +938,22 @@ public class SQLExecutorImpl implements SQLExecutor {
               taskName,
               queryInfo.getId(),
               limitEnabled);
+
       // remained for :
       // 1.TunnelException check
       // 2.Check size limit
       // 3.Get return result record count
       reader =
-          downloadSession
-              .openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit,
-                  sizeLimit == null ? -1 : sizeLimit);
+        downloadSession
+          .openRecordReader(offset == null ? 0 : offset, countLimit == null ? -1 : countLimit,
+                            sizeLimit == null ? -1 : sizeLimit);
+
+      if (InternalBlobHelper.containBlob(reader.getTableSchema())) {
+        String errorMsg = "Warning： MCQA not support blob column, fall back to Offline";
+        getExecutionLog().add(errorMsg);
+        runQueryInternal(ExecuteMode.OFFLINE, errorMsg, true);
+        return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
+      }
     } catch (TunnelException e) {
       TunnelRetryInfo retryInfo = handleTunnelException(e.getErrorCode(), e.getMessage());
       if (retryInfo.status.equals(TunnelRetryStatus.NEED_RETRY)) {
@@ -1258,23 +1003,46 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
   }
 
-  private ResultSet getOfflineResultSetByInstanceTunnel(Long limit, boolean limitEnabled)
+  private ResultSet getOfflineResultSetByInstanceTunnel(Long offset, Long countLimit,
+                                                        Long sizeLimit, boolean limitEnabled)
       throws OdpsException, IOException {
     queryInfo.getInstance().waitForSuccess();
     // getResultSet will use instance tunnel, which do not support non-select query
     if (queryInfo.isSelect()) {
-      URI tunnelEndpoint = null;
-      if (!StringUtils.isNullOrEmpty(this.tunnelEndpoint)) {
-        try {
-          tunnelEndpoint = new URI(this.tunnelEndpoint);
-        } catch (URISyntaxException e) {
-          throw new RuntimeException("tunnel endpoint syntax error, please check again.");
-        }
-      }
       try {
-        return SQLTask
-            .getResultSet(queryInfo.getInstance(), SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
-                          limit, limitEnabled, tunnelEndpoint);
+        Instance instance = queryInfo.getInstance();
+        InstanceTunnel.DownloadSession session;
+        try {
+          session =
+            instanceTunnel.createDownloadSession(instance.getProject(), instance.getId(),
+                                                 limitEnabled);
+        } catch (TunnelException tunnelException) {
+          if (tunnelException.getErrorMsg().contains("download instance with blobs")) {
+            if (sizeLimit != null) {
+              getExecutionLog().add("WARN: when feach blob column, size limit will not take effect");
+            }
+            return StorageAPIResultSet.of(odps, instanceTunnel.getConfig(),
+                                          InstanceIdentifier.of(instance.getProject(),
+                                                                      instance.getId()),
+                                          limitEnabled,
+                                          countLimit);
+          }
+          throw tunnelException;
+        }
+
+        long recordCount = session.getRecordCount();
+
+        if (recordCount == 0) {
+          return new ResultSet(EmptyIterator.<Record>emptyIterator(), session.getSchema(), recordCount);
+        }
+        if (countLimit != null && countLimit < recordCount) {
+          recordCount = countLimit;
+        }
+        InstanceDataIterator instanceDataIterator =
+          new InstanceDataIterator(session, offset == null ? 0 : offset, recordCount, 10000, 3, 3);
+
+        return new ResultSet(instanceDataIterator, session.getSchema(), recordCount);
+
       } catch (TunnelException tunnelException) {
         boolean isSelect = checkIsSelect(tunnelException.getErrorCode(), tunnelException.getMessage());
         // Tunnel may throw the following exceptions when task failed. In this case, we should
@@ -1338,6 +1106,19 @@ public class SQLExecutorImpl implements SQLExecutor {
   }
 
   private void runInOffline(String rerunMsg) throws OdpsException {
+    // 从 hints 中解析 odps.instance.priority，如果存在则使用 hint 中的优先级
+    Integer priority = offlineJobPriority;
+    if (queryInfo.getHint() != null) {
+      String priorityHint = queryInfo.getHint().get(SQLExecutorConstants.ODPS_INSTANCE_PRIORITY);
+      if (priorityHint != null) {
+        try {
+          priority = Integer.parseInt(priorityHint);
+        } catch (NumberFormatException e) {
+          // 如果解析失败，使用默认的 offlineJobPriority
+        }
+      }
+    }
+
     Instance instance = SQLTask.run(
         odps,
         odps.getDefaultProject(),
@@ -1345,7 +1126,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
         queryInfo.getHint(),
         null,
-        offlineJobPriority);
+        priority);
 
     queryInfo.setInstance(instance, ExecuteMode.OFFLINE,
         new LogView(odps, logviewVersion).generateLogView(instance, 7 * 24), rerunMsg);

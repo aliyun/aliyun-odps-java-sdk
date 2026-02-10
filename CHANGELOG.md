@@ -1,4 +1,48 @@
 # Changelog
+## [0.57.0-public] - TBD
+
+### ✨ New Features
+* **[Storage API]**: **New `odps-sdk-storage-api` Module** - Introduced a brand-new high-performance Storage API client (`MaxStorageClient`) for reading and writing MaxCompute tables using the Arrow columnar format. Supports distributed batch reads via input splits, write sessions with commit/abort semantics, table preview, blob download, and instance result reading.
+    * *Related APIs*: `MaxStorageClient`, `MaxStorageClient.Builder`, `TableReadSession`, `TableWriteSession`, `InstanceReadSession`, `BlobManager`
+* **[Storage API]**: **Table Read Session** - Supports splitting table data into independent `InputSplit` shards (by size or row range) for parallel processing. Each shard can be read as an Arrow stream.
+    * *Related APIs*: `TableReadSessionBuilder`, `TableReaderBuilder`, `InputSplit`, `IndexedInputSplit`, `RowRangeInputSplit`
+* **[Storage API]**: **Table Write Session** - Supports writing data to MaxCompute tables via Arrow format streams, with explicit commit/abort lifecycle management.
+    * *Related APIs*: `TableWriteSessionBuilder`, `TableWriterBuilder`, `TableArrowWriter`, `AppendTableRecordWriter`, `DeltaTableRecordWriter`
+* **[Storage API]**: **Instance Read Session** - Supports reading query result sets from MaxCompute instances via the Storage API.
+    * *Related APIs*: `InstanceReadSessionBuilder`, `InstanceReadSession`, `InstanceReaderBuilder`
+* **[Storage API]**: **Blob Download** - Supports single and batch blob download operations from MaxCompute storage.
+    * *Related APIs*: `BlobManager.download()`, `BlobManager.batchDownload()`, `BlobDataIterator`
+* **[Arrow Helper]**: **New `odps-arrow-helper` Module** - Extracted Arrow-related utilities into a standalone module, including `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, Arrow type accessors, `ArrowReaderBuilder`, `ArrowStreamRecordReader`, and `SchemaUtils`.
+    * *Related APIs*: `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, `ArrowReaderBuilder`
+* **[SQLExecutor]**: **Storage API Result Set Integration** - `SQLExecutorImpl` now automatically routes result download through the Storage API (`StorageAPIResultSet`) when query results contain `BLOB` columns, improving compatibility and data transfer efficiency.
+    * *Related APIs*: `StorageAPIResultSet`, `InternalBlobHelper`
+* **[SQLExecutor]**: **MaxQA Fallback Configuration** - Added `FallbackInfo` and `MaxQAConnInfo` to support configuring MaxQA quota fallback behavior, allowing automatic fallback to a specified quota when the primary quota is unavailable.
+    * *Related APIs*: `FallbackInfo`, `MaxQAConnInfo`, `SQLExecutorBuilder.maxQAConnInfo()`, `SQLExecutorBuilder.enableMaxQA()`
+* **[RestClient]**: **Request/Response Interceptor Chain** - Added `InterceptorChain`, `RequestInterceptor`, `ResponseInterceptor`, and `InterceptorContext` to support pluggable HTTP request/response interception.
+    * *Related APIs*: `InterceptorChain`, `RequestInterceptor`, `ResponseInterceptor`
+* **[Commons]**: **Added `JsonString` Type** - Added `JsonString` as a lightweight `JsonValue` implementation that wraps a raw JSON string, suitable for scenarios that do not require parsing.
+    * *Related APIs*: `JsonString`
+* **[Commons]**: **Added `RecordReader` and `RecordWriter` Interfaces** - Extracted generic `RecordReader` and `RecordWriter` interfaces into `odps-sdk-commons` for reuse across modules.
+    * *Related APIs*: `RecordReader`, `RecordWriter`
+* **[Odps]**: **Catalog API Host & Stale Metadata Read** - Added `setCatalogApiHost()` / `getCatalogApiHost()` and `setAllowStaleMetadataRead()` / `isAllowStaleMetadataRead()` to `Odps` for configuring the Catalog API endpoint and allowing stale metadata reads.
+    * *Related APIs*: `Odps.setCatalogApiHost()`, `OdpsOptions.allowStaleMetadataRead`
+* **[Quota]**: **MaxQA Connection Info Retrieval** - Added `Quotas.getMaxQAConnInfo(quotaName)` to fetch MaxQA connection information for a given quota.
+    * *Related APIs*: `Quotas.getMaxQAConnInfo()`
+* **[Partition]**: **Partition State Management** - Added `Partition.State` enum and `setState()` method to support setting partition state.
+    * *Related APIs*: `Partition.State`, `Partition.setState()`
+
+### 🚀 Enhancements & Performance
+* **[OdpsType]**: **Added Numeric Codes to `OdpsType` Enum** - Each `OdpsType` enum constant now carries a stable integer code and supports reverse lookup via `OdpsType.fromCode(int)`, facilitating serialization and protocol compatibility.
+* **[Arrow Helper]**: **Refactored Arrow Accessor Layer** - Moved all per-type Arrow column accessors (`ArrowBigIntAccessor`, `ArrowDecimalAccessor`, `ArrowTimestampAccessor`, etc.) into the new `odps-arrow-helper` module, improving modularity and reusability.
+* **[TunnelBufferedWriter]**: **Asynchronous Flush Support** - `TunnelBufferedWriter` now supports non-blocking async flush with a double-buffer swap mechanism (`flush(boolean blocking)`), providing backpressure and improving write throughput for streaming uploads.
+    * *Related APIs*: `TunnelBufferedWriter.flush(boolean blocking)`
+* **[UpsertStream]**: **Async Flush & Buffer Optimization** - `UpsertStreamImpl` now supports asynchronous flush via a configurable `ExecutorService`, with per-bucket double-buffer swap and a `sync()` method for explicit barrier synchronization.
+    * *Related APIs*: `UpsertStream.Builder.setAsyncFlushService()`, `UpsertStreamImpl.sync()`
+* **[CI]**: **Added CodeQL Security Scanning** - Integrated GitHub Actions CodeQL workflow for automated security vulnerability scanning.
+
+### 📦 Dependency Updates
+* **Add**: `com.squareup.okhttp3:okhttp:4.12.0` (shaded in `odps-sdk-storage-api`)
+
 ## [0.56.1-public] - 2026-02-04
 
 ### 🐛 Bug Fixes

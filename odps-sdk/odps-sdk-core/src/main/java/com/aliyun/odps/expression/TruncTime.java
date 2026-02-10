@@ -13,7 +13,6 @@ import com.aliyun.odps.data.GenerateExpression;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.utils.CommonUtils;
-import com.aliyun.odps.utils.OdpsCommonUtils;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)

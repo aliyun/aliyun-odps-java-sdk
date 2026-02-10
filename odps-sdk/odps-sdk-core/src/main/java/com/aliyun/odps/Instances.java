@@ -43,6 +43,8 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementList;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.sqa.v2.MaxQAConnInfo;
+import com.aliyun.odps.utils.JsonUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
@@ -338,13 +340,13 @@ public class Instances implements Iterable<Instance> {
    *     指定的计算集群
    * @param jobName
    *     指定的作业名称
-   * @param mcqaConnHeader
-   *     指定 MCQA 2.0 {@link Quota#getMcqaConnHeader()}
+   * @param maxQAConnInfo
+   *     指定 MaxQA Connection {@link Quotas#getMaxQAConnInfo(String)}
    * @return {@link Instance}对象
    * @throws OdpsException
    */
   public Instance create(String projectName, Task task, Integer priority, String runningCluster,
-                         String jobName, String mcqaConnHeader) throws OdpsException {
+                         String jobName, MaxQAConnInfo maxQAConnInfo) throws OdpsException {
     Job job = new Job();
     job.addTask(task);
     if (priority != null) {
@@ -358,7 +360,7 @@ public class Instances implements Iterable<Instance> {
     if (jobName != null) {
       job.setName(jobName);
     }
-    return create(projectName, job, false, mcqaConnHeader);
+    return create(projectName, job, false, maxQAConnInfo);
   }
 
   /*
@@ -388,12 +390,12 @@ public class Instances implements Iterable<Instance> {
    *     Job定义
    * @param tryWait
    *     是否尝试等待Instance执行完成
-   * @param mcqaConnHeader
-   *     是否使用 MCQA 2.0, 指定 MCQA 2.0 {@link Quota#getMcqaConnHeader()}
+   * @param maxQAConnInfo
+   *     是否使用 MaxQA, 指定 MaxQA {@link Quotas#getMaxQAConnInfo(String)}
    * @return {@link Instance}对象
    * @throws OdpsException
    */
-  Instance create(String project, Job job, boolean tryWait, String mcqaConnHeader) throws OdpsException {
+  Instance create(String project, Job job, boolean tryWait, MaxQAConnInfo maxQAConnInfo) throws OdpsException {
     if (StringUtils.isNullOrEmpty(project)) {
       throw new IllegalArgumentException("project required.");
     }
@@ -406,7 +408,7 @@ public class Instances implements Iterable<Instance> {
         .setRunningCluster(job.getRunningCluster())
         .setJobName(job.getName())
         .setTryWait(tryWait)
-        .setMcqaConnHeader(mcqaConnHeader)
+        .setMaxQAConnInfo(maxQAConnInfo)
         .build();
     return create(job.getTasks(), createInstanceOption);
   }
@@ -475,9 +477,13 @@ public class Instances implements Iterable<Instance> {
     HashMap<String, String> params = new HashMap<String, String>();
 
     String resource = ResourceBuilder.buildInstancesResource(project);
-    if (StringUtils.isNotBlank(option.getMcqaConnHeader())) {
+    if (option.getMaxQAConnInfo() != null) {
       resource = "/mcqa" + resource;
-      headers.put(Headers.ODPS_MCQA_CONN, option.getMcqaConnHeader());
+      headers.put(Headers.ODPS_MCQA_CONN, option.getMaxQAConnInfo().getConnInfo());
+
+      if (option.getMaxQAConnInfo().getFallbackInfo() != null) {
+        headers.put(Headers.ODPS_FALLBACK_INFOS, JsonUtils.toJson(option.getMaxQAConnInfo().getFallbackInfo()));
+      }
     }
     if (option.isTryWait()) {
       params.put("tryWait", null);
@@ -544,8 +550,9 @@ public class Instances implements Iterable<Instance> {
                                                      resp.getHeader(
                                                          Headers.ODPS_MCQA_QUERY_COOKIE)));
     }
-    if (StringUtils.isNotBlank(option.getMcqaConnHeader())) {
-      instance.addUserDefinedHeaders(ImmutableMap.of(Headers.ODPS_MCQA_CONN, option.getMcqaConnHeader()));
+    if (option.getMaxQAConnInfo() != null) {
+      instance.addUserDefinedHeaders(
+        ImmutableMap.of(Headers.ODPS_MCQA_CONN, option.getMaxQAConnInfo().getConnInfo()));
       instance.setMcqaV2(true);
     }
 

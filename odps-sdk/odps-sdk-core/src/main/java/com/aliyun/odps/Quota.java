@@ -15,6 +15,7 @@ import com.aliyun.odps.simpleframework.xml.Element;
 import com.aliyun.odps.simpleframework.xml.ElementMap;
 import com.aliyun.odps.simpleframework.xml.Root;
 import com.aliyun.odps.simpleframework.xml.convert.Convert;
+import com.aliyun.odps.utils.JsonUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
@@ -612,11 +613,14 @@ public class Quota extends LazyLoad {
     return false;
   }
 
+  // Use `Quotas.getMaxQAConnInfo()` instead, this method will check Use:Quota permission and not support auto select quota.
+  @Deprecated
   public String getMcqaConnHeader() {
     lazyLoad();
     return mcqaConnHeader;
   }
 
+  @Deprecated
   public void setMcqaConnHeader(String mcqaConnHeader) {
     if (StringUtils.isNullOrEmpty(mcqaConnHeader)) {
       throw new IllegalArgumentException("McqaConnHeader cannot be null or empty.");

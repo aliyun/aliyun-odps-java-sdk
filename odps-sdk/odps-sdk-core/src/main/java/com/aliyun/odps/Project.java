@@ -78,6 +78,10 @@ public class Project extends LazyLoad {
      */
     FROZEN,
     /**
+     * 用户操作冻结
+     */
+    FROZEN_BY_USER,
+    /**
      * 未知
      */
     UNKOWN
@@ -94,12 +98,7 @@ public class Project extends LazyLoad {
     /**
      * 映射到 Odps 的外部项目，例如 hive
      */
-    external,
-
-    /**
-     * 映射到 Odps 的外部项目 V2，后续将和 external 合并
-     */
-    external_v2
+    external
   }
 
   /**
@@ -407,6 +406,7 @@ public class Project extends LazyLoad {
   private Map<String, String> allProperties;
   private SecurityManager securityManager = null;
   private Clusters clusters;
+  private Boolean externalCatalogBound;
 
   // For compatibility. The static class 'Cluster' had strict schema validation. Unmarshalling will
   // failed because of the new xml tag 'Quotas'.
@@ -428,10 +428,12 @@ public class Project extends LazyLoad {
   public void reload() throws OdpsException {
     String resource = ResourceBuilder.buildProjectResource(model.name);
 
-    Map<String, String> params = null;
+    Map<String, String> params = new HashMap<>();
     if (usedByGroupApi) {
-      params = new HashMap<>();
       params.put("isGroupApi", "true");
+    }
+    if (odps.options().isAllowStaleMetadataRead()) {
+      params.put("cached", "true");
     }
 
     Response resp = client.request(resource, "GET", params, null, null);
@@ -447,9 +449,7 @@ public class Project extends LazyLoad {
       properties = model.properties;
       clusters = model.clusters;
 
-      if (isExternalV2(model.name)) {
-        model.type = ProjectType.external_v2.name();
-      }
+      this.externalCatalogBound = isExternalCatalogBound(model.name);
     } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + ProjectModel.class, e);
     }
@@ -462,7 +462,7 @@ public class Project extends LazyLoad {
    * @param projectName
    * @throws OdpsException
    */
-  private boolean isExternalV2(String projectName) throws OdpsException {
+  private boolean isExternalCatalogBound(String projectName) throws OdpsException {
     if (projectName.equalsIgnoreCase("system_catalog")) {
       return false;
     }
@@ -474,6 +474,13 @@ public class Project extends LazyLoad {
     } else {
       return false;
     }
+  }
+
+  public boolean isExternalCatalogBound() {
+    if (externalCatalogBound == null) {
+      lazyLoad();
+    }
+    return externalCatalogBound;
   }
 
   /**
@@ -498,7 +505,7 @@ public class Project extends LazyLoad {
     Exception readProjectException = null;
     boolean isEpv2;
     try {
-      isEpv2 = getType() == ProjectType.external_v2;
+      isEpv2 = isExternalCatalogBound();
     } catch (Exception e) {
       readProjectException = e;
       isEpv2 = false;
@@ -763,6 +770,9 @@ public class Project extends LazyLoad {
   public void reloadExtendInfo() throws OdpsException {
     Map<String, String> param = new HashMap<>();
     param.put("extended", null);
+    if (odps.options().isAllowStaleMetadataRead()) {
+      param.put("cached", "true");
+    }
     String resource = ResourceBuilder.buildProjectResource(model.name);
     ProjectModel extendedModel = client.request(ProjectModel.class, resource, "GET", param);
 

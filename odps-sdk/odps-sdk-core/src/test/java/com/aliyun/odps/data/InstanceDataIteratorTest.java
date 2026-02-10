@@ -1,6 +1,7 @@
 package com.aliyun.odps.data;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -139,11 +140,15 @@ public class InstanceDataIteratorTest {
   }
 
   @Test
-  @Ignore
   public void testMcqaV2Test() throws Exception {
+    Assume.assumeTrue(odps.projects().exists(MaxQATest.PROJECT_NAME));
+    Assume.assumeTrue(odps.tables().exists(MaxQATest.PROJECT_NAME, TABLE_NAME));
+
+    Odps clone = odps.clone();
+    clone.setDefaultProject(MaxQATest.PROJECT_NAME);
     SQLExecutor executor = SQLExecutorBuilder.builder()
-        .odps(odps)
-        .enableMcqaV2(true)
+        .odps(clone)
+        .enableMaxQA(true)
         .quotaName(MaxQATest.QUOTA_NAME)
         .fetchResultSplitSize(500)
         .fetchResultPreloadSplitNum(10)

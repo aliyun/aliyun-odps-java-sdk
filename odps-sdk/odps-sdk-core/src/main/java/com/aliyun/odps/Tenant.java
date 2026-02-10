@@ -110,8 +110,10 @@ public class Tenant extends LazyLoad {
 
   private TenantModel model;
   private RestClient client;
+  private Odps odps;
 
   Tenant(Odps odps) {
+    this.odps = odps;
     this.model = new TenantModel();
     this.client = odps.getRestClient();
   }
@@ -119,7 +121,11 @@ public class Tenant extends LazyLoad {
   @Override
   public void reload() throws OdpsException {
     String resource = "/tenants";
-    Response response = client.request(resource, "GET", null, null, null);
+    Map<String, String> params = new HashMap<>();
+    if (odps.options().isAllowStaleMetadataRead()) {
+      params.put("cached", "true");
+    }
+    Response response = client.request(resource, "GET", params, null, null);
 
     String json = new String(response.getBody(), StandardCharsets.UTF_8);
     loadFromJson(json);

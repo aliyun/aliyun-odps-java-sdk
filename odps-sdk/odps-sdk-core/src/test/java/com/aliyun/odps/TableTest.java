@@ -685,6 +685,15 @@ public class TableTest extends TestBase {
   }
 
   @Test
+  public void testSetPartitionState() throws OdpsException {
+    Table table = odps.tables().get(PARTITIONED_TABLE_NAME);
+    PartitionSpec spec = new PartitionSpec("p1=1,p2=foo");
+    table.setPartitionState(spec, Partition.State.WRITE_DONE);
+
+    Assert.assertTrue(table.getPartition(spec).isIngestingDone());
+  }
+
+  @Test
   public void testGetObjectTags() throws OdpsException {
     Table table = odps.tables().get(TABLE_NAME_4);
 

@@ -317,4 +317,9 @@ public class UpsertRecord extends ArrayRecord {
         }
         return idx;
     }
+
+    @Override
+    public String toString() {
+        return record.toString();
+    }
 }
