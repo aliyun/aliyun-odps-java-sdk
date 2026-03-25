@@ -29,6 +29,7 @@
     </parent>
 
     <artifactId>odps-sdk-storage-api</artifactId>
+    <name>ODPS Storage API</name>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
