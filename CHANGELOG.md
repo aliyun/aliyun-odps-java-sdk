@@ -1,17 +1,9 @@
 # Changelog
-## [0.57.0-public] - TBD
+## [0.57.0-public] - 2026-03-05
 
 ### ✨ New Features
-* **[Storage API]**: **New `odps-sdk-storage-api` Module** - Introduced a brand-new high-performance Storage API client (`MaxStorageClient`) for reading and writing MaxCompute tables using the Arrow columnar format. Supports distributed batch reads via input splits, write sessions with commit/abort semantics, table preview, blob download, and instance result reading.
+* **[Storage API][Preview]**: **New `odps-sdk-storage-api` Module** - Introduced a brand-new high-performance Storage API client (`MaxStorageClient`) for reading and writing MaxCompute tables using the Arrow columnar format. Supports distributed batch reads via input splits, write sessions with commit/abort semantics, table preview, blob download, and instance result reading.
     * *Related APIs*: `MaxStorageClient`, `MaxStorageClient.Builder`, `TableReadSession`, `TableWriteSession`, `InstanceReadSession`, `BlobManager`
-* **[Storage API]**: **Table Read Session** - Supports splitting table data into independent `InputSplit` shards (by size or row range) for parallel processing. Each shard can be read as an Arrow stream.
-    * *Related APIs*: `TableReadSessionBuilder`, `TableReaderBuilder`, `InputSplit`, `IndexedInputSplit`, `RowRangeInputSplit`
-* **[Storage API]**: **Table Write Session** - Supports writing data to MaxCompute tables via Arrow format streams, with explicit commit/abort lifecycle management.
-    * *Related APIs*: `TableWriteSessionBuilder`, `TableWriterBuilder`, `TableArrowWriter`, `AppendTableRecordWriter`, `DeltaTableRecordWriter`
-* **[Storage API]**: **Instance Read Session** - Supports reading query result sets from MaxCompute instances via the Storage API.
-    * *Related APIs*: `InstanceReadSessionBuilder`, `InstanceReadSession`, `InstanceReaderBuilder`
-* **[Storage API]**: **Blob Download** - Supports single and batch blob download operations from MaxCompute storage.
-    * *Related APIs*: `BlobManager.download()`, `BlobManager.batchDownload()`, `BlobDataIterator`
 * **[Arrow Helper]**: **New `odps-arrow-helper` Module** - Extracted Arrow-related utilities into a standalone module, including `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, Arrow type accessors, `ArrowReaderBuilder`, `ArrowStreamRecordReader`, and `SchemaUtils`.
     * *Related APIs*: `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, `ArrowReaderBuilder`
 * **[SQLExecutor]**: **Storage API Result Set Integration** - `SQLExecutorImpl` now automatically routes result download through the Storage API (`StorageAPIResultSet`) when query results contain `BLOB` columns, improving compatibility and data transfer efficiency.

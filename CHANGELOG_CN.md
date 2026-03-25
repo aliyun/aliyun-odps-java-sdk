@@ -1,16 +1,9 @@
 # 更新日志
-## [0.57.0-public] - 待定
+## [0.57.0-public] - 2026-03-05
 
 ### ✨ 新功能
-* **[Storage API]**: **全新 `odps-sdk-storage-api` 模块** - 引入高性能 Storage API 客户端 `MaxStorageClient`，基于 Arrow 列式格式对 MaxCompute 表进行读写。支持通过 InputSplit 分片实现分布式并行读取、写入会话的 commit/abort 生命周期管理、表数据预览、Blob 下载以及 Instance 结果读取。
+* **[Storage API][Preview]**: **全新 `odps-sdk-storage-api` 模块** - 引入高性能 Storage API 客户端 `MaxStorageClient`，基于 Arrow 列式格式对 MaxCompute 表进行读写。支持通过 InputSplit 分片实现分布式并行读取、写入会话的 commit/abort 生命周期管理、表数据预览、Blob 下载以及 Instance 结果读取。
     * *相关 API*: `MaxStorageClient`, `MaxStorageClient.Builder`, `TableReadSession`, `TableWriteSession`, `InstanceReadSession`, `BlobManager`
-* **[Storage API]**: **表读取会话** - 支持将表数据按 Size 或行范围切分为独立的 `InputSplit` 分片，每个分片可独立以 Arrow 流读取，天然支持并行处理。
-    * *相关 API*: `TableReadSessionBuilder`, `TableReaderBuilder`, `InputSplit`, `IndexedInputSplit`, `RowRangeInputSplit`
-* **[Storage API]**: **表写入会话** - 支持通过 Arrow 格式流写入 MaxCompute 表，提供显式的 commit/abort 语义保证数据一致性。
-    * *相关 API*: `TableWriteSessionBuilder`, `TableWriterBuilder`, `TableArrowWriter`, `AppendTableRecordWriter`, `DeltaTableRecordWriter`
-* **[Storage API]**: **Instance 读取会话** - 支持通过 Storage API 读取 MaxCompute Instance 的查询结果集。
-    * *相关 API*: `InstanceReadSessionBuilder`, `InstanceReadSession`, `InstanceReaderBuilder`
-* **[Storage API]**: **Blob 下载** - 支持从 MaxCompute 存储中单条或批量下载 Blob 数据。
     * *相关 API*: `BlobManager.download()`, `BlobManager.batchDownload()`, `BlobDataIterator`
 * **[Arrow Helper]**: **全新 `odps-arrow-helper` 模块** - 将 Arrow 相关工具类抽取为独立模块，包含 `TableIdentifier`、`InstanceIdentifier`、`StreamIdentifier`、各类型 Arrow Accessor、`ArrowReaderBuilder`、`ArrowStreamRecordReader`、`SchemaUtils` 等。
     * *相关 API*: `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, `ArrowReaderBuilder`
