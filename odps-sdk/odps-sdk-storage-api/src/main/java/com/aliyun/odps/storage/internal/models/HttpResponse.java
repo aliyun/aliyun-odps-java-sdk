@@ -20,6 +20,8 @@
 package com.aliyun.odps.storage.internal.models;
 
 import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
@@ -33,6 +35,8 @@ public class HttpResponse {
   private String body;
 
   private InputStream inputStream;
+
+  private Map<String, List<String>> headers;
 
   public InputStream getInputStream() {
     return inputStream;
@@ -64,5 +68,23 @@ public class HttpResponse {
 
   public void setBody(String body) {
     this.body = body;
+  }
+
+  public Map<String, List<String>> getHeaders() {
+    return headers;
+  }
+
+  public void setHeaders(Map<String, List<String>> headers) {
+    this.headers = headers;
+  }
+
+  public String getFirstHeader(String name) {
+    if (!headers.containsKey(name)) {
+      return null;
+    }
+    if (headers.get(name).isEmpty()) {
+      return "";
+    }
+    return headers.get(name).get(0);
   }
 }

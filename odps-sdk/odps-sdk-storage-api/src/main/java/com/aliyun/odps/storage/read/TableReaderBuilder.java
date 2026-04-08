@@ -54,18 +54,22 @@ public class TableReaderBuilder {
 
   private TableSchema tableSchema;
 
+  private String routeToken;
+
 
   TableReaderBuilder(StorageStub storageStub,
                      TableIdentifier tableId,
                      TableSchema tableSchema,
                      BufferAllocator allocator,
-                     InputSplit inputSplit) {
+                     InputSplit inputSplit,
+                     String routeToken) {
     this.storageStub = storageStub;
     this.tableId = tableId;
     this.sessionId = inputSplit.getSessionId();
     this.tableSchema = tableSchema;
     this.inputSplit = inputSplit;
     this.allocator = allocator;
+    this.routeToken = routeToken;
   }
 
   public TableReaderBuilder withMaxBatchRows(long maxBatchRows) {
@@ -142,7 +146,7 @@ public class TableReaderBuilder {
   }
 
   public ArrowReader build() {
-    InputStream response = storageStub.createTableReadStream(tableId, inputSplit, request);
+    InputStream response = storageStub.createTableReadStream(tableId, inputSplit, request, routeToken);
 
     return new ArrowReaderImpl(this, response);
   }

@@ -20,18 +20,24 @@
 package com.aliyun.odps.storage.internal.models;
 
 import com.aliyun.odps.table.TableIdentifier;
+import com.google.gson.annotations.SerializedName;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
 public class GetWriteStreamRequest {
 
+  @SerializedName("TableId")
+  private String tableId;
+
   private TableIdentifier tableIdentifier;
 
   private String sessionId;
 
+  @SerializedName("StreamId")
   private String streamId;
 
+  @SerializedName("StreamVersion")
   private Long streamVersion;
 
 

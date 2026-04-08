@@ -29,4 +29,10 @@ public class Constants {
   public static final byte OPERATION_UPSERT = 'U';
 
   public static final byte OPERATION_DELETE = 'D';
+
+  public static final String ROUTE_TOKEN_HEADER = "x-odps-max-storage-route-token";
+
+  public static final String AUTO_COMMIT_SESSION_ID = "default";
+
+  public static final String AUTO_COMMIT_DEFAULT_STREAM_ID = "default";
 }

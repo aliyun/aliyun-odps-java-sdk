@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.util.List;
 
 import com.aliyun.odps.data.Blob;
+import com.aliyun.odps.storage.exceptions.BlobDownloadException;
 import com.aliyun.odps.storage.read.BlobDataIterator;
 
 /**

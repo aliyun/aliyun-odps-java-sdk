@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -31,14 +32,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
+import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,9 +53,12 @@ import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.MaxStorageException;
 import com.aliyun.odps.storage.internal.Constants;
 import com.aliyun.odps.storage.internal.StorageStub;
+import com.aliyun.odps.storage.internal.io.RawArrowRequestBody;
+import com.aliyun.odps.storage.internal.models.BlobWriteItem;
 import com.aliyun.odps.storage.internal.models.BlobWriteResponse;
 import com.aliyun.odps.storage.internal.models.CloseWriteStreamRequest;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamResponse;
+import com.aliyun.odps.storage.internal.models.HttpResponse;
 import com.aliyun.odps.storage.internal.models.WriteSchema;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.arrow.ArrowWriter;
@@ -60,9 +66,7 @@ import com.aliyun.odps.table.arrow.compression.OdpsZstdCompressionCodec;
 import com.aliyun.odps.table.arrow.writers.ArrowCompressVectorUnloader;
 import com.aliyun.odps.table.utils.SchemaUtils;
 
-import okhttp3.MediaType;
 import okhttp3.RequestBody;
-import okio.BufferedSink;
 
 /**
  * A buffered ArrowWriter implementation.
@@ -91,7 +95,7 @@ public class TableArrowWriter implements ArrowWriter {
   protected final StorageStub storageStub;
   private final IpcOption ipcOption;
   private List<byte[]> cachedBatches;
-  private List<byte[]> secondaryBatches;
+  private List<byte[]> flushingBatches;
   private volatile Schema schema;
   private final long bufferSize;
   private long cachedSize;
@@ -103,6 +107,17 @@ public class TableArrowWriter implements ArrowWriter {
   private final ReentrantLock flushLock;
   private Future<Void> pendingFlushFuture;
   private volatile MaxStorageException lastAsyncException;
+
+  protected final List<Integer> primaryKeyColumnIndices;
+
+  protected final WriteMode writeMode;
+  protected final String streamingTableId;
+  protected final Long streamingSchemaVersion;
+
+  private String routeToken;
+
+  /** Last request ID from writeTable response, for client logging. */
+  private volatile String lastRequestId;
 
   TableArrowWriter(TableWriterBuilder builder, CreateWriteStreamResponse response) {
     this.sessionId = builder.getSessionId();
@@ -118,8 +133,8 @@ public class TableArrowWriter implements ArrowWriter {
     this.cachedBatches = new ArrayList<>();
     this.autoFlushEnabled = builder.isAutoFlushEnabled();
     this.executorService = builder.getExecutorService();
+    this.flushingBatches = new ArrayList<>();
     if (this.executorService != null) {
-      this.secondaryBatches = new ArrayList<>();
       this.flushLock = new ReentrantLock();
     } else {
       this.flushLock = null;
@@ -129,6 +144,20 @@ public class TableArrowWriter implements ArrowWriter {
     this.bytesWritten = 0;
     this.cachedSize = 0;
     this.recordCount = 0;
+    this.primaryKeyColumnIndices = new ArrayList<>();
+
+    this.writeMode = builder.getWriteMode();
+    this.streamingTableId = response.getTableId();
+    this.streamingSchemaVersion = response.getSchemaVersion();
+
+    List<Column> columns = tableSchema.getColumns();
+    for (int i = 0; i < columns.size(); i++) {
+      Column column = columns.get(i);
+      if (column.isDistributionKey()) {
+        primaryKeyColumnIndices.add(i);
+      }
+    }
+    this.routeToken = response.getRouteToken();
   }
 
   @Override
@@ -137,6 +166,9 @@ public class TableArrowWriter implements ArrowWriter {
       return;
     }
 
+    if (!primaryKeyColumnIndices.isEmpty()) {
+      validateAndSetOperationColumn(root);
+    }
     // Check for any pending async exceptions
     checkLastAsyncException();
 
@@ -246,10 +278,18 @@ public class TableArrowWriter implements ArrowWriter {
       }
     }
 
+    // swap to avoid concurrent modify
+    List<byte[]> swap = cachedBatches;
+    cachedBatches = flushingBatches;
+    flushingBatches = swap;
+
+    this.cachedSize = 0;
+    this.recordCount = 0;
+
     // Flush any remaining data in the current buffer
-    if (!cachedBatches.isEmpty()) {
-      flushInternal(cachedBatches, schema, recordCount);
-      clearCache();
+    if (!flushingBatches.isEmpty()) {
+      flushInternal(flushingBatches, schema, recordCount);
+      this.flushingBatches.clear();
     }
   }
 
@@ -287,11 +327,67 @@ public class TableArrowWriter implements ArrowWriter {
   }
 
   public Blob uploadBlob(long columnId, InputStream data) {
+    if (!primaryKeyColumnIndices.isEmpty()) {
+      throw new ClientException(
+        "Cannot upload blob to PK Delta Table when use RecordWriter or not use 'batch-upload' mode. "
+        + "Use ArrowWriter and set TableWriterBuilder.withBatchBlobUploadEnabled(true) to avoid this exception.");
+    }
+
     BlobWriteResponse
       blobWriteResponse =
       storageStub.tableWriteBlob(tableId, sessionId, streamId, streamVersion, staticPartitionSpec,
                                  columnId, data);
     return Blob.fromReference(blobWriteResponse.getBlobReference());
+  }
+
+  /**
+   * Uploads multiple blobs in a single batch request.
+   * <p>
+   * This is significantly more efficient than calling {@link #uploadBlob(long, InputStream)}
+   * repeatedly, as all blobs are uploaded in a single HTTP request instead of N individual requests.
+   *
+   * <p>Note: This method is not supported for tables with primary keys (Delta Tables).
+   *
+   * @param columnId the column ID of the BLOB column
+   * @param dataList a list of byte arrays, each containing the raw data for one blob
+   * @return a list of {@link Blob} references in the same order as the input list
+   * @throws ClientException if called on a Delta Table or if the server response is inconsistent
+   */
+  public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList) {
+    if (!primaryKeyColumnIndices.isEmpty()) {
+      throw new ClientException(
+        "Cannot batch upload blob to PK Delta Table. "
+        + "Use ArrowWriter and set TableWriterBuilder.withBatchBlobUploadEnabled(true) to avoid this exception.");
+    }
+
+    if (dataList == null || dataList.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    List<BlobWriteItem> items = new ArrayList<>(dataList.size());
+    for (byte[] data : dataList) {
+      BlobWriteItem item = BlobWriteItem.builder()
+        .data(data)
+        .columnId(columnId)
+        .build();
+      items.add(item);
+    }
+
+    BlobWriteResponse response = storageStub.tableBatchWriteBlob(
+      tableId, sessionId, streamId, streamVersion, items);
+
+    List<String> references = response.getBlobReferences();
+    if (references == null || references.size() != dataList.size()) {
+      throw new ClientException(
+        String.format("Mismatch between sent items (%d) and received references (%d).",
+                      dataList.size(), references == null ? 0 : references.size()));
+    }
+
+    List<Blob> result = new ArrayList<>(references.size());
+    for (String ref : references) {
+      result.add(Blob.fromReference(ref));
+    }
+    return result;
   }
 
   @Override
@@ -300,6 +396,11 @@ public class TableArrowWriter implements ArrowWriter {
     flush();
     waitForPendingFlush();
 
+    // In streaming mode, closeWriteStream is not supported
+    if (writeMode == WriteMode.STREAMING || Constants.AUTO_COMMIT_DEFAULT_STREAM_ID.equals(streamId)) {
+      return;
+    }
+
     // Close the write stream
     CloseWriteStreamRequest closeWriteStreamRequest =
       CloseWriteStreamRequest.newBuilder().
@@ -307,19 +408,12 @@ public class TableArrowWriter implements ArrowWriter {
       withStreamId(streamId).
       withStreamVersion(streamVersion).
       build();
-    storageStub.closeWriteStream(tableId, closeWriteStreamRequest);
+    storageStub.closeWriteStream(tableId, closeWriteStreamRequest, routeToken);
   }
 
   public WriteSchema getWriteSchema() {
     return tableSchema;
   }
-
-  private void clearCache() {
-    this.cachedBatches.clear();
-    this.cachedSize = 0;
-    this.recordCount = 0;
-  }
-
   /**
    * Asynchronously flushes the current buffer when double buffering is enabled.
    * This method swaps buffers and schedules the flush operation on a background thread,
@@ -347,8 +441,8 @@ public class TableArrowWriter implements ArrowWriter {
       // After swap: cachedBatches gets the empty list (cleared by previous task's finally),
       // secondaryBatches gets the current data to flush
       List<byte[]> batchesToFlush = cachedBatches;
-      cachedBatches = secondaryBatches;
-      secondaryBatches = batchesToFlush;
+      cachedBatches = flushingBatches;
+      flushingBatches = batchesToFlush;
 
       // Reset counters for the new active buffer
       this.cachedSize = 0;
@@ -393,29 +487,26 @@ public class TableArrowWriter implements ArrowWriter {
     }
 
     // Create a special RequestBody that assembles data in Arrow IPC Stream format
-    RequestBody arrowStreamBody = new RequestBody() {
-      @Override
-      public MediaType contentType() {
-        return MediaType.parse("application/vnd.apache.arrow.stream");
-      }
+    RequestBody arrowStreamBody = new RawArrowRequestBody(batches, flushSchema, ipcOption);
 
-      @Override
-      public void writeTo(@NotNull BufferedSink sink) throws IOException {
-        try (WriteChannel channel = new WriteChannel(Channels.newChannel(sink.outputStream()))) {
-          MessageSerializer.serialize(channel, flushSchema, ipcOption);
-          for (byte[] batchBytes : batches) {
-            sink.write(batchBytes);
-          }
-          if (!ipcOption.write_legacy_ipc_format) {
-            channel.writeIntLittleEndian(MessageSerializer.IPC_CONTINUATION_TOKEN);
-          }
-          channel.writeIntLittleEndian(0);
-        }
-      }
-    };
+    HttpResponse response = storageStub.writeTable(tableId, sessionId, streamId, streamVersion, flushRecordCount,
+                             arrowStreamBody, routeToken, streamingTableId, streamingSchemaVersion);
+    // Extract route token from response headers for next flush
+    String newToken = response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER);
+    if (newToken != null) {
+      this.routeToken = newToken;
+    }
+    String rid = response.getRequestId();
+    if (rid != null && !rid.isEmpty()) {
+      this.lastRequestId = rid;
+    }
+  }
 
-    storageStub.writeTable(tableId, sessionId, streamId, streamVersion, flushRecordCount,
-                           arrowStreamBody);
+  /**
+   * Returns the request ID of the last successful write (flush). For client-side logging.
+   */
+  public String getLastRequestId() {
+    return lastRequestId;
   }
 
   public BufferAllocator getAllocator() {
@@ -432,6 +523,90 @@ public class TableArrowWriter implements ArrowWriter {
       return new DeltaTableRecordWriter(this, rowCountPerBatch);
     } else {
       return new AppendTableRecordWriter(this, rowCountPerBatch);
+    }
+  }
+
+  public long getCachedSize() {
+    return cachedSize;
+  }
+
+  /**
+   * Validates and sets the operation column for tables with primary keys.
+   * Checks that the operation column is not empty, contains only OPERATION_UPSERT or OPERATION_DELETE values,
+   * and sets null values to OPERATION_UPSERT.
+   *
+   * @param root the VectorSchemaRoot to validate
+   */
+  private void validateAndSetOperationColumn(VectorSchemaRoot root) {
+    FieldVector operationVector = root.getVector(Constants.OPERATION_COLUMN_NAME);
+    if (operationVector == null) {
+      throw new ClientException(
+        "Operation column '" + Constants.OPERATION_COLUMN_NAME + "' is required when writing to a table with primary keys.");
+    }
+
+    if (!(operationVector instanceof org.apache.arrow.vector.TinyIntVector)) {
+      throw new ClientException(
+        "Operation column must be of type TinyIntVector for primary key tables.");
+    }
+
+    org.apache.arrow.vector.TinyIntVector tinyIntVector = (org.apache.arrow.vector.TinyIntVector) operationVector;
+
+    for (int i = 0; i < root.getRowCount(); i++) {
+      if (tinyIntVector.isNull(i)) {
+        // Set to OPERATION_UPSERT if null
+        tinyIntVector.setSafe(i, Constants.OPERATION_UPSERT);
+      } else {
+        // Validate the value is either OPERATION_UPSERT or OPERATION_DELETE
+        byte operationValue = tinyIntVector.get(i);
+        if (operationValue != Constants.OPERATION_UPSERT && operationValue != Constants.OPERATION_DELETE) {
+          throw new ClientException(
+            String.format("Invalid operation value '%d' at row %d. Must be '%d' (UPSERT) or '%d' (DELETE).",
+              operationValue, i, Constants.OPERATION_UPSERT, Constants.OPERATION_DELETE));
+        }
+      }
+    }
+  }
+
+
+  /**
+   * ⅰ. recordBatch.Slice(i) 切出对应行，产生一个只有一行的record batch
+   * ⅱ. 对这个只有一行的record batch进行选PK列。PK列会在stream的schema中提供，保持顺序一致，产生一个【仅包含PK列的】【只有一行的】record batch
+   * ⅲ. 对这个record batch进行arrow ipc序列化，最后base64编码成一个string
+   */
+  protected String generateDistributionKeyString(VectorSchemaRoot originalRoot, int rowIndex,
+                                                 List<Integer> pkColumnIndices) {
+    if (pkColumnIndices.isEmpty()) {
+      return null;
+    }
+    try (VectorSchemaRoot singleRowRoot = originalRoot.slice(rowIndex, 1)) {
+
+      // 步骤 ⅱ: 对这个只有一行的 record batch 进行选PK列
+      List<Field> pkFields = new ArrayList<>();
+      List<FieldVector> pkVectors = new ArrayList<>();
+      List<Field> originalFields = singleRowRoot.getSchema().getFields();
+      List<FieldVector> originalVectors = singleRowRoot.getFieldVectors();
+
+      for (int pkIndex : pkColumnIndices) {
+        pkFields.add(originalFields.get(pkIndex));
+        pkVectors.add(originalVectors.get(pkIndex));
+      }
+
+      try (VectorSchemaRoot pkOnlyRoot = new VectorSchemaRoot(pkFields, pkVectors, 1)) {
+        // 步骤 ⅲ: 对这个 record batch 进行 arrow ipc 序列化，最后 base64 编码
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        // TODO：如果开启字典编码，ArrowStreamWriter 需要一个 DictionaryProvider
+        try (ArrowStreamWriter writer = new ArrowStreamWriter(pkOnlyRoot, null, out)) {
+          writer.start();
+          writer.writeBatch();
+          writer.end();
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to write Arrow IPC stream.", e);
+        }
+
+        byte[] ipcBytes = out.toByteArray();
+
+        return Base64.getEncoder().encodeToString(ipcBytes);
+      }
     }
   }
 }

@@ -19,8 +19,6 @@
 
 package com.aliyun.odps.storage.write;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -56,6 +54,7 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
                             CreateWriteStreamResponse response) {
     super(builder, response);
     this.blobColumnIndices = new ArrayList<>();
+
     this.blobColumnIds = new ArrayList<>();
     this.blobChecksumType = builder.getBlobChecksumType();
 
@@ -107,6 +106,7 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
           .data(blobData)
           .withChecksum(blobChecksumType)
           .columnId(columnId)
+          .distributionKey(generateDistributionKeyString(root, row, primaryKeyColumnIndices))
           .build();
         itemsToWrite.add(item);
       }

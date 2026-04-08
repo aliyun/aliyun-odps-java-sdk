@@ -29,6 +29,7 @@ import com.aliyun.odps.storage.internal.StorageStub;
 import com.aliyun.odps.storage.internal.models.BlobWriteItem;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamRequest;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamResponse;
+import com.aliyun.odps.storage.internal.models.GetWriteStreamRequest;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.arrow.ArrowWriter;
 
@@ -65,8 +66,13 @@ public class TableWriterBuilder {
 
   private boolean autoFlushEnabled = true;
 
+  private boolean resume = false;
+
   private ExecutorService executorService;
 
+  private final WriteMode writeMode;
+
+  private String routeToken;
 
   /**
    * Constructs a new TableWriterBuilder with the provided parameters.
@@ -75,6 +81,9 @@ public class TableWriterBuilder {
    * @param tableId     The identifier of the table to write to
    * @param allocator   The buffer allocator for Arrow memory management
    * @param sessionId   The session ID for this write session
+   * @param streamId    The stream ID for this write stream
+   * @param streamVersion The stream version for this write stream
+   * @param writeMode   The write mode (BATCH or STREAMING)
    */
   TableWriterBuilder(StorageStub storageStub,
                      TableIdentifier tableId,
@@ -82,7 +91,9 @@ public class TableWriterBuilder {
                      BufferAllocator allocator,
                      String sessionId,
                      String streamId,
-                     long streamVersion) {
+                     long streamVersion,
+                     WriteMode writeMode,
+                     String routeToken) {
     this.storageStub = storageStub;
     this.tableId = tableId;
     this.staticPartitionSpec = staticPartitionSpec;
@@ -94,6 +105,9 @@ public class TableWriterBuilder {
 
     this.streamVersion = streamVersion;
     this.request.setStreamVersion(streamVersion);
+
+    this.writeMode = writeMode != null ? writeMode : WriteMode.BATCH;
+    this.routeToken = routeToken;
   }
 
   public TableWriterBuilder withBufferSize(long bufferSize) {
@@ -116,6 +130,11 @@ public class TableWriterBuilder {
     return this;
   }
 
+  public TableWriterBuilder withResume(boolean resume) {
+    this.resume = resume;
+    return this;
+  }
+
   public TableWriterBuilder withExecutorService(ExecutorService executorService) {
     this.executorService = executorService;
     return this;
@@ -132,8 +151,18 @@ public class TableWriterBuilder {
    * @throws com.aliyun.odps.storage.MaxStorageException if unable to create the writer
    */
   public ArrowWriter build() {
-    CreateWriteStreamResponse response =
-      storageStub.createTableWriteStream(tableId, sessionId, request);
+    CreateWriteStreamResponse response = null;
+    if (resume) {
+      response = storageStub.getWriteStream(
+              GetWriteStreamRequest.newBuilder()
+                      .withSessionId(sessionId)
+                      .withStreamId(streamId)
+                      .withStreamVersion(streamVersion)
+                      .withTableIdentifier(tableId)
+                      .build(), routeToken);
+    } else {
+      response = storageStub.createTableWriteStream(tableId, sessionId, request, routeToken);
+    }
     if (batchBlobUploadEnabled) {
       return new TableArrowBatchBlobWriter(this, response);
     } else {
@@ -187,5 +216,9 @@ public class TableWriterBuilder {
       executorService = Executors.newSingleThreadExecutor();
     }
     return executorService;
+  }
+
+  public WriteMode getWriteMode() {
+    return writeMode;
   }
 }

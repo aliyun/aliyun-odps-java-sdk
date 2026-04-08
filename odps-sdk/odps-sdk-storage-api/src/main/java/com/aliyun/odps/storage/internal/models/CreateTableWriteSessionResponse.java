@@ -32,6 +32,8 @@ public class CreateTableWriteSessionResponse {
   @SerializedName("WarningMessage")
   protected String warningMessage;
 
+  private String routeToken;
+
   public String getSessionId() {
     return sessionId;
   }
@@ -46,5 +48,13 @@ public class CreateTableWriteSessionResponse {
 
   public void setWarningMessage(String warningMessage) {
     this.warningMessage = warningMessage;
+  }
+
+  public void setRouteToken(String routeToken) {
+    this.routeToken = routeToken;
+  }
+
+  public String getRouteToken() {
+    return routeToken;
   }
 }

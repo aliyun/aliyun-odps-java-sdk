@@ -37,7 +37,7 @@ import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.MaxStorageException;
 import com.aliyun.odps.storage.ServiceException;
 import com.aliyun.odps.storage.internal.io.CrcStrippedInputStream;
-import com.aliyun.odps.storage.internal.retry.RetryHandler;
+import com.aliyun.odps.storage.internal.io.RawArrowRequestBody;
 import com.aliyun.odps.storage.internal.models.BlobWriteItem;
 import com.aliyun.odps.storage.internal.models.BlobWriteRequest;
 import com.aliyun.odps.storage.internal.models.BlobWriteResponse;
@@ -54,11 +54,13 @@ import com.aliyun.odps.storage.internal.models.CreateTableWriteSessionResponse;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamRequest;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamResponse;
 import com.aliyun.odps.storage.internal.models.GetTableWriteSessionResponse;
+import com.aliyun.odps.storage.internal.models.TablePreviewRequest;
 import com.aliyun.odps.storage.internal.models.GetWriteStreamRequest;
 import com.aliyun.odps.storage.internal.models.GetWriteStreamResponse;
 import com.aliyun.odps.storage.internal.models.HttpResponse;
 import com.aliyun.odps.storage.internal.models.ReadSchema;
 import com.aliyun.odps.storage.internal.models.WriteSchema;
+import com.aliyun.odps.storage.internal.retry.RetryHandler;
 import com.aliyun.odps.storage.internal.serializer.ArrowOptionsSerializer;
 import com.aliyun.odps.storage.internal.serializer.ReadSchemaDeserializer;
 import com.aliyun.odps.storage.internal.serializer.WriteSchemaDeserializer;
@@ -163,6 +165,9 @@ public class StorageStub implements Closeable {
     if (StringUtils.isNotBlank(createTableWriteSessionResponse.getWarningMessage())) {
       log.warn(createTableWriteSessionResponse.getWarningMessage());
     }
+    createTableWriteSessionResponse.setRouteToken(
+      response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER));
+
     return createTableWriteSessionResponse;
   }
 
@@ -190,10 +195,12 @@ public class StorageStub implements Closeable {
     if (StringUtils.isNotBlank(resp.getWarningMessage())) {
       log.warn(resp.getWarningMessage());
     }
+    resp.setRouteToken(response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER));
     return resp;
   }
 
-  public void commitTableWriteSession(TableIdentifier tableId, String sessionId) {
+  public void commitTableWriteSession(TableIdentifier tableId, String sessionId,
+                                      String routeToken) {
     log.info("Committing table write session for table: {} with session ID: {}", tableId, sessionId);
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
@@ -203,16 +210,20 @@ public class StorageStub implements Closeable {
     params.put("Target", resource);
     params.put("SessionId", sessionId);
 
+    Map<String, String> headers = buildCommonHeaders();
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
     httpClient.request(
       STORAGE_API_V2_RESOURCE,
       "POST",
       params,
-      buildCommonHeaders(),
+      headers,
       "{}");
     log.info("Successfully committed table write session for table: {} with session ID: {}", tableId, sessionId);
   }
 
-  public void abortTableWriteSession(TableIdentifier tableId, String sessionId) {
+  public void abortTableWriteSession(TableIdentifier tableId, String sessionId, String routeToken) {
     log.info("Aborting table write session for table: {} with session ID: {}", tableId, sessionId);
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
@@ -222,11 +233,16 @@ public class StorageStub implements Closeable {
     params.put("Target", resource);
     params.put("SessionId", sessionId);
 
+    Map<String, String> headers = buildCommonHeaders();
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
+
     httpClient.request(
       STORAGE_API_V2_RESOURCE,
       "POST",
       params,
-      buildCommonHeaders(),
+      headers,
       "{}");
     log.info("Successfully aborted table write session for table: {} with session ID: {}", tableId, sessionId);
   }
@@ -234,7 +250,8 @@ public class StorageStub implements Closeable {
   public CreateWriteStreamResponse createTableWriteStream(
     TableIdentifier tableId,
     String sessionId,
-    CreateWriteStreamRequest request) {
+    CreateWriteStreamRequest request,
+    String routeToken) {
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
                     tableId.getTable());
@@ -243,11 +260,16 @@ public class StorageStub implements Closeable {
     params.put("Target", resource);
     params.put("SessionId", sessionId);
 
+    Map<String, String> headers = buildCommonHeaders();
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
+
     HttpResponse response = httpClient.request(
       STORAGE_API_V2_RESOURCE,
       "POST",
       params,
-      buildCommonHeaders(),
+      headers,
       gson.toJson(request));
 
     log.info(
@@ -258,11 +280,16 @@ public class StorageStub implements Closeable {
       response.getRequestId()
     );
 
-    return gson.fromJson(response.getBody(), CreateWriteStreamResponse.class);
+    CreateWriteStreamResponse createWriteStreamResponse = gson.fromJson(response.getBody(), CreateWriteStreamResponse.class);
+    routeToken = response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER);
+    if (routeToken != null) {
+      createWriteStreamResponse.setRouteToken(routeToken);
+    }
+    return createWriteStreamResponse;
   }
 
   public GetWriteStreamResponse getWriteStream(
-    GetWriteStreamRequest request) {
+    GetWriteStreamRequest request, String routeToken) {
     TableIdentifier tableId = request.getTableIdentifier();
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
@@ -274,21 +301,29 @@ public class StorageStub implements Closeable {
     params.put("StreamId", request.getStreamId());
     params.put("StreamVersion", String.valueOf(request.getStreamVersion()));
 
+    Map<String, String> headers = buildCommonHeaders();
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
+
     HttpResponse response = httpClient.request(
       STORAGE_API_V2_RESOURCE,
-      "GET",
+      "POST",
       params,
-      buildCommonHeaders(),
-      null);
+      headers,
+      gson.toJson(request));
 
     return gson.fromJson(response.getBody(),
                          GetWriteStreamResponse.class);
   }
 
-  public void writeTable(TableIdentifier tableId, String sessionId, String streamId,
+  public HttpResponse writeTable(TableIdentifier tableId, String sessionId, String streamId,
                          long streamVersion,
                          long recordCount,
-                         RequestBody arrowStreamBody) {
+                         RequestBody arrowStreamBody,
+                         String routeToken,
+                         String streamingTableId,
+                         Long streamingSchemaVersion) {
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
                     tableId.getTable());
@@ -300,13 +335,24 @@ public class StorageStub implements Closeable {
     params.put("StreamVersion", String.valueOf(streamVersion));
     params.put("Count", String.valueOf(recordCount));
 
+    if (streamingTableId != null) {
+      params.put("TableId", streamingTableId);
+    }
+    if (streamingSchemaVersion != null) {
+      params.put("SchemaVersion", String.valueOf(streamingSchemaVersion));
+    }
+
     Map<String, String> headers = buildCommonHeaders();
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
 
     try {
       RetryHandler retryHandler = settings.getRetryHandler();
       if (retryHandler == null) {
         retryHandler = new RetryHandler();
       }
+      long startTime = System.currentTimeMillis();
       HttpResponse httpResponse = retryHandler.executeWithRetry(() -> {
         return httpClient.streamUpload(
           STORAGE_API_V2_RESOURCE,
@@ -316,8 +362,10 @@ public class StorageStub implements Closeable {
           arrowStreamBody);
       });
       log.info(
-        "Successfully write table data for table: {} with session ID: {}, stream ID: {}, request ID: {}",
-        tableId, sessionId, streamId, httpResponse.getRequestId());
+        "Successfully write {} bytes(compressed) to table: {}, cost {}ms, request ID: {}",
+        ((RawArrowRequestBody)arrowStreamBody).getTotalBytes(), tableId, System.currentTimeMillis() - startTime,
+        httpResponse.getRequestId());
+      return httpResponse;
     } catch (Exception e) {
       if (e instanceof ClientException) {
         throw (ClientException) e;
@@ -330,7 +378,8 @@ public class StorageStub implements Closeable {
   }
 
   public CloseWriteStreamResponse closeWriteStream(TableIdentifier tableId,
-    CloseWriteStreamRequest request) {
+                                                   CloseWriteStreamRequest request,
+                                                   String routeToken) {
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
                     tableId.getTable());
@@ -339,11 +388,16 @@ public class StorageStub implements Closeable {
     params.put("Target", resource);
     params.put("SessionId", request.getSessionId());
 
+    Map<String, String> headers = buildCommonHeaders();
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
+
     HttpResponse response = httpClient.request(
       STORAGE_API_V2_RESOURCE,
       "POST",
       params,
-      buildCommonHeaders(),
+      headers,
       gson.toJson(request));
 
     log.info(
@@ -374,7 +428,10 @@ public class StorageStub implements Closeable {
     CreateTableReadSessionResponse
       createTableReadSessionResponse =
       gson.fromJson(response.getBody(), CreateTableReadSessionResponse.class);
+    createTableReadSessionResponse.setRouteToken(response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER));
+
     log.info("Successfully created table read session with ID: {}", createTableReadSessionResponse.getSessionId());
+
     return createTableReadSessionResponse;
   }
 
@@ -398,14 +455,21 @@ public class StorageStub implements Closeable {
       buildCommonHeaders(),
       "{}");
 
-    return gson.fromJson(response.getBody(), CreateTableReadSessionResponse.class);
+    CreateTableReadSessionResponse
+      getTableReadSessionResponse =
+      gson.fromJson(response.getBody(), CreateTableReadSessionResponse.class);
+    getTableReadSessionResponse.setRouteToken(response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER));
+
+    log.info("Successfully get table read session with ID: {}", getTableReadSessionResponse.getSessionId());
+    return getTableReadSessionResponse;
   }
 
   // --- Stream Management ---
 
   public InputStream createTableReadStream(TableIdentifier tableId,
                                            InputSplit split,
-                                           CreateTableReadStreamRequest request) {
+                                           CreateTableReadStreamRequest request,
+                                           String routeToken) {
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
                     tableId.getTable());
@@ -425,6 +489,10 @@ public class StorageStub implements Closeable {
     Map<String, String> headers = buildCommonHeaders();
     headers.put("ACCEPT-ENCODING", "x-lz4-frame");
 
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
+
     HttpResponse response = httpClient.streamDownload(
       STORAGE_API_V2_RESOURCE,
       "POST",
@@ -439,7 +507,7 @@ public class StorageStub implements Closeable {
   }
 
   public InputStream preview(TableIdentifier tableId, String partitionSpec,
-                             String columns, Integer limit) {
+                             List<String> columns, Integer limit) {
     String resource =
       String.format("projects.%s.schemas.%s.tables.%s", tableId.getProject(), tableId.getSchema(),
                     tableId.getTable());
@@ -455,15 +523,15 @@ public class StorageStub implements Closeable {
       params.put("Partition", partitionSpec);
     }
 
-    Map<String, Object> body = new HashMap<>();
+    TablePreviewRequest request = new TablePreviewRequest();
     if (limit != null) {
-      body.put("Limit", limit);
+      request.setLimit(limit);
     }
     if (partitionSpec != null) {
-      body.put("Partition", partitionSpec);
+      request.setPartition(partitionSpec);
     }
     if (columns != null) {
-      body.put("Columns", columns);
+      request.setColumns(columns);
     }
 
     HttpResponse response = httpClient.streamDownload(
@@ -471,7 +539,7 @@ public class StorageStub implements Closeable {
       "POST",
       params,
       buildCommonHeaders(),
-      gson.toJson(body));
+      gson.toJson(request));
 
     log.info("Successfully preview table: {}, request ID: {}", tableId,
              response.getRequestId());

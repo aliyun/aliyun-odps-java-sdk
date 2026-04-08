@@ -45,6 +45,7 @@ public final class Column implements Serializable {
   private String defaultValue = null;
   private boolean isNullable = true;
   private boolean hasDefaultValue = false;
+  private boolean isDistributionKey = false;
 
   private List<OdpsType> genericOdpsTypeList;
   private List<String> extendedLabels;
@@ -127,6 +128,7 @@ public final class Column implements Serializable {
     this.columnId = columnBuilder.columnId;
     this.hasDefaultValue = columnBuilder.hasDefaultValue;
     this.defaultValue = columnBuilder.defaultValue;
+    this.isDistributionKey = columnBuilder.isDistributionKey;
   }
 
   /**
@@ -404,6 +406,10 @@ public final class Column implements Serializable {
     this.generateExpression = generateExpression;
   }
 
+  public boolean isDistributionKey() {
+    return isDistributionKey;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -442,6 +448,7 @@ public final class Column implements Serializable {
     private boolean hasDefaultValue;
     private String defaultValue;
     private Long columnId;
+    private boolean isDistributionKey;
 
     private ColumnBuilder(String name, TypeInfo typeInfo) {
       this.name = name;
@@ -481,6 +488,11 @@ public final class Column implements Serializable {
 
     public ColumnBuilder withColumnId(Long columnId) {
       this.columnId = columnId;
+      return this;
+    }
+
+    public ColumnBuilder isDistributionKey(boolean isDistributionKey) {
+      this.isDistributionKey = isDistributionKey;
       return this;
     }
 

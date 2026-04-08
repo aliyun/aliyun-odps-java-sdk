@@ -32,7 +32,7 @@ import com.aliyun.odps.table.TableIdentifier;
  * with a specific table and provides methods to create writers, commit or abort
  * the write operation.
  *
- * <p>Example usage:
+ * <p>Example usage (Batch mode):
  * <pre>{@code
  * TableIdentifier tableId = TableIdentifier.of("my_project", "my_table");
  * try (TableWriteSession session = client.createWriteSessionBuilder(tableId).build()) {
@@ -43,9 +43,22 @@ import com.aliyun.odps.table.TableIdentifier;
  * }
  * }</pre>
  *
- * <p>The session must be either committed or aborted to properly clean up resources.
- * If neither commit() nor abort() is called before closing the session, abort() 
- * will be called automatically.
+ * <p>Example usage (Streaming mode):
+ * <pre>{@code
+ * TableIdentifier tableId = TableIdentifier.of("my_project", "my_table");
+ * try (TableWriteSession session = client.createWriteSessionBuilder(tableId)
+ *         .withWriteMode(WriteMode.STREAMING).build()) {
+ *     TableArrowWriter writer = session.createWriterBuilder("stream1", 1).build();
+ *     // Write data using writer
+ *     writer.writeBatch(root);
+ *     writer.flush(); // Data becomes visible immediately
+ *     writer.close();
+ *     // No commit needed for streaming mode
+ * }
+ * }</pre>
+ *
+ * <p>The session must be either committed or aborted to properly clean up resources
+ * in BATCH mode. In STREAMING mode, data is visible after flush and no commit is needed.
  */
 public class TableWriteSession implements AutoCloseable {
 
@@ -56,6 +69,8 @@ public class TableWriteSession implements AutoCloseable {
   private final String id;
   private final TableIdentifier tableId;
   private final PartitionSpec staticPartitionSpec;
+  private final WriteMode writeMode;
+  private String routeToken;
 
   /**
    * Constructs a new TableWriteSession with the provided parameters.
@@ -64,18 +79,23 @@ public class TableWriteSession implements AutoCloseable {
    * @param tableId     The identifier of the table to write to
    * @param allocator   The buffer allocator for Arrow memory management
    * @param sessionId   The sessionId of Write Session
+   * @param writeMode   The write mode (BATCH or STREAMING)
+   * @param routeToken  The route token for routing the write request
    */
   TableWriteSession(StorageStub storageStub,
                            TableIdentifier tableId,
                            PartitionSpec staticPartitionSpec,
                            BufferAllocator allocator,
-                           String sessionId) {
+                           String sessionId,
+                    WriteMode writeMode,
+                    String routeToken) {
     this.storageStub = storageStub;
     this.tableId = tableId;
     this.allocator = allocator;
     this.staticPartitionSpec = staticPartitionSpec;
-
     this.id = sessionId;
+    this.writeMode = writeMode != null ? writeMode : WriteMode.BATCH;
+    this.routeToken = routeToken;
   }
   /**
    * Gets the unique identifier of this write session.
@@ -84,6 +104,15 @@ public class TableWriteSession implements AutoCloseable {
    */
   public String getId() {
     return id;
+  }
+
+  /**
+   * Gets the write mode of this session.
+   *
+   * @return The write mode
+   */
+  public WriteMode getWriteMode() {
+    return writeMode;
   }
 
 
@@ -103,7 +132,8 @@ public class TableWriteSession implements AutoCloseable {
     if (streamVersion < 1) {
       throw new IllegalArgumentException("streamVersion must be >= 1, but was: " + streamVersion);
     }
-    return new TableWriterBuilder(storageStub, tableId, staticPartitionSpec, allocator, id, streamId, streamVersion);
+    return new TableWriterBuilder(storageStub, tableId, staticPartitionSpec, allocator, id,
+                                  streamId, streamVersion, writeMode, routeToken);
   }
 
   /**
@@ -113,11 +143,20 @@ public class TableWriteSession implements AutoCloseable {
    * After this call, all data written through the writers associated with this session
    * will be visible in the table. The session is automatically closed after committing.
    *
+   * <p>Note: In STREAMING mode, this method is a no-op since data is already visible
+   * after flush.
+   *
    * @throws IllegalStateException if the session is already closed
    */
   public void commit() {
     checkNotClosed();
-    storageStub.commitTableWriteSession(tableId, id);
+    if (writeMode == WriteMode.STREAMING) {
+      // In streaming mode, commit is not needed as data is visible after flush
+      committed = true;
+      closed = true;
+      return;
+    }
+    storageStub.commitTableWriteSession(tableId, id, routeToken);
     committed = true;
     closed = true;
   }
@@ -128,12 +167,20 @@ public class TableWriteSession implements AutoCloseable {
    * <p>This method makes an API call to the MaxCompute service to abort the write session.
    * After this call, all data written through the writers associated with this session
    * will be discarded. The session is automatically closed after aborting.
+   *
+   * <p>Note: In STREAMING mode, this method is a no-op since data is already visible
+   * after flush and cannot be aborted.
    */
   public void abort() {
     if (closed) {
       return;
     }
-    storageStub.abortTableWriteSession(tableId, id);
+    if (writeMode == WriteMode.STREAMING) {
+      // In streaming mode, abort is not applicable as data is already visible
+      closed = true;
+      return;
+    }
+    storageStub.abortTableWriteSession(tableId, id, routeToken);
     closed = true;
   }
 
@@ -145,6 +192,9 @@ public class TableWriteSession implements AutoCloseable {
    * This behavior is intentional to prevent data inconsistency when a session is closed
    * without explicit commitment.
    *
+   * <p>In STREAMING mode, this method simply marks the session as closed without
+   * additional cleanup since data is already visible after flush.
+   *
    * <p>If you want to explicitly close the session without aborting, call {@link #commit()}
    * before calling this method.
    *
@@ -155,7 +205,7 @@ public class TableWriteSession implements AutoCloseable {
     if (closed) {
       return;
     }
-    
+
     if (!committed) {
       abort();
     }

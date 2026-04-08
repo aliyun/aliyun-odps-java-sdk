@@ -19,7 +19,6 @@
 
 package com.aliyun.odps.storage.internal.models;
 
-import com.aliyun.odps.TableSchema;
 import com.google.gson.annotations.SerializedName;
 
 /**
@@ -30,11 +29,49 @@ public class CreateWriteStreamResponse {
   @SerializedName("TableSchema")
   protected WriteSchema dataSchema;
 
+  /**
+   * TableId returned in streaming mode, required for flush operations.
+   */
+  @SerializedName("TableId")
+  protected String tableId;
+
+  /**
+   * SchemaVersion returned in streaming mode, required for flush operations.
+   */
+  @SerializedName("SchemaVersion")
+  protected Long schemaVersion;
+
+  private String routeToken;
+
   public WriteSchema getDataSchema() {
     return dataSchema;
   }
 
   public void setDataSchema(WriteSchema dataSchema) {
     this.dataSchema = dataSchema;
+  }
+
+  public String getRouteToken() {
+    return routeToken;
+  }
+
+  public void setRouteToken(String routeToken) {
+    this.routeToken = routeToken;
+  }
+
+  public String getTableId() {
+    return tableId;
+  }
+
+  public void setTableId(String tableId) {
+    this.tableId = tableId;
+  }
+
+  public Long getSchemaVersion() {
+    return schemaVersion;
+  }
+
+  public void setSchemaVersion(Long schemaVersion) {
+    this.schemaVersion = schemaVersion;
   }
 }

@@ -79,6 +79,7 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
       }
       boolean isNullable = getJsonBoolean(typeInfoJson, "Nullable", true);
       boolean hasDefaultValue = getJsonBoolean(typeInfoJson, "HasDefaultValue", false);
+      boolean isDistributionKey = getJsonBoolean(typeInfoJson, "IsDistributionKey", false);
       String defaultValue = getJsonString(typeInfoJson, "DefaultValue", "");
       TypeInfo typeInfo = parseTypeInfo(typeInfoJson);
 
@@ -87,7 +88,8 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
       Column.ColumnBuilder builder = Column.newBuilder(name, typeInfo)
         .withComment(comment)
         .withLabel(label)
-        .withColumnId(columnId);
+        .withColumnId(columnId)
+        .isDistributionKey(isDistributionKey);
 
       if (hasDefaultValue) {
         builder.withDefaultValue(defaultValue);

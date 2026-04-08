@@ -62,13 +62,13 @@ public class BlobWriteItem {
     @SerializedName("ColumnIndex")
     private long columnIndex;
 
-    @SerializedName("PrimaryKey")
-    private String primaryKey;
+    @SerializedName("DistributionKey")
+    private String distributionKey;
 
-    Header(List<String> partitionValues, long columnIndex, String primaryKey) {
+    Header(List<String> partitionValues, long columnIndex, String distributionKey) {
       this.partitionValues = partitionValues;
       this.columnIndex = columnIndex;
-      this.primaryKey = primaryKey;
+      this.distributionKey = distributionKey;
     }
   }
 
@@ -212,8 +212,8 @@ public class BlobWriteItem {
       return this;
     }
 
-    public Builder primaryKey(String primaryKey) {
-      this.primaryKey = Objects.requireNonNull(primaryKey, "PrimaryKey cannot be null.");
+    public Builder distributionKey(String distributionKey) {
+      this.primaryKey = distributionKey;
       return this;
     }
 

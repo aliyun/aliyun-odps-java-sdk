@@ -68,6 +68,7 @@ public class TableReadSession implements AutoCloseable {
   private final StorageStub storageStub;
   private final TableIdentifier tableId;
   private final List<InputSplit> splits;
+  private String routeToken;
 
   /**
    * Constructs a new TableReadSession with the provided parameters.
@@ -89,6 +90,7 @@ public class TableReadSession implements AutoCloseable {
     this.id = response.getSessionId();
     this.schema = response.getDataSchema();
     this.splitMode = response.getSplitMode();
+    this.routeToken = response.getRouteToken();
 
     switch (splitMode) {
       case SIZE:
@@ -162,7 +164,7 @@ public class TableReadSession implements AutoCloseable {
    * @return A new TableReaderBuilder instance to configure the Arrow reader
    */
   public TableReaderBuilder createReaderBuilder(InputSplit split) {
-    return new TableReaderBuilder(storageStub, tableId, schema, allocator, split);
+    return new TableReaderBuilder(storageStub, tableId, schema, allocator, split, routeToken);
   }
 
   public void close() {

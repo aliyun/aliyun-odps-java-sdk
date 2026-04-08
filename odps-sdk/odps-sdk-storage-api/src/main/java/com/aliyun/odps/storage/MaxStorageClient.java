@@ -126,7 +126,7 @@ public class MaxStorageClient implements AutoCloseable {
    *
    * @return A new Builder instance for configuring and creating MaxStorageClient instances
    */
-  public static MaxStorageClient.Builder builder() {
+  public static Builder builder() {
     return new Builder();
   }
 
@@ -164,8 +164,7 @@ public class MaxStorageClient implements AutoCloseable {
   public ArrowReader previewTable(TableIdentifier table, PartitionSpec partition,
                                   List<String> columns, Integer limit) {
     String partitionParam = partition == null ? null : partition.toString(false, false);
-    String columnsParam = columns == null ? null : String.join(",", columns);
-    return new ArrowReaderImpl(storageStub.preview(table, partitionParam, columnsParam, limit),
+    return new ArrowReaderImpl(storageStub.preview(table, partitionParam, columns, limit),
                                this.allocator);
   }
 

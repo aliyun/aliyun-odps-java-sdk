@@ -78,6 +78,8 @@ public class CreateTableReadSessionResponse {
   @SerializedName("SupportedDataFormat")
   private List<DataFormat> supportedDataFormat;
 
+  private String routeToken;
+
 
   public ReadSchema getDataSchema() {
     return dataSchema;
@@ -199,5 +201,13 @@ public class CreateTableReadSessionResponse {
   public void setSupportedDataFormat(
     List<DataFormat> supportedDataFormat) {
     this.supportedDataFormat = supportedDataFormat;
+  }
+
+  public void setRouteToken(String routeToken) {
+    this.routeToken = routeToken;
+  }
+
+  public String getRouteToken() {
+    return routeToken;
   }
 }

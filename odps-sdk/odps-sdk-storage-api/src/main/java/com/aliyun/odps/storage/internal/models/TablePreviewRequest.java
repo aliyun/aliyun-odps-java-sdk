@@ -19,36 +19,45 @@
 
 package com.aliyun.odps.storage.internal.models;
 
-import java.util.Map;
+import java.util.List;
 
 import com.google.gson.annotations.SerializedName;
 
 /**
- * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
+ * Request body for table preview operation.
  */
-public class GetTableWriteSessionResponse {
+public class TablePreviewRequest {
 
-  @SerializedName("WarningMessage")
-  protected String warningMessage;
+  @SerializedName("Limit")
+  private Integer limit;
 
-  @SerializedName("Streams")
-  protected Map<String, Long> streams;
+  @SerializedName("Partition")
+  private String partition;
 
-  protected String routeToken;
+  @SerializedName("Columns")
+  private List<String> columns;
 
-  public Map<String, Long> getStreams() {
-    return streams;
+  public Integer getLimit() {
+    return limit;
   }
 
-  public String getWarningMessage() {
-    return warningMessage;
+  public void setLimit(Integer limit) {
+    this.limit = limit;
   }
 
-  public String getRouteToken() {
-    return routeToken;
+  public String getPartition() {
+    return partition;
   }
 
-  public void setRouteToken(String routeToken) {
-    this.routeToken = routeToken;
+  public void setPartition(String partition) {
+    this.partition = partition;
+  }
+
+  public List<String> getColumns() {
+    return columns;
+  }
+
+  public void setColumns(List<String> columns) {
+    this.columns = columns;
   }
 }

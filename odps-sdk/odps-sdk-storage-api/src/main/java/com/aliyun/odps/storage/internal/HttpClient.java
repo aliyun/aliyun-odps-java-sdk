@@ -135,6 +135,8 @@ public class HttpClient {
     if (StringUtils.isBlank(this.endpoint)) {
       this.endpoint = getTunnelEndpoint(settings);
     }
+    log.info("Use storage api endpoint: {}", this.endpoint);
+
     this.retryHandler =
       settings.getRetryHandler() != null ? settings.getRetryHandler() : new RetryHandler();
 
@@ -161,7 +163,6 @@ public class HttpClient {
     } else {
       tunnelEndpoint = "http://" + tunnelEndpoint;
     }
-    log.info("Automatic discovery storage api endpoint: {}", tunnelEndpoint);
     return tunnelEndpoint;
   }
 
@@ -205,6 +206,7 @@ public class HttpClient {
       httpResponse.setRequestId(response.header(ODPS_REQUEST_ID));
       httpResponse.setBody(
         responseBody != null ? new String(responseBody.bytes(), StandardCharsets.UTF_8) : null);
+      httpResponse.setHeaders(response.headers().toMultimap());
       return httpResponse;
     } catch (IOException e) {
       throw new ClientException(e);
@@ -263,6 +265,8 @@ public class HttpClient {
       httpResponse.setStatusCode(response.code());
       httpResponse.setRequestId(response.header(ODPS_REQUEST_ID));
       httpResponse.setBody(responseBody != null ? new String(responseBody.bytes(), StandardCharsets.UTF_8) : null);
+      httpResponse.setHeaders(response.headers().toMultimap());
+
       return httpResponse;
     } catch (IOException e) {
       throw new ClientException(e);

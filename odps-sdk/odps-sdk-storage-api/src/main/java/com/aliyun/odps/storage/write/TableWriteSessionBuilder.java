@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.storage.write;
 
+import com.aliyun.odps.storage.internal.Constants;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.aliyun.odps.PartitionSpec;
@@ -35,6 +36,7 @@ import com.aliyun.odps.utils.StringUtils;
  * <ul>
  *   <li>Partition specifications for writing data to specific partitions</li>
  *   <li>Overwrite mode for replacing existing data</li>
+ *   <li>Write mode (Batch or Streaming)</li>
  * </ul>
  *
  * <p>Example usage:
@@ -45,8 +47,18 @@ import com.aliyun.odps.utils.StringUtils;
  *     .withOverwrite(true);
  * TableWriteSession session = builder.build();
  * }</pre>
+ *
+ * <p>Streaming mode example:
+ * <pre>{@code
+ * TableIdentifier tableId = TableIdentifier.of("my_project", "my_table");
+ * TableWriteSessionBuilder builder = client.createWriteSessionBuilder(tableId)
+ *     .withWriteMode(WriteMode.STREAMING);
+ * TableWriteSession session = builder.build();
+ * }</pre>
  */
 public class TableWriteSessionBuilder {
+
+  private static final String DEFAULT_STREAMING_SESSION_ID = "default";
 
   private final CreateTableWriteSessionRequest
     createTableWriteSessionRequest =
@@ -57,6 +69,7 @@ public class TableWriteSessionBuilder {
   private final BufferAllocator allocator;
   private PartitionSpec partitionSpec;
   private String sessionId;
+  private WriteMode writeMode = WriteMode.BATCH;
 
   /**
    * Constructs a new TableWriteSessionBuilder with the provided parameters.
@@ -117,26 +130,55 @@ public class TableWriteSessionBuilder {
   }
 
   /**
+   * Sets the write mode for the session.
+   *
+   * <p>In BATCH mode (default), data becomes visible only after the session is committed.
+   * In STREAMING mode, data becomes visible immediately after flush, without requiring
+   * explicit commit. Streaming mode uses a default session ID and does not require
+   * explicit session creation.
+   *
+   * @param writeMode The write mode to use (BATCH or STREAMING)
+   * @return This builder instance for method chaining
+   */
+  public TableWriteSessionBuilder withWriteMode(WriteMode writeMode) {
+    this.writeMode = writeMode != null ? writeMode : WriteMode.BATCH;
+    return this;
+  }
+
+  /**
    * Builds and returns a new TableWriteSession instance with the configured settings.
    *
-   * <p>This method makes an API call to the MaxCompute service to create a write session
-   * with the specified configuration. The session can then be used to write data to
-   * the table in a distributed manner.
+   * <p>For BATCH mode, this method makes an API call to the MaxCompute service to create
+   * a write session with the specified configuration.
+   *
+   * <p>For STREAMING mode, no session creation API call is made. The session uses a
+   * default session ID ("default") and data becomes visible immediately after flush.
    *
    * @return A new TableWriteSession instance
    */
   public TableWriteSession build() {
-    if (StringUtils.isNotBlank(sessionId)) {
-      GetTableWriteSessionResponse getTableWriteSessionResponse =
-        storageStub.getTableWriteSession(table, sessionId);
+    if (writeMode == WriteMode.STREAMING) {
+      // Streaming mode: use default session ID without creating session
       return new TableWriteSession(storageStub, table, partitionSpec, allocator,
-                                   sessionId);
+                                   DEFAULT_STREAMING_SESSION_ID, writeMode, null);
+    }
+
+    if (StringUtils.isNotBlank(sessionId)) {
+      String routeToken = null;
+      if (!Constants.AUTO_COMMIT_SESSION_ID.equals(sessionId)) {
+        GetTableWriteSessionResponse getTableWriteSessionResponse =
+                storageStub.getTableWriteSession(table, sessionId);
+        routeToken = getTableWriteSessionResponse.getRouteToken();
+      }
+      return new TableWriteSession(storageStub, table, partitionSpec, allocator,
+                                   sessionId, writeMode, routeToken);
     } else {
       CreateTableWriteSessionResponse createTableWriteSessionResponse =
         storageStub.createTableWriteSession(table, createTableWriteSessionRequest);
       this.sessionId = createTableWriteSessionResponse.getSessionId();
+      return new TableWriteSession(storageStub, table, partitionSpec, allocator,
+                                   sessionId, writeMode,
+                                   createTableWriteSessionResponse.getRouteToken());
     }
-    return new TableWriteSession(storageStub, table, partitionSpec, allocator,
-                                 sessionId);
   }
 }

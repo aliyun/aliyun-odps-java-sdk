@@ -107,6 +107,13 @@ public class AppendTableRecordWriter implements RecordWriter {
     recordToArrowConverter.getVectorSchemaRoot().close();
   }
 
+  /**
+   * Returns the request ID of the last write (flush) for this stream. For client-side logging.
+   */
+  public String getLastRequestId() {
+    return arrowWriter.getLastRequestId();
+  }
+
   private static class BlobUploadableRecord extends ArrayRecord {
 
     private final WriteSchema writeSchema;

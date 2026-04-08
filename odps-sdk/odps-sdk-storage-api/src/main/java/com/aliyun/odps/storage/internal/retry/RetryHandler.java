@@ -119,16 +119,16 @@ public class RetryHandler {
   private void logRetryAttempt(Exception e, int attempt, RetryPolicy policy) {
     int httpStatus = 0;
     String errorCode = "N/A";
+    String requestId = "N/A";
     if (e instanceof ServiceException) {
       httpStatus = ((ServiceException) e).getHttpStatus();
       errorCode = ((ServiceException) e).getErrorCode();
+      requestId = ((ServiceException) e).getRequestId();
     }
-
-    String policyName = getPolicyName(policy);
     long waitTimeMs = policy.getRetryWaitTime(attempt);
 
-    log.warn("Request failed (attempt {}), will retry after {}ms. HTTP: {}, Error: {}, Policy: {}",
-             attempt, waitTimeMs, httpStatus, errorCode, policyName);
+    log.warn("Request failed (attempt {}), will retry after {}ms. HTTP: {}, Error: {}, RequestId: {}",
+             attempt, waitTimeMs, httpStatus, errorCode, requestId);
   }
 
   private String getPolicyName(RetryPolicy policy) {
