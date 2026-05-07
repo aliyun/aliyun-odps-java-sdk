@@ -313,6 +313,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
   }
 
   private void reload(boolean isBlock) throws OdpsException {
+    ensureMaxQACredential();
     Map<String, String> params = null;
 
     if (isBlock || isMcqaV2) {
@@ -373,6 +374,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @throws OdpsException
    */
   public void stop() throws OdpsException {
+    ensureMaxQACredential();
     InstanceStatusModel sm = new InstanceStatusModel();
     sm.status = "Terminated";
     try {
@@ -1214,6 +1216,7 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @throws OdpsException
    */
   public List<StageProgress> getTaskProgress(String taskName) throws OdpsException {
+    ensureMaxQACredential();
     HashMap<String, String> params = new HashMap<String, String>();
     params.put("instanceprogress", taskName);
     params.put("taskname", taskName);
@@ -1477,11 +1480,12 @@ public class Instance extends com.aliyun.odps.LazyLoad {
 
   /* Un-document */
   public String getTaskDetailJson2(String taskName) throws OdpsException {
+    ensureMaxQACredential();
     Map<String, String> params = new HashMap<String, String>();
     params.put("detail", null);
     params.put("taskname", taskName);
     String resource = isMcqaV2 ? "/mcqa" + getResource() : getResource();
-    Response result = client.request(resource, "GET", params, null, null);
+    Response result = client.request(resource, "GET", params, userDefinedHeaders, null);
     return new String(result.getBody());
   }
 
@@ -1843,6 +1847,37 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     }
     userDefinedHeaders.computeIfAbsent(Headers.ODPS_MCQA_CONN, k -> "");
     isMcqaV2 = mcqaV2;
+  }
+
+  /**
+   * MCQA 2.0 instance 必须携带 {@code x-odps-mcqa-conn} 或 {@code x-odps-mcqa-query-cookie}
+   * 中的至少一个，{@code /mcqa} 前缀的请求才会被路由成功。当通过 {@code Instances.get(id)}
+   * 拿到一个 {@code _mcqa} 后缀的 instance 时，二者皆缺，此方法会先发起一次不带 {@code /mcqa}
+   * 前缀的请求，从响应头里把 conn 与 cookie 回填到 {@link #userDefinedHeaders}，供后续
+   * {@code /mcqa} 调用使用。
+   */
+  private void ensureMaxQACredential() throws OdpsException {
+    if (!isMcqaV2) {
+      return;
+    }
+    if (userDefinedHeaders == null) {
+      userDefinedHeaders = new HashMap<>();
+    }
+    String conn = userDefinedHeaders.get(Headers.ODPS_MCQA_CONN);
+    String cookie = userDefinedHeaders.get(Headers.ODPS_MCQA_QUERY_COOKIE);
+    if (!StringUtils.isNullOrEmpty(conn) || !StringUtils.isNullOrEmpty(cookie)) {
+      return;
+    }
+
+    Response resp = client.request(getResource(), "GET", null, userDefinedHeaders, null);
+    String respCookie = resp.getHeader(Headers.ODPS_MCQA_QUERY_COOKIE);
+    if (respCookie != null) {
+      userDefinedHeaders.put(Headers.ODPS_MCQA_QUERY_COOKIE, respCookie);
+    }
+    String respConn = resp.getHeader(Headers.ODPS_MCQA_CONN);
+    if (respConn != null) {
+      userDefinedHeaders.put(Headers.ODPS_MCQA_CONN, respConn);
+    }
   }
 
   private Map<String, String> getCommonHeaders() {

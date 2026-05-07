@@ -321,6 +321,24 @@ public class MaxQATest {
     executor.cancel();
   }
 
+  /**
+   * 复现并验证修复：仅凭 instance id 通过 {@link com.aliyun.odps.Instances#get(String)} 拿回的
+   * MCQA 2.0 instance，{@code userDefinedHeaders} 中既没有 {@code x-odps-mcqa-conn} 也没有
+   * {@code x-odps-mcqa-query-cookie}。修复前，{@code stop()} 会直接打到 {@code /mcqa} 前缀
+   * 接口并因缺少凭据失败；修复后 {@code ensureMaxQACredential} 会先无 {@code /mcqa} 前缀地探测
+   * 一次，把响应头里的凭据回填，{@code stop()} 因此可以正常 kill 作业。
+   */
+  @Test
+  public void testKillReFetchedMaxQAInstance() throws OdpsException, IOException {
+    executor.run("select count(*) from mcqa2_test;", hints);
+    String instanceId = executor.getInstance().getId();
+    Assert.assertTrue("MCQA 2.0 instance id should end with _mcqa",
+                      instanceId.endsWith("_mcqa"));
+
+    Instance restored = odps.instances().get(instanceId);
+    restored.stop();
+  }
+
   @Test
   public void testLoadQuota() throws OdpsException {
     Quota quota = odps.quotas()
