@@ -1,0 +1,70 @@
+# MaxCompute Java SDK
+
+> MaxCompute(ODPS) SDK for Java - 阿里云大数据计算服务的 Java 客户端库。
+> 提供表管理、SQL 执行、数据批量传输（Tunnel）、高性能读写（Storage API）等能力。
+
+## Getting Started
+
+- [安装与配置](getting-started/installation.md): 在 Maven 或 Gradle 项目中引入 MaxCompute Java SDK 依赖，包括各模块说明、仓库配置和 Java 版本要求。
+- [认证方式](getting-started/authentication.md): MaxCompute Java SDK 支持的 5 种认证方式详解，包括 AccessKey、STS Token、CredentialProvider、双重签名和 Bearer Token。
+- [第一个程序](getting-started/first-program.md): 编写第一个 MaxCompute Java SDK 程序，连接服务并读取表数据。
+
+## Guides
+
+- [读取数据](guides/read-data/index.md): MaxCompute Java SDK 提供三种数据读取方式，适用于不同场景和数据规模。本指南帮助你选择最合适的方案。
+- [数据预览（Table.read）](guides/read-data/preview.md): 使用 Table.read() 快速预览表中少量数据，适用于调试和数据验证场景。
+- [Tunnel 下载](guides/read-data/tunnel-download.md): 使用 TableTunnel 批量下载表数据，支持压缩、多线程并行下载。
+- [Storage API 读取](guides/read-data/storage-api-read.md): 使用 Storage API 高性能并行读取表数据，支持列裁剪、谓词下推、分区过滤和 Arrow 列式格式。
+- [Blob 数据下载](guides/read-data/blob.md): 使用 Storage API 的 BlobManager 下载非结构化二进制大对象数据（图片、音频、文档等）。
+- [写入数据](guides/write-data/index.md): MaxCompute Java SDK 写入数据方式概览与选型指南
+- [Tunnel Upload 批量写入](guides/write-data/tunnel-upload.md): 使用 Tunnel UploadSession 进行批量数据写入，支持原子提交和多 Block 并行上传
+- [Tunnel Stream 流式写入](guides/write-data/tunnel-stream.md): 使用 Tunnel StreamUploadSession 进行流式数据写入，flush 后数据即可见，无需手动提交
+- [Tunnel Upsert 更新插入](guides/write-data/tunnel-upsert.md): 使用 Tunnel UpsertSession 对 Delta Table（主键表）进行数据的插入、更新和删除操作
+- [Storage API 高性能写入](guides/write-data/storage-api-write.md): 使用 Storage API 基于 Apache Arrow 格式进行高性能数据写入，支持批量和流式两种模式
+- [执行 SQL](guides/execute-sql/index.md): MaxCompute Java SDK 提供多种 SQL 执行模式，本文帮助您选择最适合的方式。
+- [离线模式执行 SQL](guides/execute-sql/offline.md): 使用 SQLTask 提交离线 SQL 作业，获取 Logview 和作业结果。
+- [MCQA 交互式查询](guides/execute-sql/mcqa.md): 使用 SQLExecutor 提交 MCQA / MaxQA 交互式查询，实现毫秒~秒级响应。
+- [SQLExecutor 高级用法](guides/execute-sql/sql-executor.md): SQLExecutor 的高级配置与使用技巧，包括 Builder 选项、结果处理、任务管理和 CommandApi。
+- [管理表](guides/manage-tables/index.md): MaxCompute Java SDK 表生命周期管理概览，包括获取表实例、读取表元数据、表类型等
+- [创建表](guides/manage-tables/create-table.md): 使用 TableCreator 建表工具创建各种类型的 MaxCompute 表，包括分区表、Delta 表、外部表等
+- [修改表](guides/manage-tables/alter-table.md): 使用 MaxCompute Java SDK 对已有表执行修改操作，包括重命名、修改生命周期、增删列等
+- [分区操作](guides/manage-tables/partitions.md): 使用 MaxCompute Java SDK 管理表分区，包括分区的创建、查询、删除和 PartitionSpec 的构造
+- [标签操作](guides/manage-tables/tags.md): 使用 MaxCompute Java SDK 管理表和列的标签（Tag），包括标准标签和简单标签的增删查操作
+- [函数管理](guides/manage-resources/functions.md): 通过 Java SDK 创建、查询、更新和删除 MaxCompute 用户自定义函数（UDF/UDTF/UDAF）
+- [资源管理](guides/manage-resources/resources.md): 通过 Java SDK 上传、下载、更新和删除 MaxCompute 资源文件（JAR/FILE/TABLE/ARCHIVE/PY）
+- [权限校验](guides/security/check-permission.md): 通过 Java SDK 检查用户是否拥有对 MaxCompute 对象的指定操作权限
+- [ACL 查询](guides/security/acl-query.md): 通过 Java SDK 执行 ACL/Policy 权限命令，管理用户、角色和资源的访问控制
+
+## Modules
+
+- [Core 核心模块](modules/core.md): MaxCompute Java SDK 核心模块，提供服务入口和资源管理能力
+- [Tunnel 数据通道模块](modules/tunnel.md): MaxCompute 数据通道，提供高效的表数据批量上传和下载能力
+- [Storage API 高性能读写模块](modules/storage-api.md): 基于 Apache Arrow 列式格式的高性能数据读写接口
+- [UDF 开发模块](modules/udf.md): MaxCompute 用户自定义函数（UDF/UDTF/UDAF）开发支持模块
+
+## API Reference
+
+- [Odps](reference/Odps.md): MaxCompute Java SDK 的入口类，提供访问各类资源集合的统一接口
+- [Table](reference/Table.md): MaxCompute 表对象，提供表元数据查询、数据操作、DDL、分区及标签管理
+- [TableTunnel](reference/TableTunnel.md): Tunnel 服务入口类，提供表数据上传、下载和流式写入的会话创建
+- [SQLExecutor](reference/SQLExecutor.md): MaxCompute SQL 执行统一接口，支持离线、MCQA 和 MaxQA 模式
+- [MaxStorageClient](reference/MaxStorageClient.md): Storage API 客户端入口类，提供表读写 Session 创建和数据预览
+- [DownloadSession](reference/DownloadSession.md): Tunnel 下载会话，提供表数据的分块并行下载能力
+- [UploadSession](reference/UploadSession.md): Tunnel 批量上传会话，提供基于 blockId 的数据写入和提交
+- [StreamUploadSession](reference/StreamUploadSession.md): Tunnel 流式上传会话，支持写入即可见的实时数据摄入
+- [Instance](reference/Instance.md): Instance 实例对象，表示 MaxCompute 中计算任务的一次运行，提供生命周期管理、状态查询、结果获取等操作。
+- [UpsertSession](reference/UpsertSession.md): UpsertSession 用于对 Transactional 表执行数据插入或更新操作，支持高并发的 Upsert/Delete 流式写入。
+- [TableReadSession](reference/TableReadSession.md): Storage API 读取会话，支持列裁剪、谓词下推、分区过滤、并行分片读取 Arrow 格式数据。
+- [TableWriteSession](reference/TableWriteSession.md): Storage API 写入会话，支持批量和流式两种写入模式，使用 Arrow 格式写入数据并支持事务提交。
+- [Functions](reference/Functions.md): Functions 类用于管理 MaxCompute 项目中的用户自定义函数 (UDF)，提供创建、获取、更新、删除和遍历操作。
+- [Resources](reference/Resources.md): Resources 类用于管理 MaxCompute 项目中的资源文件，包括 JAR 包、Python 脚本、数据文件、表资源等。
+- [Project](reference/Project.md): Projects 集合与 Project 实体，用于 MaxCompute 项目的生命周期管理和属性访问。
+- [Schemas](reference/Schemas.md): Schemas 类用于管理 MaxCompute 项目中的 Schema 命名空间，提供创建、获取、删除和遍历操作。
+- [Partition](reference/Partition.md): Partition 类代表 MaxCompute 表的分区，提供分区元数据查询、存储信息和扩展属性访问。
+
+## Optional
+
+- [changelog](changelog.md)
+- [常见问题](faq.md): MaxCompute Java SDK 常见问题与解答
+- [MaxCompute 类型映射](operations/types.md)
+
