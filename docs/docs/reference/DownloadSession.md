@@ -87,6 +87,38 @@ public DownloadStatus getStatus()
 
 ---
 
+### getSplitCount
+
+获取数据分片数量（用于 Arrow 读取）。
+
+```java
+public long getSplitCount()
+```
+
+---
+
+### getQuotaName
+
+获取本次下载使用的 Quota 名称。
+
+```java
+public String getQuotaName()
+```
+
+---
+
+### getArrowSchema
+
+获取 Arrow 格式的表结构。
+
+```java
+public Schema getArrowSchema()
+```
+
+**返回值**：Arrow `Schema` 对象
+
+---
+
 ### openRecordReader
 
 打开数据读取器。
@@ -95,8 +127,14 @@ public DownloadStatus getStatus()
 // 基础形式
 public TunnelRecordReader openRecordReader(long start, long count) throws TunnelException, IOException
 
+// 布尔压缩开关
+public TunnelRecordReader openRecordReader(long start, long count, boolean compress) throws TunnelException, IOException
+
 // 带压缩选项
 public TunnelRecordReader openRecordReader(long start, long count, CompressOption option) throws TunnelException, IOException
+
+// 指定列裁剪
+public TunnelRecordReader openRecordReader(long start, long count, CompressOption compress, List<Column> columns) throws TunnelException, IOException
 
 // 列投影 + 压缩 + 版本检查
 public TunnelRecordReader openRecordReader(long start, long count, CompressOption option, List<Column> columns, boolean disableModifiedCheck) throws TunnelException, IOException
@@ -106,6 +144,7 @@ public TunnelRecordReader openRecordReader(long start, long count, CompressOptio
 |------|------|------|------|
 | `start` | long | >= 0 | 读取起始位置（行号） |
 | `count` | long | >= 1 | 读取记录数量 |
+| `compress` | boolean | - | 是否启用压缩 |
 | `option` | CompressOption | - | 压缩配置 |
 | `columns` | List\<Column\> | 非空 | 需下载的列集合 |
 | `disableModifiedCheck` | boolean | - | 禁用数据版本校验 |
@@ -131,9 +170,20 @@ try (TunnelRecordReader reader = session.openRecordReader(0, total)) {
 打开带缓冲区的记录读取器。
 
 ```java
-public TunnelBufferedReader openBufferedRecordReader() throws TunnelException, IOException
-public TunnelBufferedReader openBufferedRecordReader(CompressOption option) throws TunnelException, IOException
+public RecordReader openBufferedRecordReader(long start, long count, long batchSize, long bufferSize, CompressOption compress, List<Column> columns, boolean disableModifiedCheck) throws TunnelException, IOException
 ```
+
+| 参数 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| `start` | long | >= 0 | 读取起始位置（行号） |
+| `count` | long | >= 1 | 读取记录数量 |
+| `batchSize` | long | >= 1 | 每批次读取的记录数 |
+| `bufferSize` | long | >= 1 | 缓冲区大小 |
+| `compress` | CompressOption | - | 压缩配置 |
+| `columns` | List\<Column\> | 非空 | 需下载的列集合 |
+| `disableModifiedCheck` | boolean | - | 禁用数据版本校验 |
+
+**返回值**：`RecordReader` 对象，建议使用 try-with-resources
 
 ---
 
@@ -142,13 +192,33 @@ public TunnelBufferedReader openBufferedRecordReader(CompressOption option) thro
 打开 Arrow 格式数据读取器，适合高性能列式数据处理。
 
 ```java
+// 基础形式
 public ArrowRecordReader openArrowRecordReader(long start, long count) throws TunnelException, IOException
+
+// 按分片索引读取
+public ArrowRecordReader openArrowRecordReader(long splitIndex) throws TunnelException, IOException
+
+// 指定压缩
+public ArrowRecordReader openArrowRecordReader(long start, long count, CompressOption compress) throws TunnelException, IOException
+
+// 指定列
+public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns) throws TunnelException, IOException
+
+// 指定列和内存分配器
+public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator) throws TunnelException, IOException
+
+// 完整参数
+public ArrowRecordReader openArrowRecordReader(long start, long count, List<Column> columns, BufferAllocator allocator, CompressOption compress) throws TunnelException, IOException
 ```
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | `start` | long | 起始位置 |
 | `count` | long | 读取数量 |
+| `splitIndex` | long | 分片索引（配合 `getSplitCount()` 使用） |
+| `compress` | CompressOption | 压缩配置 |
+| `columns` | List\<Column\> | 需下载的列集合 |
+| `allocator` | BufferAllocator | Arrow 内存分配器 |
 
 **示例**：
 

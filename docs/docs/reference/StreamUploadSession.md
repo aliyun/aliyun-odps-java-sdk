@@ -33,8 +33,69 @@ StreamUploadSession session = tunnel.buildStreamUploadSession("my_project", "my_
 | `setCreatePartition(boolean)` | boolean | false | 自动创建不存在的分区 |
 | `setSchemaVersion(String)` | String | 最新版本 | 指定 Schema 版本号 |
 | `allowSchemaMismatch(boolean)` | boolean | true | 是否允许字段类型不匹配 |
+| `setDynamicPartition(boolean)` | boolean | false | 设置是否启用动态分区写入 |
 
 ## 方法列表
+
+### getId
+
+获取会话 ID。
+
+```java
+public String getId()
+```
+
+---
+
+### getSchema
+
+获取表结构信息。
+
+```java
+public TableSchema getSchema()
+```
+
+---
+
+### getSchemaVersion
+
+获取表 Schema 版本号。
+
+```java
+public String getSchemaVersion()
+```
+
+---
+
+### getQuotaName
+
+获取本次流式上传使用的 Quota 名称。
+
+```java
+public String getQuotaName()
+```
+
+---
+
+### getLastBatchId
+
+获取最后一个已提交的 batch ID。
+
+```java
+public long getLastBatchId() throws TunnelException
+```
+
+---
+
+### getLastBatchCommitTime
+
+获取最后一次 batch 提交时间（毫秒时间戳）。
+
+```java
+public long getLastBatchCommitTime() throws TunnelException
+```
+
+---
 
 ### newRecordPack
 

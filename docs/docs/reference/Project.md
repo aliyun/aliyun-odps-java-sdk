@@ -107,6 +107,46 @@ public void createExternalProject(String projectName, String comment,
 
 ---
 
+### updateProject
+
+更新项目属性、状态、所有者等信息。
+
+```java
+public void updateProject(String projectName, Map<String, String> properties) throws OdpsException
+public void updateProject(String projectName, Project.Status status, String owner, String comment,
+                          Map<String, String> properties, List<Project.Cluster> clusters) throws OdpsException
+public void updateProject(String projectName, Project.Status status, String owner, String comment,
+                          Map<String, String> properties, List<Project.Cluster> clusters,
+                          QuotaIdentifier defaultQuota) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `projectName` | `String` | 项目名称 |
+| `properties` | `Map<String, String>` | 项目属性键值对 |
+| `status` | `Project.Status` | 项目状态：`AVAILABLE`、`FROZEN`、`DELETING` |
+| `owner` | `String` | 项目所有者账号 |
+| `comment` | `String` | 项目描述 |
+| `clusters` | `List<Project.Cluster>` | 计算集群列表 |
+| `defaultQuota` | `QuotaIdentifier` | 默认计算配额 |
+
+**示例**：
+
+```java
+// 更新项目属性
+Map<String, String> props = new HashMap<>();
+props.put("odps.security.ip.whitelist", "10.0.0.0/8");
+odps.projects().updateProject("my_project", props);
+
+// 冻结项目
+odps.projects().updateProject("my_project", Project.Status.FROZEN,
+    null, null, null, null);
+```
+
+---
+
 ### delete
 
 ```java
@@ -269,6 +309,30 @@ public SecurityManager getSecurityManager()
 
 ---
 
+### getDefaultQuotaNickname
+
+获取项目默认 Quota 的昵称。
+
+```java
+public String getDefaultQuotaNickname()
+```
+
+**返回值**：`String`，默认 Quota 昵称
+
+---
+
+### getDefaultQuotaRegion
+
+获取项目默认 Quota 的 Region。
+
+```java
+public String getDefaultQuotaRegion()
+```
+
+**返回值**：`String`，默认 Quota 所属 Region
+
+---
+
 ### getTunnelEndpoint
 
 获取 Tunnel 接入点。
@@ -282,3 +346,39 @@ public String getTunnelEndpoint(String quotaName)
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | `quotaName` | `String` | 计算配额名称，`null` 使用默认配额 |
+
+---
+
+### getTunnelEndpoint（无参）
+
+获取项目的 Tunnel 端点地址。
+
+```java
+public String getTunnelEndpoint() throws OdpsException
+```
+
+**返回值**：`String`，Tunnel 端点地址
+
+---
+
+### getTenantId
+
+获取项目所属的租户 ID。
+
+```java
+public String getTenantId()
+```
+
+**返回值**：`String`，租户 ID
+
+---
+
+### isExternalCatalogBound
+
+判断项目是否绑定了外部 Catalog。
+
+```java
+public boolean isExternalCatalogBound()
+```
+
+**返回值**：绑定了外部 Catalog 返回 `true`

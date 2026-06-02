@@ -142,8 +142,10 @@ Iterator<Schema> iterator = schemas.iterator("project_name", filter);
 | `getName()` | `String` | Schema 名称 |
 | `getOwner()` | `String` | 所有者 |
 | `getComment()` | `String` | 描述信息 |
-| `getCreatedTime()` | `Date` | 创建时间 |
-| `getLastModifiedTime()` | `Date` | 最后修改时间 |
+| `getCreateTime()` | `Date` | 创建时间 |
+| `getModifiedTime()` | `Date` | 最后修改时间 |
+| `getProjectName()` | `String` | Schema 所属的项目名称 |
+| `getType()` | `String` | Schema 类型 |
 
 ---
 

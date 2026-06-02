@@ -195,6 +195,54 @@ public TableReadSessionBuilder withSessionReadyTimeout(long timeoutSeconds)
 
 ---
 
+### withArrowOptions
+
+设置 Arrow 序列化选项。
+
+```java
+public TableReadSessionBuilder withArrowOptions(ArrowOptions arrowOptions)
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `arrowOptions` | `ArrowOptions` | Arrow 序列化配置 |
+
+---
+
+### withMaxFilesPerSplit
+
+设置每个分片的最大文件数。
+
+```java
+public TableReadSessionBuilder withMaxFilesPerSplit(int maxFilesPerSplit)
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `maxFilesPerSplit` | `int` | 每个 Split 包含的最大文件数 |
+
+---
+
+### withIncrementalReadEnabled
+
+设置是否启用增量读取。
+
+```java
+public TableReadSessionBuilder withIncrementalReadEnabled(boolean incrementalRead)
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `incrementalRead` | `boolean` | `true` 启用增量读取；`false` 禁用 |
+
+---
+
 ### build
 
 ```java

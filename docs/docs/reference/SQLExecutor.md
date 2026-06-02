@@ -43,8 +43,12 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
 | `fallbackPolicy(FallbackPolicy)` | FallbackPolicy | 否 | MCQA 失败回退策略 |
 | `enableReattach(boolean)` | boolean | 否 | MCQA 重连 Session |
 | `serviceName(String)` | String | 否 | MCQA Session 名称 |
-| `quota(Quota)` | Quota | 否 | MaxQA Quota 实例（可缓存） |
-| `enableMcqaV2(boolean)` | boolean | 否 | 启用 MaxQA |
+| `enableMaxQA(boolean)` | boolean | 否 | 启用 MaxQA |
+| `properties(Map<String, String>)` | Map\<String, String\> | 否 | 设置额外属性 |
+| `runningCluster(String)` | String | 否 | 指定运行集群 |
+| `regionId(String)` | String | 否 | 设置 Region ID |
+| `builder()` | — | — | 静态方法，创建 Builder 实例 |
+| `build()` | — | — | 构建 SQLExecutor 实例 |
 
 ## 方法列表
 
@@ -192,6 +196,76 @@ Instance getInstance()
 
 ```java
 String getId()
+```
+
+---
+
+### getTaskName
+
+获取当前任务名称。
+
+```java
+String getTaskName()
+```
+
+---
+
+### getSubqueryId
+
+获取当前子查询 ID。
+
+```java
+int getSubqueryId()
+```
+
+---
+
+### getResult (带行数和大小限制)
+
+获取结果（指定行数和大小限制）。
+
+```java
+List<Record> getResult(Long countLimit, Long sizeLimit) throws OdpsException, IOException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `countLimit` | Long | 行数限制 |
+| `sizeLimit` | Long | 大小限制 |
+
+---
+
+### getResultSet (带行数和大小限制)
+
+获取 ResultSet（指定行数和大小限制）。
+
+```java
+ResultSet getResultSet(Long countLimit, Long sizeLimit) throws OdpsException, IOException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `countLimit` | Long | 行数限制 |
+| `sizeLimit` | Long | 大小限制 |
+
+---
+
+### isRunningInInteractiveMode
+
+判断是否运行在交互式模式。
+
+```java
+boolean isRunningInInteractiveMode()
+```
+
+---
+
+### getExecuteMode
+
+获取当前执行模式。
+
+```java
+ExecuteMode getExecuteMode()
 ```
 
 ---

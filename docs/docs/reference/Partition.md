@@ -116,6 +116,46 @@ public long getLifeCycle()
 
 ---
 
+### getLastDataModifiedTime
+
+获取分区数据最后修改时间。
+
+```java
+public Date getLastDataModifiedTime()
+```
+
+---
+
+### getLastDataAccessTime
+
+获取分区数据最后访问时间。
+
+```java
+public Date getLastDataAccessTime()
+```
+
+---
+
+### getStorageTierInfo
+
+获取分区存储分层信息。
+
+```java
+public StorageTierInfo getStorageTierInfo()
+```
+
+---
+
+### isExstore
+
+判断分区是否为 Exstore 存储。
+
+```java
+public boolean isExstore()
+```
+
+---
+
 ## 扩展信息方法
 
 扩展信息在首次调用时加载，无法通过 `reload()` 刷新（因为这些信息通常随分区创建而确定）。
@@ -195,6 +235,196 @@ public long getCdcSize()
 ```java
 public long getCdcRecordNum()
 ```
+
+---
+
+## Tag 操作
+
+### getTags
+
+获取分区标签列表。
+
+```java
+public List<Tag> getTags()
+```
+
+---
+
+### getTags (指定列)
+
+获取分区指定列的标签列表。
+
+```java
+public List<Tag> getTags(String columnName)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `columnName` | String | 列名 |
+
+---
+
+### getSimpleTags
+
+获取分区简单标签。
+
+```java
+public Map<String, Map<String, String>> getSimpleTags()
+```
+
+---
+
+### getSimpleTags (指定列)
+
+获取分区指定列的简单标签。
+
+```java
+public Map<String, Map<String, String>> getSimpleTags(String columnName)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `columnName` | String | 列名 |
+
+---
+
+### addTag
+
+为分区添加标签。
+
+```java
+public void addTag(Tag tag) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `tag` | Tag | 标签对象 |
+
+---
+
+### addTag (指定列)
+
+为分区指定列添加标签。
+
+```java
+public void addTag(Tag tag, List<String> columnNames) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `tag` | Tag | 标签对象 |
+| `columnNames` | List\<String\> | 列名列表 |
+
+---
+
+### addSimpleTag
+
+为分区添加简单标签。
+
+```java
+public void addSimpleTag(String category, String key, String value) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `category` | String | 标签分类 |
+| `key` | String | 标签键 |
+| `value` | String | 标签值 |
+
+---
+
+### addSimpleTag (指定列)
+
+为分区指定列添加简单标签。
+
+```java
+public void addSimpleTag(String category, String key, String value, List<String> columnNames) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `category` | String | 标签分类 |
+| `key` | String | 标签键 |
+| `value` | String | 标签值 |
+| `columnNames` | List\<String\> | 列名列表 |
+
+---
+
+### removeTag
+
+删除分区标签。
+
+```java
+public void removeTag(Tag tag) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `tag` | Tag | 标签对象 |
+
+---
+
+### removeTag (指定列)
+
+删除分区指定列的标签。
+
+```java
+public void removeTag(Tag tag, List<String> columnNames) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `tag` | Tag | 标签对象 |
+| `columnNames` | List\<String\> | 列名列表 |
+
+---
+
+### removeSimpleTag
+
+删除分区简单标签。
+
+```java
+public void removeSimpleTag(String category, String key, String value) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `category` | String | 标签分类 |
+| `key` | String | 标签键 |
+| `value` | String | 标签值 |
+
+---
+
+### removeSimpleTag (指定列)
+
+删除分区指定列的简单标签。
+
+```java
+public void removeSimpleTag(String category, String key, String value, List<String> columnNames) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `category` | String | 标签分类 |
+| `key` | String | 标签键 |
+| `value` | String | 标签值 |
+| `columnNames` | List\<String\> | 列名列表 |
+
+---
+
+## State 管理
+
+### setState
+
+设置分区状态（冻结/恢复）。
+
+```java
+public void setState(State state) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `state` | State | 分区状态 |
 
 ---
 

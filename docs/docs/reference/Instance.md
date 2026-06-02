@@ -15,6 +15,23 @@ apis:
   - getStartTime
   - getEndTime
   - getOwner
+  - waitForTerminatedAndGetResult
+  - getRawTaskResults
+  - getTaskNames
+  - getTaskCost
+  - getTaskInfo
+  - setInformation
+  - getTaskProgress
+  - getStageProgressFormattedString
+  - getTaskDetailJson
+  - getTaskQuotaJson
+  - isSync
+  - getTasks
+  - getPriority
+  - getJobName
+  - getQueueingInfo
+  - isSelect
+  - getResultDescriptor
 keywords:
   - Instance
   - 实例
@@ -38,6 +55,119 @@ Instance instance = odps.instances().create(task);
 // 通过 ID 获取已有 Instance
 Instance instance = odps.instances().get("instance_id");
 ```
+
+## Instances 集合操作
+
+以下方法属于 `Instances` 集合管理类，通过 `odps.instances()` 访问。
+
+### create
+
+提交任务创建 Instance。
+
+```java
+public Instance create(Task task) throws OdpsException
+public Instance create(Task task, int priority) throws OdpsException
+public Instance create(Task task, int priority, String runningCluster) throws OdpsException
+public Instance create(String projectName, Task task) throws OdpsException
+public Instance create(String projectName, Task task, int priority) throws OdpsException
+public Instance create(String projectName, Task task, int priority, String runningCluster) throws OdpsException
+public Instance create(Job job) throws OdpsException
+public Instance create(Task task, CreateInstanceOption option) throws OdpsException
+public Instance create(List<Task> tasks, CreateInstanceOption option) throws OdpsException
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `task` | `Task` | 任务对象（如 SQLTask） |
+| `priority` | `int` | 任务优先级（0-9，数值越小优先级越高） |
+| `runningCluster` | `String` | 指定运行集群 |
+| `projectName` | `String` | 项目名称 |
+| `job` | `Job` | 作业对象（包含多个 Task） |
+| `option` | `CreateInstanceOption` | 创建选项 |
+
+---
+
+### get
+
+获取已有 Instance 对象。
+
+```java
+public Instance get(String id)
+public Instance get(String projectName, String id)
+```
+
+---
+
+### exists
+
+判断 Instance 是否存在。
+
+```java
+public boolean exists(String id) throws OdpsException
+public boolean exists(String projectName, String id) throws OdpsException
+```
+
+---
+
+### iterator / iterable
+
+遍历项目中的 Instance。
+
+```java
+public Iterator<Instance> iterator()
+public Iterator<Instance> iterator(String project)
+public Iterator<Instance> iterator(InstanceFilter filter)
+public Iterator<Instance> iterator(String project, InstanceFilter filter)
+public Iterable<Instance> iterable()
+public Iterable<Instance> iterable(String project)
+public Iterable<Instance> iterable(InstanceFilter filter)
+public Iterable<Instance> iterable(String project, InstanceFilter filter)
+```
+
+InstanceFilter 属性：
+
+| 属性 | 说明 |
+|------|------|
+| `status` | 实例状态（Running / Suspended / Terminated） |
+| `onlyOwner` | 是否只列出当前用户的实例 |
+| `fromTime` | 起始时间 |
+| `endTime` | 结束时间 |
+| `quotaIndex` | Quota 索引 |
+
+示例：
+```java
+InstanceFilter filter = new InstanceFilter();
+filter.setStatus(Instance.Status.Running);
+for (Instance inst : odps.instances().iterable(filter)) {
+    System.out.println(inst.getId() + " " + inst.getStatus());
+}
+```
+
+---
+
+### iteratorQueueing
+
+遍历排队中的 Instance 信息。
+
+```java
+public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing()
+public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(String project)
+public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(InstanceFilter filter)
+public Iterator<Instance.InstanceQueueingInfo> iteratorQueueing(String project, InstanceFilter filter)
+```
+
+---
+
+### getDefaultRunningCluster / setDefaultRunningCluster
+
+获取或设置默认运行集群。
+
+```java
+public String getDefaultRunningCluster()
+public void setDefaultRunningCluster(String defaultRunningCluster)
+```
+
+---
 
 ## 状态枚举
 
@@ -224,6 +354,30 @@ public Map<String, TaskStatus> getTaskStatus() throws OdpsException
 
 ---
 
+### waitForTerminatedAndGetResult
+
+等待任务终止并获取结果。
+
+```java
+public Instance.Result waitForTerminatedAndGetResult() throws OdpsException
+```
+
+**返回值**：`Instance.Result` 对象，包含任务执行结果
+
+---
+
+### getRawTaskResults
+
+获取原始任务结果列表。
+
+```java
+public List<TaskResult> getRawTaskResults() throws OdpsException
+```
+
+**返回值**：`List<TaskResult>`，包含每个 Task 的原始结果信息
+
+---
+
 ### getStartTime
 
 获取 Instance 开始执行时间。
@@ -261,6 +415,251 @@ public String getOwner()
 ```java
 public String getProject()
 ```
+
+---
+
+## 任务信息
+
+### getTaskNames
+
+获取所有任务名称集合。
+
+```java
+public Set<String> getTaskNames() throws OdpsException
+```
+
+**返回值**：`Set<String>`，包含 Instance 中所有 Task 的名称
+
+---
+
+### getTaskCost
+
+获取指定任务的资源消耗信息。
+
+```java
+public TaskCost getTaskCost(String taskName) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+
+**返回值**：`TaskCost` 对象，包含任务资源消耗详情
+
+---
+
+### getTaskInfo
+
+获取任务的指定信息项。
+
+```java
+public String getTaskInfo(String taskName, String infoKey) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+| `infoKey` | `String` | 信息项的 key |
+
+**返回值**：对应信息项的值字符串
+
+---
+
+### setInformation
+
+设置任务信息。
+
+```java
+public SetInformationResult setInformation(String taskName, String infoKey, String infoValue) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+| `infoKey` | `String` | 信息项的 key |
+| `infoValue` | `String` | 信息项的 value |
+
+**返回值**：`SetInformationResult` 对象，包含设置操作的结果
+
+---
+
+## 进度与详情
+
+### getTaskProgress
+
+获取任务各阶段执行进度。
+
+```java
+public List<StageProgress> getTaskProgress(String taskName) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+
+**返回值**：`List<StageProgress>`，包含各阶段的进度信息
+
+---
+
+### getStageProgressFormattedString
+
+将进度格式化为可读字符串。
+
+```java
+public static String getStageProgressFormattedString(List<StageProgress> stages)
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `stages` | `List<StageProgress>` | 阶段进度列表 |
+
+**返回值**：格式化后的进度字符串
+
+---
+
+### getTaskDetailJson
+
+获取任务详情 JSON。
+
+```java
+public String getTaskDetailJson(String taskName) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+
+**返回值**：任务详情的 JSON 字符串
+
+---
+
+### getTaskQuotaJson
+
+获取任务 Quota 信息 JSON。
+
+```java
+public String getTaskQuotaJson(String taskName) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+
+**返回值**：任务 Quota 信息的 JSON 字符串
+
+---
+
+## 实例属性
+
+### isSync
+
+判断是否同步执行的实例。
+
+```java
+public boolean isSync()
+```
+
+**返回值**：同步执行返回 `true`，异步执行返回 `false`
+
+---
+
+### getTasks
+
+获取实例中的所有 Task 列表。
+
+```java
+public List<Task> getTasks() throws OdpsException
+```
+
+**返回值**：`List<Task>`，包含 Instance 中所有 Task 对象
+
+---
+
+### getPriority
+
+获取实例优先级。
+
+```java
+public int getPriority() throws OdpsException
+```
+
+**返回值**：实例优先级数值
+
+---
+
+### getJobName
+
+获取作业名称。
+
+```java
+public String getJobName() throws OdpsException
+```
+
+**返回值**：作业名称字符串
+
+---
+
+### getQueueingInfo
+
+获取实例排队信息。
+
+```java
+public InstanceQueueingInfo getQueueingInfo() throws OdpsException
+```
+
+**返回值**：`InstanceQueueingInfo` 对象，包含实例排队详情
+
+---
+
+## MCQA / Select 相关
+
+### isSelect
+
+判断指定任务是否为 SELECT 查询。
+
+```java
+public boolean isSelect(String taskName) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+
+**返回值**：是 SELECT 查询返回 `true`，否则返回 `false`
+
+---
+
+### getResultDescriptor
+
+获取 SELECT 结果的描述信息（列名、类型等）。
+
+```java
+public ResultDescriptor getResultDescriptor(String taskName) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `taskName` | `String` | Task 名称 |
+
+**返回值**：`ResultDescriptor` 对象，包含结果集的列名、数据类型等元信息
 
 ---
 

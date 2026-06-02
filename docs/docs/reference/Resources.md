@@ -173,6 +173,29 @@ public Iterable<Resource> iterable(String projectName, String schemaName)
 
 ---
 
+### createTempResource
+
+创建临时资源文件。
+
+```java
+public FileResource createTempResource(String fileName) throws OdpsException
+public FileResource createTempResource(String projectName, String fileName) throws OdpsException
+public FileResource createTempResource(String projectName, String filePath, Type type) throws OdpsException
+```
+
+**参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `fileName` | `String` | 临时资源文件名 |
+| `projectName` | `String` | 目标项目名称（可选） |
+| `filePath` | `String` | 资源文件路径 |
+| `type` | `Type` | 资源类型（FILE、JAR、PY、ARCHIVE 等） |
+
+**返回值**：`FileResource`，创建的临时资源对象
+
+---
+
 ## Resource 对象属性
 
 | 方法 | 返回类型 | 说明 |

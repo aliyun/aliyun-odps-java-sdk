@@ -20,11 +20,75 @@ odps.setEndpoint("http://service.odps.aliyun.com/api");
 odps.setDefaultProject("my_project");
 ```
 
+通过已有 Odps 实例拷贝构造：
+
+```java
+Odps newOdps = new Odps(odps);
+```
+
 通过已有 Odps 实例克隆：
 
 ```java
 Odps newOdps = odps.clone();
 ```
+
+## 构造方法
+
+### Odps(Account)
+
+通过 Account 创建 Odps 实例。
+
+```java
+public Odps(Account account)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `account` | Account | 主账号实例 |
+
+---
+
+### Odps(Odps)
+
+从已有 Odps 实例拷贝构造，复制所有配置。
+
+```java
+public Odps(Odps odps)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `odps` | Odps | 已有的 Odps 实例 |
+
+---
+
+## Account 相关
+
+### setAccount
+
+设置主账号。
+
+```java
+public void setAccount(Account account)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `account` | Account | 主账号实例 |
+
+---
+
+### getAccount
+
+获取当前主账号。
+
+```java
+public Account getAccount()
+```
+
+**返回值**：当前 `Account` 实例
+
+---
 
 ## 方法列表
 
@@ -107,6 +171,66 @@ public Resources resources()
 
 ---
 
+### volumes
+
+获取 Volumes 集合对象，用于操作项目中的 Volume。
+
+```java
+public Volumes volumes()
+```
+
+**返回值**：`Volumes` 集合对象
+
+---
+
+### quotas
+
+获取 Quotas 集合对象，用于操作 Quota 配额。
+
+```java
+public Quotas quotas()
+```
+
+**返回值**：`Quotas` 集合对象
+
+---
+
+### logview
+
+获取 LogView 工具实例，用于生成作业日志链接。
+
+```java
+public LogView logview()
+```
+
+**返回值**：`LogView` 工具实例
+
+---
+
+### xFlows
+
+获取 XFlows 集合对象，用于操作 XFlow 任务。
+
+```java
+public XFlows xFlows()
+```
+
+**返回值**：`XFlows` 集合对象
+
+---
+
+### tenant
+
+获取 Tenant 实例，用于访问租户级信息。
+
+```java
+public Tenant tenant()
+```
+
+**返回值**：`Tenant` 实例
+
+---
+
 ### setEndpoint
 
 设置 MaxCompute 服务的 Endpoint 地址。
@@ -160,6 +284,106 @@ public void setTunnelEndpoint(String tunnelEndpoint)
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | `tunnelEndpoint` | String | Tunnel 服务端点 URL |
+
+---
+
+### getEndpoint
+
+获取 MaxCompute 服务端点地址。
+
+```java
+public String getEndpoint()
+```
+
+**返回值**：服务端点 URL 字符串
+
+---
+
+### getTunnelEndpoint
+
+获取 Tunnel 服务端点地址。
+
+```java
+public String getTunnelEndpoint()
+```
+
+**返回值**：Tunnel 端点 URL 字符串
+
+---
+
+### getDefaultProject
+
+获取默认项目名称。
+
+```java
+public String getDefaultProject()
+```
+
+**返回值**：默认 Project 名称
+
+---
+
+### getCurrentSchema
+
+获取当前 Schema 名称。
+
+```java
+public String getCurrentSchema()
+```
+
+**返回值**：当前 Schema 名称，未设置时返回 null
+
+---
+
+### setUserAgent
+
+设置 User-Agent 标识，用于追踪 SDK 调用来源。
+
+```java
+public void setUserAgent(String userAgent)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `userAgent` | String | 自定义 User-Agent 标识 |
+
+---
+
+### getUserAgent
+
+获取当前 User-Agent 标识。
+
+```java
+public String getUserAgent()
+```
+
+**返回值**：User-Agent 标识字符串
+
+---
+
+### getLogViewHost
+
+获取 LogView 服务地址。
+
+```java
+public String getLogViewHost()
+```
+
+**返回值**：LogView 服务 URL 字符串
+
+---
+
+### setLogViewHost
+
+设置 LogView 服务地址。
+
+```java
+public void setLogViewHost(String host)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `host` | String | LogView 服务地址 |
 
 ---
 
