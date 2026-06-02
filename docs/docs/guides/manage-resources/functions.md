@@ -195,5 +195,5 @@ MaxCompute 支持三种自定义函数类型：
 ## 相关文档
 
 - [资源管理](./resources.md) - 上传和管理函数依赖的资源文件
-- [UDF 函数开发与使用](../../core-concept/functions.md) - UDF 开发完整流程
-- [Functions API 参考](../../api-reference/Functions.md) - Functions 类完整 API
+- [UDF 函数开发与使用](./functions.md) - UDF 开发完整流程
+- [Functions API 参考](../../reference/Functions.md) - Functions 类完整 API

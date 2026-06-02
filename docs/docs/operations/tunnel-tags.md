@@ -11,9 +11,9 @@ Tunnel 操作打标。
 ### Tunnel 相关操作
 
 对于 Tunnel
-相关操作，可以将需要配置的标记（Tags）配置在 [Configuration](../api-reference/tunnel/Configuration.md)
+相关操作，可以将需要配置的标记（Tags）配置在 [Configuration](../modules/tunnel.md)
 类中。
-Configuration 类提供了 [withTags](../api-reference/tunnel/Configuration.md#设置标签列表)
+Configuration 类提供了 [withTags](../modules/tunnel.md)
 方法，可以将需要配置的标记（Tags）配置在 Configuration 类中。
 
 **使用示例**：

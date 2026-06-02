@@ -16,7 +16,7 @@ Tunnel Upload 是 MaxCompute 最经典的批量数据写入方式，通过 Uploa
 ## 前置条件
 
 - 已初始化 `Odps` 客户端实例
-- 已创建 `TableTunnel` 实例（参考 [TableTunnel 文档](/docs/api-reference/tunnel/TableTunnel)）
+- 已创建 `TableTunnel` 实例（参考 [TableTunnel 文档](../../reference/TableTunnel)）
 - 目标表已存在；若为分区表，分区需已创建或指定已有分区
 
 ## 完整示例
@@ -194,7 +194,7 @@ TableTunnel.UploadSession session = tunnel.createUploadSession(
 
 ## 相关文档
 
-- [UploadSession API 参考](/docs/api-reference/tunnel/UploadSession)
-- [TableTunnel API 参考](/docs/api-reference/tunnel/TableTunnel)
+- [UploadSession API 参考](../../reference/UploadSession)
+- [TableTunnel API 参考](../../reference/TableTunnel)
 - [Tunnel Stream 流式写入](./tunnel-stream.md)
 - [Storage API 高性能写入](./storage-api-write.md)

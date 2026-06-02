@@ -243,5 +243,5 @@ resources.delete("project_name", "schema_name", "resource_name");
 ## 相关文档
 
 - [函数管理](./functions.md) - 基于资源创建和管理自定义函数
-- [UDF 函数开发与使用](../../core-concept/functions.md) - UDF 开发完整流程
-- [Resources API 参考](../../api-reference/Resources.md) - Resources 类完整 API
+- [UDF 函数开发与使用](./functions.md) - UDF 开发完整流程
+- [Resources API 参考](../../reference/Resources.md) - Resources 类完整 API

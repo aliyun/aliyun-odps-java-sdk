@@ -117,7 +117,7 @@ public RecordWriter openBufferedWriter(CompressOption option, long timeout) thro
 |------|------|------|
 | `compress` | boolean | 是否压缩 |
 | `option` | CompressOption | 压缩选项 |
-| `timeout` | long | 超时时间（毫秒），<=0 无超时 |
+| `timeout` | long | 超时时间（毫秒），≤0 无超时 |
 
 ---
 

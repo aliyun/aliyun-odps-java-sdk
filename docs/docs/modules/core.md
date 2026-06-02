@@ -105,6 +105,6 @@ instance.waitForSuccess();
 
 ## 相关文档
 
-- [初始化 Odps 对象](../core-concept/init-odps-client.md)
+- [初始化 Odps 对象](../getting-started/authentication.md)
 - [Tunnel 模块](./tunnel.md)
 - [Storage API 模块](./storage-api.md)

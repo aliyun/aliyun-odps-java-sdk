@@ -254,5 +254,5 @@ CLEAR EXPIRED GRANTS;
 ## 相关文档
 
 - [权限校验](./check-permission.md) - 检查用户是否拥有特定权限
-- [ACL 权限命令参考](../../core-concept/permission/run_acl_query.md) - 完整 ACL 命令列表
+- [ACL 权限命令参考](./acl-query.md) - 完整 ACL 命令列表
 - [MaxCompute 权限管理](https://help.aliyun.com/zh/maxcompute/user-guide/maxcompute-permissions) - 官方权限文档

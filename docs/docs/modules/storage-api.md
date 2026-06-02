@@ -183,8 +183,8 @@ try (TableWriteSession session = client.createTableWriteSessionBuilder(tableId)
 
 ## 相关文档
 
-- [Storage API 详细文档](../api-reference/storage-api/overview.md)
-- [MaxStorageClient](../api-reference/storage-api/client.md)
-- [读取操作](../api-reference/storage-api/read.md)
-- [写入操作](../api-reference/storage-api/write.md)
+- [Storage API 详细文档]
+- [MaxStorageClient](../reference/MaxStorageClient.md)
+- [读取操作](../guides/read-data/storage-api-read.md)
+- [写入操作](../guides/write-data/storage-api-write.md)
 - [Tunnel 模块](./tunnel.md) - 传统数据通道方案对比

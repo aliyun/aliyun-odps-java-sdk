@@ -16,7 +16,7 @@ Tunnel Stream 是面向实时写入场景的数据通道，数据 flush 后立�
 ## 前置条件
 
 - 已初始化 `Odps` 客户端实例
-- 已创建 `TableTunnel` 实例（参考 [TableTunnel 文档](/docs/api-reference/tunnel/TableTunnel)）
+- 已创建 `TableTunnel` 实例（参考 [TableTunnel 文档](../../reference/TableTunnel)）
 - 目标表已存在
 
 ## 完整示例
@@ -192,7 +192,7 @@ System.out.println("flushSize: " + result.getFlushSize());
 
 ## 相关文档
 
-- [StreamUploadSession API 参考](/docs/api-reference/tunnel/StreamUploadSession)
-- [TableTunnel API 参考](/docs/api-reference/tunnel/TableTunnel)
+- [StreamUploadSession API 参考](../../reference/StreamUploadSession)
+- [TableTunnel API 参考](../../reference/TableTunnel)
 - [Tunnel Upload 批量写入](./tunnel-upload.md)
 - [Tunnel Upsert 更新插入](./tunnel-upsert.md)

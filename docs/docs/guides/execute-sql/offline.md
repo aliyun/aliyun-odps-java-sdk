@@ -193,5 +193,5 @@ while (resultSet.hasNext()) {
 - [执行 SQL 概览](./index.md)
 - [MCQA 交互式查询](./mcqa.md)
 - [SQLExecutor 高级用法](./sql-executor.md)
-- [SQLExecutor API 参考](../../api-reference/SQLExecutor.md)
+- [SQLExecutor API 参考](../../reference/SQLExecutor.md)
 - [MaxCompute SQL 概述](https://help.aliyun.com/zh/maxcompute/user-guide/overview-of-maxcompute-sql)

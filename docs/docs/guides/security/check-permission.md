@@ -173,4 +173,4 @@ ActionType 和 ObjectType 存在对应关系，例如不存在 "Read Table" 权�
 ## 相关文档
 
 - [ACL 查询](./acl-query.md) - 执行 ACL 权限命令管理访问控制
-- [权限检查参考](../../core-concept/permission/check_permission.md) - checkPermission 详细类说明
+- [权限检查参考](./check-permission.md) - checkPermission 详细类说明

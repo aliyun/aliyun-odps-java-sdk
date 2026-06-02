@@ -60,6 +60,7 @@ const config = {
         docs: {
           routeBasePath: '/', // Serve the docs at the site's root
           sidebarPath: './sidebars.js',
+          exclude: ['**/superpowers/**'],
         },
         blog: false,
         theme: {

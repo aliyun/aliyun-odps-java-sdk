@@ -1,8 +1,4 @@
 {
-  "label": "java",
-  "position": 1,
-  "link": {
-    "type": "generated-index",
-    "description": "doc of odps java sdk"
-  }
+  "label": "MaxCompute Java SDK",
+  "position": 1
 }

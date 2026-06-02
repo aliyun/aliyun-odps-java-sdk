@@ -181,6 +181,6 @@ value4  value5  value6
 
 ## 下一步
 
-- [构建 ODPS 客户端](../core-concept/init-odps-client.md) - 了解更多客户端配置选项
-- [数据预览](../core-concept/table-read.md) - 更多数据读取方式
-- [SQL 执行](../core-concept/sql.md) - 通过 SDK 执行 SQL 语句
+- [构建 ODPS 客户端](./authentication.md) - 了解更多客户端配置选项
+- [数据预览](../guides/read-data/preview.md) - 更多数据读取方式
+- [SQL 执行](../guides/execute-sql/index.md) - 通过 SDK 执行 SQL 语句

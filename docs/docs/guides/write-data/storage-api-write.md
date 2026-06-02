@@ -306,8 +306,8 @@ ArrowWriter writer = session.createWriterBuilder("stream-1", 1)
 
 ## 相关文档
 
-- [Storage API 写入 API 参考](/docs/api-reference/storage-api/write)
-- [Storage API Client 参考](/docs/api-reference/storage-api/client)
+- [Storage API 写入 API 参考](../../reference/TableWriteSession)
+- [Storage API Client 参考](../../reference/MaxStorageClient)
 - [Tunnel Upload 批量写入](./tunnel-upload.md)
 - [Tunnel Stream 流式写入](./tunnel-stream.md)
 - [Tunnel Upsert 更新插入](./tunnel-upsert.md)

@@ -16,7 +16,7 @@ Tunnel Upsert 专为 Delta Table（主键表）设计，支持按主键进行数
 ## 前置条件
 
 - 已初始化 `Odps` 客户端实例
-- 已创建 `TableTunnel` 实例（参考 [TableTunnel 文档](/docs/api-reference/tunnel/TableTunnel)）
+- 已创建 `TableTunnel` 实例（参考 [TableTunnel 文档](../../reference/TableTunnel)）
 - **目标表必须是 Delta Table（Transactional 表），且定义了主键（Primary Key）**
 
 :::info
@@ -238,7 +238,7 @@ UpsertStream stream = upsertSession.buildUpsertStream()
 
 ## 相关文档
 
-- [UpsertSession API 参考](/docs/api-reference/tunnel/UpsertSession)
-- [TableTunnel API 参考](/docs/api-reference/tunnel/TableTunnel)
+- [UpsertSession API 参考](../../reference/UpsertSession)
+- [TableTunnel API 参考](../../reference/TableTunnel)
 - [Tunnel Upload 批量写入](./tunnel-upload.md)
 - [Tunnel Stream 流式写入](./tunnel-stream.md)

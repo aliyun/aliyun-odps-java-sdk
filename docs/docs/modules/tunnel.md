@@ -181,10 +181,10 @@ reader.close();
 
 ## 相关文档
 
-- [使用 Tunnel 对表进行上传下载](../core-concept/tabletunnel.md)
-- [Configuration 配置类](../api-reference/tunnel/Configuration.md)
-- [RetryPolicy 重试逻辑](../api-reference/tunnel/RetryLogic.md)
-- [UploadSession 文档](../api-reference/tunnel/UploadSession.md)
-- [DownloadSession 文档](../api-reference/tunnel/DownloadSession.md)
-- [StreamUploadSession 文档](../api-reference/tunnel/StreamUploadSession.md)
-- [UpsertSession 文档](../api-reference/tunnel/UpsertSession.md)
+- [使用 Tunnel 对表进行上传下载]
+- [Configuration 配置类]
+- [RetryPolicy 重试逻辑]
+- [UploadSession 文档](../reference/UploadSession.md)
+- [DownloadSession 文档](../reference/DownloadSession.md)
+- [StreamUploadSession 文档](../reference/StreamUploadSession.md)
+- [UpsertSession 文档](../reference/UpsertSession.md)
