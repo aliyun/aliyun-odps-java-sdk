@@ -1,8 +1,0 @@
-{
-  "label": "Storage API",
-  "position": 5,
-  "link": {
-    "type": "generated-index",
-    "description": "MaxCompute Storage API 高性能数据读写接口，基于 Apache Arrow 列式格式，支持并行读写和流式写入。"
-  }
-}
