@@ -1,6 +1,7 @@
 ---
 title: MaxCompute Java SDK
 description: MaxCompute(ODPS) SDK for Java - 阿里云大数据计算服务的 Java 客户端库
+slug: /
 sidebar_position: 1
 keywords:
   - MaxCompute
