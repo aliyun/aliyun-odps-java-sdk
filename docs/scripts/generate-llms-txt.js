@@ -35,6 +35,7 @@ const STRUCTURE = {
     'guides/manage-resources/resources.md',
     'guides/security/check-permission.md',
     'guides/security/acl-query.md',
+    'guides/command-mapping.md',
   ],
   'Modules': [
     'modules/core.md',

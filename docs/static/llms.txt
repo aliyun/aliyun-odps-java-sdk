@@ -34,6 +34,7 @@
 - [资源管理](guides/manage-resources/resources.md): 通过 Java SDK 上传、下载、更新和删除 MaxCompute 资源文件（JAR/FILE/TABLE/ARCHIVE/PY）
 - [权限校验](guides/security/check-permission.md): 通过 Java SDK 检查用户是否拥有对 MaxCompute 对象的指定操作权限
 - [ACL 查询](guides/security/acl-query.md): 通过 Java SDK 执行 ACL/Policy 权限命令，管理用户、角色和资源的访问控制
+- [控制台命令与 SDK 映射](guides/command-mapping.md): MaxCompute 控制台常用命令（desc、setproject、set、show tables、read、kill 等）对应的 Java/Python/Go SDK 实现方式。
 
 ## Modules
 

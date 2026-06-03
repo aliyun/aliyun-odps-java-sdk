@@ -53,6 +53,18 @@ const config = {
     locales: ['zh-Hans'],
   },
 
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'alternate',
+        type: 'text/plain',
+        title: 'LLM Full Documentation',
+        href: '/aliyun-odps-java-sdk/llms-full.txt',
+      },
+    },
+  ],
+
   presets: [
     [
       '@docusaurus/preset-classic',
