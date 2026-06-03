@@ -40,6 +40,7 @@ const config = {
           indexBlog: false,
           highlightSearchTermsOnTargetPage: true,
           searchResultLimits: 10,
+          ignoreCssSelectors: ["pre"],
         }),
       ],
   ],
