@@ -1,9 +1,56 @@
-# MaxCompute Java SDK - Complete Documentation
+# MaxCompute SDK - Complete Documentation (Java / Python / Go)
 
 ---
 # changelog.md
 
 # 更新日志
+
+## [0.57.2-public] - 2026-05-07
+
+### 🐛 问题修复
+* **[Instance]**: **为 MaxQA 实例添加凭据确保机制** - 当通过 `Instances.get(id)` 获取 MCQA 2.0 实例时，自动从响应头获取 `x-odps-mcqa-conn` 和 `x-odps-mcqa-query-cookie` 凭据，确保后续 `/mcqa` 前缀请求能正确路由。
+    * *相关 API*: `Instance.ensureMaxQACredential()`
+
+## [0.57.1-public] - 2026-04-08
+
+### 📦 维护
+* **[Storage API]**: 添加 Storage API 模块文档
+* **[Build]**: 修复 POM 配置问题
+
+## [0.57.0-public] - 2026-03-25
+
+### ✨ 新功能
+* **[Storage API][Preview]**: **全新 `odps-sdk-storage-api` 模块** - 引入高性能 Storage API 客户端 `MaxStorageClient`，基于 Arrow 列式格式对 MaxCompute 表进行读写。支持通过 InputSplit 分片实现分布式并行读取、写入会话的 commit/abort 生命周期管理、表数据预览、Blob 下载以及 Instance 结果读取。
+    * *相关 API*: `MaxStorageClient`, `MaxStorageClient.Builder`, `TableReadSession`, `TableWriteSession`, `InstanceReadSession`, `BlobManager`
+* **[Arrow Helper]**: **全新 `odps-arrow-helper` 模块** - 将 Arrow 相关工具类抽取为独立模块，包含 `TableIdentifier`、`InstanceIdentifier`、`StreamIdentifier`、各类型 Arrow Accessor、`ArrowReaderBuilder`、`ArrowStreamRecordReader`、`SchemaUtils` 等。
+    * *相关 API*: `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, `ArrowReaderBuilder`
+* **[SQLExecutor]**: **Storage API 结果集集成** - `SQLExecutorImpl` 在查询结果包含 `BLOB` 列时，自动通过 Storage API（`StorageAPIResultSet`）下载结果，提升兼容性与数据传输效率。
+    * *相关 API*: `StorageAPIResultSet`, `InternalBlobHelper`
+* **[SQLExecutor]**: **MaxQA Fallback 配置** - 新增 `FallbackInfo` 和 `MaxQAConnInfo`，支持配置 MaxQA Quota 的回退策略，当主 Quota 不可用时可自动回退到指定 Quota。
+    * *相关 API*: `FallbackInfo`, `MaxQAConnInfo`, `SQLExecutorBuilder.maxQAConnInfo()`, `SQLExecutorBuilder.enableMaxQA()`
+* **[RestClient]**: **请求/响应拦截器链** - 新增 `InterceptorChain`、`RequestInterceptor`、`ResponseInterceptor`、`InterceptorContext`，支持可插拔的 HTTP 请求响应拦截。
+    * *相关 API*: `InterceptorChain`, `RequestInterceptor`, `ResponseInterceptor`
+* **[Commons]**: **新增 `JsonString` 类型** - 新增 `JsonString`，作为轻量级 `JsonValue` 实现，封装原始 JSON 字符串，适用于无需解析 JSON 结构的场景。
+    * *相关 API*: `JsonString`
+* **[Commons]**: **新增 `RecordReader` / `RecordWriter` 接口** - 将通用的 `RecordReader` 和 `RecordWriter` 接口下沉至 `odps-sdk-commons`，便于跨模块复用。
+    * *相关 API*: `RecordReader`, `RecordWriter`
+* **[Odps]**: **Catalog API Host 及过期元数据读取配置** - `Odps` 新增 `setCatalogApiHost()` / `getCatalogApiHost()` 和 `setAllowStaleMetadataRead()` / `isAllowStaleMetadataRead()`，分别用于配置 Catalog API 端点和允许读取过期元数据。
+    * *相关 API*: `Odps.setCatalogApiHost()`, `OdpsOptions.allowStaleMetadataRead`
+* **[Quota]**: **获取 MaxQA 连接信息** - 新增 `Quotas.getMaxQAConnInfo(quotaName)`，支持获取指定 Quota 的 MaxQA 连接信息。
+    * *相关 API*: `Quotas.getMaxQAConnInfo()`
+* **[Partition]**: **分区状态管理** - 新增 `Partition.State` 枚举和 `setState()` 方法，支持设置分区状态。
+    * *相关 API*: `Partition.State`, `Partition.setState()`
+
+### 🚀 功能增强与性能优化
+* **[OdpsType]**: **`OdpsType` 枚举新增数字编码** - 每个 `OdpsType` 枚举值携带稳定的整型 code，并支持通过 `OdpsType.fromCode(int)` 反向查找，便于序列化和协议兼容。
+* **[Arrow Helper]**: **Arrow Accessor 层重构** - 将所有按类型实现的 Arrow 列访问器迁移至新的 `odps-arrow-helper` 模块，提升模块化程度和可复用性。
+* **[TunnelBufferedWriter]**: **异步 flush 支持** - `TunnelBufferedWriter` 新增非阻塞异步 flush 能力，采用双 buffer 交换机制（`flush(boolean blocking)`），提供背压控制，提升流式上传的写入吞吐量。
+    * *相关 API*: `TunnelBufferedWriter.flush(boolean blocking)`
+* **[UpsertStream]**: **异步 flush 及 Buffer 优化** - `UpsertStreamImpl` 支持通过可配置的 `ExecutorService` 执行异步 flush，采用按 bucket 双 buffer 交换机制，并新增 `sync()` 方法支持显式屏障同步。
+    * *相关 API*: `UpsertStream.Builder.setAsyncFlushService()`, `UpsertStreamImpl.sync()`
+
+### 📦 依赖更新
+* **新增**: `com.squareup.okhttp3:okhttp:4.12.0`（在 `odps-sdk-storage-api` 中已 shade）
 
 ## [0.56.1-public] - 2026-02-04
 
@@ -950,7 +997,7 @@ SQL 执行超时。可能原因：
 
 # 认证方式
 
-MaxCompute Java SDK 支持多种认证方式，适用于不同的使用场景。本文详细介绍每种认证方式的用法和适用场景。
+MaxCompute SDK 支持多种认证方式，适用于不同的使用场景。本文详细介绍每种认证方式的用法和适用场景。
 
 ## 如何选择
 
@@ -969,6 +1016,9 @@ MaxCompute Java SDK 支持多种认证方式，适用于不同的使用场景。
 最常用的认证方式，使用阿里云 AccessKey ID 和 AccessKey Secret 进行身份验证。
 
 ### 示例代码
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Account;
@@ -989,6 +1039,51 @@ public class AccessKeyExample {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# AccessKey 认证
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+
+# 环境变量自动检测
+from odps import ODPS
+o = ODPS(project='your-project', endpoint='http://service.odps.aliyun.com/api')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+import (
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+// AccessKey 认证
+aliAccount := account.NewAliyunAccount("your-access-id", "your-access-key")
+odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+odpsIns.SetDefaultProjectName("your-project")
+
+// 从环境变量加载
+acc := account.AccountFromEnv()
+odpsIns := odps.NewOdps(acc, endpoint)
+
+// 从配置文件加载
+conf, _ := odps.NewConfigFromIni("./config.ini")
+odpsIns := conf.GenOdps()
+```
+
+</TabItem>
+</Tabs>
 
 ### 环境变量配置
 
@@ -1013,6 +1108,9 @@ STS（Security Token Service）提供临时安全凭证，适用于临时授权�
 
 ### 示例代码
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Account;
 import com.aliyun.odps.Odps;
@@ -1033,6 +1131,39 @@ public class StsTokenExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# STS Token 认证
+o = ODPS(
+    access_id='sts-access-id',
+    secret_access_key='sts-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+    token='sts-token',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+import (
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+// STS Token 认证
+stsAccount := account.NewStsAccount("sts-access-id", "sts-access-key", "sts-token")
+odpsIns := odps.NewOdps(stsAccount, "http://service.odps.aliyun.com/api")
+```
+
+</TabItem>
+</Tabs>
+
 ### 适用场景
 
 - 移动应用临时访问 MaxCompute
@@ -1041,6 +1172,10 @@ public class StsTokenExample {
 - 需要限时访问的场景
 
 ## CredentialProvider
+
+:::info
+此认证方式仅 Java SDK 支持。
+:::
 
 使用阿里云 Credential SDK 的 `ICredentialsProvider` 接口，支持多种凭据来源和自动轮换。这是生产环境的推荐方式。
 
@@ -1130,6 +1265,10 @@ public class CredentialProviderExample {
 
 ## 双重签名
 
+:::info
+此认证方式仅 Java SDK 支持。
+:::
+
 双重签名认证使用两组 AccessKey：一组标识应用身份，一组标识用户身份。适用于应用代理用户访问 MaxCompute 的场景。
 
 ### 示例代码
@@ -1176,6 +1315,9 @@ Bearer Token 通常用于短期访问授权，配合 MaxCompute 的 Policy 权�
 
 ### 示例代码
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.BearerTokenAccount;
@@ -1193,9 +1335,32 @@ public class BearerTokenExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.accounts import BearerTokenAccount
+
+# Bearer Token 认证
+account = BearerTokenAccount('your_bearer_token')
+o = ODPS(
+    account=account,
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 生成 Bearer Token
 
 Bearer Token 通过 SecurityManager 生成，需要指定 Policy 规则：
+
+:::info
+Bearer Token 的生成仅 Java SDK 支持。
+:::
 
 ```java
 import com.aliyun.odps.Odps;
@@ -1222,7 +1387,10 @@ public class GenerateBearerToken {
 
 ## 通用配置
 
-无论使用哪种认证方式，创建 `Odps` 实例后都需要配置 Endpoint 和默认项目：
+无论使用哪种认证方式，创建客户端实例后都需要配置 Endpoint 和默认项目：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Odps odps = new Odps(account);
@@ -1233,6 +1401,33 @@ odps.setEndpoint("http://service.odps.aliyun.com/api");
 // 设置默认项目（必需）
 odps.setDefaultProject("your_project");
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# Endpoint 和项目在构造时指定
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Endpoint 在构造时指定，项目通过 SetDefaultProjectName 设置
+odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+odpsIns.SetDefaultProjectName("your-project")
+```
+
+</TabItem>
+</Tabs>
 
 ### Endpoint 列表
 
@@ -1257,7 +1452,7 @@ odps.setDefaultProject("your_project");
 
 # 第一个程序
 
-本文通过一个完整的示例程序，带你快速体验 MaxCompute Java SDK 的基本用法：连接 MaxCompute 服务并读取表中的数据。
+本文通过一个完整的示例程序，带你快速体验 MaxCompute SDK 的基本用法：连接 MaxCompute 服务并读取表中的数据。
 
 ## 前置条件
 
@@ -1266,6 +1461,9 @@ odps.setDefaultProject("your_project");
 - 拥有一个 MaxCompute 项目和至少一张包含数据的表
 
 ## 完整代码
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Account;
@@ -1331,6 +1529,61 @@ public class FirstProgram {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+
+# 列出表
+for table in o.list_tables():
+    print(table.name)
+
+# 执行 SQL
+with o.execute_sql('SELECT * FROM my_table LIMIT 10').open_reader() as reader:
+    for record in reader:
+        print(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+func main() {
+    aliAccount := account.NewAliyunAccount("your-access-id", "your-access-key")
+    odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+    odpsIns.SetDefaultProjectName("your-project")
+
+    // 列出表
+    tables := odpsIns.Tables()
+    tables.List(func(t *odps.Table, err error) {
+        fmt.Println(t.Name())
+    })
+
+    // 执行 SQL
+    ins, _ := odpsIns.ExecSQl("SELECT * FROM my_table LIMIT 10;")
+    ins.WaitForSuccess()
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## 运行前配置
 
 设置环境变量：
@@ -1341,11 +1594,14 @@ export ALIBABA_CLOUD_ACCESS_KEY_SECRET="your_access_key_secret"
 ```
 
 修改代码中的以下内容：
-- `setEndpoint` - 替换为你的项目所在地域的 Endpoint
-- `setDefaultProject` - 替换为你的项目名称
-- `get("your_table")` - 替换为你要读取的表名
+- Endpoint - 替换为你的项目所在地域的 Endpoint
+- 项目名称 - 替换为你的项目名称
+- 表名 - 替换为你要读取的表名
 
 ## 代码解析
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ### 第一步：读取凭据
 
@@ -1388,7 +1644,83 @@ reader.close();
 
 `table.read(10)` 从表中读取前 10 行数据。`RecordReader` 以迭代器模式逐行返回 `Record` 对象，每个 `Record` 包含一行数据的所有列值。
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+### 第一步：初始化客户端
+
+```python
+from odps import ODPS
+
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+```
+
+`ODPS` 是 PyODPS 的入口类，构造时传入认证信息、项目名称和 Endpoint。也可以通过环境变量自动检测凭据。
+
+### 第二步：列出表
+
+```python
+for table in o.list_tables():
+    print(table.name)
+```
+
+`list_tables()` 返回当前项目下所有表的迭代器。
+
+### 第三步：执行 SQL 并读取结果
+
+```python
+with o.execute_sql('SELECT * FROM my_table LIMIT 10').open_reader() as reader:
+    for record in reader:
+        print(record)
+```
+
+`execute_sql()` 提交 SQL 任务并等待完成，`open_reader()` 打开结果读取器，以迭代器模式逐行返回数据。
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+### 第一步：初始化客户端
+
+```go
+aliAccount := account.NewAliyunAccount("your-access-id", "your-access-key")
+odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+odpsIns.SetDefaultProjectName("your-project")
+```
+
+创建 Account 实例和 Odps 客户端，设置 Endpoint 和默认项目。
+
+### 第二步：列出表
+
+```go
+tables := odpsIns.Tables()
+tables.List(func(t *odps.Table, err error) {
+    fmt.Println(t.Name())
+})
+```
+
+通过 `Tables()` 获取表管理器，`List` 以回调方式遍历所有表。
+
+### 第三步：执行 SQL
+
+```go
+ins, _ := odpsIns.ExecSQl("SELECT * FROM my_table LIMIT 10;")
+ins.WaitForSuccess()
+```
+
+`ExecSQl` 提交 SQL 任务并返回实例，`WaitForSuccess()` 等待任务执行完成。
+
+</TabItem>
+</Tabs>
+
 ## 运行程序
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 使用 Maven 编译并运行：
 
@@ -1402,6 +1734,27 @@ mvn compile exec:java -Dexec.mainClass="FirstProgram"
 mvn compile
 java -cp target/classes:$(mvn dependency:build-classpath -q -DincludeScope=runtime -Dmdep.outputFile=/dev/stdout) FirstProgram
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+直接运行 Python 脚本：
+
+```bash
+python first_program.py
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+使用 Go 运行：
+
+```bash
+go run main.go
+```
+
+</TabItem>
+</Tabs>
 
 预期输出（具体内容取决于你的表数据）：
 
@@ -1424,7 +1777,7 @@ value4  value5  value6
 
 ### 表不存在
 
-确认表名拼写正确，且表属于 `setDefaultProject` 指定的项目。如果表在其他项目中，使用 `odps.tables().get("other_project", "table_name")`。
+确认表名拼写正确，且表属于指定的项目。如果表在其他项目中，需要指定项目名称。
 
 ## 下一步
 
@@ -1437,9 +1790,14 @@ value4  value5  value6
 
 # 安装与配置
 
-本文介绍如何在 Java 项目中引入 MaxCompute Java SDK 依赖。
+本文介绍如何在项目中引入 MaxCompute SDK 依赖。
 
-## SDK 模块说明
+## 安装 SDK
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
+### SDK 模块说明
 
 MaxCompute Java SDK 由多个模块组成，可按需引入：
 
@@ -1452,9 +1810,9 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 
 大多数场景只需引入 `odps-sdk-core` 即可。
 
-## Maven
+### Maven
 
-### 基本依赖
+#### 基本依赖
 
 在项目的 `pom.xml` 中添加依赖：
 
@@ -1466,7 +1824,7 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 </dependency>
 ```
 
-### 引入其他模块
+#### 引入其他模块
 
 根据需要添加其他模块：
 
@@ -1493,7 +1851,7 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 </dependency>
 ```
 
-### 仓库配置
+#### 仓库配置
 
 SDK 发布在 Maven Central，可直接使用。如需加速下载，可配置阿里云 Maven 镜像仓库：
 
@@ -1518,13 +1876,13 @@ SDK 发布在 Maven Central，可直接使用。如需加速下载，可配置�
 </mirrors>
 ```
 
-### 关于 BOM
+#### 关于 BOM
 
 当前 MaxCompute Java SDK 未提供 BOM（Bill of Materials）。如果项目中同时使用多个模块，请确保所有模块版本保持一致。
 
-## Gradle
+### Gradle
 
-### 基本依赖
+#### 基本依赖
 
 在 `build.gradle` 中添加：
 
@@ -1534,7 +1892,7 @@ dependencies {
 }
 ```
 
-### 引入其他模块
+#### 引入其他模块
 
 ```groovy
 dependencies {
@@ -1545,7 +1903,7 @@ dependencies {
 }
 ```
 
-### 仓库配置
+#### 仓库配置
 
 ```groovy
 repositories {
@@ -1568,7 +1926,7 @@ dependencies {
 }
 ```
 
-## Java 版本要求
+### Java 版本要求
 
 | SDK 版本 | 最低 Java 版本 | 说明 |
 |---------|--------------|------|
@@ -1579,7 +1937,53 @@ dependencies {
 - **推荐版本**：Java 8 或 Java 21
 - 自 0.54.0 版本起，SDK 完整支持 Java 21 运行时
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+### 安装
+
+使用 pip 安装 PyODPS：
+
+```bash
+pip install pyodps
+```
+
+### 可选依赖
+
+如需使用 DataFrame 功能，建议同时安装 pandas：
+
+```bash
+pip install pyodps[pandas]
+```
+
+### Python 版本要求
+
+- **最低要求**：Python 3.6
+- **推荐版本**：Python 3.8+
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+### 安装
+
+使用 `go get` 安装 Go SDK：
+
+```bash
+go get github.com/aliyun/aliyun-odps-go-sdk
+```
+
+### Go 版本要求
+
+- **最低要求**：Go 1.18
+- **推荐版本**：Go 1.20+
+
+</TabItem>
+</Tabs>
+
 ## 验证安装
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 创建一个简单的测试类来验证 SDK 是否正确引入：
 
@@ -1595,6 +1999,41 @@ public class VerifyInstallation {
 ```
 
 如果编译运行成功，说明 SDK 已正确安装。
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+在 Python 中验证安装：
+
+```python
+import odps
+print("PyODPS 安装成功")
+print(f"版本: {odps.__version__}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+创建一个简单的程序验证安装：
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+)
+
+func main() {
+    fmt.Println("MaxCompute Go SDK 引入成功")
+    _ = odps.NewOdps
+}
+```
+
+运行 `go run main.go`，如果没有报错则安装成功。
+
+</TabItem>
+</Tabs>
 
 ## 下一步
 
@@ -1645,6 +2084,9 @@ MaxCompute Java SDK 支持三种 SQL 执行模式，分别面向不同的延迟�
 
 SDK 提供了 `SQLExecutor` 作为统一的 SQL 执行接口，通过 `SQLExecutorBuilder` 配置不同的 `ExecuteMode` 即可切换执行模式：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 离线模式
 SQLExecutor offline = SQLExecutorBuilder.builder()
@@ -1667,6 +2109,43 @@ SQLExecutor maxqa = SQLExecutorBuilder.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 离线模式：执行 SQL 并等待完成
+instance = odps.execute_sql('SELECT * FROM my_table')
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 交互式模式（MCQA）
+instance = odps.execute_sql_interactive('SELECT * FROM my_table')
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 离线模式：执行 SQL
+instance, err := odpsIns.ExecSQl("SELECT * FROM my_table;")
+if err != nil {
+    log.Fatalf("%+v", err)
+}
+err = instance.WaitForSuccess()
+```
+
+</TabItem>
+</Tabs>
+
 ## 相关文档
 
 - [离线模式详细指南](./offline.md)
@@ -1682,6 +2161,10 @@ SQLExecutor maxqa = SQLExecutorBuilder.builder()
 # MCQA 交互式查询
 
 MCQA（MaxCompute Query Acceleration）是 MaxCompute 提供的 SQL 查询加速服务，将分钟级查询缩减至秒级甚至毫秒级。SDK 支持 MCQA v1（基于 Session）和 MCQA v2 / MaxQA（无 Session）两种模式。
+
+:::note
+Go SDK 暂不支持 MCQA 交互式查询。
+:::
 
 ## 前置条件
 
@@ -1700,6 +2183,9 @@ MCQA（MaxCompute Query Acceleration）是 MaxCompute 提供的 SQL 查询加速
 ## 完整示例
 
 ### MCQA v1（基于 Session）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -1763,7 +2249,30 @@ public class McqaV1Example {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# MCQA 交互式查询（毫秒~秒级响应）
+instance = o.execute_sql_interactive('SELECT * FROM my_table LIMIT 100')
+
+# 读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 ### MCQA v2 / MaxQA（无 Session）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -1830,6 +2339,26 @@ public class McqaV2Example {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# MCQA 交互式查询（毫秒~秒级响应）
+instance = o.execute_sql_interactive('SELECT * FROM my_table LIMIT 100')
+
+# 读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### MCQA v1 工作原理
@@ -1861,6 +2390,9 @@ public class McqaV2Example {
 
 MaxQA 模式必须指定交互式资源组名称：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
     .odps(odps)
@@ -1870,9 +2402,23 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 通过 execute_sql_interactive 自动使用交互式资源组
+instance = o.execute_sql_interactive('SELECT count(1) FROM my_table')
+```
+
+</TabItem>
+</Tabs>
+
 ### 回退策略（Fallback Policy）
 
 当 MCQA 加速失败时，默认会回退到离线模式执行。可以通过 `fallbackPolicy` 自定义回退策略：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 使用默认回退策略（加速失败时回退到离线）
@@ -1890,7 +2436,25 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 的 execute_sql_interactive 默认在加速失败时回退到离线模式
+instance = o.execute_sql_interactive('SELECT * FROM my_table')
+
+# 禁用回退（加速失败直接报错）
+instance = o.execute_sql_interactive('SELECT * FROM my_table',
+    fallback_policy='disable')
+```
+
+</TabItem>
+</Tabs>
+
 ### Session 相关配置（仅 MCQA v1）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
@@ -1905,7 +2469,21 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 自动管理 Session 生命周期，无需手动配置
+instance = o.execute_sql_interactive('SELECT * FROM my_table')
+```
+
+</TabItem>
+</Tabs>
+
 ### 其他常用配置
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
@@ -1919,6 +2497,21 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .useInstanceTunnel(true)
     .build();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 通过 ODPS 对象配置 Tunnel Endpoint
+o = ODPS(access_id, secret_access_key, project='my_project',
+         endpoint=endpoint,
+         tunnel_endpoint='http://dt.cn-hangzhou.maxcompute.aliyun.com')
+
+instance = o.execute_sql_interactive('SELECT * FROM my_table')
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 
@@ -1960,6 +2553,9 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
 ```
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -2014,11 +2610,74 @@ public class OfflineSQLExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+o = ODPS(access_id, secret_access_key, project='my_project', endpoint=endpoint)
+
+# 同步执行（阻塞等待完成）
+instance = o.execute_sql('SELECT * FROM my_table')
+
+# 异步执行
+instance = o.run_sql('SELECT * FROM my_table')
+instance.wait_for_success()
+
+# 获取 Logview
+print(o.get_logview_address(instance.id, 24))
+
+# 读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 pandas DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 执行 SQL
+ins, err := odpsIns.ExecSQl("SELECT * FROM my_table;")
+if err != nil {
+    panic(err)
+}
+
+// 等待完成
+err = ins.WaitForSuccess()
+
+// 获取 Logview
+logview := odpsIns.LogView()
+logviewUrl, _ := logview.GenerateLogView(ins, 24)
+fmt.Println(logviewUrl)
+
+// 通过 Instance Tunnel 读取结果
+project := odpsIns.DefaultProject()
+tunnelEndpoint, _ := project.GetTunnelEndpoint()
+tunnelIns := tunnel.NewTunnel(odpsIns, tunnelEndpoint)
+session, _ := tunnelIns.CreateInstanceResultDownloadSession(project.Name(), ins.Id())
+reader, _ := session.OpenRecordReader(0, session.RecordCount(), 0, nil)
+reader.Iterator(func(record data.Record, err error) {
+    fmt.Println(record)
+})
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 提交作业
 
 `SQLTask.run()` 提交 SQL 作业到 MaxCompute 服务端，返回一个 `Instance` 对象代表该作业实例。该方法为异步调用，提交后立即返回。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 最简方式
@@ -2034,6 +2693,38 @@ Instance instance = SQLTask.run(odps, project, sql, taskName, hints, aliases);
 Instance instance = SQLTask.run(odps, project, sql, taskName, hints, aliases, priority);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 最简方式（同步执行）
+instance = o.execute_sql('SELECT * FROM my_table')
+
+# 异步执行
+instance = o.run_sql('SELECT * FROM my_table')
+instance.wait_for_success()
+
+# 带 Hints
+instance = o.execute_sql('SELECT * FROM my_table',
+    hints={'odps.sql.type.system.odps2': 'true'})
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 最简方式
+ins, err := odpsIns.ExecSQl("SELECT * FROM my_table;")
+err = ins.WaitForSuccess()
+
+// 带 Hints
+hints := map[string]string{"odps.sql.type.system.odps2": "true"}
+ins, err := odpsIns.ExecSQlWithHints("SELECT * FROM my_table;", hints)
+```
+
+</TabItem>
+</Tabs>
+
 ### 等待作业完成
 
 `instance.waitForSuccess()` 会阻塞当前线程，直到作业成功或抛出异常（作业失败时）。
@@ -2042,10 +2733,33 @@ Instance instance = SQLTask.run(odps, project, sql, taskName, hints, aliases, pr
 
 Logview 是 MaxCompute 提供的作业监控页面，可以查看作业的执行计划、各阶段进度和资源消耗。
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 生成 Logview URL，参数为有效时长（小时）
 String logview = odps.logview().generateLogView(instance, 7 * 24);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 获取 Logview URL，参数为有效时长（小时）
+print(o.get_logview_address(instance.id, 24))
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 获取 Logview URL，参数为有效时长（小时）
+logview := odpsIns.LogView()
+url, _ := logview.GenerateLogView(ins, 24)
+```
+
+</TabItem>
+</Tabs>
 
 ### 获取结果
 
@@ -2063,6 +2777,9 @@ SDK 提供三种获取结果的方式：
 
 Hints 用于调整 SQL 执行行为，以键值对方式传入：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Map<String, String> hints = new HashMap<>();
 // 开启 2.0 数据类型系统
@@ -2075,9 +2792,39 @@ hints.put("odps.sql.reshuffle.dynamicpt", "true");
 Instance instance = SQLTask.run(odps, odps.getDefaultProject(), sql, hints, null);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+hints = {
+    'odps.sql.type.system.odps2': 'true',
+    'odps.sql.mapper.split.size': '128',
+    'odps.sql.reshuffle.dynamicpt': 'true',
+}
+instance = o.execute_sql('SELECT * FROM my_table', hints=hints)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+hints := map[string]string{
+    "odps.sql.type.system.odps2":   "true",
+    "odps.sql.mapper.split.size":   "128",
+    "odps.sql.reshuffle.dynamicpt": "true",
+}
+ins, err := odpsIns.ExecSQlWithHints("SELECT * FROM my_table;", hints)
+```
+
+</TabItem>
+</Tabs>
+
 ### 优先级设置
 
 优先级数字越小，优先级越高。默认优先级由项目配置决定。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Integer priority = 3;
@@ -2085,9 +2832,32 @@ Instance instance = SQLTask.run(odps, odps.getDefaultProject(), sql,
     "AnonymousSQLTask", null, null, priority);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 通过 priority 参数设置优先级
+instance = o.execute_sql('SELECT * FROM my_table', priority=3)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 通过 Hints 设置优先级
+hints := map[string]string{"odps.instance.priority": "3"}
+ins, err := odpsIns.ExecSQlWithHints("SELECT * FROM my_table;", hints)
+```
+
+</TabItem>
+</Tabs>
+
 ### 大结果集获取（InstanceTunnel）
 
 当结果集超过 1 万条时，需要使用 `getResultSet` 并设置 `limitHint` 为 `false` 获取全量数据：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // limitHint=false 表示获取全量结果（需要源表的下载权限）
@@ -2097,6 +2867,36 @@ while (resultSet.hasNext()) {
   // 处理记录
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 使用 tunnel=True 获取全量结果
+with instance.open_reader(tunnel=True) as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 pandas DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 通过 Instance Tunnel 读取全量结果
+tunnelIns := tunnel.NewTunnel(odpsIns, tunnelEndpoint)
+session, _ := tunnelIns.CreateInstanceResultDownloadSession(projectName, ins.Id())
+reader, _ := session.OpenRecordReader(0, session.RecordCount(), 0, nil)
+reader.Iterator(func(record data.Record, err error) {
+    fmt.Println(record)
+})
+```
+
+</TabItem>
+</Tabs>
 
 :::warning
 当 `limitHint` 为 `false` 时，SDK 会对 SQL 涉及的每张表进行权限检查。如果项目开启了 Protection，需要提前为相应表添加 Policy Exception，否则会因权限不足而失败。
@@ -2123,6 +2923,10 @@ while (resultSet.hasNext()) {
 
 # SQLExecutor 高级用法
 
+:::note
+SQLExecutor 是 Java SDK 特有的 MCQA 交互式查询接口。Python 用户请参考 [MCQA 交互式查询](./mcqa.md) 中的 Python 示例。Go SDK 暂不支持 MCQA。
+:::
+
 `SQLExecutor` 是 MaxCompute Java SDK 中统一的 SQL 执行接口，支持离线、MCQA v1、MaxQA 三种执行模式。本文介绍 `SQLExecutor` 的高级配置和使用技巧。
 
 ## 前置条件
@@ -2139,6 +2943,9 @@ while (resultSet.hasNext()) {
 ```
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -2223,6 +3030,44 @@ public class SQLExecutorAdvancedExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+import os
+
+# 初始化 ODPS 客户端
+o = ODPS(
+    os.getenv('ALIBABA_CLOUD_ACCESS_KEY_ID'),
+    os.getenv('ALIBABA_CLOUD_ACCESS_KEY_SECRET'),
+    project='your_project',
+    endpoint='http://service.cn-hangzhou.maxcompute.aliyun.com/api',
+)
+
+# 带 hints 执行交互式查询
+hints = {'odps.sql.type.system.odps2': 'true'}
+instance = o.execute_sql_interactive(
+    'SELECT * FROM my_table WHERE id > 100',
+    hints=hints,
+)
+
+# 获取 Logview
+print('Logview:', instance.get_logview_address())
+
+# 迭代获取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### Builder 配置选项
@@ -2281,6 +3126,9 @@ public class SQLExecutorAdvancedExample {
 
 #### 带 Hints 执行
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Map<String, String> hints = new HashMap<>();
 hints.put("odps.sql.type.system.odps2", "true");
@@ -2288,9 +3136,26 @@ hints.put("odps.sql.decimal.odps2", "true");
 sqlExecutor.run("SELECT * FROM my_table;", hints);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+hints = {
+    'odps.sql.type.system.odps2': 'true',
+    'odps.sql.decimal.odps2': 'true',
+}
+instance = o.execute_sql_interactive('SELECT * FROM my_table', hints=hints)
+```
+
+</TabItem>
+</Tabs>
+
 #### 带 Aliases 执行
 
 Aliases 用于在 SQL 中引用资源文件的别名，常用于 UDF 场景。Aliases 可以通过 hints 传入：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Map<String, String> hints = new HashMap<>();
@@ -2298,11 +3163,28 @@ hints.put("odps.sql.udf.jars", "my_udf.jar");
 sqlExecutor.run("SELECT my_udf(col) FROM my_table;", hints);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+hints = {'odps.sql.udf.jars': 'my_udf.jar'}
+instance = o.execute_sql_interactive(
+    'SELECT my_udf(col) FROM my_table',
+    hints=hints,
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 结果处理
 
 #### getResultSet 迭代获取（推荐）
 
 `getResultSet()` 返回 `ResultSet` 迭代器，分批读取数据，内存友好：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 基础用法
@@ -2322,9 +3204,33 @@ ResultSet resultSet = sqlExecutor.getResultSet(0L, 5000L, null);
 ResultSet resultSet = sqlExecutor.getResultSet(0L, null, null, true);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 基础用法：迭代读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 使用 Tunnel 获取结果（保留列类型信息）
+with instance.open_reader(tunnel=True) as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 pandas DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 #### getResult 列表获取
 
-`getResult()` 一次性将结果加载到内存，适合小结果集：
+:::info
+`getResult()` 是 Java SDK 特有的方法，一次性将结果加载到内存。Python 中请使用 `open_reader()` 迭代读取。
+:::
 
 ```java
 // 获取全部结果（最多受 limitEnabled 限制）
@@ -2340,7 +3246,9 @@ List<Record> records = sqlExecutor.getResult(100L);
 
 #### 关闭 InstanceTunnel
 
-关闭 `useInstanceTunnel` 后，结果字段统一为 String 类型，执行更快但失去类型信息：
+:::info
+`useInstanceTunnel` 是 Java SDK SQLExecutorBuilder 特有的配置。Python 中通过 `open_reader()` 的 `tunnel` 参数控制是否使用 Tunnel。
+:::
 
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
@@ -2351,6 +3259,9 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
 ```
 
 ### 查询信息获取
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 获取查询 ID（用于问题排查）
@@ -2378,7 +3289,31 @@ boolean hasResult = sqlExecutor.hasResultSet();
 boolean isInteractive = sqlExecutor.isRunningInInteractiveMode();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 获取 Logview URL
+logview = instance.get_logview_address()
+
+# 获取 Instance ID（用于问题排查）
+instance_id = instance.id
+
+# 获取作业状态
+status = instance.status
+print('Status:', status)
+
+# 判断是否成功
+print('Success:', instance.is_successful())
+```
+
+</TabItem>
+</Tabs>
+
 ### 取消查询
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 try {
@@ -2390,7 +3325,25 @@ try {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 提交查询（不等待完成）
+instance = o.run_sql_interactive('SELECT * FROM large_table')
+
+# 取消查询
+instance.stop()
+```
+
+</TabItem>
+</Tabs>
+
 ### CommandApi（DDL 命令）
+
+:::info
+CommandApi 是 Java SDK SQLExecutor 特有的功能。Python 中可直接使用 `o.execute_sql()` 执行 DDL 命令。
+:::
 
 启用 `enableCommandApi(true)` 后，可以通过 `SQLExecutor` 执行 DDL 类命令：
 
@@ -2428,6 +3381,9 @@ while (showResult.hasNext()) {
 
 `FallbackPolicy` 控制 MCQA 加速失败时的行为：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 始终回退到离线（默认行为）
 .fallbackPolicy(FallbackPolicy.alwaysFallbackPolicy())
@@ -2436,9 +3392,27 @@ while (showResult.hasNext()) {
 .fallbackPolicy(FallbackPolicy.neverFallbackPolicy())
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 默认行为：加速失败时回退到离线
+instance = o.execute_sql_interactive('SELECT * FROM my_table', fallback=True)
+
+# 禁用回退（加速失败直接报错）
+instance = o.execute_sql_interactive('SELECT * FROM my_table', fallback=False)
+```
+
+</TabItem>
+</Tabs>
+
 回退策略仅对 MCQA（v1 和 v2）模式生效。当回退发生时，可以通过 `getExecutionLog()` 查看回退原因。
 
 ### InstanceTunnel 配置
+
+:::info
+InstanceTunnel 精细配置是 Java SDK SQLExecutorBuilder 特有的功能。Python 中通过 ODPS 对象的 `tunnel_endpoint` 参数统一配置。
+:::
 
 当网络环境受限或需要性能优化时，可以精细配置 Tunnel 参数：
 
@@ -2458,6 +3432,10 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
 ```
 
 ### 从已有实例恢复
+
+:::info
+从已有实例恢复 SQLExecutor 是 Java SDK 特有的功能，用于断点续取结果。
+:::
 
 可以从之前的 Instance 恢复 `SQLExecutor`，用于断点续取结果：
 
@@ -2512,6 +3490,9 @@ MaxCompute 支持用户自定义函数（UDF），包括 UDF（标量函数）�
 ## 完整示例
 
 以下示例演示如何从已上传的 JAR 资源创建一个 UDF 函数，并对其进行查询和删除操作：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Function;
@@ -2573,6 +3554,124 @@ public class FunctionManagementExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 初始化 ODPS 客户端
+odps = ODPS('access_id', 'access_key', 'my_project', 'http://service.odps.aliyun.com/api')
+
+# 1. 创建函数
+odps.create_function(
+    'my_upper_udf',
+    class_type='com.example.udf.UpperCase',
+    resources=['my-udf-lib.jar']
+)
+print('函数创建成功: my_upper_udf')
+
+# 2. 检查函数是否存在
+exists = odps.exist_function('my_upper_udf')
+print('函数是否存在:', exists)
+
+# 3. 获取函数详情
+func = odps.get_function('my_upper_udf')
+func.reload()
+print('函数类路径:', func.class_type)
+print('关联资源:', [r.name for r in func.resources])
+
+# 4. 遍历所有函数
+print('项目中的所有函数:')
+for f in odps.list_functions():
+    print(f'  - {f.name}')
+
+# 5. 更新函数（例如更换 JAR 资源版本）
+func = odps.get_function('my_upper_udf')
+func.resources = ['my-udf-lib-v2.jar']
+func.update()
+print('函数更新成功')
+
+# 6. 删除函数
+odps.delete_function('my_upper_udf')
+print('函数删除成功')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+func main() {
+    // 初始化 ODPS 客户端
+    acc := account.NewAliyunAccount("accessId", "accessKey")
+    odpsIns := odps.NewOdps(acc, "http://service.odps.aliyun.com/api")
+    odpsIns.SetDefaultProjectName("my_project")
+
+    functions := odps.NewFunctions(odpsIns)
+
+    // 1. 创建函数
+    fb := odps.NewFunctionBuilder()
+    function := fb.Name("my_upper_udf").
+        ClassPath("com.example.udf.UpperCase").
+        Resources([]string{"my-udf-lib.jar"}).
+        Build()
+    err := functions.Create("", "", function)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数创建成功: my_upper_udf")
+
+    // 2. 检查函数是否存在
+    f, _ := functions.Get("my_upper_udf")
+    exists, err := f.Exist()
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数是否存在:", exists)
+
+    // 3. 获取函数详情
+    f, _ = functions.Get("my_upper_udf")
+    err = f.Load()
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数类路径:", f.ClassPath())
+    fmt.Println("关联资源:", f.Resources())
+
+    // 4. 更新函数（例如更换 JAR 资源版本）
+    f.SetClassPath("com.example.udf.UpperCase")
+    f.SetResources([]string{"my-udf-lib-v2.jar"})
+    err = functions.Update("", "", *f)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数更新成功")
+
+    // 5. 删除函数
+    err = functions.Delete("my_upper_udf")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数删除成功")
+}
+```
+
+:::info
+Go SDK 暂不支持遍历函数列表，如需遍历请使用 Java 或 Python SDK。
+:::
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 创建函数
@@ -2582,6 +3681,9 @@ public class FunctionManagementExample {
 - `classPath`：UDF 实现类的全限定类名
 - `resources`：函数依赖的资源列表（通常是 JAR 包资源名）
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Function function = new Function();
 function.setName("my_upper_udf");
@@ -2590,7 +3692,36 @@ function.setResources(Arrays.asList("my-udf-lib.jar"));
 functions.create(function);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.create_function(
+    'my_upper_udf',
+    class_type='com.example.udf.UpperCase',
+    resources=['my-udf-lib.jar']
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+fb := odps.NewFunctionBuilder()
+function := fb.Name("my_upper_udf").
+    ClassPath("com.example.udf.UpperCase").
+    Resources([]string{"my-udf-lib.jar"}).
+    Build()
+functions.Create("", "", function)
+```
+
+</TabItem>
+</Tabs>
+
 支持在指定项目或 schema 中创建：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 在指定项目中创建
@@ -2600,7 +3731,37 @@ functions.create("target_project", function);
 functions.create("target_project", "my_schema", function);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 在指定项目中创建
+odps.create_function('my_upper_udf', class_type='com.example.udf.UpperCase',
+                     resources=['my-udf-lib.jar'], project='target_project')
+
+# 在指定项目和 schema 中创建
+odps.create_function('my_upper_udf', class_type='com.example.udf.UpperCase',
+                     resources=['my-udf-lib.jar'], project='target_project', schema='my_schema')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 在指定项目中创建
+functions.Create("target_project", "", function)
+
+// 在指定项目和 schema 中创建
+functions.Create("target_project", "my_schema", function)
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取函数
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 从默认项目获取
@@ -2613,9 +3774,46 @@ Function f = functions.get("project_name", "function_name");
 Function f = functions.get("project_name", "schema_name", "function_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 从默认项目获取
+f = odps.get_function('function_name')
+
+# 从指定项目获取
+f = odps.get_function('function_name', project='project_name')
+
+# 从指定项目和 schema 获取
+f = odps.get_function('function_name', project='project_name', schema='schema_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 从默认项目获取
+f, err := functions.Get("function_name")
+if err != nil {
+    panic(err)
+}
+// 加载函数详情
+err = f.Load()
+```
+
+:::info
+Go SDK 的 `Functions.Get` 仅支持获取当前项目中的函数。如需操作其他项目，请创建对应项目的 `Functions` 实例。
+:::
+
+</TabItem>
+</Tabs>
+
 获取到的 Function 对象是延迟加载的，访问详细属性前需要调用 `reload()`。
 
 ### 遍历函数
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 迭代器方式
@@ -2631,7 +3829,33 @@ for (Function f : functions.iterable()) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 遍历所有函数
+for f in odps.list_functions():
+    print(f.name)
+
+# 按前缀过滤
+for f in odps.list_functions(prefix='my_'):
+    print(f.name)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+:::info
+Go SDK 暂不支持遍历函数列表，如需遍历请使用 Java 或 Python SDK。
+:::
+
+</TabItem>
+</Tabs>
+
 ### 删除函数
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 删除默认项目中的函数
@@ -2643,6 +3867,35 @@ functions.delete("project_name", "function_name");
 // 删除指定项目和 schema 中的函数
 functions.delete("project_name", "schema_name", "function_name");
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 删除默认项目中的函数
+odps.delete_function('function_name')
+
+# 删除指定项目中的函数
+odps.delete_function('function_name', project='project_name')
+
+# 删除指定项目和 schema 中的函数
+odps.delete_function('function_name', project='project_name', schema='schema_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 删除默认项目中的函数
+err := functions.Delete("function_name")
+```
+
+:::info
+Go SDK 的 `Functions.Delete` 仅支持删除当前项目中的函数。如需操作其他项目，请创建对应项目的 `Functions` 实例。
+:::
+
+</TabItem>
+</Tabs>
 
 ## 函数类型
 
@@ -2696,6 +3949,9 @@ MaxCompute 中的资源是 UDF 函数执行时依赖的文件，包括 JAR 包�
 ## 完整示例
 
 以下示例演示如何上传 JAR 文件作为资源，并对其进行查询和删除操作：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.FileResource;
@@ -2773,11 +4029,145 @@ public class ResourceManagementExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 初始化 ODPS 客户端
+odps = ODPS('access_id', 'access_key', 'my_project', 'http://service.odps.aliyun.com/api')
+
+# 1. 上传 JAR 文件资源
+odps.create_resource('my-udf-lib.jar', 'jar', fileobj=open('/path/to/my-udf-lib.jar', 'rb'))
+print('JAR 资源上传成功: my-udf-lib.jar')
+
+# 2. 检查资源是否存在
+exists = odps.exist_resource('my-udf-lib.jar')
+print('资源是否存在:', exists)
+
+# 3. 获取资源元信息
+res = odps.get_resource('my-udf-lib.jar')
+res.reload()
+print('资源类型:', res.type)
+print('资源大小:', res.size)
+print('最后修改:', res.last_modified_time)
+
+# 4. 下载资源内容
+with odps.open_resource('my-udf-lib.jar', mode='rb', type='jar') as fp:
+    content = fp.read()
+    print('下载资源大小:', len(content), 'bytes')
+
+# 5. 遍历所有资源
+print('项目中的所有资源:')
+for r in odps.list_resources():
+    print(f'  - {r.name} ({r.type})')
+
+# 6. 更新资源
+res = odps.get_resource('my-udf-lib.jar')
+res.update(file_obj=open('/path/to/my-udf-lib-v2.jar', 'rb'))
+print('资源更新成功')
+
+# 7. 删除资源
+odps.delete_resource('my-udf-lib.jar')
+print('资源删除成功')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+    "fmt"
+    "os"
+
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+func main() {
+    // 初始化 ODPS 客户端
+    acc := account.NewAliyunAccount("accessId", "accessKey")
+    odpsIns := odps.NewOdps(acc, "http://service.odps.aliyun.com/api")
+    odpsIns.SetDefaultProjectName("my_project")
+
+    resources := odps.NewResources(odpsIns)
+
+    // 1. 上传 JAR 文件资源
+    jarRes := odps.NewJarResource("my-udf-lib.jar")
+    jarRes.SetComment("UDF library for string operations")
+    f, _ := os.Open("/path/to/my-udf-lib.jar")
+    defer f.Close()
+    jarRes.SetReader(f)
+    err := resources.CreateFileResource("", "", jarRes, false)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("JAR 资源上传成功: my-udf-lib.jar")
+
+    // 2. 检查资源是否存在
+    res := resources.Get("my-udf-lib.jar")
+    exists, err := res.Exist()
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("资源是否存在:", exists)
+
+    // 3. 获取资源元信息
+    res = resources.Get("my-udf-lib.jar")
+    err = res.Load()
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("资源类型:", res.ResourceType())
+    fmt.Println("资源描述:", res.Comment())
+
+    // 4. 遍历所有资源
+    fmt.Println("项目中的所有资源:")
+    resources.List(func(r *odps.Resource, err error) {
+        if err != nil {
+            return
+        }
+        fmt.Printf("  - %s (%s)\n", r.Name(), r.ResourceType())
+    })
+
+    // 5. 更新资源
+    updatedRes := odps.NewJarResource("my-udf-lib.jar")
+    f2, _ := os.Open("/path/to/my-udf-lib-v2.jar")
+    defer f2.Close()
+    updatedRes.SetReader(f2)
+    err = resources.UpdateFileResource("", "", updatedRes)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("资源更新成功")
+
+    // 6. 删除资源
+    err = resources.Delete("my-udf-lib.jar")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("资源删除成功")
+}
+```
+
+:::info
+Go SDK 暂不支持下载资源内容（`getResourceAsStream`），如需下载资源请使用 Java 或 Python SDK。
+:::
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 上传文件资源
 
 文件类型资源（JAR/FILE/ARCHIVE/PY）通过 `InputStream` 上传：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 FileResource resource = new FileResource();
@@ -2788,7 +4178,31 @@ try (InputStream is = new FileInputStream("local/path/example.jar")) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.create_resource('example.jar', 'jar', fileobj=open('local/path/example.jar', 'rb'))
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+jarRes := odps.NewJarResource("example.jar")
+f, _ := os.Open("local/path/example.jar")
+defer f.Close()
+jarRes.SetReader(f)
+err := resources.CreateFileResource("", "", jarRes, false)
+```
+
+</TabItem>
+</Tabs>
+
 MaxCompute 会根据文件后缀名自动识别资源类型。也可以显式设置类型：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 resource.setType(Resource.Type.JAR);    // JAR 资源
@@ -2797,7 +4211,35 @@ resource.setType(Resource.Type.ARCHIVE);// 压缩包资源
 resource.setType(Resource.Type.PY);     // Python 脚本资源
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 通过 type 参数指定资源类型
+odps.create_resource('example.jar', 'jar', fileobj=fp)      # JAR 资源
+odps.create_resource('example.txt', 'file', fileobj=fp)     # 普通文件资源
+odps.create_resource('example.zip', 'archive', fileobj=fp)  # 压缩包资源
+odps.create_resource('example.py', 'py', fileobj=fp)        # Python 脚本资源
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 通过不同的构造函数指定资源类型
+jarRes := odps.NewJarResource("example.jar")         // JAR 资源
+fileRes := odps.NewFileResource("example.txt")       // 普通文件资源
+archiveRes := odps.NewArchiveResource("example.zip") // 压缩包资源
+pyRes := odps.NewPyResource("example.py")            // Python 脚本资源
+```
+
+</TabItem>
+</Tabs>
+
 支持在指定项目或 schema 中创建：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 在指定项目中创建
@@ -2807,9 +4249,37 @@ resources.create("target_project", resource, inputStream);
 resources.create("target_project", "my_schema", resource, inputStream);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 在指定项目中创建
+odps.create_resource('example.jar', 'jar', fileobj=fp, project='target_project')
+
+# 在指定项目和 schema 中创建
+odps.create_resource('example.jar', 'jar', fileobj=fp, project='target_project', schema='my_schema')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 在指定项目中创建
+resources.CreateFileResource("target_project", "", jarRes, false)
+
+// 在指定项目和 schema 中创建
+resources.CreateFileResource("target_project", "my_schema", jarRes, false)
+```
+
+</TabItem>
+</Tabs>
+
 ### 创建表资源
 
 表资源引用项目中的已有表，不需要 `InputStream`：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableResource tableResource = new TableResource();
@@ -2823,9 +4293,36 @@ tableResource.setPartition("pt='20240101'");
 resources.create(tableResource);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.create_resource(
+    'my_table_resource', 'table',
+    project_name='source_project',
+    table_name='source_table',
+    partition="pt='20240101'"  # 可选：指定分区
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+tableRes := odps.NewTableResource("source_project", "source_table", "pt='20240101'")
+tableRes.SetName("my_table_resource")
+err := resources.CreateTableResource("", "", tableRes, false)
+```
+
+</TabItem>
+</Tabs>
+
 ### 下载资源
 
 通过 `getResourceAsStream` 方法获取资源的输入流：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 try (InputStream is = resources.getResourceAsStream("resource_name")) {
@@ -2838,7 +4335,32 @@ try (InputStream is = resources.getResourceAsStream("project", "schema", "resour
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+with odps.open_resource('resource_name', mode='rb') as fp:
+    content = fp.read()
+
+# 指定项目和 schema
+with odps.open_resource('resource_name', mode='rb', project='project', schema='schema') as fp:
+    content = fp.read()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+:::info
+Go SDK 暂不支持下载资源内容，如需下载资源请使用 Java 或 Python SDK。
+:::
+
+</TabItem>
+</Tabs>
+
 ### 遍历资源
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 迭代器方式
@@ -2854,7 +4376,47 @@ for (Resource r : resources.iterable()) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 遍历所有资源
+for r in odps.list_resources():
+    print(r.name, ':', r.type)
+
+# 按前缀过滤
+for r in odps.list_resources(prefix='my-udf'):
+    print(r.name)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 回调方式遍历
+resources.List(func(r *odps.Resource, err error) {
+    if err != nil {
+        return
+    }
+    fmt.Println(r.Name(), ":", r.ResourceType())
+})
+
+// 按前缀过滤
+resources.List(func(r *odps.Resource, err error) {
+    if err != nil {
+        return
+    }
+    fmt.Println(r.Name())
+}, odps.ResourceFilter.NamePrefix("my-udf"))
+```
+
+</TabItem>
+</Tabs>
+
 ### 删除资源
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 删除默认项目中的资源
@@ -2866,6 +4428,35 @@ resources.delete("project_name", "resource_name");
 // 删除指定项目和 schema 中的资源
 resources.delete("project_name", "schema_name", "resource_name");
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 删除默认项目中的资源
+odps.delete_resource('resource_name')
+
+# 删除指定项目中的资源
+odps.delete_resource('resource_name', project='project_name')
+
+# 删除指定项目和 schema 中的资源
+odps.delete_resource('resource_name', project='project_name', schema='schema_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 删除默认项目中的资源
+err := resources.Delete("resource_name")
+```
+
+:::info
+Go SDK 的 `Resources.Delete` 仅支持删除当前项目中的资源。如需操作其他项目，请创建对应项目的 `Resources` 实例。
+:::
+
+</TabItem>
+</Tabs>
 
 ## 资源类型
 
@@ -2922,83 +4513,333 @@ resources.delete("project_name", "schema_name", "resource_name");
 
 所有修改操作都需要先获取 `Table` 实例：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Odps odps = new Odps(...);
 Table table = odps.tables().get("project_name", "table_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+odps = ODPS(...)
+table = odps.get_table('table_name', project='project_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+odpsIns := odps.NewOdps(account, endpoint)
+odpsIns.SetDefaultProjectName("project_name")
+table := odpsIns.Tables().Get("table_name")
+```
+
+</TabItem>
+</Tabs>
+
 ## 重命名表
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void rename(String newName) throws Exception
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.rename(new_name)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) Rename(newName string) error
+```
+
+</TabItem>
+</Tabs>
+
 将表重命名为新名称，新名称必须符合 MaxCompute 命名规则。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.rename("new_table_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.rename('new_table_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.Rename("new_table_name")
+```
+
+</TabItem>
+</Tabs>
+
 ## 修改生命周期
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void setLifeCycle(int days) throws OdpsException
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.set_lifecycle(days)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) SetLifeCycle(days int) error
+```
+
+</TabItem>
+</Tabs>
+
 修改表的生命周期，单位为天，必须为正整数。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 设置生命周期为 90 天
 table.setLifeCycle(90);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 设置生命周期为 90 天
+table.set_lifecycle(90)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 设置生命周期为 90 天
+err := table.SetLifeCycle(90)
+```
+
+</TabItem>
+</Tabs>
+
 ## 更改表所有者
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void changeOwner(String newOwner) throws OdpsException
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.set_owner(new_owner)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) ChangeOwner(newOwner string) error
+```
+
+</TabItem>
+</Tabs>
+
 更改表的所有者。只有项目所有者或具备超级管理角色的用户可以执行此操作。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.changeOwner("new_owner_id");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.set_owner('new_owner_id')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.ChangeOwner("new_owner_id")
+```
+
+</TabItem>
+</Tabs>
+
 ## 修改表注释
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void changeComment(String newComment) throws OdpsException
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.set_comment(new_comment)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) ChangeComment(newComment string) error
+```
+
+</TabItem>
+</Tabs>
+
 修改表的注释内容，可以传入空字符串来清空注释。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.changeComment("这是一张用户行为日志表");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.set_comment('这是一张用户行为日志表')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.ChangeComment("这是一张用户行为日志表")
+```
+
+</TabItem>
+</Tabs>
+
 ## 更新时间戳
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void touch() throws OdpsException
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.touch()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) Touch() error
+```
+
+</TabItem>
+</Tabs>
+
 将表的最后修改时间更新为当前时间。可用于延长表在生命周期管理下的存活时间。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.touch();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.touch()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.Touch()
+```
+
+</TabItem>
+</Tabs>
+
 ## 添加列
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void addColumns(List<Column> columns, boolean ifNotExists) throws Exception
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.add_columns(columns, if_not_exists=False)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) AddColumns(columns []tableschema.Column, ifNotExists bool) error
+```
+
+</TabItem>
+</Tabs>
 
 向表中添加新列。
 
 **参数说明**
 - `columns`：要添加的列列表
 - `ifNotExists`：为 `true` 时，列已存在不会抛出异常
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 List<Column> newColumns = List.of(
@@ -3009,26 +4850,117 @@ List<Column> newColumns = List.of(
 table.addColumns(newColumns, true);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.types import Column
+
+table.add_columns([
+    Column('email', 'string', comment='邮箱地址'),
+    Column('age', 'int'),
+], if_not_exists=True)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+columns := []tableschema.Column{
+    {Name: "email", Type: datatype.STRING, Comment: "邮箱地址"},
+    {Name: "age", Type: datatype.INT},
+}
+
+err := table.AddColumns(columns, true)
+```
+
+</TabItem>
+</Tabs>
+
 ## 删除列
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void dropColumns(List<String> columnNames) throws Exception
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.delete_columns(columns)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) DropColumns(columnNames []string) error
+```
+
+</TabItem>
+</Tabs>
+
 从表中删除指定列。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 List<String> columnsToDrop = List.of("temp_col", "deprecated_col");
 table.dropColumns(columnsToDrop);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.delete_columns(['temp_col', 'deprecated_col'])
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.DropColumns([]string{"temp_col", "deprecated_col"})
+```
+
+</TabItem>
+</Tabs>
+
 ## 更改列类型
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void alterColumnType(String columnName, TypeInfo columnType) throws Exception
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不提供直接的更改列类型方法，可通过 execute_sql 执行 DDL
+odps.execute_sql('ALTER TABLE table_name CHANGE COLUMN col_name col_name new_type;')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) AlterColumnType(columnName string, columnType datatype.DataType) error
+```
+
+</TabItem>
+</Tabs>
+
 更改表中已有列的数据类型。注意只支持兼容的类型转换。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 将 age 列从 INT 改为 BIGINT
@@ -3038,25 +4970,111 @@ table.alterColumnType("age", TypeInfoFactory.BIGINT);
 table.alterColumnType("score", TypeInfoFactory.DECIMAL);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不提供直接的更改列类型方法，可通过 execute_sql 执行 DDL
+odps.execute_sql('ALTER TABLE my_table CHANGE COLUMN age age BIGINT;')
+odps.execute_sql('ALTER TABLE my_table CHANGE COLUMN score score DECIMAL;')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 将 age 列从 INT 改为 BIGINT
+err := table.AlterColumnType("age", datatype.BIGINT)
+
+// 将 score 列改为 DECIMAL
+err = table.AlterColumnType("score", datatype.DECIMAL)
+```
+
+</TabItem>
+</Tabs>
+
 ## 更改列名
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void changeColumnName(String oldColumnName, String newColumnName) throws Exception
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.rename_column(old_column_name, new_column_name)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) ChangeColumnName(oldColumnName string, newColumnName string) error
+```
+
+</TabItem>
+</Tabs>
+
 修改表中某一列的名称。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.changeColumnName("old_column_name", "new_column_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.rename_column('old_column_name', 'new_column_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.ChangeColumnName("old_column_name", "new_column_name")
+```
+
+</TabItem>
+</Tabs>
+
 ## 更改聚簇信息
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void changeClusterInfo(ClusterInfo clusterInfo) throws OdpsException
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.set_cluster_info(new_cluster_info)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func (t *Table) ChangeClusterInfo(clusterInfo tableschema.ClusterInfo) error
+```
+
+</TabItem>
+</Tabs>
+
 修改表的聚簇（Cluster）信息，可以变更聚簇列、排序方式或桶数量。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Table.ClusterInfo newClusterInfo = new Table.ClusterInfo(
@@ -3069,9 +5087,45 @@ Table.ClusterInfo newClusterInfo = new Table.ClusterInfo(
 table.changeClusterInfo(newClusterInfo);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models.cluster_info import ClusterInfo, ClusterType, ClusterSortCol, ClusterSortOrder
+
+cluster_info = ClusterInfo(
+    cluster_type=ClusterType.HASH,
+    cluster_cols=['user_id'],
+    sort_cols=[ClusterSortCol(name='user_id', order=ClusterSortOrder.ASC)],
+    bucket_num=32,
+)
+
+table.set_cluster_info(cluster_info)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+clusterInfo := tableschema.ClusterInfo{
+    ClusterType: tableschema.CLUSTER_TYPE.Hash,
+    ClusterCols: []string{"user_id"},
+    SortCols:    []tableschema.SortColumn{{Name: "user_id", Order: tableschema.SORT_ORDER.ASC}},
+    BucketNum:   32,
+}
+
+err := table.ChangeClusterInfo(clusterInfo)
+```
+
+</TabItem>
+</Tabs>
+
 ## 完整示例
 
 以下示例展示了对表进行一系列修改操作的典型流程：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void alterTableExample(Odps odps) throws Exception {
@@ -3098,6 +5152,76 @@ public void alterTableExample(Odps odps) throws Exception {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.types import Column
+
+table = odps.get_table('user_events', project='my_project')
+
+# 1. 修改表注释
+table.set_comment('用户事件表 - 记录用户行为日志')
+
+# 2. 设置生命周期为 180 天
+table.set_lifecycle(180)
+
+# 3. 添加新列
+table.add_columns([
+    Column('device_type', 'string', comment='设备类型'),
+    Column('app_version', 'string', comment='应用版本'),
+], if_not_exists=True)
+
+# 4. 重命名列
+table.rename_column('device_type', 'device_category')
+
+# 5. 更新时间戳
+table.touch()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func alterTableExample(odpsIns *odps.Odps) error {
+    table := odpsIns.Tables().Get("user_events")
+
+    // 1. 修改表注释
+    err := table.ChangeComment("用户事件表 - 记录用户行为日志")
+    if err != nil {
+        return err
+    }
+
+    // 2. 设置生命周期为 180 天
+    err = table.SetLifeCycle(180)
+    if err != nil {
+        return err
+    }
+
+    // 3. 添加新列
+    columns := []tableschema.Column{
+        {Name: "device_type", Type: datatype.STRING, Comment: "设备类型"},
+        {Name: "app_version", Type: datatype.STRING, Comment: "应用版本"},
+    }
+    err = table.AddColumns(columns, true)
+    if err != nil {
+        return err
+    }
+
+    // 4. 重命名列
+    err = table.ChangeColumnName("device_type", "device_category")
+    if err != nil {
+        return err
+    }
+
+    // 5. 更新时间戳
+    return table.Touch()
+}
+```
+
+</TabItem>
+</Tabs>
+
 ---
 # guides/manage-tables/create-table.md
 
@@ -3109,6 +5233,9 @@ public void alterTableExample(Odps odps) throws Exception {
 
 ### 获取 TableCreator 对象
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Odps odps = new Odps(...);
 
@@ -3119,7 +5246,47 @@ Tables.TableCreator creator = odps.tables().newTableCreator("project_name", "tab
 Tables.TableCreator creator = odps.tables().newTableCreator("table_name", schema);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+odps = ODPS('<access_id>', '<access_key>', project='default_project', endpoint='<endpoint>')
+
+# 使用 schema 对象创建表
+table = odps.create_table('table_name', table_schema=schema)
+
+# 使用简易字符串语法创建表
+table = odps.create_table('table_name', 'col1 string, col2 bigint')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+import (
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/tableschema"
+)
+
+// 使用默认项目
+tables := odps.NewTables(odpsIns, odpsIns.DefaultProjectName(), "")
+
+// 指定项目名
+tables := odps.NewTables(odpsIns, "project_name", "")
+
+// 调用 Create 创建表
+err := tables.Create(schema, true, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ### 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableSchema schema = TableSchema.builder()
@@ -3137,9 +5304,68 @@ odps.tables().newTableCreator("my_project", "orders", schema)
     .create();                             // 执行创建
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.models import TableSchema, Column, Partition
+
+schema = TableSchema(
+    columns=[
+        Column('id', 'bigint', nullable=False),
+        Column('name', 'string', comment='用户名'),
+        Column('amount', 'decimal'),
+    ],
+    partitions=[
+        Partition('dt', 'string'),
+    ]
+)
+
+odps.create_table(
+    'my_schema.orders',       # 三层模型使用 schema.table 格式
+    table_schema=schema,
+    comment='订单表',
+    lifecycle=365,
+    if_not_exists=True,
+    project='my_project',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+import (
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/datatype"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/tableschema"
+)
+
+schema := tableschema.NewSchemaBuilder().
+    Name("orders").
+    Comment("订单表").
+    Column(tableschema.Column{Name: "id", Type: datatype.BigIntType, NotNull: true}).
+    Column(tableschema.Column{Name: "name", Type: datatype.StringType, Comment: "用户名"}).
+    Column(tableschema.Column{Name: "amount", Type: datatype.NewDecimalType(38, 18)}).
+    PartitionColumn(tableschema.Column{Name: "dt", Type: datatype.StringType}).
+    Lifecycle(365).
+    Build()
+
+// 三层模型通过 schemaName 参数指定
+tables := odps.NewTables(odpsIns, "my_project", "my_schema")
+err := tables.Create(schema, true, nil, nil) // createIfNotExists=true
+```
+
+</TabItem>
+</Tabs>
+
 ## 列定义
 
 使用 `Column.newBuilder` 构建列对象（since 0.47.0）：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 基本列定义
@@ -3154,11 +5380,57 @@ Column col = Column.newBuilder("price", TypeInfoFactory.DECIMAL)
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models import Column
+
+# 基本列定义
+id_col = Column('id', 'bigint')
+name_col = Column('name', 'string')
+
+# 设置列属性
+col = Column(
+    'price', 'decimal',
+    nullable=False,              # 非空约束
+    comment='商品价格',           # 列注释
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+import (
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/datatype"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/tableschema"
+)
+
+// 基本列定义
+idCol := tableschema.Column{Name: "id", Type: datatype.BigIntType}
+nameCol := tableschema.Column{Name: "name", Type: datatype.StringType}
+
+// 设置列属性
+col := tableschema.Column{
+    Name:    "price",
+    Type:    datatype.NewDecimalType(38, 18),
+    NotNull: true,                  // 非空约束
+    Comment: "商品价格",             // 列注释
+}
+```
+
+</TabItem>
+</Tabs>
+
 `TypeInfoFactory` 支持 MaxCompute 全部数据类型，包括 `BIGINT`、`STRING`、`DOUBLE`、`DECIMAL`、`DATETIME`、`BOOLEAN`、`ARRAY`、`MAP`、`STRUCT` 等。
 
 ## 构建表结构
 
 `TableSchema` 包含数据列和分区列：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableSchema schema = TableSchema.builder()
@@ -3169,7 +5441,47 @@ TableSchema schema = TableSchema.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models import TableSchema, Column, Partition
+
+schema = TableSchema(
+    columns=[
+        Column('c1', 'string'),
+        Column('c2', 'bigint'),
+    ],
+    partitions=[
+        Partition('pt', 'string'),
+    ]
+)
+
+# 也可以用 from_lists 快捷创建
+schema = TableSchema.from_lists(
+    ['c1', 'c2'], ['string', 'bigint'],          # 数据列
+    ['pt'], ['string']                            # 分区列
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("table_name").
+    Column(tableschema.Column{Name: "c1", Type: datatype.StringType}).
+    Column(tableschema.Column{Name: "c2", Type: datatype.BigIntType}).
+    PartitionColumn(tableschema.Column{Name: "pt", Type: datatype.StringType}).
+    Build()
+```
+
+</TabItem>
+</Tabs>
+
 也提供快捷方法创建简单表结构：
+
+:::info 此功能仅 Java SDK 支持。:::
 
 ```java
 TableSchema schema = TableSchema.builder()
@@ -3185,6 +5497,9 @@ TableSchema schema = TableSchema.builder()
 
 分区列通过 `withPartitionColumn` 指定，通常使用 `STRING` 类型：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 TableSchema schema = TableSchema.builder()
     .withColumn(Column.newBuilder("data", TypeInfoFactory.STRING).build())
@@ -3197,9 +5512,49 @@ odps.tables().newTableCreator("project", "partitioned_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models import TableSchema, Column, Partition
+
+schema = TableSchema(
+    columns=[
+        Column('data', 'string'),
+    ],
+    partitions=[
+        Partition('dt', 'string'),
+        Partition('region', 'string'),
+    ]
+)
+
+odps.create_table('partitioned_table', schema, if_not_exists=True, project='project')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("partitioned_table").
+    Column(tableschema.Column{Name: "data", Type: datatype.StringType}).
+    PartitionColumn(tableschema.Column{Name: "dt", Type: datatype.StringType}).
+    PartitionColumn(tableschema.Column{Name: "region", Type: datatype.StringType}).
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, true, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ## 主键 (since 0.48.5)
 
 Delta 表必须配置主键信息，主键列必须设置 `notNull()`：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableSchema schema = TableSchema.builder()
@@ -3215,11 +5570,57 @@ odps.tables().newTableCreator("project", "delta_pk_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models import TableSchema, Column
+
+schema = TableSchema.from_lists(
+    ['pk1', 'pk2', 'value'],
+    ['bigint', 'string', 'string']
+)
+
+odps.create_table(
+    'delta_pk_table', schema,
+    primary_key=['pk1', 'pk2'],
+    transactional=True,
+    table_properties={'write.bucket.num': '16'},
+    project='project',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("delta_pk_table").
+    Column(tableschema.Column{Name: "pk1", Type: datatype.BigIntType, NotNull: true}).
+    Column(tableschema.Column{Name: "pk2", Type: datatype.StringType, NotNull: true}).
+    Column(tableschema.Column{Name: "value", Type: datatype.StringType}).
+    PrimaryKeys([]string{"pk1", "pk2"}).
+    TblProperties(map[string]string{
+        "transactional":    "true",
+        "write.bucket.num": "16",
+    }).
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, false, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ## 表格式
 
 ### Append 表（默认）
 
 默认创建的即为 Append 表。如需 Append 2.0 格式，可通过 `withTblProperties` 指定：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Map<String, String> props = new HashMap<>();
@@ -3230,7 +5631,38 @@ odps.tables().newTableCreator("project", "append_v2_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.create_table(
+    'append_v2_table', schema,
+    table_properties={'table.format.version': '2'},
+    project='project',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("append_v2_table").
+    Columns(columns...).
+    TblProperties(map[string]string{"table.format.version": "2"}).
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, false, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ### Transaction 表
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 odps.tables().newTableCreator("project", "txn_table", schema)
@@ -3238,9 +5670,40 @@ odps.tables().newTableCreator("project", "txn_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.create_table(
+    'txn_table', schema,
+    transactional=True,
+    project='project',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("txn_table").
+    Columns(columns...).
+    TblProperties(map[string]string{"transactional": "true"}).
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, false, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ### Delta 表
 
 Delta 表是一种支持高效 upsert 操作的事务表类型，必须配置主键和分桶数：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableSchema schema = TableSchema.builder()
@@ -3257,9 +5720,56 @@ odps.tables().newTableCreator("project", "delta_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models import TableSchema
+
+schema = TableSchema.from_lists(
+    ['pk', 'c1', 'c2'],
+    ['bigint', 'string', 'string']
+)
+
+odps.create_table(
+    'delta_table', schema,
+    primary_key=['pk'],
+    transactional=True,
+    table_properties={'write.bucket.num': '16'},
+    if_not_exists=True,
+    project='project',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("delta_table").
+    Column(tableschema.Column{Name: "pk", Type: datatype.BigIntType, NotNull: true}).
+    Column(tableschema.Column{Name: "c1", Type: datatype.StringType}).
+    Column(tableschema.Column{Name: "c2", Type: datatype.StringType}).
+    PrimaryKeys([]string{"pk"}).
+    TblProperties(map[string]string{
+        "transactional":    "true",
+        "write.bucket.num": "16",
+    }).
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, true, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ## 聚簇表 (Clustering)
 
 ### Hash Clustering
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Table.ClusterInfo clusterInfo = new Table.ClusterInfo(
@@ -3277,7 +5787,47 @@ odps.tables().newTableCreator("project", "hash_cluster_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.execute_sql(
+    'CREATE TABLE project.hash_cluster_table (c1 STRING, c2 STRING, c3 STRING) '
+    'CLUSTERED BY (c1, c2) '
+    'SORTED BY (c1 ASC, c2 DESC) '
+    'INTO 64 BUCKETS'
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("hash_cluster_table").
+    Column(tableschema.Column{Name: "c1", Type: datatype.StringType}).
+    Column(tableschema.Column{Name: "c2", Type: datatype.StringType}).
+    Column(tableschema.Column{Name: "c3", Type: datatype.StringType}).
+    ClusterType(tableschema.CLUSTER_TYPE.Hash).
+    ClusterColumns([]string{"c1", "c2"}).
+    ClusterSortColumns([]tableschema.SortColumn{
+        {Name: "c1", Order: "asc"},
+        {Name: "c2", Order: "desc"},
+    }).
+    ClusterBucketNum(64).
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, false, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ### Range Clustering
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Table.ClusterInfo clusterInfo = new Table.ClusterInfo(
@@ -3294,9 +5844,48 @@ odps.tables().newTableCreator("project", "range_cluster_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.execute_sql(
+    'CREATE TABLE project.range_cluster_table (c1 STRING, c2 STRING, c3 STRING) '
+    'RANGE CLUSTERED BY (c1, c2) '
+    'SORTED BY (c1 ASC)'
+    # Range Cluster 桶数量可省略（自动）
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("range_cluster_table").
+    Column(tableschema.Column{Name: "c1", Type: datatype.StringType}).
+    Column(tableschema.Column{Name: "c2", Type: datatype.StringType}).
+    Column(tableschema.Column{Name: "c3", Type: datatype.StringType}).
+    ClusterType(tableschema.CLUSTER_TYPE.Range).
+    ClusterColumns([]string{"c1", "c2"}).
+    ClusterSortColumns([]tableschema.SortColumn{
+        {Name: "c1", Order: "asc"},
+    }).
+    ClusterBucketNum(0). // Range Cluster 桶数量可设为0（自动）
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, false, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ## Auto-Partition (since 0.51.0)
 
 Auto-partition 表可以根据生成表达式自动创建分区，无需手动管理分区：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Column autoPartCol = Column.newBuilder("p1", TypeInfoFactory.STRING)
@@ -3314,11 +5903,57 @@ odps.tables().newTableCreator("project", "auto_part_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models import TableSchema, Column, Partition
+
+schema = TableSchema(
+    columns=[
+        Column('event_time', 'datetime'),
+        Column('data', 'string'),
+    ],
+    partitions=[
+        Partition('p1', 'string', generate_expression="trunc_time(`event_time`, 'DAY')"),
+    ]
+)
+
+odps.create_table('auto_part_table', schema, if_not_exists=True, project='project')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+autoPartCol := tableschema.Column{
+    Name:               "p1",
+    Type:               datatype.StringType,
+    GenerateExpression: tableschema.NewTruncTime("event_time", tableschema.DAY),
+}
+
+schema := tableschema.NewSchemaBuilder().
+    Name("auto_part_table").
+    Column(tableschema.Column{Name: "event_time", Type: datatype.DateTimeType}).
+    Column(tableschema.Column{Name: "data", Type: datatype.StringType}).
+    PartitionColumn(autoPartCol).
+    Build()
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.Create(schema, true, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 `TruncTime.DatePart` 支持的粒度：`YEAR`、`MONTH`、`DAY`、`HOUR`。
 
 ## 外部表
 
 外部表用于连接外部数据源（如 OSS）：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableSchema schema = TableSchema.builder()
@@ -3338,9 +5973,57 @@ odps.tables().newTableCreator("project", "external_table", schema)
     .create();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.models import TableSchema
+
+schema = TableSchema.from_lists(['c1', 'c2'], ['string', 'string'])
+
+odps.create_table(
+    'external_table', schema,
+    storage_handler='com.aliyun.odps.udf.example.text.TextStorageHandler',
+    location='oss://bucket/path/to/data/',
+    resources='odps-udf-example.jar',
+    serde_properties={
+        'odps.text.option.delimiter': '|',
+        'odps.text.option.encoding': 'UTF-8',
+    },
+    project='project',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+schema := tableschema.NewSchemaBuilder().
+    Name("external_table").
+    Column(tableschema.Column{Name: "c1", Type: datatype.StringType}).
+    Column(tableschema.Column{Name: "c2", Type: datatype.StringType}).
+    StorageHandler("com.aliyun.odps.udf.example.text.TextStorageHandler").
+    Location("oss://bucket/path/to/data/").
+    Build()
+
+serdeProperties := map[string]string{
+    "odps.text.option.delimiter": "|",
+    "odps.text.option.encoding":  "UTF-8",
+}
+jars := []string{"odps-udf-example.jar"}
+
+tables := odps.NewTables(odpsIns, "project", "")
+err := tables.CreateExternal(schema, false, serdeProperties, jars, nil, nil)
+```
+
+</TabItem>
+</Tabs>
+
 ## SQL 预览
 
 在执行创建前，可以通过 `getSQL()` 方法预览将要执行的 DDL 语句：
+
+:::info 此功能仅 Java SDK 支持。:::
 
 ```java
 Tables.TableCreator creator = odps.tables().newTableCreator("project", "my_table", schema)
@@ -3366,6 +6049,9 @@ creator.create();
 
 MaxCompute 中的表分为以下四种类型：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 public enum TableType {
     MANAGED_TABLE,       // 常规 MaxCompute 内部表
@@ -3375,7 +6061,34 @@ public enum TableType {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 中表类型通过 table.type 属性获取
+# 可能的值: Table.Type.MANAGED_TABLE, VIRTUAL_VIEW, EXTERNAL_TABLE, MATERIALIZED_VIEW
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 中表类型定义
+const (
+    ManagedTable      TableType = "MANAGED_TABLE"
+    VirtualView       TableType = "VIRTUAL_VIEW"
+    ExternalTable     TableType = "EXTERNAL_TABLE"
+    MaterializedView  TableType = "MATERIALIZED_VIEW"
+)
+```
+
+</TabItem>
+</Tabs>
+
 可以通过以下方法判断表类型：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Table.TableType tableType = table.getType();
@@ -3386,9 +6099,36 @@ table.isMaterializedView();
 table.isExternalTable();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table = odps.get_table('my_table')
+table_type = table.type
+
+# 判断表类型
+table.is_virtual_view
+table.is_materialized_view
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+table := odpsIns.Table("my_table")
+table.Load()
+tableType := table.Type()
+```
+
+</TabItem>
+</Tabs>
+
 ## 获取表实例
 
 要操作一张表，首先需要获取 `Table` 实例对象。获取表实例是一个 **lazy** 操作，即此时不会发起网络请求，只有在调用 `Table` 类的其他方法时，才会真正获取表的元数据信息。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 指定项目名获取表实例
@@ -3401,14 +6141,64 @@ Table table = odps.tables().get("table_name");
 Table table = odps.tables().get("project_name", "schema_name", "table_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 指定项目名获取表实例
+table = odps.get_table('table_name', project='project_name')
+
+# 使用默认项目
+table = odps.get_table('table_name')
+
+# 三层模型：指定 schema
+table = odps.get_table('table_name', project='project_name', schema='schema_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 使用默认项目获取表实例
+table := odpsIns.Table("table_name")
+
+// 通过 Tables 集合获取
+table = odpsIns.Tables().Get("table_name")
+```
+
+</TabItem>
+</Tabs>
+
 ## 读取表元数据
 
 `Table` 实现了 `lazyload` 机制，首次调用以下方法时会自动发起网络请求加载元数据。也可以手动调用 `reload()` 强制刷新：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 手动加载/刷新元数据
 table.reload();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 手动加载/刷新元数据
+table.reload()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 手动加载元数据
+err := table.Load()
+```
+
+</TabItem>
+</Tabs>
 
 除非再次调用 `reload()`，否则后续访问均使用缓存数据。
 
@@ -3432,6 +6222,9 @@ table.reload();
 
 ### 示例
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Odps odps = new Odps(...);
 Table table = odps.tables().get("my_project", "user_events");
@@ -3449,6 +6242,48 @@ Table.TableType type = table.getType();
 System.out.println("Table type: " + type);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table = odps.get_table('user_events', project='my_project')
+
+# 获取表结构
+schema = table.table_schema
+columns = schema.columns              # 数据列
+part_cols = schema.partitions          # 分区列
+
+# 获取表大小
+size_in_bytes = table.size
+
+# 获取表类型
+table_type = table.type
+print(f"Table type: {table_type}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+table := odpsIns.Table("user_events")
+table.Load()
+
+// 获取表结构
+schema := table.Schema()
+columns := schema.Columns             // 数据列
+partCols := schema.PartitionColumns   // 分区列
+
+// 获取表大小
+sizeInBytes := table.Size()
+
+// 获取表类型
+tableType := table.Type()
+fmt.Printf("Table type: %s\n", tableType)
+```
+
+</TabItem>
+</Tabs>
+
 ## 子章节
 
 - [创建表](./create-table.md) - 使用 TableCreator 创建各类表
@@ -3461,22 +6296,50 @@ System.out.println("Table type: " + type);
 
 # 分区操作
 
-本文介绍如何使用 MaxCompute Java SDK 对分区表进行分区管理，包括分区的查询、创建、删除以及 `PartitionSpec` 的构造方法。
+本文介绍如何使用 MaxCompute SDK 对分区表进行分区管理，包括分区的查询、创建、删除以及分区规格的构造方法。
 
 ## 前置条件
 
 所有分区操作都基于 `Table` 实例：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Odps odps = new Odps(...);
 Table table = odps.tables().get("project_name", "partitioned_table");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+odps = ODPS(...)
+table = odps.get_table('partitioned_table', project='project_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+odpsClient := odps.NewOdps(...)
+table := odpsClient.Table("partitioned_table")
+err := table.Load()
+```
+
+</TabItem>
+</Tabs>
+
 ## PartitionSpec 构造
 
 `PartitionSpec` 用于描述一个具体的分区值，是分区操作的核心参数。
 
 ### 通过字符串解析构造
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 单级分区
@@ -3486,7 +6349,37 @@ PartitionSpec spec = new PartitionSpec("dt='20240101'");
 PartitionSpec spec = new PartitionSpec("dt='20240101',region='cn'");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 分区规格以字符串形式表示
+# 单级分区
+spec = 'dt=20240101'
+
+# 多级分区
+spec = 'dt=20240101,region=cn'
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 分区规格以 "key=value/key=value" 格式表示
+// 单级分区
+spec := "dt=20240101"
+
+// 多级分区
+spec := "dt=20240101/region=cn"
+```
+
+</TabItem>
+</Tabs>
+
 ### 通过 key-value 逐个添加
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 PartitionSpec spec = new PartitionSpec();
@@ -3494,9 +6387,31 @@ spec.set("dt", "20240101");
 spec.set("region", "cn");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 使用字符串形式指定分区
+spec = 'dt=20240101,region=cn'
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 使用 "/" 分隔的字符串格式
+spec := "dt=20240101/region=cn"
+```
+
+</TabItem>
+</Tabs>
+
 ### trim 参数 (since 0.50.4)
 
 构造 `PartitionSpec` 时，可以指定 `trim` 参数来自动去除分区值两端的空白字符：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // trim=true 会去除分区值前后的空格
@@ -3504,13 +6419,56 @@ PartitionSpec spec = new PartitionSpec("dt=' 20240101 '", true);
 // 等价于 dt='20240101'
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 自动处理分区值的空白字符
+spec = 'dt=20240101'
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 使用标准字符串处理
+import "strings"
+spec := strings.TrimSpace("dt=20240101")
+```
+
+</TabItem>
+</Tabs>
+
 ## 获取单个分区
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Partition partition = table.getPartition(new PartitionSpec("dt='20240101'"));
 ```
 
-获取到 `Partition` 对象后，可以查询该分区的详细信息：
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+partition = table.get_partition('dt=20240101')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+partition, err := table.GetPartition("dt=20240101")
+```
+
+</TabItem>
+</Tabs>
+
+获取到分区对象后，可以查询该分区的详细信息：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 long size = partition.getSize();              // 分区存储大小（bytes）
@@ -3518,11 +6476,37 @@ long recordNum = partition.getRecordNum();    // 分区记录数
 Date createdTime = partition.getCreatedTime(); // 分区创建时间
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+partition.reload()
+size = partition.size              # 分区存储大小（bytes）
+record_num = partition.record_num  # 分区记录数
+created_time = partition.creation_time  # 分区创建时间
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := partition.Load()
+size := partition.Size()              // 分区存储大小（bytes）
+recordNum := partition.RecordNum()    // 分区记录数
+createdTime := partition.CreatedTime() // 分区创建时间
+```
+
+</TabItem>
+</Tabs>
+
 ## 获取所有分区
 
 ### getPartitions - 获取完整分区信息
 
 返回所有分区的详细信息列表，包括每个分区的大小、记录数等元数据：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 List<Partition> partitions = table.getPartitions();
@@ -3535,9 +6519,44 @@ for (Partition p : partitions) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+for p in table.partitions:
+    print(f'Partition: {p.name}')
+    p.reload()
+    print(f'  Size: {p.size}')
+    print(f'  Records: {p.record_num}')
+    print(f'  Created: {p.creation_time}')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+partitions, err := table.GetPartitions()
+if err != nil {
+    log.Fatalf("%+v", err)
+}
+
+for _, p := range partitions {
+    fmt.Printf("Partition: %s\n", p.Value())
+    fmt.Printf("  Size: %d\n", p.Size())
+    fmt.Printf("  Records: %d\n", p.RecordNum())
+    fmt.Printf("  Created: %s\n", p.CreatedTime())
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### getPartitionSpecs - 仅获取分区值（高性能）
 
 与 `getPartitions()` 不同，此方法仅返回分区值，不包含分区的详细元数据信息，因此效率更高。当只需要知道有哪些分区存在时，推荐使用此方法。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 List<PartitionSpec> specs = table.getPartitionSpecs();
@@ -3547,9 +6566,37 @@ for (PartitionSpec spec : specs) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+for p in table.iterate_partitions():
+    print(f'Partition spec: {p.name}')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+values, err := table.GetPartitionValues()
+if err != nil {
+    log.Fatalf("%+v", err)
+}
+
+for _, v := range values {
+    fmt.Printf("Partition spec: %s\n", v)
+}
+```
+
+</TabItem>
+</Tabs>
+
 > **性能提示**：当表分区数量较多时，`getPartitionSpecs()` 比 `getPartitions()` 性能显著更优，因为它不需要加载每个分区的元数据。
 
 ## 判断分区是否存在
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 PartitionSpec spec = new PartitionSpec("dt='20240101'");
@@ -3560,35 +6607,142 @@ if (exists) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+exists = table.exist_partition('dt=20240101')
+
+if exists:
+    print('分区已存在')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 通过 GetPartition 返回 error 来判断分区是否存在
+_, err := table.GetPartition("dt=20240101")
+if err == nil {
+    fmt.Println("分区已存在")
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## 创建分区
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 PartitionSpec spec = new PartitionSpec("dt='20240115',region='cn'");
 table.createPartition(spec);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.create_partition('dt=20240115,region=cn')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.AddPartition(false, "dt=20240115/region=cn")
+```
+
+</TabItem>
+</Tabs>
+
 带 `ifNotExists` 参数，分区已存在时不抛出异常：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.createPartition(spec, true);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.create_partition('dt=20240115,region=cn', if_not_exists=True)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.AddPartition(true, "dt=20240115/region=cn")
+```
+
+</TabItem>
+</Tabs>
+
 ## 删除分区
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 PartitionSpec spec = new PartitionSpec("dt='20240101'");
 table.deletePartition(spec);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.delete_partition('dt=20240101')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.DeletePartition(false, "dt=20240101")
+```
+
+</TabItem>
+</Tabs>
+
 带 `ifExists` 参数，分区不存在时不抛出异常：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.deletePartition(spec, true);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table.delete_partition('dt=20240101', if_exists=True)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+err := table.DeletePartition(true, "dt=20240101")
+```
+
+</TabItem>
+</Tabs>
+
 ## 完整示例
 
 ### 批量创建分区
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void batchCreatePartitions(Odps odps) throws OdpsException {
@@ -3608,7 +6762,52 @@ public void batchCreatePartitions(Odps odps) throws OdpsException {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from datetime import datetime, timedelta
+
+def batch_create_partitions(odps):
+    table = odps.get_table('daily_events', project='my_project')
+
+    # 批量创建最近 7 天的分区
+    today = datetime.now()
+    for i in range(7):
+        dt = (today - timedelta(days=i)).strftime('%Y%m%d')
+        spec = f'dt={dt}'
+
+        if not table.exist_partition(spec):
+            table.create_partition(spec)
+            print(f'Created partition: {spec}')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func batchCreatePartitions(odpsClient *odps.Odps) error {
+    table := odpsClient.Table("daily_events")
+
+    // 批量创建最近 7 天的分区
+    today := time.Now()
+    specs := make([]string, 0, 7)
+    for i := 0; i < 7; i++ {
+        dt := today.AddDate(0, 0, -i).Format("20060102")
+        specs = append(specs, fmt.Sprintf("dt=%s", dt))
+    }
+
+    return table.AddPartitions(true, specs)
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### 清理过期分区
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void cleanExpiredPartitions(Odps odps, int retentionDays) throws OdpsException {
@@ -3629,7 +6828,67 @@ public void cleanExpiredPartitions(Odps odps, int retentionDays) throws OdpsExce
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from datetime import datetime, timedelta
+
+def clean_expired_partitions(odps, retention_days):
+    table = odps.get_table('daily_events', project='my_project')
+
+    threshold = datetime.now() - timedelta(days=retention_days)
+    for p in table.iterate_partitions():
+        # 分区名格式: dt=20240101
+        dt_value = p.partition_spec['dt']
+        part_date = datetime.strptime(dt_value, '%Y%m%d')
+
+        if part_date < threshold:
+            table.delete_partition(p.partition_spec, if_exists=True)
+            print(f'Deleted expired partition: {p.name}')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func cleanExpiredPartitions(odpsClient *odps.Odps, retentionDays int) error {
+    table := odpsClient.Table("daily_events")
+
+    threshold := time.Now().AddDate(0, 0, -retentionDays)
+    values, err := table.GetPartitionValues()
+    if err != nil {
+        return err
+    }
+
+    var expired []string
+    for _, v := range values {
+        // 分区值格式: dt=20240101
+        parts := strings.SplitN(v, "=", 2)
+        partDate, err := time.Parse("20060102", parts[1])
+        if err != nil {
+            continue
+        }
+
+        if partDate.Before(threshold) {
+            expired = append(expired, v)
+        }
+    }
+
+    if len(expired) > 0 {
+        return table.DeletePartitions(true, expired)
+    }
+    return nil
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### 遍历分区统计信息
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void printPartitionStats(Odps odps) throws OdpsException {
@@ -3650,12 +6909,68 @@ public void printPartitionStats(Odps odps) throws OdpsException {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+def print_partition_stats(odps):
+    table = odps.get_table('user_logs', project='my_project')
+
+    total_size = 0
+    total_records = 0
+    count = 0
+
+    for p in table.partitions:
+        p.reload()
+        total_size += p.size
+        total_records += p.record_num
+        count += 1
+
+    print(f'Total partitions: {count}')
+    print(f'Total size: {total_size} bytes')
+    print(f'Total records: {total_records}')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+func printPartitionStats(odpsClient *odps.Odps) error {
+    table := odpsClient.Table("user_logs")
+
+    partitions, err := table.GetPartitions()
+    if err != nil {
+        return err
+    }
+
+    totalSize := 0
+    totalRecords := 0
+
+    for _, p := range partitions {
+        totalSize += p.Size()
+        totalRecords += p.RecordNum()
+    }
+
+    fmt.Printf("Total partitions: %d\n", len(partitions))
+    fmt.Printf("Total size: %d bytes\n", totalSize)
+    fmt.Printf("Total records: %d\n", totalRecords)
+    return nil
+}
+```
+
+</TabItem>
+</Tabs>
+
 ---
 # guides/manage-tables/tags.md
 
 # 标签操作
 
 MaxCompute 支持对表和列打标操作。通过标签，可以基于不同的业务场景对数据做标识（Tagging），使业务能够基于标签合理使用数据，例如数据访问控制和数据血缘追踪。
+
+:::info
+标签（Tag）操作目前仅 Java SDK 支持。Python SDK 和 Go SDK 暂未提供标签管理 API。
+:::
 
 ## Tag 与 SimpleTag
 
@@ -3670,14 +6985,37 @@ MaxCompute 提供两种标签机制：
 
 所有标签操作基于 `Table` 实例：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Odps odps = new Odps(...);
 Table table = odps.tables().get("project_name", "table_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ## 标准标签 (Tag)
 
 ### 获取表级别标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 List<Tag> tags = table.getTags();
@@ -3687,7 +7025,27 @@ for (Tag tag : tags) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取列级别标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 获取指定列的标签
@@ -3698,9 +7056,29 @@ for (Tag tag : columnTags) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加表级别标签
 
 表和标签必须属于同一个 project：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 获取 Tag 对象
@@ -3710,9 +7088,29 @@ Tag tag = ...; // 通过 Tags API 获取
 table.addTag(tag);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加列级别标签
 
 为指定列添加标签：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Tag tag = ...; // 通过 Tags API 获取
@@ -3721,12 +7119,49 @@ Tag tag = ...; // 通过 Tags API 获取
 table.addTag(tag, List.of("column1", "column2"));
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 删除标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Tag tag = ...; // 要删除的标签对象
 table.removeTag(tag);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
 
 ## 简单标签 (SimpleTag)
 
@@ -3735,6 +7170,9 @@ SimpleTag 通过 category（类别）、key（键）、value（值）三元组�
 ### 获取表级别简单标签
 
 返回值为嵌套 Map 结构：`Map<category, Map<key, value>>`
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Map<String, Map<String, String>> simpleTags = table.getSimpleTags();
@@ -3747,13 +7185,53 @@ for (Map.Entry<String, Map<String, String>> categoryEntry : simpleTags.entrySet(
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取列级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Map<String, Map<String, String>> columnSimpleTags = table.getSimpleTags("column_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加表级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 参数：category, key, value
@@ -3761,7 +7239,27 @@ table.addSimpleTag("data_classification", "sensitivity", "high");
 table.addSimpleTag("business", "domain", "finance");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加列级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 为指定列添加简单标签
@@ -3769,22 +7267,82 @@ table.addSimpleTag("pii", "type", "phone_number", List.of("phone_col"));
 table.addSimpleTag("pii", "type", "email", List.of("email_col", "backup_email_col"));
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 删除表级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 参数：category, key, value
 table.removeSimpleTag("data_classification", "sensitivity", "high");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 删除列级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.removeSimpleTag("pii", "type", "phone_number", List.of("phone_col"));
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ## 完整示例
 
 ### 为表添加数据分类标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void classifyTable(Odps odps) throws OdpsException {
@@ -3803,7 +7361,27 @@ public void classifyTable(Odps odps) throws OdpsException {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 为敏感列打标
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void tagSensitiveColumns(Odps odps) throws OdpsException {
@@ -3820,7 +7398,27 @@ public void tagSensitiveColumns(Odps odps) throws OdpsException {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 使用标准 Tag 进行访问控制
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void applyAccessControlTag(Odps odps, Tag sensitiveTag) throws OdpsException {
@@ -3841,12 +7439,33 @@ public void applyAccessControlTag(Odps odps, Tag sensitiveTag) throws OdpsExcept
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ---
 # guides/read-data/blob.md
 
 # Blob 数据下载
 
-MaxCompute 的 `BLOB` 类型用于存储非结构化的二进制大对象数据（如图片、音频、文档等）。Blob 在表中以引用（Reference）的形式存储，实际的二进制数据需要通过 `BlobManager` 单独下载。
+:::note
+Blob 数据下载目前支持 Java SDK 和 Python SDK，Go SDK 暂不支持。
+:::
+
+MaxCompute 的 `BLOB` 类型用于存储非结构化的二进制大对象数据（如图片、音频、文档等）。Blob 在表中以引用（Reference）的形式存储，实际的二进制数据需要通过 `BlobManager`（Java）或 `StorageApiClient.read_blobs()`（Python）单独下载。
 
 ## 前置条件
 
@@ -3856,6 +7475,9 @@ MaxCompute 的 `BLOB` 类型用于存储非结构化的二进制大对象数据�
 - SDK 版本 >= 0.54.0
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -3934,6 +7556,57 @@ public class BlobDownloadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+import os
+
+# 1. 初始化 ODPS 客户端
+odps = ODPS("<accessId>", "<accessKey>", "<projectName>", "<endpoint>")
+
+# 2. 获取表对象并创建客户端
+table = odps.get_table("image_table")
+client = StorageApiArrowClient(odps, table)
+
+# 3. 创建读取会话，指定包含 Blob 列的字段
+read_resp = client.create_read_session(
+    required_data_columns=["id", "image_data"]
+)
+session_id = read_resp.session_id
+
+# 4. 读取表数据并收集 Blob 引用
+blob_refs = []
+ids = []
+for split_index in range(read_resp.splits_count):
+    reader = client.read_rows_arrow(session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        id_list = batch.column("id").to_pylist()
+        blob_list = batch.column("image_data").to_pylist()
+        for i, ref in enumerate(blob_list):
+            if ref is not None:
+                blob_refs.append(
+                    ref.decode("utf-8") if isinstance(ref, bytes) else ref
+                )
+                ids.append(id_list[i])
+
+# 5. 批量下载 Blob 数据
+os.makedirs("/tmp/images", exist_ok=True)
+for idx, (data, mime_type) in enumerate(client.read_blobs(blob_references=blob_refs)):
+    output_path = f"/tmp/images/{ids[idx]}.jpg"
+    with open(output_path, "wb") as f:
+        f.write(data)
+    print(f"已下载: {output_path} ({len(data)} bytes)")
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 1. **创建客户端**：与 Storage API 读取相同，通过 `MaxStorageClient.builder()` 构建。
@@ -3963,6 +7636,9 @@ public class BlobDownloadExample {
 
 适用于 Blob 数量较少或需要按需下载的场景：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 BlobManager blobManager = client.openBlobManager();
 
@@ -3976,9 +7652,27 @@ try (InputStream data = blobManager.download(blobRef)) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 从 Arrow 数据中获取 Blob 引用
+blob_ref = ref.decode("utf-8") if isinstance(ref, bytes) else ref
+
+# 单条下载（传入单元素列表）
+for data, mime_type in client.read_blobs(blob_references=[blob_ref]):
+    print(f"Blob 大小: {len(data)} bytes")
+```
+
+</TabItem>
+</Tabs>
+
 ## 批量下载
 
 适用于大量 Blob 的高效下载，单次请求传输多个 Blob：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 BlobManager blobManager = client.openBlobManager();
@@ -4002,9 +7696,32 @@ try (BlobDataIterator iterator = blobManager.batchDownload(blobs)) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 收集多个 Blob 引用
+blob_refs = []
+# ... 从表数据中收集 ...
+
+# 批量下载
+try:
+    for data, mime_type in client.read_blobs(blob_references=blob_refs):
+        # 处理 data...
+        pass
+except Exception as e:
+    print(f"下载失败: {e}")
+```
+
+</TabItem>
+</Tabs>
+
 ## Arrow 列接口读取 Blob
 
 如果使用 Arrow 列接口而非行接口，需要手动从 `VarBinaryVector` 中解析 Blob 引用：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import org.apache.arrow.vector.VarBinaryVector;
@@ -4039,6 +7756,36 @@ for (InputSplit split : session.getSplits()) {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+for split_index in range(read_resp.splits_count):
+    reader = client.read_rows_arrow(session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        blob_vector = batch.column("image_data")
+
+        blob_refs = []
+        for row in range(len(batch)):
+            ref = blob_vector[row].as_py()
+            if ref is not None:
+                # Arrow 读取时 VarBinary 中是引用字符串的 UTF-8 字节
+                blob_refs.append(
+                    ref.decode("utf-8") if isinstance(ref, bytes) else ref
+                )
+
+        if blob_refs:
+            for data, mime_type in client.read_blobs(blob_references=blob_refs):
+                # 处理 data...
+                pass
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 
@@ -4101,6 +7848,9 @@ MaxCompute Java SDK 提供三种数据读取方式：数据预览（Table.read�
 
 ### 数据预览（最简单）
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 RecordReader reader = table.read(100);
 Record record;
@@ -4109,7 +7859,23 @@ while ((record = reader.read()) != null) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table = odps.get_table('my_table')
+records = table.head(100)
+for record in records:
+    print(record[0])
+```
+
+</TabItem>
+</Tabs>
+
 ### Tunnel 下载（批量导出）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel tunnel = new TableTunnel(odps);
@@ -4126,7 +7892,24 @@ try (TunnelRecordReader reader = session.openRecordReader(0, session.getRecordCo
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 使用 Tunnel 下载数据
+with odps.get_table('my_table').open_reader() as reader:
+    for record in reader:
+        # 处理数据...
+        pass
+```
+
+</TabItem>
+</Tabs>
+
 ### Storage API（高性能）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 MaxStorageClient client = MaxStorageClient.builder()
@@ -4149,6 +7932,20 @@ for (InputSplit split : session.getSplits()) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 使用 Arrow 读取（需安装 pyarrow）
+with odps.get_table('my_table').open_reader(arrow=True) as reader:
+    for batch in reader:
+        # batch 为 pyarrow.RecordBatch
+        print(batch.to_pandas())
+```
+
+</TabItem>
+</Tabs>
+
 ## 相关文档
 
 - [数据预览（Table.read）](./preview.md) - 快速预览少量数据
@@ -4170,6 +7967,9 @@ for (InputSplit split : session.getSplits()) {
 - SDK 版本 >= 0.47.0-public
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -4215,6 +8015,40 @@ public class TableReadExample {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 假设 odps 客户端已初始化
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 获取表对象
+table = odps.get_table('user_info')
+
+# 示例1：基本读取，最多返回100行
+records = table.head(100)
+for record in records:
+    print(f"id={record['id']}, name={record['name']}")
+
+# 示例2：指定分区和列读取
+records = table.head(500, partition='dt=20250101',
+                     columns=['id', 'name', 'age'])
+for record in records:
+    print(f"id={record['id']}, name={record['name']}, age={record['age']}")
+
+# 示例3：非分区表读取全部列
+records = table.head(1000)
+for record in records:
+    # 处理每行数据...
+    pass
+```
+
+</TabItem>
+</Tabs>
 
 ## 代码说明
 
@@ -4295,6 +8129,10 @@ RecordReader 返回的 Record 中，OdpsType 与 Java 类型的映射关系如�
 
 Storage API 是 MaxCompute 提供的高性能数据读取接口，基于 Apache Arrow 列式内存格式，支持列裁剪、谓词下推、分区过滤和并行分片读取，适用于大规模数据处理场景。
 
+:::note
+Go SDK 暂不支持 Storage API。
+:::
+
 ## 前置条件
 
 - 添加 `odps-sdk-storage-api` 模块依赖
@@ -4302,6 +8140,9 @@ Storage API 是 MaxCompute 提供的高性能数据读取接口，基于 Apache 
 - SDK 版本 >= 0.52.0
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -4371,6 +8212,37 @@ public class StorageApiReadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+
+o = ODPS(access_id, secret_access_key, project='my_project', endpoint=endpoint)
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+
+# 创建读取会话
+resp = client.create_read_session(
+    required_data_columns=["id", "name"],
+    required_partitions=["dt=20231001"],
+)
+
+# 按分片并行读取
+for split_index in range(resp.splits_count):
+    reader = client.read_rows_arrow(resp.session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        df = batch.to_pandas()
+        print(df)
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 1. **创建客户端**：通过 `MaxStorageClient.builder()` 配置 Endpoint 和认证信息，构建客户端实例。
@@ -4417,6 +8289,9 @@ public class StorageApiReadExample {
 ## 并行读取
 
 利用线程池对多个 Split 并行处理，充分发挥 Storage API 的吞吐优势：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import java.util.concurrent.ExecutorService;
@@ -4471,7 +8346,46 @@ public class ParallelStorageApiRead {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+
+table = o.get_table("large_table")
+client = StorageApiArrowClient(o, table)
+
+resp = client.create_read_session(
+    required_data_columns=["id", "name", "score"],
+)
+print(f"分片数量: {resp.splits_count}")
+
+total_rows = 0
+
+def read_split(split_index):
+    rows = 0
+    reader = client.read_rows_arrow(resp.session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        rows += batch.num_rows
+        # 处理数据...
+    return rows
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=resp.splits_count) as pool:
+    results = pool.map(read_split, range(resp.splits_count))
+    total_rows = sum(results)
+print(f"总读取行数: {total_rows}")
+```
+
+</TabItem>
+</Tabs>
+
 ## 读取分区表
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableReadSession session = client.createTableReadSessionBuilder(tableId)
@@ -4484,9 +8398,25 @@ TableReadSession session = client.createTableReadSessionBuilder(tableId)
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+resp = client.create_read_session(
+    required_data_columns=["id", "name"],
+    required_partitions=["dt=20250101", "dt=20250102"],
+)
+```
+
+</TabItem>
+</Tabs>
+
 ## 增量读取
 
 读取指定时间范围内的变化数据：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 IncrementalReadOptions options = IncrementalReadOptions.newBuilder()
@@ -4500,6 +8430,24 @@ TableReadSession session = client.createTableReadSessionBuilder(tableId)
     .withIncrementalReadEnabled(true)
     .build();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Storage API 增量读取
+resp = client.create_read_session(
+    required_data_columns=["id", "name"],
+    incremental_read_options={
+        "mode": "timestamp",
+        "start_timestamp": "2025-01-01 00:00:00",
+        "end_timestamp": "2025-01-02 00:00:00",
+    },
+)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 
@@ -4531,6 +8479,9 @@ TableTunnel 是 MaxCompute 的标准数据通道，适用于大批量数据的�
 - SDK 版本 >= 0.48.0
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -4572,6 +8523,66 @@ public class TunnelDownloadExample {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 读取整张表
+with table.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取分区表
+with table.open_reader(partition='dt=20231001') as reader:
+    for record in reader:
+        print(record)
+
+# Arrow 格式读取（高性能）
+with table.open_reader(arrow=True) as reader:
+    for batch in reader:
+        df = batch.to_pandas()
+
+# 指定列读取
+with table.open_reader(columns=['id', 'name']) as reader:
+    for record in reader:
+        print(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+project := odpsIns.DefaultProject()
+tunnelEndpoint, _ := project.GetTunnelEndpoint()
+tunnelIns := tunnel.NewTunnel(odpsIns, tunnelEndpoint)
+
+// 创建下载会话
+session, _ := tunnelIns.CreateDownloadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20231001"),
+)
+
+// 读取数据
+recordCount := session.RecordCount()
+reader, _ := session.OpenRecordReader(0, recordCount, nil)
+reader.Iterator(func(record data.Record, err error) {
+    if err != nil {
+        return
+    }
+    fmt.Println(record)
+})
+reader.Close()
+
+// Arrow 格式读取
+arrowReader, _ := session.OpenRecordArrowReader(0, recordCount, nil)
+arrowReader.Iterator(func(rec array.Record, err error) {
+    // 处理 Arrow RecordBatch
+})
+```
+
+</TabItem>
+</Tabs>
 
 ## 代码说明
 
@@ -4615,6 +8626,9 @@ public class TunnelDownloadExample {
 ## 多线程并行下载
 
 对于大数据量场景，可将数据按行号范围拆分为多个块，使用线程池并行下载：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import java.util.concurrent.ExecutorService;
@@ -4669,9 +8683,77 @@ public class ParallelDownloadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+
+table = o.get_table('large_table')
+
+# 方式1: 使用 Arrow 格式高效读取（自动批次处理，推荐）
+with table.open_reader(arrow=True) as reader:
+    for batch in reader:
+        df = batch.to_pandas()
+        process_dataframe(df)
+
+# 方式2: 按分区并行读取
+def read_partition(pt_spec):
+    with table.open_reader(partition=pt_spec, arrow=True) as reader:
+        for batch in reader:
+            process_dataframe(batch.to_pandas())
+
+partitions = [str(p.partition_spec) for p in table.partitions]
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+    pool.map(read_partition, partitions)
+print("下载完成")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateDownloadSession(
+    project.Name(), "large_table",
+)
+
+totalRecords := session.RecordCount()
+parallelism := 8
+chunkSize := totalRecords / int64(parallelism)
+
+var wg sync.WaitGroup
+for i := 0; i < parallelism; i++ {
+    wg.Add(1)
+    go func(idx int) {
+        defer wg.Done()
+        start := int64(idx) * chunkSize
+        count := chunkSize
+        if idx == parallelism-1 {
+            count = totalRecords - start
+        }
+        reader, _ := session.OpenRecordReader(start, count, nil)
+        reader.Iterator(func(record data.Record, err error) {
+            if err != nil {
+                return
+            }
+            processRecord(record)
+        })
+        reader.Close()
+    }(i)
+}
+wg.Wait()
+fmt.Printf("下载完成，共 %d 条记录\n", totalRecords)
+```
+
+</TabItem>
+</Tabs>
+
 ## 异步创建模式（大表）
 
 对于数据量特别大的表，Session 创建可能需要较长时间。可以使用异步模式避免阻塞：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.DownloadSessionBuilder builder = tunnel.buildDownloadSession()
@@ -4690,6 +8772,34 @@ if (ready) {
     System.err.println("会话创建超时");
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 自动处理大表的会话创建，无需手动配置异步模式
+table = o.get_table('huge_table')
+with table.open_reader() as reader:
+    print(f"会话就绪，记录数: {reader.count}")
+    for record in reader:
+        process_record(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 在 CreateDownloadSession 时自动处理会话初始化
+// 无需额外的异步模式配置
+session, _ := tunnelIns.CreateDownloadSession(
+    project.Name(), "huge_table",
+)
+recordCount := session.RecordCount()
+fmt.Printf("会话就绪，记录数: %d\n", recordCount)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 
@@ -4722,6 +8832,9 @@ if (ready) {
 ## 完整示例
 
 以下示例演示如何通过 SDK 执行常见的 ACL 权限命令：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -4797,21 +8910,156 @@ public class AclQueryExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 初始化 ODPS 客户端
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 1. 授予用户对表的 Select 权限
+odps.run_security_query("GRANT SELECT ON TABLE sales_data TO USER alice;")
+
+# 2. 查看用户的权限
+result = odps.run_security_query("SHOW GRANTS FOR USER alice;")
+print(result)
+
+# 3. 创建角色并绑定权限
+odps.run_security_query("CREATE ROLE analyst;")
+odps.run_security_query("GRANT SELECT ON TABLE sales_data TO ROLE analyst;")
+odps.run_security_query("GRANT analyst TO alice;")
+
+# 4. 查看角色的权限
+result = odps.run_security_query("DESCRIBE ROLE analyst;")
+print(result)
+
+# 5. 撤销权限
+odps.run_security_query("REVOKE SELECT ON TABLE sales_data FROM USER alice;")
+
+# 6. 查看当前用户的权限
+result = odps.run_security_query("SHOW GRANTS;")
+print(result)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/aliyun/aliyun-odps-go-sdk/odps"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
+)
+
+func main() {
+	acc := account.NewAliyunAccount("accessId", "accessKey")
+	odpsIns := odps.NewOdps(acc, "http://service.odps.aliyun.com/api")
+	odpsIns.SetDefaultProjectName("my_project")
+
+	// 获取 SecurityManager
+	sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+
+	// 1. 授予用户对表的 Select 权限
+	executeCommand(sm, "GRANT SELECT ON TABLE sales_data TO USER alice;")
+
+	// 2. 查看用户的权限
+	executeCommand(sm, "SHOW GRANTS FOR USER alice;")
+
+	// 3. 创建角色并绑定权限
+	executeCommand(sm, "CREATE ROLE analyst;")
+	executeCommand(sm, "GRANT SELECT ON TABLE sales_data TO ROLE analyst;")
+	executeCommand(sm, "GRANT analyst TO alice;")
+
+	// 4. 查看角色的权限
+	executeCommand(sm, "DESCRIBE ROLE analyst;")
+
+	// 5. 撤销权限
+	executeCommand(sm, "REVOKE SELECT ON TABLE sales_data FROM USER alice;")
+
+	// 6. 查看当前用户的权限
+	executeCommand(sm, "SHOW GRANTS;")
+}
+
+func executeCommand(sm security.Manager, command string) {
+	result, err := sm.RunQuery(command, false, "")
+	if err != nil {
+		log.Fatalf("命令执行失败: %+v", err)
+	}
+	if result != "" {
+		fmt.Println(result)
+	} else {
+		fmt.Println("OK")
+	}
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 获取 SecurityManager
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 SecurityManager sm = odps.projects().get().getSecurityManager();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 中无需显式获取 SecurityManager，直接通过 odps 实例调用
+odps.run_security_query("SHOW GRANTS;")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+```
+
+</TabItem>
+</Tabs>
+
 ### 执行 ACL 命令
 
 通过 `run` 方法提交 ACL 命令，返回一个异步查询实例：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 SecurityManager.AuthorizationQueryInstance instance = sm.run(command, false, null, null);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+result = odps.run_security_query(command)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+instance, err := sm.Run(command, false, "")
+```
+
+</TabItem>
+</Tabs>
 
 参数说明：
 - `command`：要执行的 ACL SQL 命令
@@ -4823,13 +9071,38 @@ SecurityManager.AuthorizationQueryInstance instance = sm.run(command, false, nul
 
 ACL 命令是异步执行的，需要轮询等待完成：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 while (!instance.isTerminated()) {
     Thread.sleep(1000);
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 的 run_security_query 会自动等待执行完成并返回结果
+result = odps.run_security_query(command)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 使用 WaitForSuccess 等待执行完成并获取结果
+result, err := instance.WaitForSuccess()
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取执行结果
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 检查是否失败
@@ -4840,6 +9113,33 @@ if (instance.getStatus() == SecurityManager.AuthorizationQueryStatus.FAILED) {
 // 获取结果文本
 String result = instance.getResult();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# run_security_query 直接返回结果，失败时抛出异常
+try:
+    result = odps.run_security_query(command)
+    print(result)
+except Exception as e:
+    print(f"失败: {e}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// RunQuery 直接返回结果，失败时返回 error
+result, err := sm.RunQuery(command, false, "")
+if err != nil {
+    log.Fatalf("失败: %+v", err)
+}
+fmt.Println(result)
+```
+
+</TabItem>
+</Tabs>
 
 ## 常见 ACL 命令
 
@@ -4967,6 +9267,9 @@ CLEAR EXPIRED GRANTS;
 
 以下示例演示如何检查用户对表的 Select 权限：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -5032,19 +9335,116 @@ public class CheckPermissionExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 初始化 ODPS 客户端
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 1. 检查对表的 Select 权限（通过执行权限查询命令）
+result = odps.run_security_query(
+    "SHOW GRANTS FOR USER ALIYUN$current_user ON TABLE sales_data;"
+)
+print(result)
+
+# 2. 检查对函数的权限
+result = odps.run_security_query(
+    "SHOW GRANTS FOR USER ALIYUN$current_user ON FUNCTION my_udf;"
+)
+print("函数执行权限:", result)
+
+# 3. 查看当前用户的全部权限
+result = odps.run_security_query("SHOW GRANTS;")
+print(result)
+```
+
+:::note
+Python SDK 没有直接对应的 `checkPermission` 方法，可通过 `run_security_query` 执行 `SHOW GRANTS` 命令来查询权限。
+:::
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/aliyun/aliyun-odps-go-sdk/odps"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
+)
+
+func main() {
+	acc := account.NewAliyunAccount("accessId", "accessKey")
+	odpsIns := odps.NewOdps(acc, "http://service.odps.aliyun.com/api")
+	odpsIns.SetDefaultProjectName("my_project")
+
+	// 获取 SecurityManager
+	sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+
+	// 1. 检查对表的 Select 权限
+	perm := security.Permission{
+		ProjectName: "my_project",
+		ObjectType:  "Table",
+		ObjectName:  "sales_data",
+		ActionType:  "Select",
+	}
+
+	result, err := sm.CheckPermissionV1(perm)
+	if err != nil {
+		log.Fatalf("权限检查失败: %+v", err)
+	}
+	fmt.Printf("权限检查结果: %s, 信息: %s\n", result.Result, result.Message)
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 获取 SecurityManager
 
 `SecurityManager` 通过项目对象获取：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 SecurityManager sm = odps.projects().get().getSecurityManager();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 中无需显式获取 SecurityManager，直接通过 odps 实例调用
+odps.run_security_query("SHOW GRANTS;")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+```
+
+</TabItem>
+</Tabs>
+
 ### 构建权限描述
 
 `PermissionDesc` 封装了权限检查所需的全部参数：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 基本构造方法
@@ -5054,15 +9454,65 @@ PermissionDesc desc = new PermissionDesc(projectName, objectType, objectName, ac
 PermissionDesc desc = new PermissionDesc(projectName, schemaName, objectType, objectName, actionType);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 通过 SHOW GRANTS 命令查询权限
+result = odps.run_security_query("SHOW GRANTS FOR USER user_name ON TABLE table_name;")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 构建权限描述
+perm := security.Permission{
+    ProjectName: projectName,
+    ObjectType:  "Table",
+    ObjectName:  objectName,
+    ActionType:  "Select",
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### 执行权限检查
 
 调用 `checkPermission` 返回 `CheckPermissionResultInfo`，包含检查结果和附加信息：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 CheckPermissionResultInfo resultInfo = sm.checkPermission(desc);
 CheckPermissionResult result = resultInfo.getResult(); // Allow 或 Deny
 String message = resultInfo.getMessage();              // 附加说明信息
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 查询结果直接返回为字符串
+result = odps.run_security_query("SHOW GRANTS FOR USER user_name;")
+print(result)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+result, err := sm.CheckPermissionV1(perm)
+if err != nil {
+    log.Fatalf("权限检查失败: %+v", err)
+}
+fmt.Printf("结果: %s, 信息: %s\n", result.Result, result.Message)
+```
+
+</TabItem>
+</Tabs>
 
 ## 对象类型与操作类型
 
@@ -5167,6 +9617,10 @@ MaxCompute Java SDK 提供了多种数据写入方式，适用于不同的业务
 
 Storage API 基于 Apache Arrow 列式格式提供最高性能的数据写入能力，支持 Batch（批量）和 Streaming（流式）两种模式，适合大规模数据导入和高频实时写入场景。
 
+:::note
+Go SDK 暂不支持 Storage API。
+:::
+
 ## 前置条件
 
 - 已添加 `odps-sdk-storage-api` 依赖
@@ -5187,6 +9641,9 @@ Storage API 基于 Apache Arrow 列式格式提供最高性能的数据写入能
 ### Batch 模式（批量写入）
 
 Batch 模式需要显式调用 `commit()` 后数据才对外可见，支持事务回滚，适合需要原子性保证的场景。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -5246,9 +9703,43 @@ public class StorageApiBatchWriteExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import pyarrow as pa
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+
+# 创建写入会话
+resp = client.create_write_session()
+session_id = resp.session_id
+
+# 写入数据
+batch = pa.record_batch(
+    [pa.array([1, 2, 3]), pa.array(["a", "b", "c"])],
+    schema=pa.schema([pa.field("id", pa.int64()), pa.field("name", pa.string())])
+)
+
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=3)
+writer.write(batch)
+commit_msg, success = writer.finish()
+
+# 提交
+client.commit_write_session(session_id)
+```
+
+</TabItem>
+</Tabs>
+
 ### Streaming 模式（流式写入）
 
 Streaming 模式下数据 flush 后立即可见，无需调用 `commit()`，适合实时写入场景。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -5309,6 +9800,37 @@ public class StorageApiStreamingWriteExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import pyarrow as pa
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+
+# 创建写入会话
+resp = client.create_write_session()
+session_id = resp.session_id
+
+# 写入数据
+batch = pa.record_batch(
+    [pa.array([1, 2, 3]), pa.array(["a", "b", "c"])],
+    schema=pa.schema([pa.field("id", pa.int64()), pa.field("name", pa.string())])
+)
+
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=3)
+writer.write(batch)
+commit_msg, success = writer.finish()
+
+# 提交
+client.commit_write_session(session_id)
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 两种写入模式
@@ -5323,6 +9845,9 @@ public class StorageApiStreamingWriteExample {
 ### Arrow VectorSchemaRoot 的创建和填充
 
 `VectorSchemaRoot` 是 Arrow 格式的核心数据容器，代表一批列式数据：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableArrowWriter arrowWriter = (TableArrowWriter) writer;
@@ -5351,6 +9876,33 @@ try (VectorSchemaRoot root = arrowWriter.createVectorSchemaRoot()) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import pyarrow as pa
+
+# 使用 PyArrow 构建 RecordBatch
+batch = pa.record_batch(
+    [
+        pa.array([f"value_{i}" for i in range(5000)]),
+        pa.array(list(range(5000)), type=pa.int64()),
+    ],
+    schema=pa.schema([
+        pa.field("name", pa.string()),
+        pa.field("age", pa.int64()),
+    ])
+)
+
+# 写入批次
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=5000)
+writer.write(batch)
+commit_msg, success = writer.finish()
+```
+
+</TabItem>
+</Tabs>
+
 常用向量类型对应关系：
 
 | MaxCompute 类型 | Arrow Vector 类型 |
@@ -5367,6 +9919,9 @@ try (VectorSchemaRoot root = arrowWriter.createVectorSchemaRoot()) {
 ### 多 Writer 并行写入
 
 同一 Session 下可创建多个独立的 Writer，通过不同的 `streamId` 标识：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 try (TableWriteSession session = client.createTableWriteSessionBuilder(tableId).build()) {
@@ -5401,9 +9956,48 @@ try (TableWriteSession session = client.createTableWriteSessionBuilder(tableId).
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+import pyarrow as pa
+
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+resp = client.create_write_session()
+session_id = resp.session_id
+
+def write_stream(stream_id, data_chunk):
+    batch = pa.record_batch(
+        data_chunk,
+        schema=pa.schema([pa.field("name", pa.string()), pa.field("age", pa.int64())])
+    )
+    writer = client.write_rows_arrow(session_id, stream_id=stream_id, record_count=len(data_chunk[0]))
+    writer.write(batch)
+    writer.finish()
+
+# 多线程并行写入
+num_writers = 4
+with concurrent.futures.ThreadPoolExecutor(max_workers=num_writers) as pool:
+    for i in range(num_writers):
+        chunk = [pa.array([f"stream_{i}_row_{j}" for j in range(1000)]),
+                 pa.array(list(range(1000)), type=pa.int64())]
+        pool.submit(write_stream, i, chunk)
+
+# 所有 Writer 完成后统一提交
+client.commit_write_session(session_id)
+```
+
+</TabItem>
+</Tabs>
+
 ### 幂等重试
 
 `streamId` + `streamVersion` 的组合用于标识一次写入操作的唯一性。对同一批数据使用相同的 `streamId` 和 `streamVersion` 重新写入，服务端会保证只保留一份结果：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 初次写入
@@ -5418,6 +10012,25 @@ try (ArrowWriter writer = session.createWriterBuilder("stream-1", 1).build()) {
     writer.flush();
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 初次写入
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=n)
+writer.write(batch)
+commit_msg, success = writer.finish()
+
+# 如果写入失败，使用相同的 stream_id 重试
+if not success:
+    writer = client.write_rows_arrow(session_id, stream_id=0, record_count=n)
+    writer.write(batch)  # 服务端保证幂等
+    writer.finish()
+```
+
+</TabItem>
+</Tabs>
 
 ## 配置选项
 
@@ -5442,12 +10055,29 @@ try (ArrowWriter writer = session.createWriterBuilder("stream-1", 1).build()) {
 
 通过设置线程池，可以实现写入和网络发送的并行化，提升吞吐：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 ExecutorService flushExecutor = Executors.newSingleThreadExecutor();
 ArrowWriter writer = session.createWriterBuilder("stream-1", 1)
     .withExecutorService(flushExecutor)
     .build();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS Storage API 内部自动处理异步 flush
+# 写入大量数据时自动优化网络发送
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=n)
+writer.write(batch)
+writer.finish()
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 
@@ -5480,6 +10110,9 @@ Tunnel Stream 是面向实时写入场景的数据通道，数据 flush 后立�
 - 目标表已存在
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -5525,6 +10158,39 @@ public class TunnelStreamExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 流式写入 - flush 后数据即可见
+with table.open_writer(partition='dt=20231001', create_partition=True) as writer:
+    for batch in data_source:
+        writer.write(batch)
+    # close 时自动 flush
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20231001"),
+    tunnel.SessionCfg.WithCreatePartition(),
+)
+
+pack := session.OpenRecordPackWriter()
+record := []data.Data{data.BigInt(1), data.String("hello")}
+pack.Append(record)
+
+// flush 后数据即可见
+traceId, recordCount, bytesSend, err := pack.Flush()
+fmt.Printf("traceId=%s, records=%d, bytes=%d\n", traceId, recordCount, bytesSend)
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 与批量写入的关键区别
@@ -5549,6 +10215,9 @@ public class TunnelStreamExample {
 
 从 SDK 0.50.0 起，当表结构发生变更时，如果 Session 中的 Schema 版本与服务端不一致，flush 操作会抛出 `SchemaMismatchException`。此时需要重新创建 Session 以获取最新的 Schema。
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 try {
     pack.flush();
@@ -5560,7 +10229,44 @@ try {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 在写入时自动检测 Schema 变更
+# 如需重新获取最新 Schema，重新打开 writer 即可
+try:
+    with table.open_writer() as writer:
+        writer.write(records)
+except Exception as e:
+    # 表结构已变更，重新获取表对象
+    table.reload()
+    with table.open_writer() as writer:
+        writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+traceId, _, _, err := pack.Flush()
+if err != nil {
+    // 表结构已变更，需要重建 Session
+    session, _ = tunnelIns.CreateStreamUploadSession(
+        project.Name(), "my_table",
+    )
+    pack = session.OpenRecordPackWriter()
+    // 重新写入数据...
+}
+```
+
+</TabItem>
+</Tabs>
+
 可通过 `allowSchemaMismatch(boolean)` 配置是否允许字段类型不匹配：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.StreamUploadSession session = tunnel
@@ -5569,9 +10275,34 @@ TableTunnel.StreamUploadSession session = tunnel
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 默认严格校验 Schema，写入时字段类型不匹配会抛出异常
+with table.open_writer() as writer:
+    writer.write(records)  # 字段类型需与表 Schema 一致
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 默认严格校验 Schema
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 动态分区写入（0.55.0+）
 
 从 SDK 0.55.0 起，支持通过 `DynamicPartitionRecordPack` 在一个 Session 中向多个分区写入数据，无需为每个分区单独创建 Session：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 创建 StreamUploadSession（不指定分区）
@@ -5599,6 +10330,41 @@ pack.append(record2);
 pack.flush(); // 数据自动路由到对应分区
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 支持动态分区写入，分区列作为普通列写入
+with table.open_writer(create_partition=True) as writer:
+    writer.write([
+        ["alice", 25, "20250101"],  # 分区列 dt 作为最后一列
+        ["bob", 30, "20250102"],    # 自动路由到对应分区
+    ])
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 创建 StreamUploadSession（不指定分区，启用自动创建）
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithCreatePartition(),
+)
+
+pack := session.OpenRecordPackWriter()
+
+// 写入不同分区的数据（分区列作为普通列写入）
+pack.Append([]data.Data{data.String("alice"), data.BigInt(25), data.String("20250101")})
+pack.Append([]data.Data{data.String("bob"), data.BigInt(30), data.String("20250102")})
+
+// flush 后数据自动路由到对应分区
+traceId, _, _, _ := pack.Flush()
+```
+
+</TabItem>
+</Tabs>
+
 ## 配置选项
 
 ### Session 构建参数
@@ -5614,11 +10380,37 @@ pack.flush(); // 数据自动路由到对应分区
 
 ### 压缩选项
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 使用 Snappy 压缩
 StreamRecordPack pack = session.newRecordPack(
     new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY, 0, 0));
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 自动处理压缩，无需手动配置
+with table.open_writer(compress=True) as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 在创建 Session 时配置压缩
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithSnappyCompressor(),
+)
+```
+
+</TabItem>
+</Tabs>
 
 | 算法 | 说明 |
 |------|------|
@@ -5633,6 +10425,9 @@ StreamRecordPack pack = session.newRecordPack(
 
 ### Flush 控制
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 带超时控制的 flush
 FlushOption option = new FlushOption().timeout(3000); // 3 秒超时
@@ -5640,6 +10435,29 @@ FlushResult result = pack.flush(option);
 System.out.println("recordCount: " + result.getRecordCount());
 System.out.println("flushSize: " + result.getFlushSize());
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 在 writer.close() 时自动 flush
+# 超时由底层连接配置控制
+with table.open_writer() as writer:
+    writer.write(records)
+# close 时自动 flush，返回写入结果
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// flush 返回 traceId、记录数和字节数
+traceId, recordCount, bytesSend, err := pack.Flush()
+fmt.Printf("recordCount: %d, flushSize: %d\n", recordCount, bytesSend)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 
@@ -5671,6 +10489,9 @@ Tunnel Upload 是 MaxCompute 最经典的批量数据写入方式，通过 Uploa
 - 目标表已存在；若为分区表，分区需已创建或指定已有分区
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -5719,6 +10540,48 @@ public class TunnelUploadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 记录写入
+records = [[1, 'Alice'], [2, 'Bob']]
+with table.open_writer(partition='dt=20231001', create_partition=True) as writer:
+    writer.write(records)
+
+# 使用 write_table（支持 DataFrame）
+import pandas as pd
+df = pd.DataFrame({'id': [1, 2], 'name': ['Alice', 'Bob']})
+o.write_table('my_table', df, partition='dt=20231001', create_partition=True)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20231001"),
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+
+// 打开 writer
+writer, _ := session.OpenRecordWriter(0)
+
+// 写入数据
+record := []data.Data{data.BigInt(1), data.String("Alice")}
+writer.Write(record)
+record2 := []data.Data{data.BigInt(2), data.String("Bob")}
+writer.Write(record2)
+
+// 关闭并提交
+writer.Close()
+session.Commit([]int{0})
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 写入流程
@@ -5743,6 +10606,9 @@ Block 是 Tunnel Upload 的核心概念：
 ### 多 Block 并行上传
 
 利用不同的 Block ID，可以实现多线程并行写入：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.UploadSession session = tunnel.createUploadSession(projectName, tableName);
@@ -5780,9 +10646,68 @@ Long[] blocks = new Long[]{0L, 1L, 2L, 3L};
 session.commit(blocks);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+
+# PyODPS 自动管理 Block，支持多线程写入
+def write_chunk(thread_id, records):
+    with table.open_writer(partition='dt=20250101', create_partition=True) as writer:
+        writer.write(records)
+
+# 准备分片数据
+thread_count = 4
+with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as pool:
+    for t in range(thread_count):
+        records = [
+            [f"thread_{t}_row_{i}", i] for i in range(10000)
+        ]
+        pool.submit(write_chunk, t, records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+
+threadCount := 4
+var wg sync.WaitGroup
+for t := 0; t < threadCount; t++ {
+    wg.Add(1)
+    go func(blockId int) {
+        defer wg.Done()
+        writer, _ := session.OpenRecordWriter(blockId)
+        for i := 0; i < 10000; i++ {
+            record := []data.Data{
+                data.String(fmt.Sprintf("thread_%d_row_%d", blockId, i)),
+                data.BigInt(int64(i)),
+            }
+            writer.Write(record)
+        }
+        writer.Close()
+    }(t)
+}
+wg.Wait()
+
+// 提交所有 Block
+session.Commit([]int{0, 1, 2, 3})
+```
+
+</TabItem>
+</Tabs>
+
 ### 使用 TunnelBufferedWriter
 
 如果不想手动管理 Block ID，可以使用 `TunnelBufferedWriter`，它内部自动管理缓冲区和 Block 分配：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.UploadSession session = tunnel.createUploadSession(projectName, tableName);
@@ -5799,6 +10724,40 @@ writer.close();
 session.commit();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 默认自动管理缓冲区和 Block 分配
+records = [[f"user_{i}", 20 + i % 50] for i in range(100000)]
+with table.open_writer() as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+
+writer, _ := session.OpenRecordWriter(0)
+for i := 0; i < 100000; i++ {
+    record := []data.Data{
+        data.String(fmt.Sprintf("user_%d", i)),
+        data.BigInt(int64(20 + i%50)),
+    }
+    writer.Write(record)
+}
+writer.Close()
+session.Commit([]int{0})
+```
+
+</TabItem>
+</Tabs>
+
 ## 配置选项
 
 ### 压缩算法
@@ -5810,13 +10769,41 @@ session.commit();
 | `CompressOption.CompressAlgorithm.ODPS_SNAPPY` | Snappy 压缩 |
 | `CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME` | LZ4 Frame 压缩 |
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 CompressOption option = new CompressOption(
     CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME, 0, 0);
 RecordWriter writer = session.openRecordWriter(blockId, option);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 自动处理压缩，无需手动配置
+with table.open_writer(compress=True) as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 分区表写入
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 写入指定分区
@@ -5825,7 +10812,31 @@ TableTunnel.UploadSession session = tunnel.createUploadSession(
     projectName, tableName, partitionSpec);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+with table.open_writer(partition='dt=20250101', create_partition=True) as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20250101"),
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 覆盖写入
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 覆盖表中已有数据
@@ -5833,6 +10844,29 @@ boolean overwrite = true;
 TableTunnel.UploadSession session = tunnel.createUploadSession(
     projectName, tableName, overwrite);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 覆盖表中已有数据
+with table.open_writer(overwrite=True) as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 覆盖表中已有数据
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithOverwrite(),
+)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 
@@ -5854,6 +10888,10 @@ TableTunnel.UploadSession session = tunnel.createUploadSession(
 # guides/write-data/tunnel-upsert.md
 
 # Tunnel Upsert 更新插入
+
+:::note
+Tunnel Upsert 目前仅 Java SDK 支持。Python 和 Go SDK 暂不提供此功能。
+:::
 
 Tunnel Upsert 专为 Delta Table（主键表）设计，支持按主键进行数据的插入、更新和删除操作，适合数据库变更同步（CDC）、实时数据修正等场景。
 
@@ -6090,13 +11128,14 @@ UpsertStream stream = upsertSession.buildUpsertStream()
 ---
 # index.md
 
-# MaxCompute Java SDK
+# MaxCompute SDK
 
-MaxCompute(ODPS) SDK for Java 是阿里云 MaxCompute 大数据计算服务的官方 Java 客户端库。它为 Java 开发者提供了完整的 API，用于管理 MaxCompute 项目中的表、资源、函数等对象，执行 SQL 查询，以及通过 Tunnel 或 Storage API 高效地读写数据。
+MaxCompute(ODPS) SDK 是阿里云 MaxCompute 大数据计算服务的官方客户端库，支持 **Java**、**Python** 和 **Go** 三种语言。它为开发者提供了完整的 API，用于管理 MaxCompute 项目中的表、资源、函数等对象，执行 SQL 查询，以及通过 Tunnel 或 Storage API 高效地读写数据。
 
 ## 安装
 
-### Maven
+<Tabs groupId="sdk-language">
+  <TabItem value="java" label="Java" default>
 
 ```xml
 <dependency>
@@ -6106,15 +11145,39 @@ MaxCompute(ODPS) SDK for Java 是阿里云 MaxCompute 大数据计算服务的�
 </dependency>
 ```
 
-### Gradle
+  </TabItem>
+  <TabItem value="python" label="Python">
 
-```groovy
-implementation 'com.aliyun.odps:odps-sdk-core:0.57.2-public'
+```bash
+pip install pyodps
 ```
 
-> 最新版本请查阅 [Maven Central](https://mvnrepository.com/artifact/com.aliyun.odps/odps-sdk-core) 或 [阿里云 Maven 仓库](https://developer.aliyun.com/mvn/)。
+  </TabItem>
+  <TabItem value="go" label="Go">
 
-## 模块概览
+```bash
+go get github.com/aliyun/aliyun-odps-go-sdk
+```
+
+  </TabItem>
+</Tabs>
+
+## 语言支持矩阵
+
+| 功能 | Java | Python | Go |
+|------|:----:|:------:|:--:|
+| 认证（AK/SK、STS） | ✓ | ✓ | ✓ |
+| 执行 SQL | ✓ | ✓ | ✓ |
+| MCQA 交互式查询 | ✓ | ✓ | - |
+| Tunnel 下载 | ✓ | ✓ | ✓ |
+| Tunnel 上传 | ✓ | ✓ | ✓ |
+| Tunnel 流式写入 | ✓ | ✓ | ✓ |
+| Tunnel Upsert | ✓ | - | - |
+| Storage API 读取 | ✓ | ✓ | - |
+| Storage API 写入 | ✓ | ✓ | - |
+| 表管理 | ✓ | ✓ | ✓ |
+
+## 模块概览（Java）
 
 | 模块 | artifactId | 说明 |
 |------|-----------|------|
@@ -6128,12 +11191,14 @@ implementation 'com.aliyun.odps:odps-sdk-core:0.57.2-public'
 - [**快速开始**](getting-started/) - 环境配置与第一个程序
 - [**使用指南**](guides/) - SQL 执行、数据读写、表管理等操作指南
 - [**模块文档**](modules/) - 各模块的详细 API 说明
-- [**API 参考**](reference/) - 类与方法的完整参考文档
+- [**API 参考**](reference/) - 类与方法的完整参考文档（Java）
 - [**常见问题**](faq) - FAQ 与问题排查
 
-## 贡献
+## 相关链接
 
-欢迎通过 [GitHub 仓库](https://github.com/aliyun/aliyun-odps-java-sdk) 提交 Issue 或 Pull Request。
+- [Java SDK GitHub](https://github.com/aliyun/aliyun-odps-java-sdk)
+- [Python SDK GitHub](https://github.com/aliyun/aliyun-odps-python-sdk)
+- [Go SDK GitHub](https://github.com/aliyun/aliyun-odps-go-sdk)
 
 ---
 # modules/core.md

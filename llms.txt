@@ -1,13 +1,13 @@
-# MaxCompute Java SDK
+# MaxCompute SDK
 
-> MaxCompute(ODPS) SDK for Java - 阿里云大数据计算服务的 Java 客户端库。
+> MaxCompute(ODPS) SDK for Java / Python / Go - 阿里云大数据计算服务的多语言客户端库。
 > 提供表管理、SQL 执行、数据批量传输（Tunnel）、高性能读写（Storage API）等能力。
 
 ## Getting Started
 
-- [安装与配置](getting-started/installation.md): 在 Maven 或 Gradle 项目中引入 MaxCompute Java SDK 依赖，包括各模块说明、仓库配置和 Java 版本要求。
-- [认证方式](getting-started/authentication.md): MaxCompute Java SDK 支持的 5 种认证方式详解，包括 AccessKey、STS Token、CredentialProvider、双重签名和 Bearer Token。
-- [第一个程序](getting-started/first-program.md): 编写第一个 MaxCompute Java SDK 程序，连接服务并读取表数据。
+- [安装与配置](getting-started/installation.md): 在项目中引入 MaxCompute SDK 依赖，支持 Java（Maven/Gradle）、Python（pip）和 Go（go get）。
+- [认证方式](getting-started/authentication.md): MaxCompute SDK 支持的认证方式详解，包括 AccessKey、STS Token、CredentialProvider 等多种认证方式。
+- [第一个程序](getting-started/first-program.md): 编写第一个 MaxCompute SDK 程序，连接服务并读取表数据。
 
 ## Guides
 
@@ -28,7 +28,7 @@
 - [管理表](guides/manage-tables/index.md): MaxCompute Java SDK 表生命周期管理概览，包括获取表实例、读取表元数据、表类型等
 - [创建表](guides/manage-tables/create-table.md): 使用 TableCreator 建表工具创建各种类型的 MaxCompute 表，包括分区表、Delta 表、外部表等
 - [修改表](guides/manage-tables/alter-table.md): 使用 MaxCompute Java SDK 对已有表执行修改操作，包括重命名、修改生命周期、增删列等
-- [分区操作](guides/manage-tables/partitions.md): 使用 MaxCompute Java SDK 管理表分区，包括分区的创建、查询、删除和 PartitionSpec 的构造
+- [分区操作](guides/manage-tables/partitions.md): 使用 MaxCompute SDK 管理表分区，包括分区的创建、查询、删除和 PartitionSpec 的构造
 - [标签操作](guides/manage-tables/tags.md): 使用 MaxCompute Java SDK 管理表和列的标签（Tag），包括标准标签和简单标签的增删查操作
 - [函数管理](guides/manage-resources/functions.md): 通过 Java SDK 创建、查询、更新和删除 MaxCompute 用户自定义函数（UDF/UDTF/UDAF）
 - [资源管理](guides/manage-resources/resources.md): 通过 Java SDK 上传、下载、更新和删除 MaxCompute 资源文件（JAR/FILE/TABLE/ARCHIVE/PY）
