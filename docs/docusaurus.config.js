@@ -18,7 +18,7 @@ const config = {
   // If you aren't using GitHub pages, you don't need these.
   organizationName: 'aliyun', // Usually your GitHub org/user name.
   projectName: 'aliyun-odps-java-sdk', // Usually your repo name.
-  trailingSlash: 'true',
+  trailingSlash: true,
 
   onBrokenAnchors: 'ignore',
   onBrokenLinks: 'ignore',
@@ -34,13 +34,12 @@ const config = {
         require.resolve("@easyops-cn/docusaurus-search-local"),
         /** @type {import("@easyops-cn/docusaurus-search-local").PluginOptions} */
         ({
-          // ... Your options.
-          // `hashed` is recommended as long-term-cache of index file is possible.
-          hashed: true,
-          // For Docs using Chinese, it is recomended to set:
-          language: ["zh"],
-          // If you're using `noIndex: true`, set `forceIgnoreNoIndex` to enable local index:
-          // forceIgnoreNoIndex: true,
+          hashed: false,
+          language: ["en"],
+          docsRouteBasePath: "/",
+          indexBlog: false,
+          highlightSearchTermsOnTargetPage: true,
+          searchResultLimits: 10,
         }),
       ],
   ],
