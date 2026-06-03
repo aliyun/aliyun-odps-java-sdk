@@ -1,18 +1,23 @@
 ---
 title: 安装与配置
-description: 在 Maven 或 Gradle 项目中引入 MaxCompute Java SDK 依赖，包括各模块说明、仓库配置和 Java 版本要求。
+description: 在项目中引入 MaxCompute SDK 依赖，支持 Java（Maven/Gradle）、Python（pip）和 Go（go get）。
 sidebar_position: 1
 module: odps-sdk-core
 task: getting-started
 apis: []
-keywords: [maven, gradle, 安装, 依赖, repository, java版本]
+keywords: [maven, gradle, pip, go get, 安装, 依赖, repository, java版本]
 ---
 
 # 安装与配置
 
-本文介绍如何在 Java 项目中引入 MaxCompute Java SDK 依赖。
+本文介绍如何在项目中引入 MaxCompute SDK 依赖。
 
-## SDK 模块说明
+## 安装 SDK
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
+### SDK 模块说明
 
 MaxCompute Java SDK 由多个模块组成，可按需引入：
 
@@ -25,9 +30,9 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 
 大多数场景只需引入 `odps-sdk-core` 即可。
 
-## Maven
+### Maven
 
-### 基本依赖
+#### 基本依赖
 
 在项目的 `pom.xml` 中添加依赖：
 
@@ -39,7 +44,7 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 </dependency>
 ```
 
-### 引入其他模块
+#### 引入其他模块
 
 根据需要添加其他模块：
 
@@ -66,7 +71,7 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 </dependency>
 ```
 
-### 仓库配置
+#### 仓库配置
 
 SDK 发布在 Maven Central，可直接使用。如需加速下载，可配置阿里云 Maven 镜像仓库：
 
@@ -91,13 +96,13 @@ SDK 发布在 Maven Central，可直接使用。如需加速下载，可配置�
 </mirrors>
 ```
 
-### 关于 BOM
+#### 关于 BOM
 
 当前 MaxCompute Java SDK 未提供 BOM（Bill of Materials）。如果项目中同时使用多个模块，请确保所有模块版本保持一致。
 
-## Gradle
+### Gradle
 
-### 基本依赖
+#### 基本依赖
 
 在 `build.gradle` 中添加：
 
@@ -107,7 +112,7 @@ dependencies {
 }
 ```
 
-### 引入其他模块
+#### 引入其他模块
 
 ```groovy
 dependencies {
@@ -118,7 +123,7 @@ dependencies {
 }
 ```
 
-### 仓库配置
+#### 仓库配置
 
 ```groovy
 repositories {
@@ -141,7 +146,7 @@ dependencies {
 }
 ```
 
-## Java 版本要求
+### Java 版本要求
 
 | SDK 版本 | 最低 Java 版本 | 说明 |
 |---------|--------------|------|
@@ -152,7 +157,53 @@ dependencies {
 - **推荐版本**：Java 8 或 Java 21
 - 自 0.54.0 版本起，SDK 完整支持 Java 21 运行时
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+### 安装
+
+使用 pip 安装 PyODPS：
+
+```bash
+pip install pyodps
+```
+
+### 可选依赖
+
+如需使用 DataFrame 功能，建议同时安装 pandas：
+
+```bash
+pip install pyodps[pandas]
+```
+
+### Python 版本要求
+
+- **最低要求**：Python 3.6
+- **推荐版本**：Python 3.8+
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+### 安装
+
+使用 `go get` 安装 Go SDK：
+
+```bash
+go get github.com/aliyun/aliyun-odps-go-sdk
+```
+
+### Go 版本要求
+
+- **最低要求**：Go 1.18
+- **推荐版本**：Go 1.20+
+
+</TabItem>
+</Tabs>
+
 ## 验证安装
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 创建一个简单的测试类来验证 SDK 是否正确引入：
 
@@ -168,6 +219,41 @@ public class VerifyInstallation {
 ```
 
 如果编译运行成功，说明 SDK 已正确安装。
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+在 Python 中验证安装：
+
+```python
+import odps
+print("PyODPS 安装成功")
+print(f"版本: {odps.__version__}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+创建一个简单的程序验证安装：
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+)
+
+func main() {
+    fmt.Println("MaxCompute Go SDK 引入成功")
+    _ = odps.NewOdps
+}
+```
+
+运行 `go run main.go`，如果没有报错则安装成功。
+
+</TabItem>
+</Tabs>
 
 ## 下一步
 

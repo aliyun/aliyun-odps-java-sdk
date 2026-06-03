@@ -22,6 +22,9 @@ TableTunnel 是 MaxCompute 的标准数据通道，适用于大批量数据的�
 
 ## 完整示例
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.PartitionSpec;
@@ -62,6 +65,66 @@ public class TunnelDownloadExample {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 读取整张表
+with table.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取分区表
+with table.open_reader(partition='dt=20231001') as reader:
+    for record in reader:
+        print(record)
+
+# Arrow 格式读取（高性能）
+with table.open_reader(arrow=True) as reader:
+    for batch in reader:
+        df = batch.to_pandas()
+
+# 指定列读取
+with table.open_reader(columns=['id', 'name']) as reader:
+    for record in reader:
+        print(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+project := odpsIns.DefaultProject()
+tunnelEndpoint, _ := project.GetTunnelEndpoint()
+tunnelIns := tunnel.NewTunnel(odpsIns, tunnelEndpoint)
+
+// 创建下载会话
+session, _ := tunnelIns.CreateDownloadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20231001"),
+)
+
+// 读取数据
+recordCount := session.RecordCount()
+reader, _ := session.OpenRecordReader(0, recordCount, nil)
+reader.Iterator(func(record data.Record, err error) {
+    if err != nil {
+        return
+    }
+    fmt.Println(record)
+})
+reader.Close()
+
+// Arrow 格式读取
+arrowReader, _ := session.OpenRecordArrowReader(0, recordCount, nil)
+arrowReader.Iterator(func(rec array.Record, err error) {
+    // 处理 Arrow RecordBatch
+})
+```
+
+</TabItem>
+</Tabs>
 
 ## 代码说明
 
@@ -105,6 +168,9 @@ public class TunnelDownloadExample {
 ## 多线程并行下载
 
 对于大数据量场景，可将数据按行号范围拆分为多个块，使用线程池并行下载：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import java.util.concurrent.ExecutorService;
@@ -159,9 +225,77 @@ public class ParallelDownloadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+
+table = o.get_table('large_table')
+
+# 方式1: 使用 Arrow 格式高效读取（自动批次处理，推荐）
+with table.open_reader(arrow=True) as reader:
+    for batch in reader:
+        df = batch.to_pandas()
+        process_dataframe(df)
+
+# 方式2: 按分区并行读取
+def read_partition(pt_spec):
+    with table.open_reader(partition=pt_spec, arrow=True) as reader:
+        for batch in reader:
+            process_dataframe(batch.to_pandas())
+
+partitions = [str(p.partition_spec) for p in table.partitions]
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+    pool.map(read_partition, partitions)
+print("下载完成")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateDownloadSession(
+    project.Name(), "large_table",
+)
+
+totalRecords := session.RecordCount()
+parallelism := 8
+chunkSize := totalRecords / int64(parallelism)
+
+var wg sync.WaitGroup
+for i := 0; i < parallelism; i++ {
+    wg.Add(1)
+    go func(idx int) {
+        defer wg.Done()
+        start := int64(idx) * chunkSize
+        count := chunkSize
+        if idx == parallelism-1 {
+            count = totalRecords - start
+        }
+        reader, _ := session.OpenRecordReader(start, count, nil)
+        reader.Iterator(func(record data.Record, err error) {
+            if err != nil {
+                return
+            }
+            processRecord(record)
+        })
+        reader.Close()
+    }(i)
+}
+wg.Wait()
+fmt.Printf("下载完成，共 %d 条记录\n", totalRecords)
+```
+
+</TabItem>
+</Tabs>
+
 ## 异步创建模式（大表）
 
 对于数据量特别大的表，Session 创建可能需要较长时间。可以使用异步模式避免阻塞：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.DownloadSessionBuilder builder = tunnel.buildDownloadSession()
@@ -180,6 +314,34 @@ if (ready) {
     System.err.println("会话创建超时");
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 自动处理大表的会话创建，无需手动配置异步模式
+table = o.get_table('huge_table')
+with table.open_reader() as reader:
+    print(f"会话就绪，记录数: {reader.count}")
+    for record in reader:
+        process_record(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 在 CreateDownloadSession 时自动处理会话初始化
+// 无需额外的异步模式配置
+session, _ := tunnelIns.CreateDownloadSession(
+    project.Name(), "huge_table",
+)
+recordCount := session.RecordCount()
+fmt.Printf("会话就绪，记录数: %d\n", recordCount)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 

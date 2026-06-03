@@ -11,7 +11,11 @@ keywords: [Blob, 二进制, 非结构化, BlobManager, 下载, 批量下载]
 
 # Blob 数据下载
 
-MaxCompute 的 `BLOB` 类型用于存储非结构化的二进制大对象数据（如图片、音频、文档等）。Blob 在表中以引用（Reference）的形式存储，实际的二进制数据需要通过 `BlobManager` 单独下载。
+:::note
+Blob 数据下载目前支持 Java SDK 和 Python SDK，Go SDK 暂不支持。
+:::
+
+MaxCompute 的 `BLOB` 类型用于存储非结构化的二进制大对象数据（如图片、音频、文档等）。Blob 在表中以引用（Reference）的形式存储，实际的二进制数据需要通过 `BlobManager`（Java）或 `StorageApiClient.read_blobs()`（Python）单独下载。
 
 ## 前置条件
 
@@ -21,6 +25,9 @@ MaxCompute 的 `BLOB` 类型用于存储非结构化的二进制大对象数据�
 - SDK 版本 >= 0.54.0
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -99,6 +106,57 @@ public class BlobDownloadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+import os
+
+# 1. 初始化 ODPS 客户端
+odps = ODPS("<accessId>", "<accessKey>", "<projectName>", "<endpoint>")
+
+# 2. 获取表对象并创建客户端
+table = odps.get_table("image_table")
+client = StorageApiArrowClient(odps, table)
+
+# 3. 创建读取会话，指定包含 Blob 列的字段
+read_resp = client.create_read_session(
+    required_data_columns=["id", "image_data"]
+)
+session_id = read_resp.session_id
+
+# 4. 读取表数据并收集 Blob 引用
+blob_refs = []
+ids = []
+for split_index in range(read_resp.splits_count):
+    reader = client.read_rows_arrow(session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        id_list = batch.column("id").to_pylist()
+        blob_list = batch.column("image_data").to_pylist()
+        for i, ref in enumerate(blob_list):
+            if ref is not None:
+                blob_refs.append(
+                    ref.decode("utf-8") if isinstance(ref, bytes) else ref
+                )
+                ids.append(id_list[i])
+
+# 5. 批量下载 Blob 数据
+os.makedirs("/tmp/images", exist_ok=True)
+for idx, (data, mime_type) in enumerate(client.read_blobs(blob_references=blob_refs)):
+    output_path = f"/tmp/images/{ids[idx]}.jpg"
+    with open(output_path, "wb") as f:
+        f.write(data)
+    print(f"已下载: {output_path} ({len(data)} bytes)")
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 1. **创建客户端**：与 Storage API 读取相同，通过 `MaxStorageClient.builder()` 构建。
@@ -128,6 +186,9 @@ public class BlobDownloadExample {
 
 适用于 Blob 数量较少或需要按需下载的场景：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 BlobManager blobManager = client.openBlobManager();
 
@@ -141,9 +202,27 @@ try (InputStream data = blobManager.download(blobRef)) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 从 Arrow 数据中获取 Blob 引用
+blob_ref = ref.decode("utf-8") if isinstance(ref, bytes) else ref
+
+# 单条下载（传入单元素列表）
+for data, mime_type in client.read_blobs(blob_references=[blob_ref]):
+    print(f"Blob 大小: {len(data)} bytes")
+```
+
+</TabItem>
+</Tabs>
+
 ## 批量下载
 
 适用于大量 Blob 的高效下载，单次请求传输多个 Blob：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 BlobManager blobManager = client.openBlobManager();
@@ -167,9 +246,32 @@ try (BlobDataIterator iterator = blobManager.batchDownload(blobs)) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 收集多个 Blob 引用
+blob_refs = []
+# ... 从表数据中收集 ...
+
+# 批量下载
+try:
+    for data, mime_type in client.read_blobs(blob_references=blob_refs):
+        # 处理 data...
+        pass
+except Exception as e:
+    print(f"下载失败: {e}")
+```
+
+</TabItem>
+</Tabs>
+
 ## Arrow 列接口读取 Blob
 
 如果使用 Arrow 列接口而非行接口，需要手动从 `VarBinaryVector` 中解析 Blob 引用：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import org.apache.arrow.vector.VarBinaryVector;
@@ -204,6 +306,36 @@ for (InputSplit split : session.getSplits()) {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+for split_index in range(read_resp.splits_count):
+    reader = client.read_rows_arrow(session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        blob_vector = batch.column("image_data")
+
+        blob_refs = []
+        for row in range(len(batch)):
+            ref = blob_vector[row].as_py()
+            if ref is not None:
+                # Arrow 读取时 VarBinary 中是引用字符串的 UTF-8 字节
+                blob_refs.append(
+                    ref.decode("utf-8") if isinstance(ref, bytes) else ref
+                )
+
+        if blob_refs:
+            for data, mime_type in client.read_blobs(blob_references=blob_refs):
+                # 处理 data...
+                pass
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 

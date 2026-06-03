@@ -13,6 +13,10 @@ keywords: [storage-api, arrow, 高性能, batch, streaming, 列式, VectorSchema
 
 Storage API 基于 Apache Arrow 列式格式提供最高性能的数据写入能力，支持 Batch（批量）和 Streaming（流式）两种模式，适合大规模数据导入和高频实时写入场景。
 
+:::note
+Go SDK 暂不支持 Storage API。
+:::
+
 ## 前置条件
 
 - 已添加 `odps-sdk-storage-api` 依赖
@@ -33,6 +37,9 @@ Storage API 基于 Apache Arrow 列式格式提供最高性能的数据写入能
 ### Batch 模式（批量写入）
 
 Batch 模式需要显式调用 `commit()` 后数据才对外可见，支持事务回滚，适合需要原子性保证的场景。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -92,9 +99,43 @@ public class StorageApiBatchWriteExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import pyarrow as pa
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+
+# 创建写入会话
+resp = client.create_write_session()
+session_id = resp.session_id
+
+# 写入数据
+batch = pa.record_batch(
+    [pa.array([1, 2, 3]), pa.array(["a", "b", "c"])],
+    schema=pa.schema([pa.field("id", pa.int64()), pa.field("name", pa.string())])
+)
+
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=3)
+writer.write(batch)
+commit_msg, success = writer.finish()
+
+# 提交
+client.commit_write_session(session_id)
+```
+
+</TabItem>
+</Tabs>
+
 ### Streaming 模式（流式写入）
 
 Streaming 模式下数据 flush 后立即可见，无需调用 `commit()`，适合实时写入场景。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -155,6 +196,37 @@ public class StorageApiStreamingWriteExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import pyarrow as pa
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+
+# 创建写入会话
+resp = client.create_write_session()
+session_id = resp.session_id
+
+# 写入数据
+batch = pa.record_batch(
+    [pa.array([1, 2, 3]), pa.array(["a", "b", "c"])],
+    schema=pa.schema([pa.field("id", pa.int64()), pa.field("name", pa.string())])
+)
+
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=3)
+writer.write(batch)
+commit_msg, success = writer.finish()
+
+# 提交
+client.commit_write_session(session_id)
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 两种写入模式
@@ -169,6 +241,9 @@ public class StorageApiStreamingWriteExample {
 ### Arrow VectorSchemaRoot 的创建和填充
 
 `VectorSchemaRoot` 是 Arrow 格式的核心数据容器，代表一批列式数据：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableArrowWriter arrowWriter = (TableArrowWriter) writer;
@@ -197,6 +272,33 @@ try (VectorSchemaRoot root = arrowWriter.createVectorSchemaRoot()) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import pyarrow as pa
+
+# 使用 PyArrow 构建 RecordBatch
+batch = pa.record_batch(
+    [
+        pa.array([f"value_{i}" for i in range(5000)]),
+        pa.array(list(range(5000)), type=pa.int64()),
+    ],
+    schema=pa.schema([
+        pa.field("name", pa.string()),
+        pa.field("age", pa.int64()),
+    ])
+)
+
+# 写入批次
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=5000)
+writer.write(batch)
+commit_msg, success = writer.finish()
+```
+
+</TabItem>
+</Tabs>
+
 常用向量类型对应关系：
 
 | MaxCompute 类型 | Arrow Vector 类型 |
@@ -213,6 +315,9 @@ try (VectorSchemaRoot root = arrowWriter.createVectorSchemaRoot()) {
 ### 多 Writer 并行写入
 
 同一 Session 下可创建多个独立的 Writer，通过不同的 `streamId` 标识：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 try (TableWriteSession session = client.createTableWriteSessionBuilder(tableId).build()) {
@@ -247,9 +352,48 @@ try (TableWriteSession session = client.createTableWriteSessionBuilder(tableId).
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+import pyarrow as pa
+
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+resp = client.create_write_session()
+session_id = resp.session_id
+
+def write_stream(stream_id, data_chunk):
+    batch = pa.record_batch(
+        data_chunk,
+        schema=pa.schema([pa.field("name", pa.string()), pa.field("age", pa.int64())])
+    )
+    writer = client.write_rows_arrow(session_id, stream_id=stream_id, record_count=len(data_chunk[0]))
+    writer.write(batch)
+    writer.finish()
+
+# 多线程并行写入
+num_writers = 4
+with concurrent.futures.ThreadPoolExecutor(max_workers=num_writers) as pool:
+    for i in range(num_writers):
+        chunk = [pa.array([f"stream_{i}_row_{j}" for j in range(1000)]),
+                 pa.array(list(range(1000)), type=pa.int64())]
+        pool.submit(write_stream, i, chunk)
+
+# 所有 Writer 完成后统一提交
+client.commit_write_session(session_id)
+```
+
+</TabItem>
+</Tabs>
+
 ### 幂等重试
 
 `streamId` + `streamVersion` 的组合用于标识一次写入操作的唯一性。对同一批数据使用相同的 `streamId` 和 `streamVersion` 重新写入，服务端会保证只保留一份结果：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 初次写入
@@ -264,6 +408,25 @@ try (ArrowWriter writer = session.createWriterBuilder("stream-1", 1).build()) {
     writer.flush();
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 初次写入
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=n)
+writer.write(batch)
+commit_msg, success = writer.finish()
+
+# 如果写入失败，使用相同的 stream_id 重试
+if not success:
+    writer = client.write_rows_arrow(session_id, stream_id=0, record_count=n)
+    writer.write(batch)  # 服务端保证幂等
+    writer.finish()
+```
+
+</TabItem>
+</Tabs>
 
 ## 配置选项
 
@@ -288,12 +451,29 @@ try (ArrowWriter writer = session.createWriterBuilder("stream-1", 1).build()) {
 
 通过设置线程池，可以实现写入和网络发送的并行化，提升吞吐：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 ExecutorService flushExecutor = Executors.newSingleThreadExecutor();
 ArrowWriter writer = session.createWriterBuilder("stream-1", 1)
     .withExecutorService(flushExecutor)
     .build();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS Storage API 内部自动处理异步 flush
+# 写入大量数据时自动优化网络发送
+writer = client.write_rows_arrow(session_id, stream_id=0, record_count=n)
+writer.write(batch)
+writer.finish()
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 

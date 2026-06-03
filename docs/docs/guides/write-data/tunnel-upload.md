@@ -21,6 +21,9 @@ Tunnel Upload 是 MaxCompute 最经典的批量数据写入方式，通过 Uploa
 
 ## 完整示例
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.PartitionSpec;
@@ -68,6 +71,48 @@ public class TunnelUploadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 记录写入
+records = [[1, 'Alice'], [2, 'Bob']]
+with table.open_writer(partition='dt=20231001', create_partition=True) as writer:
+    writer.write(records)
+
+# 使用 write_table（支持 DataFrame）
+import pandas as pd
+df = pd.DataFrame({'id': [1, 2], 'name': ['Alice', 'Bob']})
+o.write_table('my_table', df, partition='dt=20231001', create_partition=True)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20231001"),
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+
+// 打开 writer
+writer, _ := session.OpenRecordWriter(0)
+
+// 写入数据
+record := []data.Data{data.BigInt(1), data.String("Alice")}
+writer.Write(record)
+record2 := []data.Data{data.BigInt(2), data.String("Bob")}
+writer.Write(record2)
+
+// 关闭并提交
+writer.Close()
+session.Commit([]int{0})
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 写入流程
@@ -92,6 +137,9 @@ Block 是 Tunnel Upload 的核心概念：
 ### 多 Block 并行上传
 
 利用不同的 Block ID，可以实现多线程并行写入：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.UploadSession session = tunnel.createUploadSession(projectName, tableName);
@@ -129,9 +177,68 @@ Long[] blocks = new Long[]{0L, 1L, 2L, 3L};
 session.commit(blocks);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+
+# PyODPS 自动管理 Block，支持多线程写入
+def write_chunk(thread_id, records):
+    with table.open_writer(partition='dt=20250101', create_partition=True) as writer:
+        writer.write(records)
+
+# 准备分片数据
+thread_count = 4
+with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as pool:
+    for t in range(thread_count):
+        records = [
+            [f"thread_{t}_row_{i}", i] for i in range(10000)
+        ]
+        pool.submit(write_chunk, t, records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+
+threadCount := 4
+var wg sync.WaitGroup
+for t := 0; t < threadCount; t++ {
+    wg.Add(1)
+    go func(blockId int) {
+        defer wg.Done()
+        writer, _ := session.OpenRecordWriter(blockId)
+        for i := 0; i < 10000; i++ {
+            record := []data.Data{
+                data.String(fmt.Sprintf("thread_%d_row_%d", blockId, i)),
+                data.BigInt(int64(i)),
+            }
+            writer.Write(record)
+        }
+        writer.Close()
+    }(t)
+}
+wg.Wait()
+
+// 提交所有 Block
+session.Commit([]int{0, 1, 2, 3})
+```
+
+</TabItem>
+</Tabs>
+
 ### 使用 TunnelBufferedWriter
 
 如果不想手动管理 Block ID，可以使用 `TunnelBufferedWriter`，它内部自动管理缓冲区和 Block 分配：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.UploadSession session = tunnel.createUploadSession(projectName, tableName);
@@ -148,6 +255,40 @@ writer.close();
 session.commit();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 默认自动管理缓冲区和 Block 分配
+records = [[f"user_{i}", 20 + i % 50] for i in range(100000)]
+with table.open_writer() as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+
+writer, _ := session.OpenRecordWriter(0)
+for i := 0; i < 100000; i++ {
+    record := []data.Data{
+        data.String(fmt.Sprintf("user_%d", i)),
+        data.BigInt(int64(20 + i%50)),
+    }
+    writer.Write(record)
+}
+writer.Close()
+session.Commit([]int{0})
+```
+
+</TabItem>
+</Tabs>
+
 ## 配置选项
 
 ### 压缩算法
@@ -159,13 +300,41 @@ session.commit();
 | `CompressOption.CompressAlgorithm.ODPS_SNAPPY` | Snappy 压缩 |
 | `CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME` | LZ4 Frame 压缩 |
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 CompressOption option = new CompressOption(
     CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME, 0, 0);
 RecordWriter writer = session.openRecordWriter(blockId, option);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 默认启用压缩，也可指定压缩算法
+with table.open_writer(compress_algo='zlib') as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithDefaultDeflateCompressor(),
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 分区表写入
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 写入指定分区
@@ -174,7 +343,31 @@ TableTunnel.UploadSession session = tunnel.createUploadSession(
     projectName, tableName, partitionSpec);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+with table.open_writer(partition='dt=20250101', create_partition=True) as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20250101"),
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 覆盖写入
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 覆盖表中已有数据
@@ -182,6 +375,29 @@ boolean overwrite = true;
 TableTunnel.UploadSession session = tunnel.createUploadSession(
     projectName, tableName, overwrite);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 覆盖表中已有数据
+with table.open_writer(overwrite=True) as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 覆盖表中已有数据
+session, _ := tunnelIns.CreateUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.Overwrite(),
+)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 

@@ -53,6 +53,9 @@ MaxCompute Java SDK 提供三种数据读取方式：数据预览（Table.read�
 
 ### 数据预览（最简单）
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 RecordReader reader = table.read(100);
 Record record;
@@ -61,7 +64,23 @@ while ((record = reader.read()) != null) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table = odps.get_table('my_table')
+records = table.head(100)
+for record in records:
+    print(record[0])
+```
+
+</TabItem>
+</Tabs>
+
 ### Tunnel 下载（批量导出）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel tunnel = new TableTunnel(odps);
@@ -78,7 +97,24 @@ try (TunnelRecordReader reader = session.openRecordReader(0, session.getRecordCo
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 使用 Tunnel 下载数据
+with odps.get_table('my_table').open_reader() as reader:
+    for record in reader:
+        # 处理数据...
+        pass
+```
+
+</TabItem>
+</Tabs>
+
 ### Storage API（高性能）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 MaxStorageClient client = MaxStorageClient.builder()
@@ -100,6 +136,24 @@ for (InputSplit split : session.getSplits()) {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+
+# 使用 Storage API 高性能读取
+table = odps.get_table('my_table')
+client = StorageApiArrowClient(odps, table)
+resp = client.create_read_session(required_data_columns=["id", "name"])
+reader = client.read_rows_arrow(resp.session_id, split_index=0)
+batch = reader.read()
+print(batch.to_pandas())
+```
+
+</TabItem>
+</Tabs>
 
 ## 相关文档
 

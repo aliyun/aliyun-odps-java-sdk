@@ -13,6 +13,10 @@ keywords: [Storage API, Arrow, 并行读取, 列裁剪, 谓词下推, Split]
 
 Storage API 是 MaxCompute 提供的高性能数据读取接口，基于 Apache Arrow 列式内存格式，支持列裁剪、谓词下推、分区过滤和并行分片读取，适用于大规模数据处理场景。
 
+:::note
+Go SDK 暂不支持 Storage API。
+:::
+
 ## 前置条件
 
 - 添加 `odps-sdk-storage-api` 模块依赖
@@ -20,6 +24,9 @@ Storage API 是 MaxCompute 提供的高性能数据读取接口，基于 Apache 
 - SDK 版本 >= 0.52.0
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.storage.api.MaxStorageClient;
@@ -89,6 +96,37 @@ public class StorageApiReadExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.apis.storage_api_v2 import StorageApiArrowClient
+
+o = ODPS(access_id, secret_access_key, project='my_project', endpoint=endpoint)
+table = o.get_table("my_table")
+client = StorageApiArrowClient(o, table)
+
+# 创建读取会话
+resp = client.create_read_session(
+    required_data_columns=["id", "name"],
+    required_partitions=["dt=20231001"],
+)
+
+# 按分片并行读取
+for split_index in range(resp.splits_count):
+    reader = client.read_rows_arrow(resp.session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        df = batch.to_pandas()
+        print(df)
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 1. **创建客户端**：通过 `MaxStorageClient.builder()` 配置 Endpoint 和认证信息，构建客户端实例。
@@ -135,6 +173,9 @@ public class StorageApiReadExample {
 ## 并行读取
 
 利用线程池对多个 Split 并行处理，充分发挥 Storage API 的吞吐优势：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import java.util.concurrent.ExecutorService;
@@ -189,7 +230,46 @@ public class ParallelStorageApiRead {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+import concurrent.futures
+
+table = o.get_table("large_table")
+client = StorageApiArrowClient(o, table)
+
+resp = client.create_read_session(
+    required_data_columns=["id", "name", "score"],
+)
+print(f"分片数量: {resp.splits_count}")
+
+total_rows = 0
+
+def read_split(split_index):
+    rows = 0
+    reader = client.read_rows_arrow(resp.session_id, split_index=split_index)
+    while True:
+        batch = reader.read()
+        if batch is None:
+            break
+        rows += batch.num_rows
+        # 处理数据...
+    return rows
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=resp.splits_count) as pool:
+    results = pool.map(read_split, range(resp.splits_count))
+    total_rows = sum(results)
+print(f"总读取行数: {total_rows}")
+```
+
+</TabItem>
+</Tabs>
+
 ## 读取分区表
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableReadSession session = client.createTableReadSessionBuilder(tableId)
@@ -202,9 +282,25 @@ TableReadSession session = client.createTableReadSessionBuilder(tableId)
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+resp = client.create_read_session(
+    required_data_columns=["id", "name"],
+    required_partitions=["dt=20250101", "dt=20250102"],
+)
+```
+
+</TabItem>
+</Tabs>
+
 ## 增量读取
 
 读取指定时间范围内的变化数据：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 IncrementalReadOptions options = IncrementalReadOptions.newBuilder()
@@ -218,6 +314,28 @@ TableReadSession session = client.createTableReadSessionBuilder(tableId)
     .withIncrementalReadEnabled(true)
     .build();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps.apis.storage_api_v2 import IncrementalReadOptions
+
+# Storage API 增量读取
+incr_opts = IncrementalReadOptions()
+incr_opts.mode = "timestamp"
+incr_opts.start_time_stamp = "2025-01-01 00:00:00"
+incr_opts.end_time_stamp = "2025-01-02 00:00:00"
+
+resp = client.create_read_session(
+    required_data_columns=["id", "name"],
+    incremental_read=True,
+    incremental_read_options=incr_opts,
+)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 

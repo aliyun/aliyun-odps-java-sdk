@@ -39,6 +39,9 @@ keywords:
 
 ## 完整示例
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.Instance;
@@ -92,11 +95,74 @@ public class OfflineSQLExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+o = ODPS(access_id, secret_access_key, project='my_project', endpoint=endpoint)
+
+# 同步执行（阻塞等待完成）
+instance = o.execute_sql('SELECT * FROM my_table')
+
+# 异步执行
+instance = o.run_sql('SELECT * FROM my_table')
+instance.wait_for_success()
+
+# 获取 Logview
+print(o.get_logview_address(instance.id, 24))
+
+# 读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 pandas DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 执行 SQL
+ins, err := odpsIns.ExecSQl("SELECT * FROM my_table;")
+if err != nil {
+    panic(err)
+}
+
+// 等待完成
+err = ins.WaitForSuccess()
+
+// 获取 Logview
+logview := odpsIns.LogView()
+logviewUrl, _ := logview.GenerateLogView(ins, 24)
+fmt.Println(logviewUrl)
+
+// 通过 Instance Tunnel 读取结果
+project := odpsIns.DefaultProject()
+tunnelEndpoint, _ := project.GetTunnelEndpoint()
+tunnelIns := tunnel.NewTunnel(odpsIns, tunnelEndpoint)
+session, _ := tunnelIns.CreateInstanceResultDownloadSession(project.Name(), ins.Id())
+reader, _ := session.OpenRecordReader(0, session.RecordCount(), 0, nil)
+reader.Iterator(func(record data.Record, err error) {
+    fmt.Println(record)
+})
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 提交作业
 
 `SQLTask.run()` 提交 SQL 作业到 MaxCompute 服务端，返回一个 `Instance` 对象代表该作业实例。该方法为异步调用，提交后立即返回。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 最简方式
@@ -112,6 +178,38 @@ Instance instance = SQLTask.run(odps, project, sql, taskName, hints, aliases);
 Instance instance = SQLTask.run(odps, project, sql, taskName, hints, aliases, priority);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 最简方式（同步执行）
+instance = o.execute_sql('SELECT * FROM my_table')
+
+# 异步执行
+instance = o.run_sql('SELECT * FROM my_table')
+instance.wait_for_success()
+
+# 带 Hints
+instance = o.execute_sql('SELECT * FROM my_table',
+    hints={'odps.sql.type.system.odps2': 'true'})
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 最简方式
+ins, err := odpsIns.ExecSQl("SELECT * FROM my_table;")
+err = ins.WaitForSuccess()
+
+// 带 Hints
+hints := map[string]string{"odps.sql.type.system.odps2": "true"}
+ins, err := odpsIns.ExecSQlWithHints("SELECT * FROM my_table;", hints)
+```
+
+</TabItem>
+</Tabs>
+
 ### 等待作业完成
 
 `instance.waitForSuccess()` 会阻塞当前线程，直到作业成功或抛出异常（作业失败时）。
@@ -120,10 +218,33 @@ Instance instance = SQLTask.run(odps, project, sql, taskName, hints, aliases, pr
 
 Logview 是 MaxCompute 提供的作业监控页面，可以查看作业的执行计划、各阶段进度和资源消耗。
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 生成 Logview URL，参数为有效时长（小时）
 String logview = odps.logview().generateLogView(instance, 7 * 24);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 获取 Logview URL，参数为有效时长（小时）
+print(o.get_logview_address(instance.id, 24))
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 获取 Logview URL，参数为有效时长（小时）
+logview := odpsIns.LogView()
+url, _ := logview.GenerateLogView(ins, 24)
+```
+
+</TabItem>
+</Tabs>
 
 ### 获取结果
 
@@ -141,6 +262,9 @@ SDK 提供三种获取结果的方式：
 
 Hints 用于调整 SQL 执行行为，以键值对方式传入：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Map<String, String> hints = new HashMap<>();
 // 开启 2.0 数据类型系统
@@ -153,9 +277,39 @@ hints.put("odps.sql.reshuffle.dynamicpt", "true");
 Instance instance = SQLTask.run(odps, odps.getDefaultProject(), sql, hints, null);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+hints = {
+    'odps.sql.type.system.odps2': 'true',
+    'odps.sql.mapper.split.size': '128',
+    'odps.sql.reshuffle.dynamicpt': 'true',
+}
+instance = o.execute_sql('SELECT * FROM my_table', hints=hints)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+hints := map[string]string{
+    "odps.sql.type.system.odps2":   "true",
+    "odps.sql.mapper.split.size":   "128",
+    "odps.sql.reshuffle.dynamicpt": "true",
+}
+ins, err := odpsIns.ExecSQlWithHints("SELECT * FROM my_table;", hints)
+```
+
+</TabItem>
+</Tabs>
+
 ### 优先级设置
 
 优先级数字越小，优先级越高。默认优先级由项目配置决定。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Integer priority = 3;
@@ -163,9 +317,32 @@ Instance instance = SQLTask.run(odps, odps.getDefaultProject(), sql,
     "AnonymousSQLTask", null, null, priority);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 通过 priority 参数设置优先级
+instance = o.execute_sql('SELECT * FROM my_table', priority=3)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 通过 Hints 设置优先级
+hints := map[string]string{"odps.instance.priority": "3"}
+ins, err := odpsIns.ExecSQlWithHints("SELECT * FROM my_table;", hints)
+```
+
+</TabItem>
+</Tabs>
+
 ### 大结果集获取（InstanceTunnel）
 
 当结果集超过 1 万条时，需要使用 `getResultSet` 并设置 `limitHint` 为 `false` 获取全量数据：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // limitHint=false 表示获取全量结果（需要源表的下载权限）
@@ -175,6 +352,36 @@ while (resultSet.hasNext()) {
   // 处理记录
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 使用 tunnel=True 获取全量结果
+with instance.open_reader(tunnel=True) as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 pandas DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 通过 Instance Tunnel 读取全量结果
+tunnelIns := tunnel.NewTunnel(odpsIns, tunnelEndpoint)
+session, _ := tunnelIns.CreateInstanceResultDownloadSession(projectName, ins.Id())
+reader, _ := session.OpenRecordReader(0, session.RecordCount(), 0, nil)
+reader.Iterator(func(record data.Record, err error) {
+    fmt.Println(record)
+})
+```
+
+</TabItem>
+</Tabs>
 
 :::warning
 当 `limitHint` 为 `false` 时，SDK 会对 SQL 涉及的每张表进行权限检查。如果项目开启了 Protection，需要提前为相应表添加 Policy Exception，否则会因权限不足而失败。

@@ -21,6 +21,9 @@ Tunnel Stream 是面向实时写入场景的数据通道，数据 flush 后立�
 
 ## 完整示例
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.AliyunAccount;
@@ -65,6 +68,39 @@ public class TunnelStreamExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 流式写入 - flush 后数据即可见
+with table.open_writer(partition='dt=20231001', create_partition=True) as writer:
+    for batch in data_source:
+        writer.write(batch)
+    # close 时自动 flush
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithPartitionKey("dt=20231001"),
+    tunnel.SessionCfg.WithCreatePartition(),
+)
+
+pack := session.OpenRecordPackWriter()
+record := []data.Data{data.BigInt(1), data.String("hello")}
+pack.Append(record)
+
+// flush 后数据即可见
+traceId, recordCount, bytesSend, err := pack.Flush()
+fmt.Printf("traceId=%s, records=%d, bytes=%d\n", traceId, recordCount, bytesSend)
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 与批量写入的关键区别
@@ -89,6 +125,9 @@ public class TunnelStreamExample {
 
 从 SDK 0.50.0 起，当表结构发生变更时，如果 Session 中的 Schema 版本与服务端不一致，flush 操作会抛出 `SchemaMismatchException`。此时需要重新创建 Session 以获取最新的 Schema。
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 try {
     pack.flush();
@@ -100,7 +139,44 @@ try {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 在写入时自动检测 Schema 变更
+# 如需重新获取最新 Schema，重新打开 writer 即可
+try:
+    with table.open_writer() as writer:
+        writer.write(records)
+except Exception as e:
+    # 表结构已变更，重新获取表对象
+    table.reload()
+    with table.open_writer() as writer:
+        writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+traceId, _, _, err := pack.Flush()
+if err != nil {
+    // 表结构已变更，需要重建 Session
+    session, _ = tunnelIns.CreateStreamUploadSession(
+        project.Name(), "my_table",
+    )
+    pack = session.OpenRecordPackWriter()
+    // 重新写入数据...
+}
+```
+
+</TabItem>
+</Tabs>
+
 可通过 `allowSchemaMismatch(boolean)` 配置是否允许字段类型不匹配：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 TableTunnel.StreamUploadSession session = tunnel
@@ -109,9 +185,34 @@ TableTunnel.StreamUploadSession session = tunnel
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 默认严格校验 Schema，写入时字段类型不匹配会抛出异常
+with table.open_writer() as writer:
+    writer.write(records)  # 字段类型需与表 Schema 一致
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 默认严格校验 Schema
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 动态分区写入（0.55.0+）
 
 从 SDK 0.55.0 起，支持通过 `DynamicPartitionRecordPack` 在一个 Session 中向多个分区写入数据，无需为每个分区单独创建 Session：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 创建 StreamUploadSession（不指定分区）
@@ -139,6 +240,41 @@ pack.append(record2);
 pack.flush(); // 数据自动路由到对应分区
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 支持动态分区写入，分区列作为普通列写入
+with table.open_writer(create_partition=True) as writer:
+    writer.write([
+        ["alice", 25, "20250101"],  # 分区列 dt 作为最后一列
+        ["bob", 30, "20250102"],    # 自动路由到对应分区
+    ])
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 创建 StreamUploadSession（不指定分区，启用自动创建）
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithCreatePartition(),
+)
+
+pack := session.OpenRecordPackWriter()
+
+// 写入不同分区的数据（分区列作为普通列写入）
+pack.Append([]data.Data{data.String("alice"), data.BigInt(25), data.String("20250101")})
+pack.Append([]data.Data{data.String("bob"), data.BigInt(30), data.String("20250102")})
+
+// flush 后数据自动路由到对应分区
+traceId, _, _, _ := pack.Flush()
+```
+
+</TabItem>
+</Tabs>
+
 ## 配置选项
 
 ### Session 构建参数
@@ -154,11 +290,37 @@ pack.flush(); // 数据自动路由到对应分区
 
 ### 压缩选项
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 使用 Snappy 压缩
 StreamRecordPack pack = session.newRecordPack(
     new CompressOption(CompressOption.CompressAlgorithm.ODPS_SNAPPY, 0, 0));
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 默认启用压缩，也可指定压缩算法
+with table.open_writer(compress_algo='zlib') as writer:
+    writer.write(records)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 在创建 Session 时配置压缩
+session, _ := tunnelIns.CreateStreamUploadSession(
+    project.Name(), "my_table",
+    tunnel.SessionCfg.WithSnappyFramedCompressor(),
+)
+```
+
+</TabItem>
+</Tabs>
 
 | 算法 | 说明 |
 |------|------|
@@ -173,6 +335,9 @@ StreamRecordPack pack = session.newRecordPack(
 
 ### Flush 控制
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 带超时控制的 flush
 FlushOption option = new FlushOption().timeout(3000); // 3 秒超时
@@ -180,6 +345,29 @@ FlushResult result = pack.flush(option);
 System.out.println("recordCount: " + result.getRecordCount());
 System.out.println("flushSize: " + result.getFlushSize());
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 在 writer.close() 时自动 flush
+# 超时由底层连接配置控制
+with table.open_writer() as writer:
+    writer.write(records)
+# close 时自动 flush，返回写入结果
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// flush 返回 traceId、记录数和字节数
+traceId, recordCount, bytesSend, err := pack.Flush()
+fmt.Printf("recordCount: %d, flushSize: %d\n", recordCount, bytesSend)
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 

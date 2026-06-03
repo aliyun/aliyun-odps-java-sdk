@@ -24,6 +24,9 @@ keywords:
 
 MaxCompute 中的表分为以下四种类型：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 public enum TableType {
     MANAGED_TABLE,       // 常规 MaxCompute 内部表
@@ -33,7 +36,34 @@ public enum TableType {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 中表类型通过 table.type 属性获取
+# 可能的值: Table.Type.MANAGED_TABLE, VIRTUAL_VIEW, EXTERNAL_TABLE, MATERIALIZED_VIEW
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 中表类型定义
+const (
+    ManagedTable      TableType = "MANAGED_TABLE"
+    VirtualView       TableType = "VIRTUAL_VIEW"
+    ExternalTable     TableType = "EXTERNAL_TABLE"
+    MaterializedView  TableType = "MATERIALIZED_VIEW"
+)
+```
+
+</TabItem>
+</Tabs>
+
 可以通过以下方法判断表类型：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Table.TableType tableType = table.getType();
@@ -44,9 +74,36 @@ table.isMaterializedView();
 table.isExternalTable();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table = odps.get_table('my_table')
+table_type = table.type
+
+# 判断表类型
+table.is_virtual_view
+table.is_materialized_view
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+table := odpsIns.Table("my_table")
+table.Load()
+tableType := table.Type()
+```
+
+</TabItem>
+</Tabs>
+
 ## 获取表实例
 
 要操作一张表，首先需要获取 `Table` 实例对象。获取表实例是一个 **lazy** 操作，即此时不会发起网络请求，只有在调用 `Table` 类的其他方法时，才会真正获取表的元数据信息。
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 指定项目名获取表实例
@@ -59,14 +116,64 @@ Table table = odps.tables().get("table_name");
 Table table = odps.tables().get("project_name", "schema_name", "table_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 指定项目名获取表实例
+table = odps.get_table('table_name', project='project_name')
+
+# 使用默认项目
+table = odps.get_table('table_name')
+
+# 三层模型：指定 schema
+table = odps.get_table('table_name', project='project_name', schema='schema_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 使用默认项目获取表实例
+table := odpsIns.Table("table_name")
+
+// 通过 Tables 集合获取
+table = odpsIns.Tables().Get("table_name")
+```
+
+</TabItem>
+</Tabs>
+
 ## 读取表元数据
 
 `Table` 实现了 `lazyload` 机制，首次调用以下方法时会自动发起网络请求加载元数据。也可以手动调用 `reload()` 强制刷新：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 手动加载/刷新元数据
 table.reload();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 手动加载/刷新元数据
+table.reload()
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 手动加载元数据
+err := table.Load()
+```
+
+</TabItem>
+</Tabs>
 
 除非再次调用 `reload()`，否则后续访问均使用缓存数据。
 
@@ -90,6 +197,9 @@ table.reload();
 
 ### 示例
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Odps odps = new Odps(...);
 Table table = odps.tables().get("my_project", "user_events");
@@ -106,6 +216,48 @@ long sizeInBytes = table.getSize();
 Table.TableType type = table.getType();
 System.out.println("Table type: " + type);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+table = odps.get_table('user_events', project='my_project')
+
+# 获取表结构
+schema = table.table_schema
+columns = schema.columns              # 数据列
+part_cols = schema.partitions          # 分区列
+
+# 获取表大小
+size_in_bytes = table.size
+
+# 获取表类型
+table_type = table.type
+print(f"Table type: {table_type}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+table := odpsIns.Table("user_events")
+table.Load()
+
+// 获取表结构
+schema := table.Schema()
+columns := schema.Columns             // 数据列
+partCols := schema.PartitionColumns   // 分区列
+
+// 获取表大小
+sizeInBytes := table.Size()
+
+// 获取表类型
+tableType := table.Type()
+fmt.Printf("Table type: %s\n", tableType)
+```
+
+</TabItem>
+</Tabs>
 
 ## 子章节
 

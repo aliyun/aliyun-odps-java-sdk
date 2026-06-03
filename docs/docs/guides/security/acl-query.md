@@ -30,6 +30,9 @@ keywords:
 
 以下示例演示如何通过 SDK 执行常见的 ACL 权限命令：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -104,21 +107,156 @@ public class AclQueryExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 初始化 ODPS 客户端
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 1. 授予用户对表的 Select 权限
+odps.run_security_query("GRANT SELECT ON TABLE sales_data TO USER alice;")
+
+# 2. 查看用户的权限
+result = odps.run_security_query("SHOW GRANTS FOR USER alice;")
+print(result)
+
+# 3. 创建角色并绑定权限
+odps.run_security_query("CREATE ROLE analyst;")
+odps.run_security_query("GRANT SELECT ON TABLE sales_data TO ROLE analyst;")
+odps.run_security_query("GRANT analyst TO alice;")
+
+# 4. 查看角色的权限
+result = odps.run_security_query("DESCRIBE ROLE analyst;")
+print(result)
+
+# 5. 撤销权限
+odps.run_security_query("REVOKE SELECT ON TABLE sales_data FROM USER alice;")
+
+# 6. 查看当前用户的权限
+result = odps.run_security_query("SHOW GRANTS;")
+print(result)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/aliyun/aliyun-odps-go-sdk/odps"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
+)
+
+func main() {
+	acc := account.NewAliyunAccount("accessId", "accessKey")
+	odpsIns := odps.NewOdps(acc, "http://service.odps.aliyun.com/api")
+	odpsIns.SetDefaultProjectName("my_project")
+
+	// 获取 SecurityManager
+	sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+
+	// 1. 授予用户对表的 Select 权限
+	executeCommand(sm, "GRANT SELECT ON TABLE sales_data TO USER alice;")
+
+	// 2. 查看用户的权限
+	executeCommand(sm, "SHOW GRANTS FOR USER alice;")
+
+	// 3. 创建角色并绑定权限
+	executeCommand(sm, "CREATE ROLE analyst;")
+	executeCommand(sm, "GRANT SELECT ON TABLE sales_data TO ROLE analyst;")
+	executeCommand(sm, "GRANT analyst TO alice;")
+
+	// 4. 查看角色的权限
+	executeCommand(sm, "DESCRIBE ROLE analyst;")
+
+	// 5. 撤销权限
+	executeCommand(sm, "REVOKE SELECT ON TABLE sales_data FROM USER alice;")
+
+	// 6. 查看当前用户的权限
+	executeCommand(sm, "SHOW GRANTS;")
+}
+
+func executeCommand(sm security.Manager, command string) {
+	result, err := sm.RunQuery(command, false, "")
+	if err != nil {
+		log.Fatalf("命令执行失败: %+v", err)
+	}
+	if result != "" {
+		fmt.Println(result)
+	} else {
+		fmt.Println("OK")
+	}
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 获取 SecurityManager
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 SecurityManager sm = odps.projects().get().getSecurityManager();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 中无需显式获取 SecurityManager，直接通过 odps 实例调用
+odps.run_security_query("SHOW GRANTS;")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+```
+
+</TabItem>
+</Tabs>
+
 ### 执行 ACL 命令
 
 通过 `run` 方法提交 ACL 命令，返回一个异步查询实例：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 SecurityManager.AuthorizationQueryInstance instance = sm.run(command, false, null, null);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+result = odps.run_security_query(command)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+instance, err := sm.Run(command, false, "")
+```
+
+</TabItem>
+</Tabs>
 
 参数说明：
 - `command`：要执行的 ACL SQL 命令
@@ -130,13 +268,38 @@ SecurityManager.AuthorizationQueryInstance instance = sm.run(command, false, nul
 
 ACL 命令是异步执行的，需要轮询等待完成：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 while (!instance.isTerminated()) {
     Thread.sleep(1000);
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 的 run_security_query 会自动等待执行完成并返回结果
+result = odps.run_security_query(command)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 使用 WaitForSuccess 等待执行完成并获取结果
+result, err := instance.WaitForSuccess()
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取执行结果
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 检查是否失败
@@ -147,6 +310,33 @@ if (instance.getStatus() == SecurityManager.AuthorizationQueryStatus.FAILED) {
 // 获取结果文本
 String result = instance.getResult();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# run_security_query 直接返回结果，失败时抛出异常
+try:
+    result = odps.run_security_query(command)
+    print(result)
+except Exception as e:
+    print(f"失败: {e}")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// RunQuery 直接返回结果，失败时返回 error
+result, err := sm.RunQuery(command, false, "")
+if err != nil {
+    log.Fatalf("失败: %+v", err)
+}
+fmt.Println(result)
+```
+
+</TabItem>
+</Tabs>
 
 ## 常见 ACL 命令
 

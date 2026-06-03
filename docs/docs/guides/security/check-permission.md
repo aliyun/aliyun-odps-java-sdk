@@ -28,6 +28,9 @@ keywords:
 
 以下示例演示如何检查用户对表的 Select 权限：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
@@ -93,19 +96,116 @@ public class CheckPermissionExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 初始化 ODPS 客户端
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 1. 检查对表的 Select 权限（通过执行权限查询命令）
+result = odps.run_security_query(
+    "SHOW GRANTS FOR USER ALIYUN$current_user ON TABLE sales_data;"
+)
+print(result)
+
+# 2. 检查对函数的权限
+result = odps.run_security_query(
+    "SHOW GRANTS FOR USER ALIYUN$current_user ON FUNCTION my_udf;"
+)
+print("函数执行权限:", result)
+
+# 3. 查看当前用户的全部权限
+result = odps.run_security_query("SHOW GRANTS;")
+print(result)
+```
+
+:::note
+Python SDK 没有直接对应的 `checkPermission` 方法，可通过 `run_security_query` 执行 `SHOW GRANTS` 命令来查询权限。
+:::
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/aliyun/aliyun-odps-go-sdk/odps"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+	"github.com/aliyun/aliyun-odps-go-sdk/odps/security"
+)
+
+func main() {
+	acc := account.NewAliyunAccount("accessId", "accessKey")
+	odpsIns := odps.NewOdps(acc, "http://service.odps.aliyun.com/api")
+	odpsIns.SetDefaultProjectName("my_project")
+
+	// 获取 SecurityManager
+	sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+
+	// 1. 检查对表的 Select 权限
+	perm := security.Permission{
+		ProjectName: "my_project",
+		ObjectType:  security.ObjectTypeTable,
+		ObjectName:  "sales_data",
+		ActionType:  security.ActionTypeSelect,
+	}
+
+	result, err := sm.CheckPermissionV1(perm)
+	if err != nil {
+		log.Fatalf("权限检查失败: %+v", err)
+	}
+	fmt.Printf("权限检查结果: %s, 信息: %s\n", result.Result, result.Message)
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 获取 SecurityManager
 
 `SecurityManager` 通过项目对象获取：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 SecurityManager sm = odps.projects().get().getSecurityManager();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 中无需显式获取 SecurityManager，直接通过 odps 实例调用
+odps.run_security_query("SHOW GRANTS;")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+sm := odpsIns.Projects().GetDefaultProject().SecurityManager()
+```
+
+</TabItem>
+</Tabs>
+
 ### 构建权限描述
 
 `PermissionDesc` 封装了权限检查所需的全部参数：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 基本构造方法
@@ -115,15 +215,65 @@ PermissionDesc desc = new PermissionDesc(projectName, objectType, objectName, ac
 PermissionDesc desc = new PermissionDesc(projectName, schemaName, objectType, objectName, actionType);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 通过 SHOW GRANTS 命令查询权限
+result = odps.run_security_query("SHOW GRANTS FOR USER user_name ON TABLE table_name;")
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 构建权限描述
+perm := security.Permission{
+    ProjectName: projectName,
+    ObjectType:  security.ObjectTypeTable,
+    ObjectName:  objectName,
+    ActionType:  security.ActionTypeSelect,
+}
+```
+
+</TabItem>
+</Tabs>
+
 ### 执行权限检查
 
 调用 `checkPermission` 返回 `CheckPermissionResultInfo`，包含检查结果和附加信息：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 CheckPermissionResultInfo resultInfo = sm.checkPermission(desc);
 CheckPermissionResult result = resultInfo.getResult(); // Allow 或 Deny
 String message = resultInfo.getMessage();              // 附加说明信息
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 查询结果直接返回为字符串
+result = odps.run_security_query("SHOW GRANTS FOR USER user_name;")
+print(result)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+result, err := sm.CheckPermissionV1(perm)
+if err != nil {
+    log.Fatalf("权限检查失败: %+v", err)
+}
+fmt.Printf("结果: %s, 信息: %s\n", result.Result, result.Message)
+```
+
+</TabItem>
+</Tabs>
 
 ## 对象类型与操作类型
 

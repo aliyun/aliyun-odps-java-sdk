@@ -84,8 +84,8 @@ function stripFrontmatter(content) {
 }
 
 function generateIndex() {
-  let output = `# MaxCompute Java SDK\n\n`;
-  output += `> MaxCompute(ODPS) SDK for Java - 阿里云大数据计算服务的 Java 客户端库。\n`;
+  let output = `# MaxCompute SDK\n\n`;
+  output += `> MaxCompute(ODPS) SDK for Java / Python / Go - 阿里云大数据计算服务的多语言客户端库。\n`;
   output += `> 提供表管理、SQL 执行、数据批量传输（Tunnel）、高性能读写（Storage API）等能力。\n\n`;
 
   for (const [section, files] of Object.entries(STRUCTURE)) {
@@ -122,7 +122,7 @@ function getAllMarkdownFiles(dir) {
 }
 
 function generateFull() {
-  let output = `# MaxCompute Java SDK - Complete Documentation\n\n`;
+  let output = `# MaxCompute SDK - Complete Documentation (Java / Python / Go)\n\n`;
   const allFiles = getAllMarkdownFiles(DOCS_DIR);
 
   for (const file of allFiles) {

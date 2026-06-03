@@ -1,6 +1,6 @@
 ---
 title: 认证方式
-description: MaxCompute Java SDK 支持的 5 种认证方式详解，包括 AccessKey、STS Token、CredentialProvider、双重签名和 Bearer Token。
+description: MaxCompute SDK 支持的认证方式详解，包括 AccessKey、STS Token、CredentialProvider 等多种认证方式。
 sidebar_position: 2
 module: odps-sdk-core
 task: getting-started
@@ -10,7 +10,7 @@ keywords: [认证, AccessKey, STS, CredentialProvider, Bearer Token, 双重签�
 
 # 认证方式
 
-MaxCompute Java SDK 支持多种认证方式，适用于不同的使用场景。本文详细介绍每种认证方式的用法和适用场景。
+MaxCompute SDK 支持多种认证方式，适用于不同的使用场景。本文详细介绍每种认证方式的用法和适用场景。
 
 ## 如何选择
 
@@ -29,6 +29,9 @@ MaxCompute Java SDK 支持多种认证方式，适用于不同的使用场景。
 最常用的认证方式，使用阿里云 AccessKey ID 和 AccessKey Secret 进行身份验证。
 
 ### 示例代码
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Account;
@@ -49,6 +52,51 @@ public class AccessKeyExample {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# AccessKey 认证
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+
+# 环境变量自动检测
+from odps import ODPS
+o = ODPS(project='your-project', endpoint='http://service.odps.aliyun.com/api')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+import (
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+// AccessKey 认证
+aliAccount := account.NewAliyunAccount("your-access-id", "your-access-key")
+odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+odpsIns.SetDefaultProjectName("your-project")
+
+// 从环境变量加载
+acc := account.AccountFromEnv()
+odpsIns := odps.NewOdps(acc, endpoint)
+
+// 从配置文件加载
+conf, _ := odps.NewConfigFromIni("./config.ini")
+odpsIns := conf.GenOdps()
+```
+
+</TabItem>
+</Tabs>
 
 ### 环境变量配置
 
@@ -73,6 +121,9 @@ STS（Security Token Service）提供临时安全凭证，适用于临时授权�
 
 ### 示例代码
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Account;
 import com.aliyun.odps.Odps;
@@ -93,6 +144,39 @@ public class StsTokenExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.accounts import StsAccount
+
+# STS Token 认证
+account = StsAccount('sts-access-id', 'sts-access-key', 'sts-token')
+o = ODPS(
+    account,
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+import (
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+// STS Token 认证
+stsAccount := account.NewStsAccount("sts-access-id", "sts-access-key", "sts-token")
+odpsIns := odps.NewOdps(stsAccount, "http://service.odps.aliyun.com/api")
+```
+
+</TabItem>
+</Tabs>
+
 ### 适用场景
 
 - 移动应用临时访问 MaxCompute
@@ -101,6 +185,10 @@ public class StsTokenExample {
 - 需要限时访问的场景
 
 ## CredentialProvider
+
+:::info
+此认证方式仅 Java SDK 支持。
+:::
 
 使用阿里云 Credential SDK 的 `ICredentialsProvider` 接口，支持多种凭据来源和自动轮换。这是生产环境的推荐方式。
 
@@ -190,6 +278,10 @@ public class CredentialProviderExample {
 
 ## 双重签名
 
+:::info
+此认证方式仅 Java SDK 支持。
+:::
+
 双重签名认证使用两组 AccessKey：一组标识应用身份，一组标识用户身份。适用于应用代理用户访问 MaxCompute 的场景。
 
 ### 示例代码
@@ -236,6 +328,9 @@ Bearer Token 通常用于短期访问授权，配合 MaxCompute 的 Policy 权�
 
 ### 示例代码
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.account.BearerTokenAccount;
@@ -253,9 +348,32 @@ public class BearerTokenExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+from odps.accounts import BearerTokenAccount
+
+# Bearer Token 认证
+account = BearerTokenAccount('your_bearer_token')
+o = ODPS(
+    account=account,
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 生成 Bearer Token
 
 Bearer Token 通过 SecurityManager 生成，需要指定 Policy 规则：
+
+:::info
+Bearer Token 的生成仅 Java SDK 支持。
+:::
 
 ```java
 import com.aliyun.odps.Odps;
@@ -282,7 +400,10 @@ public class GenerateBearerToken {
 
 ## 通用配置
 
-无论使用哪种认证方式，创建 `Odps` 实例后都需要配置 Endpoint 和默认项目：
+无论使用哪种认证方式，创建客户端实例后都需要配置 Endpoint 和默认项目：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Odps odps = new Odps(account);
@@ -293,6 +414,33 @@ odps.setEndpoint("http://service.odps.aliyun.com/api");
 // 设置默认项目（必需）
 odps.setDefaultProject("your_project");
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# Endpoint 和项目在构造时指定
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Endpoint 在构造时指定，项目通过 SetDefaultProjectName 设置
+odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+odpsIns.SetDefaultProjectName("your-project")
+```
+
+</TabItem>
+</Tabs>
 
 ### Endpoint 列表
 

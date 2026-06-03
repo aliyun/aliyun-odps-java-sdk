@@ -11,6 +11,10 @@ keywords: [tunnel, upsert, delta table, 主键表, 更新, 删除, flush, CDC]
 
 # Tunnel Upsert 更新插入
 
+:::note
+Tunnel Upsert 目前仅 Java SDK 支持。Python 和 Go SDK 暂不提供此功能。
+:::
+
 Tunnel Upsert 专为 Delta Table（主键表）设计，支持按主键进行数据的插入、更新和删除操作，适合数据库变更同步（CDC）、实时数据修正等场景。
 
 ## 前置条件

@@ -30,6 +30,9 @@ MaxCompute 支持用户自定义函数（UDF），包括 UDF（标量函数）�
 
 以下示例演示如何从已上传的 JAR 资源创建一个 UDF 函数，并对其进行查询和删除操作：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Function;
 import com.aliyun.odps.Functions;
@@ -90,6 +93,124 @@ public class FunctionManagementExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 初始化 ODPS 客户端
+odps = ODPS('access_id', 'access_key', 'my_project', 'http://service.odps.aliyun.com/api')
+
+# 1. 创建函数
+odps.create_function(
+    'my_upper_udf',
+    class_type='com.example.udf.UpperCase',
+    resources=['my-udf-lib.jar']
+)
+print('函数创建成功: my_upper_udf')
+
+# 2. 检查函数是否存在
+exists = odps.exist_function('my_upper_udf')
+print('函数是否存在:', exists)
+
+# 3. 获取函数详情
+func = odps.get_function('my_upper_udf')
+func.reload()
+print('函数类路径:', func.class_type)
+print('关联资源:', [r.name for r in func.resources])
+
+# 4. 遍历所有函数
+print('项目中的所有函数:')
+for f in odps.list_functions():
+    print(f'  - {f.name}')
+
+# 5. 更新函数（例如更换 JAR 资源版本）
+func = odps.get_function('my_upper_udf')
+func.resources = ['my-udf-lib-v2.jar']
+func.update()
+print('函数更新成功')
+
+# 6. 删除函数
+odps.delete_function('my_upper_udf')
+print('函数删除成功')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+func main() {
+    // 初始化 ODPS 客户端
+    acc := account.NewAliyunAccount("accessId", "accessKey")
+    odpsIns := odps.NewOdps(acc, "http://service.odps.aliyun.com/api")
+    odpsIns.SetDefaultProjectName("my_project")
+
+    functions := odps.NewFunctions(odpsIns)
+
+    // 1. 创建函数
+    fb := odps.NewFunctionBuilder()
+    function := fb.Name("my_upper_udf").
+        ClassPath("com.example.udf.UpperCase").
+        Resources([]string{"my-udf-lib.jar"}).
+        Build()
+    err := functions.Create("", "", function)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数创建成功: my_upper_udf")
+
+    // 2. 检查函数是否存在
+    f, _ := functions.Get("my_upper_udf")
+    exists, err := f.Exist()
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数是否存在:", exists)
+
+    // 3. 获取函数详情
+    f, _ = functions.Get("my_upper_udf")
+    err = f.Load()
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数类路径:", f.ClassPath())
+    fmt.Println("关联资源:", f.Resources())
+
+    // 4. 更新函数（例如更换 JAR 资源版本）
+    f.SetClassPath("com.example.udf.UpperCase")
+    f.SetResources([]string{"my-udf-lib-v2.jar"})
+    err = functions.Update("", "", *f)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数更新成功")
+
+    // 5. 删除函数
+    err = functions.Delete("my_upper_udf")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("函数删除成功")
+}
+```
+
+:::info
+Go SDK 暂不支持遍历函数列表，如需遍历请使用 Java 或 Python SDK。
+:::
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### 创建函数
@@ -99,6 +220,9 @@ public class FunctionManagementExample {
 - `classPath`：UDF 实现类的全限定类名
 - `resources`：函数依赖的资源列表（通常是 JAR 包资源名）
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Function function = new Function();
 function.setName("my_upper_udf");
@@ -107,7 +231,36 @@ function.setResources(Arrays.asList("my-udf-lib.jar"));
 functions.create(function);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+odps.create_function(
+    'my_upper_udf',
+    class_type='com.example.udf.UpperCase',
+    resources=['my-udf-lib.jar']
+)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+fb := odps.NewFunctionBuilder()
+function := fb.Name("my_upper_udf").
+    ClassPath("com.example.udf.UpperCase").
+    Resources([]string{"my-udf-lib.jar"}).
+    Build()
+functions.Create("", "", function)
+```
+
+</TabItem>
+</Tabs>
+
 支持在指定项目或 schema 中创建：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 在指定项目中创建
@@ -117,7 +270,37 @@ functions.create("target_project", function);
 functions.create("target_project", "my_schema", function);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 在指定项目中创建
+odps.create_function('my_upper_udf', class_type='com.example.udf.UpperCase',
+                     resources=['my-udf-lib.jar'], project='target_project')
+
+# 在指定项目和 schema 中创建
+odps.create_function('my_upper_udf', class_type='com.example.udf.UpperCase',
+                     resources=['my-udf-lib.jar'], project='target_project', schema='my_schema')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 在指定项目中创建
+functions.Create("target_project", "", function)
+
+// 在指定项目和 schema 中创建
+functions.Create("target_project", "my_schema", function)
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取函数
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 从默认项目获取
@@ -130,9 +313,46 @@ Function f = functions.get("project_name", "function_name");
 Function f = functions.get("project_name", "schema_name", "function_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 从默认项目获取
+f = odps.get_function('function_name')
+
+# 从指定项目获取
+f = odps.get_function('function_name', project='project_name')
+
+# 从指定项目和 schema 获取
+f = odps.get_function('function_name', project='project_name', schema='schema_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 从默认项目获取
+f, err := functions.Get("function_name")
+if err != nil {
+    panic(err)
+}
+// 加载函数详情
+err = f.Load()
+```
+
+:::info
+Go SDK 的 `Functions.Get` 仅支持获取当前项目中的函数。如需操作其他项目，请创建对应项目的 `Functions` 实例。
+:::
+
+</TabItem>
+</Tabs>
+
 获取到的 Function 对象是延迟加载的，访问详细属性前需要调用 `reload()`。
 
 ### 遍历函数
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 迭代器方式
@@ -148,7 +368,33 @@ for (Function f : functions.iterable()) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 遍历所有函数
+for f in odps.list_functions():
+    print(f.name)
+
+# 按前缀过滤
+for f in odps.list_functions(prefix='my_'):
+    print(f.name)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+:::info
+Go SDK 暂不支持遍历函数列表，如需遍历请使用 Java 或 Python SDK。
+:::
+
+</TabItem>
+</Tabs>
+
 ### 删除函数
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 删除默认项目中的函数
@@ -160,6 +406,35 @@ functions.delete("project_name", "function_name");
 // 删除指定项目和 schema 中的函数
 functions.delete("project_name", "schema_name", "function_name");
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 删除默认项目中的函数
+odps.delete_function('function_name')
+
+# 删除指定项目中的函数
+odps.delete_function('function_name', project='project_name')
+
+# 删除指定项目和 schema 中的函数
+odps.delete_function('function_name', project='project_name', schema='schema_name')
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 删除默认项目中的函数
+err := functions.Delete("function_name")
+```
+
+:::info
+Go SDK 的 `Functions.Delete` 仅支持删除当前项目中的函数。如需操作其他项目，请创建对应项目的 `Functions` 实例。
+:::
+
+</TabItem>
+</Tabs>
 
 ## 函数类型
 

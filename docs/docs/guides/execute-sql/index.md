@@ -54,6 +54,9 @@ MaxCompute Java SDK 支持三种 SQL 执行模式，分别面向不同的延迟�
 
 SDK 提供了 `SQLExecutor` 作为统一的 SQL 执行接口，通过 `SQLExecutorBuilder` 配置不同的 `ExecuteMode` 即可切换执行模式：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 离线模式
 SQLExecutor offline = SQLExecutorBuilder.builder()
@@ -75,6 +78,43 @@ SQLExecutor maxqa = SQLExecutorBuilder.builder()
     .enableMcqaV2(true)
     .build();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 离线模式：执行 SQL 并等待完成
+instance = odps.execute_sql('SELECT * FROM my_table')
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 交互式模式（MCQA）
+instance = odps.execute_sql_interactive('SELECT * FROM my_table')
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// 离线模式：执行 SQL
+instance, err := odpsIns.ExecSQl("SELECT * FROM my_table;")
+if err != nil {
+    log.Fatalf("%+v", err)
+}
+err = instance.WaitForSuccess()
+```
+
+</TabItem>
+</Tabs>
 
 ## 相关文档
 

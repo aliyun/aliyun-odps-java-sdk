@@ -21,6 +21,10 @@ keywords:
 
 # SQLExecutor 高级用法
 
+:::note
+SQLExecutor 是 Java SDK 特有的 MCQA 交互式查询接口。Python 用户请参考 [MCQA 交互式查询](./mcqa.md) 中的 Python 示例。Go SDK 暂不支持 MCQA。
+:::
+
 `SQLExecutor` 是 MaxCompute Java SDK 中统一的 SQL 执行接口，支持离线、MCQA v1、MaxQA 三种执行模式。本文介绍 `SQLExecutor` 的高级配置和使用技巧。
 
 ## 前置条件
@@ -37,6 +41,9 @@ keywords:
 ```
 
 ## 完整示例
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -121,6 +128,44 @@ public class SQLExecutorAdvancedExample {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+import os
+
+# 初始化 ODPS 客户端
+o = ODPS(
+    os.getenv('ALIBABA_CLOUD_ACCESS_KEY_ID'),
+    os.getenv('ALIBABA_CLOUD_ACCESS_KEY_SECRET'),
+    project='your_project',
+    endpoint='http://service.cn-hangzhou.maxcompute.aliyun.com/api',
+)
+
+# 带 hints 执行交互式查询
+hints = {'odps.sql.type.system.odps2': 'true'}
+instance = o.execute_sql_interactive(
+    'SELECT * FROM my_table WHERE id > 100',
+    hints=hints,
+)
+
+# 获取 Logview
+print('Logview:', instance.get_logview_address())
+
+# 迭代获取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### Builder 配置选项
@@ -179,6 +224,9 @@ public class SQLExecutorAdvancedExample {
 
 #### 带 Hints 执行
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Map<String, String> hints = new HashMap<>();
 hints.put("odps.sql.type.system.odps2", "true");
@@ -186,9 +234,26 @@ hints.put("odps.sql.decimal.odps2", "true");
 sqlExecutor.run("SELECT * FROM my_table;", hints);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+hints = {
+    'odps.sql.type.system.odps2': 'true',
+    'odps.sql.decimal.odps2': 'true',
+}
+instance = o.execute_sql_interactive('SELECT * FROM my_table', hints=hints)
+```
+
+</TabItem>
+</Tabs>
+
 #### 带 Aliases 执行
 
 Aliases 用于在 SQL 中引用资源文件的别名，常用于 UDF 场景。Aliases 可以通过 hints 传入：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Map<String, String> hints = new HashMap<>();
@@ -196,11 +261,28 @@ hints.put("odps.sql.udf.jars", "my_udf.jar");
 sqlExecutor.run("SELECT my_udf(col) FROM my_table;", hints);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+hints = {'odps.sql.udf.jars': 'my_udf.jar'}
+instance = o.execute_sql_interactive(
+    'SELECT my_udf(col) FROM my_table',
+    hints=hints,
+)
+```
+
+</TabItem>
+</Tabs>
+
 ### 结果处理
 
 #### getResultSet 迭代获取（推荐）
 
 `getResultSet()` 返回 `ResultSet` 迭代器，分批读取数据，内存友好：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 基础用法
@@ -220,9 +302,33 @@ ResultSet resultSet = sqlExecutor.getResultSet(0L, 5000L, null);
 ResultSet resultSet = sqlExecutor.getResultSet(0L, null, null, true);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 基础用法：迭代读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 使用 Tunnel 获取结果（保留列类型信息）
+with instance.open_reader(tunnel=True) as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 pandas DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 #### getResult 列表获取
 
-`getResult()` 一次性将结果加载到内存，适合小结果集：
+:::info
+`getResult()` 是 Java SDK 特有的方法，一次性将结果加载到内存。Python 中请使用 `open_reader()` 迭代读取。
+:::
 
 ```java
 // 获取全部结果（最多受 limitEnabled 限制）
@@ -238,7 +344,9 @@ List<Record> records = sqlExecutor.getResult(100L);
 
 #### 关闭 InstanceTunnel
 
-关闭 `useInstanceTunnel` 后，结果字段统一为 String 类型，执行更快但失去类型信息：
+:::info
+`useInstanceTunnel` 是 Java SDK SQLExecutorBuilder 特有的配置。Python 中通过 `open_reader()` 的 `tunnel` 参数控制是否使用 Tunnel。
+:::
 
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
@@ -249,6 +357,9 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
 ```
 
 ### 查询信息获取
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 获取查询 ID（用于问题排查）
@@ -276,7 +387,31 @@ boolean hasResult = sqlExecutor.hasResultSet();
 boolean isInteractive = sqlExecutor.isRunningInInteractiveMode();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 获取 Logview URL
+logview = instance.get_logview_address()
+
+# 获取 Instance ID（用于问题排查）
+instance_id = instance.id
+
+# 获取作业状态
+status = instance.status
+print('Status:', status)
+
+# 判断是否成功
+print('Success:', instance.is_successful())
+```
+
+</TabItem>
+</Tabs>
+
 ### 取消查询
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 try {
@@ -288,7 +423,25 @@ try {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 提交查询（不等待完成）
+instance = o.run_sql_interactive('SELECT * FROM large_table')
+
+# 取消查询
+instance.stop()
+```
+
+</TabItem>
+</Tabs>
+
 ### CommandApi（DDL 命令）
+
+:::info
+CommandApi 是 Java SDK SQLExecutor 特有的功能。Python 中可直接使用 `o.execute_sql()` 执行 DDL 命令。
+:::
 
 启用 `enableCommandApi(true)` 后，可以通过 `SQLExecutor` 执行 DDL 类命令：
 
@@ -326,6 +479,9 @@ while (showResult.hasNext()) {
 
 `FallbackPolicy` 控制 MCQA 加速失败时的行为：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 // 始终回退到离线（默认行为）
 .fallbackPolicy(FallbackPolicy.alwaysFallbackPolicy())
@@ -334,9 +490,27 @@ while (showResult.hasNext()) {
 .fallbackPolicy(FallbackPolicy.neverFallbackPolicy())
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# 默认行为：加速失败时回退到离线
+instance = o.execute_sql_interactive('SELECT * FROM my_table', fallback=True)
+
+# 禁用回退（加速失败直接报错）
+instance = o.execute_sql_interactive('SELECT * FROM my_table', fallback=False)
+```
+
+</TabItem>
+</Tabs>
+
 回退策略仅对 MCQA（v1 和 v2）模式生效。当回退发生时，可以通过 `getExecutionLog()` 查看回退原因。
 
 ### InstanceTunnel 配置
+
+:::info
+InstanceTunnel 精细配置是 Java SDK SQLExecutorBuilder 特有的功能。Python 中通过 ODPS 对象的 `tunnel_endpoint` 参数统一配置。
+:::
 
 当网络环境受限或需要性能优化时，可以精细配置 Tunnel 参数：
 
@@ -356,6 +530,10 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
 ```
 
 ### 从已有实例恢复
+
+:::info
+从已有实例恢复 SQLExecutor 是 Java SDK 特有的功能，用于断点续取结果。
+:::
 
 可以从之前的 Instance 恢复 `SQLExecutor`，用于断点续取结果：
 

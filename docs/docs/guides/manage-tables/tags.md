@@ -21,6 +21,10 @@ keywords:
 
 MaxCompute 支持对表和列打标操作。通过标签，可以基于不同的业务场景对数据做标识（Tagging），使业务能够基于标签合理使用数据，例如数据访问控制和数据血缘追踪。
 
+:::info
+标签（Tag）操作目前仅 Java SDK 支持。Python SDK 和 Go SDK 暂未提供标签管理 API。
+:::
+
 ## Tag 与 SimpleTag
 
 MaxCompute 提供两种标签机制：
@@ -34,14 +38,37 @@ MaxCompute 提供两种标签机制：
 
 所有标签操作基于 `Table` 实例：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 Odps odps = new Odps(...);
 Table table = odps.tables().get("project_name", "table_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ## 标准标签 (Tag)
 
 ### 获取表级别标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 List<Tag> tags = table.getTags();
@@ -51,7 +78,27 @@ for (Tag tag : tags) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取列级别标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 获取指定列的标签
@@ -62,9 +109,29 @@ for (Tag tag : columnTags) {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加表级别标签
 
 表和标签必须属于同一个 project：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 获取 Tag 对象
@@ -74,9 +141,29 @@ Tag tag = ...; // 通过 Tags API 获取
 table.addTag(tag);
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加列级别标签
 
 为指定列添加标签：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Tag tag = ...; // 通过 Tags API 获取
@@ -85,12 +172,49 @@ Tag tag = ...; // 通过 Tags API 获取
 table.addTag(tag, List.of("column1", "column2"));
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 删除标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Tag tag = ...; // 要删除的标签对象
 table.removeTag(tag);
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
 
 ## 简单标签 (SimpleTag)
 
@@ -99,6 +223,9 @@ SimpleTag 通过 category（类别）、key（键）、value（值）三元组�
 ### 获取表级别简单标签
 
 返回值为嵌套 Map 结构：`Map<category, Map<key, value>>`
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Map<String, Map<String, String>> simpleTags = table.getSimpleTags();
@@ -111,13 +238,53 @@ for (Map.Entry<String, Map<String, String>> categoryEntry : simpleTags.entrySet(
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 获取列级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 Map<String, Map<String, String>> columnSimpleTags = table.getSimpleTags("column_name");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加表级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 参数：category, key, value
@@ -125,7 +292,27 @@ table.addSimpleTag("data_classification", "sensitivity", "high");
 table.addSimpleTag("business", "domain", "finance");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 添加列级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 为指定列添加简单标签
@@ -133,22 +320,82 @@ table.addSimpleTag("pii", "type", "phone_number", List.of("phone_col"));
 table.addSimpleTag("pii", "type", "email", List.of("email_col", "backup_email_col"));
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 删除表级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 参数：category, key, value
 table.removeSimpleTag("data_classification", "sensitivity", "high");
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 删除列级别简单标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 table.removeSimpleTag("pii", "type", "phone_number", List.of("phone_col"));
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ## 完整示例
 
 ### 为表添加数据分类标签
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void classifyTable(Odps odps) throws OdpsException {
@@ -167,7 +414,27 @@ public void classifyTable(Odps odps) throws OdpsException {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 为敏感列打标
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void tagSensitiveColumns(Odps odps) throws OdpsException {
@@ -184,7 +451,27 @@ public void tagSensitiveColumns(Odps odps) throws OdpsException {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>
+
 ### 使用标准 Tag 进行访问控制
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 public void applyAccessControlTag(Odps odps, Tag sensitiveTag) throws OdpsException {
@@ -204,3 +491,20 @@ public void applyAccessControlTag(Odps odps, Tag sensitiveTag) throws OdpsExcept
     System.out.println("Column tags count: " + colTags.size());
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# Python SDK 暂不支持标签操作
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+// Go SDK 暂不支持标签操作
+```
+
+</TabItem>
+</Tabs>

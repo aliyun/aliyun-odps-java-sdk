@@ -21,6 +21,9 @@ keywords: [预览, Table.read, RecordReader, 快速读取]
 
 ## 完整示例
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.PartitionSpec;
@@ -65,6 +68,40 @@ public class TableReadExample {
     }
 }
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+# 假设 odps 客户端已初始化
+odps = ODPS('access_id', 'access_key', 'my_project',
+            endpoint='http://service.odps.aliyun.com/api')
+
+# 获取表对象
+table = odps.get_table('user_info')
+
+# 示例1：基本读取，最多返回100行
+records = table.head(100)
+for record in records:
+    print(f"id={record['id']}, name={record['name']}")
+
+# 示例2：指定分区和列读取
+records = table.head(500, partition='dt=20250101',
+                     columns=['id', 'name', 'age'])
+for record in records:
+    print(f"id={record['id']}, name={record['name']}, age={record['age']}")
+
+# 示例3：非分区表读取全部列
+records = table.head(1000)
+for record in records:
+    # 处理每行数据...
+    pass
+```
+
+</TabItem>
+</Tabs>
 
 ## 代码说明
 

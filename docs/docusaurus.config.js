@@ -8,7 +8,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'MaxCompute Java SDK',
+  title: 'MaxCompute SDK',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   url: 'https://aliyun.github.io',
@@ -81,7 +81,7 @@ const config = {
       },
       image: 'img/logo.svg',
       navbar: {
-        title: 'MaxCompute Java SDK',
+        title: 'MaxCompute SDK',
         logo: {
           alt: 'MaxCompute Logo',
           src: 'img/logo.svg',
@@ -114,7 +114,39 @@ const config = {
       prism: {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
-        additionalLanguages: ['java'],
+        additionalLanguages: ['java', 'python', 'go'],
+      },
+      colorMode: {
+        defaultMode: 'light',
+        respectPrefersColorScheme: true,
+      },
+      footer: {
+        style: 'dark',
+        links: [
+          {
+            title: 'SDK',
+            items: [
+              { label: 'Java SDK', href: 'https://github.com/aliyun/aliyun-odps-java-sdk' },
+              { label: 'Python SDK', href: 'https://github.com/aliyun/aliyun-odps-python-sdk' },
+              { label: 'Go SDK', href: 'https://github.com/aliyun/aliyun-odps-go-sdk' },
+            ],
+          },
+          {
+            title: 'MaxCompute',
+            items: [
+              { label: 'MaxCompute 官方文档', href: 'https://help.aliyun.com/zh/maxcompute/' },
+              { label: 'JDBC Driver', href: 'https://github.com/aliyun/aliyun-odps-jdbc' },
+            ],
+          },
+          {
+            title: '更多',
+            items: [
+              { label: '更新日志', to: '/changelog' },
+              { label: '常见问题', to: '/faq' },
+            ],
+          },
+        ],
+        copyright: `Copyright © ${new Date().getFullYear()} Alibaba Cloud. Built with Docusaurus.`,
       },
     }),
 };

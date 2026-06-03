@@ -22,6 +22,10 @@ keywords:
 
 MCQA（MaxCompute Query Acceleration）是 MaxCompute 提供的 SQL 查询加速服务，将分钟级查询缩减至秒级甚至毫秒级。SDK 支持 MCQA v1（基于 Session）和 MCQA v2 / MaxQA（无 Session）两种模式。
 
+:::note
+Go SDK 暂不支持 MCQA 交互式查询。
+:::
+
 ## 前置条件
 
 - 已创建 `Odps` 客户端实例并配置好 AccessKey 和 Endpoint
@@ -39,6 +43,9 @@ MCQA（MaxCompute Query Acceleration）是 MaxCompute 提供的 SQL 查询加速
 ## 完整示例
 
 ### MCQA v1（基于 Session）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -102,7 +109,30 @@ public class McqaV1Example {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# MCQA 交互式查询（毫秒~秒级响应）
+instance = o.execute_sql_interactive('SELECT * FROM my_table LIMIT 100')
+
+# 读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 ### MCQA v2 / MaxQA（无 Session）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Odps;
@@ -169,6 +199,26 @@ public class McqaV2Example {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# MCQA 交互式查询（毫秒~秒级响应）
+instance = o.execute_sql_interactive('SELECT * FROM my_table LIMIT 100')
+
+# 读取结果
+with instance.open_reader() as reader:
+    for record in reader:
+        print(record)
+
+# 读取为 DataFrame
+with instance.open_reader(tunnel=True) as reader:
+    df = reader.to_pandas()
+```
+
+</TabItem>
+</Tabs>
+
 ## 代码说明
 
 ### MCQA v1 工作原理
@@ -200,6 +250,9 @@ public class McqaV2Example {
 
 MaxQA 模式必须指定交互式资源组名称：
 
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
+
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
     .odps(odps)
@@ -209,9 +262,23 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 通过 execute_sql_interactive 自动使用交互式资源组
+instance = o.execute_sql_interactive('SELECT count(1) FROM my_table')
+```
+
+</TabItem>
+</Tabs>
+
 ### 回退策略（Fallback Policy）
 
 当 MCQA 加速失败时，默认会回退到离线模式执行。可以通过 `fallbackPolicy` 自定义回退策略：
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 // 使用默认回退策略（加速失败时回退到离线）
@@ -229,7 +296,25 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 的 execute_sql_interactive 默认在加速失败时回退到离线模式
+instance = o.execute_sql_interactive('SELECT * FROM my_table')
+
+# 禁用回退（加速失败直接报错）
+instance = o.execute_sql_interactive('SELECT * FROM my_table',
+    fallback=False)
+```
+
+</TabItem>
+</Tabs>
+
 ### Session 相关配置（仅 MCQA v1）
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
@@ -244,7 +329,21 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .build();
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 自动管理 Session 生命周期，无需手动配置
+instance = o.execute_sql_interactive('SELECT * FROM my_table')
+```
+
+</TabItem>
+</Tabs>
+
 ### 其他常用配置
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 SQLExecutor executor = SQLExecutorBuilder.builder()
@@ -258,6 +357,21 @@ SQLExecutor executor = SQLExecutorBuilder.builder()
     .useInstanceTunnel(true)
     .build();
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+# PyODPS 通过 ODPS 对象配置 Tunnel Endpoint
+o = ODPS(access_id, secret_access_key, project='my_project',
+         endpoint=endpoint,
+         tunnel_endpoint='http://dt.cn-hangzhou.maxcompute.aliyun.com')
+
+instance = o.execute_sql_interactive('SELECT * FROM my_table')
+```
+
+</TabItem>
+</Tabs>
 
 ## 注意事项
 

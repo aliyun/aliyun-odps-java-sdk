@@ -1,6 +1,6 @@
 ---
 title: 第一个程序
-description: 编写第一个 MaxCompute Java SDK 程序，连接服务并读取表数据。
+description: 编写第一个 MaxCompute SDK 程序，连接服务并读取表数据。
 sidebar_position: 3
 module: odps-sdk-core
 task: getting-started
@@ -10,7 +10,7 @@ keywords: [快速开始, 入门, 读取数据, 第一个程序, example]
 
 # 第一个程序
 
-本文通过一个完整的示例程序，带你快速体验 MaxCompute Java SDK 的基本用法：连接 MaxCompute 服务并读取表中的数据。
+本文通过一个完整的示例程序，带你快速体验 MaxCompute SDK 的基本用法：连接 MaxCompute 服务并读取表中的数据。
 
 ## 前置条件
 
@@ -19,6 +19,9 @@ keywords: [快速开始, 入门, 读取数据, 第一个程序, example]
 - 拥有一个 MaxCompute 项目和至少一张包含数据的表
 
 ## 完整代码
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ```java
 import com.aliyun.odps.Account;
@@ -84,6 +87,61 @@ public class FirstProgram {
 }
 ```
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+```python
+from odps import ODPS
+
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+
+# 列出表
+for table in o.list_tables():
+    print(table.name)
+
+# 执行 SQL
+with o.execute_sql('SELECT * FROM my_table LIMIT 10').open_reader() as reader:
+    for record in reader:
+        print(record)
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps"
+    "github.com/aliyun/aliyun-odps-go-sdk/odps/account"
+)
+
+func main() {
+    aliAccount := account.NewAliyunAccount("your-access-id", "your-access-key")
+    odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+    odpsIns.SetDefaultProjectName("your-project")
+
+    // 列出表
+    tables := odpsIns.Tables()
+    tables.List(func(t *odps.Table, err error) {
+        fmt.Println(t.Name())
+    })
+
+    // 执行 SQL
+    ins, _ := odpsIns.ExecSQl("SELECT * FROM my_table LIMIT 10;")
+    ins.WaitForSuccess()
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## 运行前配置
 
 设置环境变量：
@@ -94,11 +152,14 @@ export ALIBABA_CLOUD_ACCESS_KEY_SECRET="your_access_key_secret"
 ```
 
 修改代码中的以下内容：
-- `setEndpoint` - 替换为你的项目所在地域的 Endpoint
-- `setDefaultProject` - 替换为你的项目名称
-- `get("your_table")` - 替换为你要读取的表名
+- Endpoint - 替换为你的项目所在地域的 Endpoint
+- 项目名称 - 替换为你的项目名称
+- 表名 - 替换为你要读取的表名
 
 ## 代码解析
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 ### 第一步：读取凭据
 
@@ -141,7 +202,83 @@ reader.close();
 
 `table.read(10)` 从表中读取前 10 行数据。`RecordReader` 以迭代器模式逐行返回 `Record` 对象，每个 `Record` 包含一行数据的所有列值。
 
+</TabItem>
+<TabItem value="python" label="Python">
+
+### 第一步：初始化客户端
+
+```python
+from odps import ODPS
+
+o = ODPS(
+    access_id='your-access-id',
+    secret_access_key='your-access-key',
+    project='your-project',
+    endpoint='http://service.odps.aliyun.com/api',
+)
+```
+
+`ODPS` 是 PyODPS 的入口类，构造时传入认证信息、项目名称和 Endpoint。也可以通过环境变量自动检测凭据。
+
+### 第二步：列出表
+
+```python
+for table in o.list_tables():
+    print(table.name)
+```
+
+`list_tables()` 返回当前项目下所有表的迭代器。
+
+### 第三步：执行 SQL 并读取结果
+
+```python
+with o.execute_sql('SELECT * FROM my_table LIMIT 10').open_reader() as reader:
+    for record in reader:
+        print(record)
+```
+
+`execute_sql()` 提交 SQL 任务并等待完成，`open_reader()` 打开结果读取器，以迭代器模式逐行返回数据。
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+### 第一步：初始化客户端
+
+```go
+aliAccount := account.NewAliyunAccount("your-access-id", "your-access-key")
+odpsIns := odps.NewOdps(aliAccount, "http://service.odps.aliyun.com/api")
+odpsIns.SetDefaultProjectName("your-project")
+```
+
+创建 Account 实例和 Odps 客户端，设置 Endpoint 和默认项目。
+
+### 第二步：列出表
+
+```go
+tables := odpsIns.Tables()
+tables.List(func(t *odps.Table, err error) {
+    fmt.Println(t.Name())
+})
+```
+
+通过 `Tables()` 获取表管理器，`List` 以回调方式遍历所有表。
+
+### 第三步：执行 SQL
+
+```go
+ins, _ := odpsIns.ExecSQl("SELECT * FROM my_table LIMIT 10;")
+ins.WaitForSuccess()
+```
+
+`ExecSQl` 提交 SQL 任务并返回实例，`WaitForSuccess()` 等待任务执行完成。
+
+</TabItem>
+</Tabs>
+
 ## 运行程序
+
+<Tabs groupId="sdk-language">
+<TabItem value="java" label="Java" default>
 
 使用 Maven 编译并运行：
 
@@ -155,6 +292,27 @@ mvn compile exec:java -Dexec.mainClass="FirstProgram"
 mvn compile
 java -cp target/classes:$(mvn dependency:build-classpath -q -DincludeScope=runtime -Dmdep.outputFile=/dev/stdout) FirstProgram
 ```
+
+</TabItem>
+<TabItem value="python" label="Python">
+
+直接运行 Python 脚本：
+
+```bash
+python first_program.py
+```
+
+</TabItem>
+<TabItem value="go" label="Go">
+
+使用 Go 运行：
+
+```bash
+go run main.go
+```
+
+</TabItem>
+</Tabs>
 
 预期输出（具体内容取决于你的表数据）：
 
@@ -177,7 +335,7 @@ value4  value5  value6
 
 ### 表不存在
 
-确认表名拼写正确，且表属于 `setDefaultProject` 指定的项目。如果表在其他项目中，使用 `odps.tables().get("other_project", "table_name")`。
+确认表名拼写正确，且表属于指定的项目。如果表在其他项目中，需要指定项目名称。
 
 ## 下一步
 
