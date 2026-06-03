@@ -1,331 +1,6 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 1728:
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-
-// EXPORTS
-__webpack_require__.d(__webpack_exports__, {
-  w: () => (/* binding */ lunrLanguageZh)
-});
-
-;// CONCATENATED MODULE: ./node_modules/@easyops-cn/docusaurus-search-local/dist/client/shared/generateTrimmer.js
-function generateTrimmer(wordCharacters){const startRegex=new RegExp("^[^"+wordCharacters+"]+","u");const endRegex=new RegExp("[^"+wordCharacters+"]+$","u");return function(token){return token.update(function(str){return str.replace(startRegex,"").replace(endRegex,"");});};}
-;// CONCATENATED MODULE: ./node_modules/@easyops-cn/docusaurus-search-local/dist/client/shared/lunrLanguageZh.js
-// `lunr-languages/lunr.stemmer.support` is required.
-function lunrLanguageZh(lunr,tokenizer){lunr.trimmerSupport.generateTrimmer=generateTrimmer;lunr.zh=function(){this.pipeline.reset();this.pipeline.add(lunr.zh.trimmer,lunr.zh.stopWordFilter);if(tokenizer){this.tokenizer=tokenizer;}};if(tokenizer){lunr.zh.tokenizer=tokenizer;}// https://zhuanlan.zhihu.com/p/33335629
-// https://mothereff.in/regexpu#input=const+regex+%3D+/%5Cp%7BUnified_Ideograph%7D/u%3B&unicodePropertyEscape=1
-lunr.zh.wordCharacters="\\u3400-\\u4DBF\\u4E00-\\u9FFC\\uFA0E\\uFA0F\\uFA11\\uFA13\\uFA14\\uFA1F\\uFA21\\uFA23\\uFA24\\uFA27-\\uFA29\\u{20000}-\\u{2A6DD}\\u{2A700}-\\u{2B734}\\u{2B740}-\\u{2B81D}\\u{2B820}-\\u{2CEA1}\\u{2CEB0}-\\u{2EBE0}\\u{30000}-\\u{3134A}";lunr.zh.trimmer=lunr.trimmerSupport.generateTrimmer(lunr.zh.wordCharacters);lunr.Pipeline.registerFunction(lunr.zh.trimmer,"trimmer-zh");/* lunr stop word filter. see https://www.ranks.nl/stopwords/chinese-stopwords */lunr.zh.stopWordFilter=lunr.generateStopWordFilter("的 一 不 在 人 有 是 为 以 于 上 他 而 后 之 来 及 了 因 下 可 到 由 这 与 也 此 但 并 个 其 已 无 小 我 们 起 最 再 今 去 好 只 又 或 很 亦 某 把 那 你 乃 它 吧 被 比 别 趁 当 从 到 得 打 凡 儿 尔 该 各 给 跟 和 何 还 即 几 既 看 据 距 靠 啦 了 另 么 每 们 嘛 拿 哪 那 您 凭 且 却 让 仍 啥 如 若 使 谁 虽 随 同 所 她 哇 嗡 往 哪 些 向 沿 哟 用 于 咱 则 怎 曾 至 致 着 诸 自".split(" "));lunr.Pipeline.registerFunction(lunr.zh.stopWordFilter,"stopWordFilter-zh");}
-
-/***/ }),
-
-/***/ 892:
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
- * Snowball JavaScript Library v0.3
- * http://code.google.com/p/urim/
- * http://snowball.tartarus.org/
- *
- * Copyright 2010, Oleg Mazko
- * http://www.mozilla.org/MPL/
- */
-
-/**
- * export the module via AMD, CommonJS or as a browser global
- * Export code from https://github.com/umdjs/umd/blob/master/returnExports.js
- */
-;(function (root, factory) {
-    if (true) {
-        // AMD. Register as an anonymous module.
-        !(__WEBPACK_AMD_DEFINE_FACTORY__ = (factory),
-		__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
-		(__WEBPACK_AMD_DEFINE_FACTORY__.call(exports, __webpack_require__, exports, module)) :
-		__WEBPACK_AMD_DEFINE_FACTORY__),
-		__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__))
-    } else {}
-}(this, function () {
-    /**
-     * Just return a value to define the module export.
-     * This example returns an object, but the module
-     * can return a function as the exported value.
-     */
-    return function(lunr) {
-        /* provides utilities for the included stemmers */
-        lunr.stemmerSupport = {
-            Among: function(s, substring_i, result, method) {
-                this.toCharArray = function(s) {
-                    var sLength = s.length, charArr = new Array(sLength);
-                    for (var i = 0; i < sLength; i++)
-                        charArr[i] = s.charCodeAt(i);
-                    return charArr;
-                };
-
-                if ((!s && s != "") || (!substring_i && (substring_i != 0)) || !result)
-                    throw ("Bad Among initialisation: s:" + s + ", substring_i: "
-                        + substring_i + ", result: " + result);
-                this.s_size = s.length;
-                this.s = this.toCharArray(s);
-                this.substring_i = substring_i;
-                this.result = result;
-                this.method = method;
-            },
-            SnowballProgram: function() {
-                var current;
-                return {
-                    bra : 0,
-                    ket : 0,
-                    limit : 0,
-                    cursor : 0,
-                    limit_backward : 0,
-                    setCurrent : function(word) {
-                        current = word;
-                        this.cursor = 0;
-                        this.limit = word.length;
-                        this.limit_backward = 0;
-                        this.bra = this.cursor;
-                        this.ket = this.limit;
-                    },
-                    getCurrent : function() {
-                        var result = current;
-                        current = null;
-                        return result;
-                    },
-                    in_grouping : function(s, min, max) {
-                        if (this.cursor < this.limit) {
-                            var ch = current.charCodeAt(this.cursor);
-                            if (ch <= max && ch >= min) {
-                                ch -= min;
-                                if (s[ch >> 3] & (0X1 << (ch & 0X7))) {
-                                    this.cursor++;
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    },
-                    in_grouping_b : function(s, min, max) {
-                        if (this.cursor > this.limit_backward) {
-                            var ch = current.charCodeAt(this.cursor - 1);
-                            if (ch <= max && ch >= min) {
-                                ch -= min;
-                                if (s[ch >> 3] & (0X1 << (ch & 0X7))) {
-                                    this.cursor--;
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    },
-                    out_grouping : function(s, min, max) {
-                        if (this.cursor < this.limit) {
-                            var ch = current.charCodeAt(this.cursor);
-                            if (ch > max || ch < min) {
-                                this.cursor++;
-                                return true;
-                            }
-                            ch -= min;
-                            if (!(s[ch >> 3] & (0X1 << (ch & 0X7)))) {
-                                this.cursor++;
-                                return true;
-                            }
-                        }
-                        return false;
-                    },
-                    out_grouping_b : function(s, min, max) {
-                        if (this.cursor > this.limit_backward) {
-                            var ch = current.charCodeAt(this.cursor - 1);
-                            if (ch > max || ch < min) {
-                                this.cursor--;
-                                return true;
-                            }
-                            ch -= min;
-                            if (!(s[ch >> 3] & (0X1 << (ch & 0X7)))) {
-                                this.cursor--;
-                                return true;
-                            }
-                        }
-                        return false;
-                    },
-                    eq_s : function(s_size, s) {
-                        if (this.limit - this.cursor < s_size)
-                            return false;
-                        for (var i = 0; i < s_size; i++)
-                            if (current.charCodeAt(this.cursor + i) != s.charCodeAt(i))
-                                return false;
-                        this.cursor += s_size;
-                        return true;
-                    },
-                    eq_s_b : function(s_size, s) {
-                        if (this.cursor - this.limit_backward < s_size)
-                            return false;
-                        for (var i = 0; i < s_size; i++)
-                            if (current.charCodeAt(this.cursor - s_size + i) != s
-                                .charCodeAt(i))
-                                return false;
-                        this.cursor -= s_size;
-                        return true;
-                    },
-                    find_among : function(v, v_size) {
-                        var i = 0, j = v_size, c = this.cursor, l = this.limit, common_i = 0, common_j = 0, first_key_inspected = false;
-                        while (true) {
-                            var k = i + ((j - i) >> 1), diff = 0, common = common_i < common_j
-                                ? common_i
-                                : common_j, w = v[k];
-                            for (var i2 = common; i2 < w.s_size; i2++) {
-                                if (c + common == l) {
-                                    diff = -1;
-                                    break;
-                                }
-                                diff = current.charCodeAt(c + common) - w.s[i2];
-                                if (diff)
-                                    break;
-                                common++;
-                            }
-                            if (diff < 0) {
-                                j = k;
-                                common_j = common;
-                            } else {
-                                i = k;
-                                common_i = common;
-                            }
-                            if (j - i <= 1) {
-                                if (i > 0 || j == i || first_key_inspected)
-                                    break;
-                                first_key_inspected = true;
-                            }
-                        }
-                        while (true) {
-                            var w = v[i];
-                            if (common_i >= w.s_size) {
-                                this.cursor = c + w.s_size;
-                                if (!w.method)
-                                    return w.result;
-                                var res = w.method();
-                                this.cursor = c + w.s_size;
-                                if (res)
-                                    return w.result;
-                            }
-                            i = w.substring_i;
-                            if (i < 0)
-                                return 0;
-                        }
-                    },
-                    find_among_b : function(v, v_size) {
-                        var i = 0, j = v_size, c = this.cursor, lb = this.limit_backward, common_i = 0, common_j = 0, first_key_inspected = false;
-                        while (true) {
-                            var k = i + ((j - i) >> 1), diff = 0, common = common_i < common_j
-                                ? common_i
-                                : common_j, w = v[k];
-                            for (var i2 = w.s_size - 1 - common; i2 >= 0; i2--) {
-                                if (c - common == lb) {
-                                    diff = -1;
-                                    break;
-                                }
-                                diff = current.charCodeAt(c - 1 - common) - w.s[i2];
-                                if (diff)
-                                    break;
-                                common++;
-                            }
-                            if (diff < 0) {
-                                j = k;
-                                common_j = common;
-                            } else {
-                                i = k;
-                                common_i = common;
-                            }
-                            if (j - i <= 1) {
-                                if (i > 0 || j == i || first_key_inspected)
-                                    break;
-                                first_key_inspected = true;
-                            }
-                        }
-                        while (true) {
-                            var w = v[i];
-                            if (common_i >= w.s_size) {
-                                this.cursor = c - w.s_size;
-                                if (!w.method)
-                                    return w.result;
-                                var res = w.method();
-                                this.cursor = c - w.s_size;
-                                if (res)
-                                    return w.result;
-                            }
-                            i = w.substring_i;
-                            if (i < 0)
-                                return 0;
-                        }
-                    },
-                    replace_s : function(c_bra, c_ket, s) {
-                        var adjustment = s.length - (c_ket - c_bra), left = current
-                            .substring(0, c_bra), right = current.substring(c_ket);
-                        current = left + s + right;
-                        this.limit += adjustment;
-                        if (this.cursor >= c_ket)
-                            this.cursor += adjustment;
-                        else if (this.cursor > c_bra)
-                            this.cursor = c_bra;
-                        return adjustment;
-                    },
-                    slice_check : function() {
-                        if (this.bra < 0 || this.bra > this.ket || this.ket > this.limit
-                            || this.limit > current.length)
-                            throw ("faulty slice operation");
-                    },
-                    slice_from : function(s) {
-                        this.slice_check();
-                        this.replace_s(this.bra, this.ket, s);
-                    },
-                    slice_del : function() {
-                        this.slice_from("");
-                    },
-                    insert : function(c_bra, c_ket, s) {
-                        var adjustment = this.replace_s(c_bra, c_ket, s);
-                        if (c_bra <= this.bra)
-                            this.bra += adjustment;
-                        if (c_bra <= this.ket)
-                            this.ket += adjustment;
-                    },
-                    slice_to : function() {
-                        this.slice_check();
-                        return current.substring(this.bra, this.ket);
-                    },
-                    eq_v_b : function(s) {
-                        return this.eq_s_b(s.length, s);
-                    }
-                };
-            }
-        };
-
-        lunr.trimmerSupport = {
-            generateTrimmer: function(wordCharacters) {
-                var startRegex = new RegExp("^[^" + wordCharacters + "]+")
-                var endRegex = new RegExp("[^" + wordCharacters + "]+$")
-
-                return function(token) {
-                    // for lunr version 2
-                    if (typeof token.update === "function") {
-                        return token.update(function (s) {
-                            return s
-                                .replace(startRegex, '')
-                                .replace(endRegex, '');
-                        })
-                    } else { // for lunr version 1
-                        return token
-                            .replace(startRegex, '')
-                            .replace(endRegex, '');
-                    }
-                };
-            }
-        }
-    }
-}));
-
-
-/***/ }),
-
 /***/ 1336:
 /***/ ((module, exports, __webpack_require__) => {
 
@@ -3822,7 +3497,7 @@ lunr.QueryParser.parseBoost = function (parser) {
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
-/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
@@ -4230,7 +3905,7 @@ function generateUUID() {
 var lunr = __webpack_require__(1336);
 var lunr_default = /*#__PURE__*/__webpack_require__.n(lunr);
 ;// CONCATENATED MODULE: ./.docusaurus/@easyops-cn/docusaurus-search-local/default/generated-constants.js
-__webpack_require__(892)((lunr_default()));(__webpack_require__(1728)/* .lunrLanguageZh */ .w)((lunr_default()));const removeDefaultStopWordFilter=false;const language=["zh"];const searchIndexUrl="search-index{dir}.json?_=d3063a05";const searchResultLimits=8;
+const removeDefaultStopWordFilter=[];const language=["en"];const searchIndexUrl="search-index{dir}.json";const searchResultLimits=10;const fuzzyMatchingDistance=1;
 ;// CONCATENATED MODULE: ./node_modules/@easyops-cn/docusaurus-search-local/dist/client/client/utils/proxiedGeneratedConstants.js
 // This file is auto generated while building.
 
@@ -4291,18 +3966,19 @@ const terms=[];function combine(index,carry){if(index===tokenTerms.length||carry
 return[{tokens,term:tokens.map(value=>({value,presence:(lunr_default()).Query.presence.REQUIRED,wildcard:(lunr_default()).Query.wildcard.LEADING|(lunr_default()).Query.wildcard.TRAILING}))}];}// The last token of a term maybe incomplete while user is typing.
 for(const term of terms){term[term.length-1].maybeTyping=true;}// Try to append terms without stop words,
 // since they are removed in the index.
-const stopWordPipelines=[];for(const lang of language){if(lang==="en"){if(!removeDefaultStopWordFilter){stopWordPipelines.unshift((lunr_default()).stopWordFilter);}}else{const lunrLang=(lunr_default())[lang];if(lunrLang.stopWordFilter){stopWordPipelines.unshift(lunrLang.stopWordFilter);}}}let refinedTerms;if(stopWordPipelines.length>0){const pipe=term=>stopWordPipelines.reduce((term,p)=>term.filter(item=>p(item.value)),term);refinedTerms=[];const newTerms=[];for(const term of terms){const filteredTerm=pipe(term);refinedTerms.push(filteredTerm);// Add extra terms only if some stop words are removed,
+const stopWordPipelines=[];for(const lang of language){if(lang==="en"){if(!removeDefaultStopWordFilter.includes(lang)){stopWordPipelines.unshift((lunr_default()).stopWordFilter);}}else{const lunrLang=(lunr_default())[lang];if(lunrLang.stopWordFilter&&!removeDefaultStopWordFilter.includes(lang)){stopWordPipelines.unshift(lunrLang.stopWordFilter);}}}let refinedTerms;if(stopWordPipelines.length>0){const pipe=term=>stopWordPipelines.reduce((term,p)=>term.filter(item=>p(item.value)),term);refinedTerms=[];const newTerms=[];for(const term of terms){const filteredTerm=pipe(term);refinedTerms.push(filteredTerm);// Add extra terms only if some stop words are removed,
 // and some non-stop-words exist too.
 if(filteredTerm.length<term.length&&filteredTerm.length>0){newTerms.push(filteredTerm);}}terms.push(...newTerms);}else{refinedTerms=terms.slice();}// Also try to add extra terms which miss one of the searched tokens,
 // when the term contains 3 or more tokens,
 // to improve the search precision.
-const extraTerms=[];for(const term of refinedTerms){if(term.length>2){for(let i=term.length-1;i>=0;i-=1){extraTerms.push(term.slice(0,i).concat(term.slice(i+1)));}}}return getQueriesMaybeTyping(terms).concat(getQueriesMaybeTyping(extraTerms));}function getQueriesMaybeTyping(terms){return termsToQueries(terms).concat(termsToQueries(// Ignore terms whose last token already has a trailing wildcard,
+const extraTerms=[];for(const term of refinedTerms){if(term.length>2){for(let i=term.length-1;i>=0;i-=1){extraTerms.push(term.slice(0,i).concat(term.slice(i+1)));}}}const distance=Math.max(0,fuzzyMatchingDistance);return getDistanceMatrix(terms,distance).concat(getDistanceMatrix(extraTerms,distance));}function getQueriesMaybeTyping(terms,editDistance){return termsToQueries(terms,editDistance).concat(termsToQueries(// Ignore terms whose last token already has a trailing wildcard,
 // or the last token is not `maybeTyping`.
-terms.filter(term=>{const token=term[term.length-1];return!token.trailing&&token.maybeTyping;}),true));}function termsToQueries(terms,maybeTyping){return terms.map(term=>({tokens:term.map(item=>item.value),term:term.map(item=>({value:item.value,presence:(lunr_default()).Query.presence.REQUIRED,// The last token of a term maybe incomplete while user is typing.
+terms.filter(term=>{const token=term[term.length-1];return!token.trailing&&token.maybeTyping;}),editDistance,true));}function termsToQueries(terms,editDistance,maybeTyping){return terms.flatMap(term=>{const query={tokens:term.map(item=>item.value),term:term.map(item=>{// The last token of a term maybe incomplete while user is typing.
 // So append more queries with trailing wildcard added.
-wildcard:(maybeTyping?item.trailing||item.maybeTyping:item.trailing)?(lunr_default()).Query.wildcard.TRAILING:(lunr_default()).Query.wildcard.NONE}))}));}
+const trailing=maybeTyping?item.trailing||item.maybeTyping:item.trailing;const distance=editDistance>0&&item.value.length>editDistance?editDistance:undefined;return{value:item.value,presence:(lunr_default()).Query.presence.REQUIRED,wildcard:trailing?(lunr_default()).Query.wildcard.TRAILING:(lunr_default()).Query.wildcard.NONE,editDistance:distance};})};// Ignore queries that all terms ignored edit distance due to too short tokens.
+if(editDistance&&query.term.every(item=>!item.editDistance)){return[];}return query;});}function getDistanceMatrix(terms,distance){return Array.from({length:distance+1},(_,i)=>getQueriesMaybeTyping(terms,i)).flat();}
 ;// CONCATENATED MODULE: ./node_modules/@easyops-cn/docusaurus-search-local/dist/client/shared/interfaces.js
-var SearchDocumentType;(function(SearchDocumentType){SearchDocumentType[SearchDocumentType["Title"]=0]="Title";SearchDocumentType[SearchDocumentType["Heading"]=1]="Heading";SearchDocumentType[SearchDocumentType["Description"]=2]="Description";SearchDocumentType[SearchDocumentType["Keywords"]=3]="Keywords";SearchDocumentType[SearchDocumentType["Content"]=4]="Content";})(SearchDocumentType||(SearchDocumentType={}));
+var SearchDocumentType;(function(SearchDocumentType){SearchDocumentType[SearchDocumentType["Title"]=0]="Title";SearchDocumentType[SearchDocumentType["Heading"]=1]="Heading";SearchDocumentType[SearchDocumentType["Description"]=2]="Description";SearchDocumentType[SearchDocumentType["Keywords"]=3]="Keywords";SearchDocumentType[SearchDocumentType["Content"]=4]="Content";SearchDocumentType[SearchDocumentType["AskAI"]=5]="AskAI";})(SearchDocumentType||(SearchDocumentType={}));
 ;// CONCATENATED MODULE: ./node_modules/@easyops-cn/docusaurus-search-local/dist/client/client/utils/sortSearchResults.js
 function sortSearchResults(results){results.forEach((item,index)=>{item.index=index;});// Put search results of headings/contents/descriptions just after
 // their belonged page's title, if existed.
@@ -4310,7 +3986,7 @@ results.sort((a,b)=>{let aPageIndex=(a.type===SearchDocumentType.Heading||a.type
 ;// CONCATENATED MODULE: ./node_modules/@easyops-cn/docusaurus-search-local/dist/client/client/utils/processTreeStatusOfSearchResults.js
 function processTreeStatusOfSearchResults(results){results.forEach((item,i)=>{if(i>0&&item.page&&results.slice(0,i).some(prev=>(prev.type===SearchDocumentType.Keywords?prev.page:prev.document)===item.page)){if(i<results.length-1&&results[i+1].page===item.page){item.isInterOfTree=true;}else{item.isLastOfTree=true;}}});}
 ;// CONCATENATED MODULE: ./node_modules/@easyops-cn/docusaurus-search-local/dist/client/client/theme/worker.js
-const cache=new Map();class SearchWorker{async fetchIndexes(baseUrl,searchContext){await this.lowLevelFetchIndexes(baseUrl,searchContext);}async lowLevelFetchIndexes(baseUrl,searchContext){const cacheKey=`${baseUrl}${searchContext}`;let promise=cache.get(cacheKey);if(!promise){promise=legacyFetchIndexes(baseUrl,searchContext);cache.set(cacheKey,promise);}return promise;}async search(baseUrl,searchContext,input,limit){const rawTokens=tokenize(input,language);if(rawTokens.length===0){return[];}const{wrappedIndexes,zhDictionary}=await this.lowLevelFetchIndexes(baseUrl,searchContext);const queries=smartQueries(rawTokens,zhDictionary);const results=[];search:for(const{term,tokens}of queries){for(const{documents,index,type}of wrappedIndexes){results.push(...index.query(query=>{for(const item of term){query.term(item.value,{wildcard:item.wildcard,presence:item.presence});}}).slice(0,limit)// Remove duplicated results.
+const cache=new Map();class SearchWorker{async fetchIndexes(baseUrl,searchContext){await this.lowLevelFetchIndexes(baseUrl,searchContext);}async lowLevelFetchIndexes(baseUrl,searchContext){const cacheKey=`${baseUrl}${searchContext}`;let promise=cache.get(cacheKey);if(!promise){promise=legacyFetchIndexes(baseUrl,searchContext);cache.set(cacheKey,promise);}return promise;}async search(baseUrl,searchContext,input,limit){const rawTokens=tokenize(input,language);if(rawTokens.length===0){return[];}const{wrappedIndexes,zhDictionary}=await this.lowLevelFetchIndexes(baseUrl,searchContext);const queries=smartQueries(rawTokens,zhDictionary);const results=[];search:for(const{term,tokens}of queries){for(const{documents,index,type}of wrappedIndexes){results.push(...index.query(query=>{for(const item of term){query.term(item.value,{wildcard:item.wildcard,presence:item.presence,...(item.editDistance?{editDistance:item.editDistance}:null)});}}).slice(0,limit)// Remove duplicated results.
 .filter(result=>!results.some(item=>item.document.i.toString()===result.ref)).slice(0,limit-results.length).map(result=>{const document=documents.find(doc=>doc.i.toString()===result.ref);return{document,type,page:type!==SearchDocumentType.Title&&wrappedIndexes[0].documents.find(doc=>doc.i===document.p),metadata:result.matchData.metadata,tokens,score:result.score};}));if(results.length>=limit){break search;}}}sortSearchResults(results);processTreeStatusOfSearchResults(results);return results;}}async function legacyFetchIndexes(baseUrl,searchContext){const url=`${baseUrl}${searchIndexUrl.replace("{dir}",searchContext?`-${searchContext.replace(/\//g,"-")}`:"")}`;// Catch potential attacks.
 const fullUrl=new URL(url,location.origin);if(fullUrl.origin!==location.origin){throw new Error("Unexpected version url");}const json=await(await fetch(url)).json();const wrappedIndexes=json.map(({documents,index},type)=>({type:type,documents,index:lunr_default().Index.load(index)}));const zhDictionary=json.reduce((acc,item)=>{for(const tuple of item.index.invertedIndex){if(/\p{Unified_Ideograph}/u.test(tuple[0][0])){acc.add(tuple[0]);}}return acc;},new Set());return{wrappedIndexes,zhDictionary:Array.from(zhDictionary)};}expose(SearchWorker);
 })();

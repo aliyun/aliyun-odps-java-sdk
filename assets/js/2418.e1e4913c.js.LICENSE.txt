@@ -1,13 +1,4 @@
 /*!
- * Snowball JavaScript Library v0.3
- * http://code.google.com/p/urim/
- * http://snowball.tartarus.org/
- *
- * Copyright 2010, Oleg Mazko
- * http://www.mozilla.org/MPL/
- */
-
-/*!
  * lunr.Builder
  * Copyright (C) 2020 Oliver Nightingale
  */
