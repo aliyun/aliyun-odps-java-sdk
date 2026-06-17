@@ -26,6 +26,8 @@ public class SQLExecutorBuilder {
   private String tunnelEndpoint = null;
   // fallback offline quota
   private String quotaName = null;
+  // tunnel quota used when fetching results through instance tunnel
+  private String tunnelQuotaName = null;
   private SQLExecutorPool pool = null;
   private FallbackPolicy fallbackPolicy = FallbackPolicy.alwaysFallbackPolicy();
   private int tunnelGetResultMaxRetryTime = 3;
@@ -70,6 +72,7 @@ public class SQLExecutorBuilder {
     builder.serviceName = this.serviceName;
     builder.tunnelEndpoint = this.tunnelEndpoint;
     builder.quotaName = this.quotaName;
+    builder.tunnelQuotaName = this.tunnelQuotaName;
     builder.pool = this.pool;
     builder.fallbackPolicy = this.fallbackPolicy;
     builder.tunnelGetResultMaxRetryTime = this.tunnelGetResultMaxRetryTime;
@@ -139,6 +142,11 @@ public class SQLExecutorBuilder {
 
   public SQLExecutorBuilder quotaName(String quotaName) {
     this.quotaName = quotaName;
+    return this;
+  }
+
+  public SQLExecutorBuilder tunnelQuotaName(String tunnelQuotaName) {
+    this.tunnelQuotaName = tunnelQuotaName;
     return this;
   }
 
@@ -296,6 +304,10 @@ public class SQLExecutorBuilder {
 
   public String getQuotaName() {
     return quotaName;
+  }
+
+  public String getTunnelQuotaName() {
+    return tunnelQuotaName;
   }
 
   public MaxQAConnInfo getMaxQAConnInfo() {

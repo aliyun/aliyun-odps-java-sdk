@@ -191,11 +191,15 @@ public class SQLExecutorImpl implements SQLExecutor {
       if (builder.getTunnelReadTimeout() >= 0) {
         instanceTunnel.getConfig().setSocketTimeout(builder.getTunnelReadTimeout());
       }
+      String tunnelQuotaName = builder.getTunnelQuotaName();
+      if (!StringUtils.isNullOrEmpty(tunnelQuotaName)) {
+        ((com.aliyun.odps.tunnel.Configuration) instanceTunnel.getConfig()).setQuotaName(
+            tunnelQuotaName);
+      }
       if (StringUtils.isNullOrEmpty(tunnelEndpoint)) {
         //try to get tunnelEndpoint from local cache
         try {
-          // TODO: support specify tunnel quota name
-          tunnelEndpoint = cache.getTunnelEndpointFromLocalCache(odps, null);
+          tunnelEndpoint = cache.getTunnelEndpointFromLocalCache(odps, tunnelQuotaName);
         } catch (ExecutionException e) {
           throw new OdpsException(
               "Get tunnel endpoint from localCache exception:" + e.getMessage());

@@ -92,6 +92,10 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (builder.getTunnelReadTimeout() >= 0) {
       instanceTunnel.getConfig().setSocketTimeout(builder.getTunnelReadTimeout());
     }
+    if (!StringUtils.isNullOrEmpty(builder.getTunnelQuotaName())) {
+      ((com.aliyun.odps.tunnel.Configuration) instanceTunnel.getConfig()).setQuotaName(
+          builder.getTunnelQuotaName());
+    }
 
     this.log = new ArrayList<>();
     // each executor has a uuid
