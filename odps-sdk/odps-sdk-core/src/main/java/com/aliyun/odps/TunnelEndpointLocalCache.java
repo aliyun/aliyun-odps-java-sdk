@@ -45,7 +45,7 @@ public class TunnelEndpointLocalCache {
 
     public String getTunnelEndpointFromLocalCache(Odps odps, String tunnelQuotaName) throws ExecutionException
     {
-        String key = odps.getEndpoint() + odps.getDefaultProject();
+        String key = buildKey(odps, tunnelQuotaName);
         return tunnelCache.get(key, new Callable<String>() {
             public String call() throws Exception {
                 String routerEndpoint = odps.projects().get(odps.getDefaultProject()).getTunnelEndpoint(tunnelQuotaName);
@@ -56,8 +56,18 @@ public class TunnelEndpointLocalCache {
 
     public void putTunnelEndpointIntoLocalCache(Odps odps, String tunnelEndpoint)
     {
-        String key = odps.getEndpoint() + odps.getDefaultProject();
-        tunnelCache.put(key,tunnelEndpoint);
+        putTunnelEndpointIntoLocalCache(odps, null, tunnelEndpoint);
+    }
+
+    public void putTunnelEndpointIntoLocalCache(Odps odps, String tunnelQuotaName, String tunnelEndpoint)
+    {
+        String key = buildKey(odps, tunnelQuotaName);
+        tunnelCache.put(key, tunnelEndpoint);
+    }
+
+    private String buildKey(Odps odps, String tunnelQuotaName)
+    {
+        return odps.getEndpoint() + "::" + odps.getDefaultProject() + "::" + tunnelQuotaName;
     }
 
     public Cache<String, String> getTunnelCache()
