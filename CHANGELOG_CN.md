@@ -18,6 +18,31 @@
 ### 🐛 问题修复
 * **[Commons]**: **补充向量写入的 Schema 校验** - 在 ODPS 类型转换写路径中增加向量维度和元素类型校验，避免不匹配的向量数据被静默接受。
 
+## [0.57.3-public] - 2026-06-17
+
+### 🐛 问题修复
+* **[SQLExecutor]**: **支持通过 Tunnel Quota 获取 Instance Tunnel 结果** - 为 instance tunnel 结果拉取增加独立的 tunnel quota 通路，使 SQL 执行在读取结果时可以使用与计算 quota 不同的 tunnel quota。
+    * *相关 API*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel Cache]**: **按 Quota 隔离 Tunnel Endpoint 缓存** - Tunnel endpoint 本地缓存现在会按 tunnel quota 隔离，避免结果获取流程复用其他 quota 解析出的 endpoint。
+
+### 📄 文档更新
+* **[Docs]**: **全面升级 SDK 文档站点** - 新增大量任务导向指南、API 参考、多语言代码示例、控制台命令到 SDK 映射、搜索优化，以及 `robots.txt` / `llms.txt` 等 AI 可发现性支持。
+
+## [0.57.2-public] - 2026-05-07
+
+### ✨ 新功能
+* **[Instance][MaxQA]**: **为 MCQA v2 Instance 增加凭据确保机制** - 为 `_mcqa` 实例增加自动凭据/请求头回填能力，使 reload、stop、进度查询和 detail 查询无需调用方手动传递 MCQA 连接头也能正常工作。
+    * *相关 API*: `Instance`, `Headers.ODPS_MCQA_CONN`, `Headers.ODPS_MCQA_QUERY_COOKIE`
+
+## [0.57.1-public] - 2026-04-08
+
+### ✨ 新功能
+* **[Storage API]**: **增强写入与预览能力** - 为 Storage API 客户端增加表预览请求支持、Raw Arrow 请求体处理、显式写入模式，以及更完整的表/Blob 写入会话能力。
+    * *相关 API*: `MaxStorageClient`, `TableWriteSession`, `TableWriterBuilder`, `WriteMode`
+
+### 📄 文档更新
+* **[Storage API]**: **补充完整 Storage API 文档** - 新增 Storage API 的概览、客户端、读取、写入和 Blob 参考文档。
+
 ## [0.57.0-public] - 2026-03-05
 
 ### ✨ 新功能

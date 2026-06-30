@@ -18,6 +18,31 @@
 ### 🐛 Bug Fixes
 * **[Commons]**: **Vector Schema Validation for Writes** - Added dimension and element-type validation when writing vector values through the ODPS type transformer, preventing mismatched vector payloads from being silently accepted.
 
+## [0.57.3-public] - 2026-06-17
+
+### 🐛 Bug Fixes
+* **[SQLExecutor]**: **Tunnel Quota Support for Instance Tunnel Fetching** - Added a dedicated tunnel quota path for instance-tunnel result fetching so SQL execution can read results with a different tunnel quota than the compute quota.
+    * *Related APIs*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel Cache]**: **Cache Tunnel Endpoints by Quota** - Tunnel endpoint cache entries are now isolated by tunnel quota to prevent result fetching from reusing endpoints resolved under a different quota.
+
+### 📄 Documentation
+* **[Docs]**: **Modernized SDK Documentation Site** - Added a large set of task-oriented guides, API references, multilingual code tabs, command-to-SDK mapping, improved search behavior, and AI-discovery metadata such as `robots.txt` and `llms.txt` links.
+
+## [0.57.2-public] - 2026-05-07
+
+### ✨ New Features
+* **[Instance][MaxQA]**: **Credential Assurance for MCQA v2 Instances** - Added automatic credential/header backfill for `_mcqa` instances so reload, stop, progress, and detail requests can succeed without requiring callers to manually propagate MCQA connection headers.
+    * *Related APIs*: `Instance`, `Headers.ODPS_MCQA_CONN`, `Headers.ODPS_MCQA_QUERY_COOKIE`
+
+## [0.57.1-public] - 2026-04-08
+
+### ✨ New Features
+* **[Storage API]**: **Expanded Write and Preview Capabilities** - Added table preview request support, raw Arrow request body handling, explicit write modes, and broader table/blob write session capabilities across the Storage API client.
+    * *Related APIs*: `MaxStorageClient`, `TableWriteSession`, `TableWriterBuilder`, `WriteMode`
+
+### 📄 Documentation
+* **[Storage API]**: **Added Comprehensive Storage API Documentation** - Added overview, client, read, write, and blob reference guides for the new Storage API module.
+
 ## [0.57.0-public] - 2026-03-05
 
 ### ✨ New Features
