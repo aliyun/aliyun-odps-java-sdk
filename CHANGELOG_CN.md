@@ -1,4 +1,23 @@
 # 更新日志
+## [0.58.0-public] - 2026-06-30
+
+### ✨ 新功能
+* **[Commons]**: **新增 `VECTOR` 类型支持** - 增加 `OdpsType.VECTOR`、`Vector` / `FloatVector`、`VectorTypeInfo`，并支持解析无参 `VECTOR` 以及 `VECTOR(FLOAT,1536)` 这类带参数的向量类型定义。
+    * *相关 API*: `Vector`, `FloatVector`, `TypeInfoFactory.getVectorTypeInfo()`, `ArrayRecord.getVector()`, `ArrayRecord.setVector()`
+* **[Packaging]**: **新增 `odps-sdk-simplexml` 模块** - 将原先内嵌在 `odps-sdk-core` 中的 SimpleXML 实现拆分为独立模块，便于制品拆分和依赖管理。
+    * *相关 API*: `odps-sdk-simplexml`
+
+### 🚀 功能增强与性能优化
+* **[Instance]**: **任务汇总 finalized 状态感知** - `getTaskSummary(String, boolean)` 新增对 `x-odps-task-finalized` 响应头的解析支持，即使 summary body 解析不完整，也能让调用方感知任务是否已 finalized。
+    * *相关 API*: `Instance.getTaskSummary(String, boolean)`, `Instance.TaskSummary.getFinalized()`
+* **[SQLExecutor]**: **离线任务名处理更一致** - 通过 `SQLExecutorBuilder` 配置的自定义 task name 现在会一致地应用到离线执行、进度查询、summary 查询和结果获取流程中。
+    * *相关 API*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel]**: **Upsert 超时错误信息更可诊断** - `UpsertStreamImpl` 现在区分请求体写超时和响应超时，并返回更明确的本地错误码与 HTTP 状态信息，便于重试和问题定位。
+    * *相关 API*: `UpsertStreamImpl`, `TunnelConstants.UPSERT_FLUSH_WRITE_TIMEOUT`, `TunnelConstants.UPSERT_FLUSH_RESPONSE_TIMEOUT`
+
+### 🐛 问题修复
+* **[Commons]**: **补充向量写入的 Schema 校验** - 在 ODPS 类型转换写路径中增加向量维度和元素类型校验，避免不匹配的向量数据被静默接受。
+
 ## [0.57.0-public] - 2026-03-05
 
 ### ✨ 新功能

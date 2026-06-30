@@ -1,4 +1,23 @@
 # Changelog
+## [0.58.0-public] - 2026-06-30
+
+### ✨ New Features
+* **[Commons]**: **Added `VECTOR` Type Support** - Added `OdpsType.VECTOR`, `Vector` / `FloatVector`, `VectorTypeInfo`, and parser support for both bare `VECTOR` and parameterized forms such as `VECTOR(FLOAT,1536)`.
+    * *Related APIs*: `Vector`, `FloatVector`, `TypeInfoFactory.getVectorTypeInfo()`, `ArrayRecord.getVector()`, `ArrayRecord.setVector()`
+* **[Packaging]**: **New `odps-sdk-simplexml` Module** - Extracted the bundled SimpleXML implementation from `odps-sdk-core` into a dedicated `odps-sdk-simplexml` module to make packaging and dependency management cleaner.
+    * *Related APIs*: `odps-sdk-simplexml`
+
+### 🚀 Enhancements & Performance
+* **[Instance]**: **Task Summary Finalization Signal** - Added `getTaskSummary(String, boolean)` support for parsing the `x-odps-task-finalized` response header so callers can detect finalization state even when summary parsing is incomplete.
+    * *Related APIs*: `Instance.getTaskSummary(String, boolean)`, `Instance.TaskSummary.getFinalized()`
+* **[SQLExecutor]**: **Consistent Offline Task Name Handling** - Custom task names configured through `SQLExecutorBuilder` now apply consistently to offline execution, progress polling, summary lookup, and result fetching.
+    * *Related APIs*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel]**: **More Actionable Upsert Timeout Errors** - `UpsertStreamImpl` now distinguishes request-body write timeout from response timeout, and returns clearer local error codes and HTTP status information for retry and diagnosis.
+    * *Related APIs*: `UpsertStreamImpl`, `TunnelConstants.UPSERT_FLUSH_WRITE_TIMEOUT`, `TunnelConstants.UPSERT_FLUSH_RESPONSE_TIMEOUT`
+
+### 🐛 Bug Fixes
+* **[Commons]**: **Vector Schema Validation for Writes** - Added dimension and element-type validation when writing vector values through the ODPS type transformer, preventing mismatched vector payloads from being silently accepted.
+
 ## [0.57.0-public] - 2026-03-05
 
 ### ✨ New Features
