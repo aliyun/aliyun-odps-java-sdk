@@ -1,4 +1,14 @@
 # Changelog
+## [0.58.1-public] - 2026-06-30
+
+### 🐛 Bug Fixes
+* **[Dependencies]**: **Upgrade Shared Jackson and Netty Versions** - Raised the root-managed dependency versions used by `odps-sdk-core` and inherited by downstream consumers such as JDBC integrations, reducing exposure to known Jackson and Netty vulnerabilities without requiring per-module overrides.
+    * *Related APIs*: `odps-sdk-core`, `jackson-databind`, `netty-all`
+
+### 📦 Dependency Updates
+* **Upgrade**: `com.fasterxml.jackson.core:jackson-databind`: `2.18.2` → `2.21.4`
+* **Upgrade**: `io.netty:netty-all`: `4.1.130.Final` → `4.1.135.Final`
+
 ## [0.58.0-public] - 2026-06-30
 
 ### ✨ New Features

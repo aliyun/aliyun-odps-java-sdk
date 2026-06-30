@@ -1,4 +1,14 @@
 # 更新日志
+## [0.58.1-public] - 2026-06-30
+
+### 🐛 问题修复
+* **[依赖]**: **升级共享 Jackson 与 Netty 版本** - 提升由根 POM 统一管理、并由 `odps-sdk-core` 传递给下游（如 JDBC 集成）的依赖版本，在不需要各模块单独覆盖版本的前提下，降低已知 Jackson 和 Netty 漏洞暴露面。
+    * *相关 API*: `odps-sdk-core`, `jackson-databind`, `netty-all`
+
+### 📦 依赖更新
+* **升级**: `com.fasterxml.jackson.core:jackson-databind`: `2.18.2` → `2.21.4`
+* **升级**: `io.netty:netty-all`: `4.1.130.Final` → `4.1.135.Final`
+
 ## [0.58.0-public] - 2026-06-30
 
 ### ✨ 新功能
