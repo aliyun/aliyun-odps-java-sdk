@@ -216,14 +216,18 @@ public class TypeInfoParser {
   }
 
   private TypeInfo parseVectorTypeInfo() {
-    // VECTOR 可带参数 (FLOAT, 1536) 或不带参数
-    if (index < tokens.size() && tokens.get(index).equals("(")) {
-      expect("(");
-      TypeInfo elementType = parseTypeInfoInternal();
-      expect(",");
-      int dimension = getInteger();
-      expect(")");
-      return TypeInfoFactory.getVectorTypeInfo(elementType, dimension);
+    // VECTOR 可带参数 (FLOAT, 1536) / <FLOAT, 1536> 或不带参数
+    if (index < tokens.size()) {
+      String openToken = tokens.get(index);
+      if (openToken.equals("(") || openToken.equals("<")) {
+        String closeToken = openToken.equals("(") ? ")" : ">";
+        expect(openToken);
+        TypeInfo elementType = parseTypeInfoInternal();
+        expect(",");
+        int dimension = getInteger();
+        expect(closeToken);
+        return TypeInfoFactory.getVectorTypeInfo(elementType, dimension);
+      }
     }
     // 无参数形式，返回基础 VECTOR 类型
     return TypeInfoFactory.VECTOR;
