@@ -76,6 +76,7 @@ public class Headers {
   public static final String ODPS_START_TIME = "x-odps-start-time";
   public static final String ODPS_END_TIME = "x-odps-end-time";
   public static final String ODPS_MCQA_QUERY_COOKIE = "x-odps-mcqa-query-cookie";
+  public static final String ODPS_TASK_FINALIZED = "x-odps-task-finalized";
 
   /**
    * Used by Quota

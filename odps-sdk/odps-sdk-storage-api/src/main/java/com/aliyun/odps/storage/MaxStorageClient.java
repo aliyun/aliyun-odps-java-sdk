@@ -126,7 +126,7 @@ public class MaxStorageClient implements AutoCloseable {
    *
    * @return A new Builder instance for configuring and creating MaxStorageClient instances
    */
-  public static Builder builder() {
+  public static MaxStorageClient.Builder builder() {
     return new Builder();
   }
 

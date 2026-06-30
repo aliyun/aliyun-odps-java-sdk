@@ -15,7 +15,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import com.aliyun.odps.Column;
@@ -24,6 +26,7 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.HttpHeaders;
+import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.hasher.DecimalHashObject;
@@ -429,18 +432,19 @@ public class UpsertStreamImpl implements UpsertStream {
               FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry, bucketId);
               channel.pipeline().addLast(handler);
               handlers.add(handler);
+              HttpRequest httpRequest = buildFullHttpRequest(request, pack.getProtobufStream());
+              handler.startWriteTimeout(channel);
               ChannelFuture
                   channelFuture =
-                  channel.writeAndFlush(buildFullHttpRequest(request, pack.getProtobufStream()));
+                  channel.writeAndFlush(httpRequest);
               channelFuture.addListener((ChannelFutureListener) future -> {
                 if (!future.isSuccess()) {
-                  latch.countDown();
-                  channelPool.release(future.channel());
-                  handler.setException(
+                  handler.failAndClose(
+                      future.channel(),
                       new TunnelException("Connect : " + future.cause().getMessage(),
                                           future.cause()));
-                  future.channel().close();
                 } else {
+                  handler.cancelWriteTimeout();
                   future.channel().pipeline().addFirst(new ReadTimeoutHandler(readTimeout, TimeUnit.MILLISECONDS));
                 }
               });
@@ -464,12 +468,14 @@ public class UpsertStreamImpl implements UpsertStream {
               status = Status.ERROR;
               TunnelException e = new TunnelException(handler.getException().getErrorMsg(), handler.getException());
               e.setRequestId(handler.getException().getRequestId());
+              e.setStatus(handler.getException().getStatus());
               e.setErrorCode(handler.getException().getErrorCode());
               throw e;
             }
           } else {
             TunnelException e = new TunnelException(handler.getException().getErrorMsg(), handler.getException());
             e.setRequestId(handler.getException().getRequestId());
+            e.setStatus(handler.getException().getStatus());
             e.setErrorCode(handler.getException().getErrorCode());
             throw e;
           }
@@ -534,6 +540,8 @@ public class UpsertStreamImpl implements UpsertStream {
     private UpsertStream.FlushResult flushResult = new UpsertStream.FlushResult();
     private ProtobufRecordPack pack;
     private TunnelException exception = null;
+    private final AtomicBoolean completed = new AtomicBoolean(false);
+    private ScheduledFuture<?> writeTimeoutFuture;
     CountDownLatch latch;
     long start;
     Listener listener;
@@ -563,9 +571,37 @@ public class UpsertStreamImpl implements UpsertStream {
       this.bucketId = bucketId;
     }
 
+    void startWriteTimeout(Channel channel) {
+      writeTimeoutFuture = channel.eventLoop().schedule(() -> failAndClose(
+          channel, newRetryableTimeoutException(
+              TunnelConstants.UPSERT_FLUSH_WRITE_TIMEOUT,
+              "Flush write timed out after %d ms while sending request body to server "
+              + "(bucket=%d, records=%d, bytes=%d). The server may have stopped reading the "
+              + "request body or the connection may be stalled.",
+              readTimeout, bucketId, flushResult.recordCount, flushResult.flushSize)),
+          readTimeout, TimeUnit.MILLISECONDS);
+    }
+
+    private void cancelWriteTimeout() {
+      if (writeTimeoutFuture != null) {
+        writeTimeoutFuture.cancel(false);
+      }
+    }
+
+    void failAndClose(Channel channel, TunnelException e) {
+      cancelWriteTimeout();
+      if (completed.compareAndSet(false, true)) {
+        exception = e;
+        latch.countDown();
+        channelPool.release(channel);
+        channel.close();
+      }
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
       FullHttpResponse response = null;
+      TunnelException resultException = null;
       try {
         response = (FullHttpResponse) msg;
         this.flushResult.traceId = response.headers().get(HttpHeaders.HEADER_ODPS_REQUEST_ID);
@@ -580,7 +616,8 @@ public class UpsertStreamImpl implements UpsertStream {
           }
         } else {
           try (ByteBufInputStream contentStream = new ByteBufInputStream(response.content())) {
-            exception = new TunnelException(this.flushResult.traceId, contentStream, response.status().code());
+            resultException = new TunnelException(
+                this.flushResult.traceId, contentStream, response.status().code());
 
             // 308 means should update slot map and retry
             if (response.status().code() == HttpStatus.SLOT_REASSIGNMENT) {
@@ -595,27 +632,45 @@ public class UpsertStreamImpl implements UpsertStream {
           }
         }
       } catch (Exception e) {
-        exception = new TunnelException(e.getMessage(), e);
+        resultException = new TunnelException(e.getMessage(), e);
       } finally {
-        latch.countDown();
-        if (response != null) {
+        cancelWriteTimeout();
+        if (completed.compareAndSet(false, true)) {
+          exception = resultException;
+          latch.countDown();
+          if (response != null) {
+            response.release();
+          }
+          channelPool.release(ctx.channel());
+          ctx.close();
+        } else if (response != null) {
           response.release();
         }
-        channelPool.release(ctx.channel());
-        ctx.close();
       }
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
       if (cause instanceof ReadTimeoutException) {
-        exception = new TunnelException("Flush time out, cannot get response from server");
+        failAndClose(
+            ctx.channel(), newRetryableTimeoutException(
+                TunnelConstants.UPSERT_FLUSH_RESPONSE_TIMEOUT,
+                "Flush response timed out after %d ms while waiting for server response "
+                + "(bucket=%d, records=%d, bytes=%d). The server may have stopped sending "
+                + "the response or declared a larger Content-Length than it delivered.",
+                readTimeout, bucketId, flushResult.recordCount, flushResult.flushSize));
       } else {
-        exception = new TunnelException(cause.getMessage(), cause);
+        failAndClose(ctx.channel(), new TunnelException(cause.getMessage(), cause));
       }
-      latch.countDown();
-      channelPool.release(ctx.channel());
-      ctx.close();
+    }
+
+    private TunnelException newRetryableTimeoutException(String errorCode,
+                                                         String messageTemplate,
+                                                         Object... args) {
+      TunnelException exception = new TunnelException(String.format(messageTemplate, args));
+      exception.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+      exception.setErrorCode(errorCode);
+      return exception;
     }
   }
 }

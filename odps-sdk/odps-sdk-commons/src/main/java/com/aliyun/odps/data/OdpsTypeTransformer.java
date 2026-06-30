@@ -28,6 +28,7 @@ import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
 import com.aliyun.odps.type.VarcharTypeInfo;
+import com.aliyun.odps.type.VectorTypeInfo;
 
 /**
  * Created by zhenhong.gzh on 16/12/13.
@@ -73,6 +74,7 @@ public class OdpsTypeTransformer {
     ODPS_TYPE_MAPPER.put(OdpsType.JSON, JsonValue.class);
     ODPS_TYPE_MAPPER.put(OdpsType.GEOGRAPHY, GeographyObject.class);
     ODPS_TYPE_MAPPER.put(OdpsType.BLOB, Blob.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.VECTOR, Vector.class);
 
     // fix date type mapping
     ODPS_TYPE_MAPPER_V2.putAll(ODPS_TYPE_MAPPER);
@@ -403,6 +405,23 @@ public class OdpsTypeTransformer {
                           strict, fieldMaxSize));
           }
           transformedResult = new SimpleStruct(structTypeInfo, elements);
+          break;
+        case VECTOR:
+          if (setData && value instanceof Vector && typeInfo instanceof VectorTypeInfo) {
+            VectorTypeInfo vectorTypeInfo = (VectorTypeInfo) typeInfo;
+            Vector vector = (Vector) value;
+            if (vector.dimension() != vectorTypeInfo.getDimension()) {
+              throw new SchemaMismatchRuntimeException(
+                  "Vector dimension mismatch: expected " + vectorTypeInfo.getDimension()
+                  + ", but got " + vector.dimension());
+            }
+            OdpsType expectedElemType = vectorTypeInfo.getElementTypeInfo().getOdpsType();
+            if (vector.elementType() != expectedElemType) {
+              throw new SchemaMismatchRuntimeException(
+                  "Vector element type mismatch: expected " + expectedElemType
+                  + ", but got " + vector.elementType());
+            }
+          }
           break;
         default:
 

@@ -21,6 +21,7 @@
         <module>odps-arrow-helper</module>
         <module>odps-sdk-storage-api</module>
         <module>odps-sdk-core</module>
+        <module>odps-sdk-simplexml</module>
         <module>odps-sdk-table-api</module>
 
         <!-- Tunnel SDK UT -->

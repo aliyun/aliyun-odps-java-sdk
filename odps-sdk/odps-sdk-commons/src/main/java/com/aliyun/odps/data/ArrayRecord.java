@@ -1133,6 +1133,22 @@ public class ArrayRecord implements Record, Serializable {
     setIntervalDayTime(getColumnIndex(columnName), value);
   }
 
+  public void setVector(int idx, Vector value) {
+    set(idx, value);
+  }
+
+  public void setVector(String columnName, Vector value) {
+    setVector(getColumnIndex(columnName), value);
+  }
+
+  public Vector getVector(int idx) {
+    return getInternal(idx);
+  }
+
+  public Vector getVector(String columnName) {
+    return getVector(getColumnIndex(columnName));
+  }
+
   @Override
   public boolean isNull(int idx) {
     return values[idx] == null;

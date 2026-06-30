@@ -68,6 +68,9 @@ public class TypeInfoFactory {
   public static final PrimitiveTypeInfo
       BLOB = new SimplePrimitiveTypeInfo(OdpsType.BLOB);
 
+  public static final PrimitiveTypeInfo
+    VECTOR = new SimplePrimitiveTypeInfo(OdpsType.VECTOR);
+
   private static HashMap<OdpsType, PrimitiveTypeInfo> typeInfoMap = new HashMap<OdpsType, PrimitiveTypeInfo>();
 
   static {
@@ -93,6 +96,7 @@ public class TypeInfoFactory {
     typeInfoMap.put(JSON.getOdpsType(), JSON);
     typeInfoMap.put(GEOGRAPHY.getOdpsType(), GEOGRAPHY);
     typeInfoMap.put(BLOB.getOdpsType(), BLOB);
+    typeInfoMap.put(VECTOR.getOdpsType(), VECTOR);
   }
 
   public static PrimitiveTypeInfo getPrimitiveTypeInfo(OdpsType odpsType) {
@@ -130,5 +134,16 @@ public class TypeInfoFactory {
 
   public static StructTypeInfo getStructTypeInfo(List<String> names, List<TypeInfo> typeInfos) {
     return new SimpleStructTypeInfo(names, typeInfos);
+  }
+
+  /**
+   * 创建向量类型信息
+   *
+   * @param elementType 元素类型，必须为 FLOAT 或 DOUBLE 的 TypeInfo
+   * @param dimension   向量维度，必须大于 0
+   * @return VectorTypeInfo 实例
+   */
+  public static VectorTypeInfo getVectorTypeInfo(TypeInfo elementType, int dimension) {
+    return new SimpleVectorTypeInfo(elementType, dimension);
   }
 }

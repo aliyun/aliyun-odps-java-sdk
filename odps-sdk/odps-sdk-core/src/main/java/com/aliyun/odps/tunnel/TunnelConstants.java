@@ -52,6 +52,8 @@ public interface TunnelConstants {
   public static String SHARD_NUMBER = "shardnumber";
   public static String SHARD_STATUS = "shardstatus";
   public static String LOCAL_ERROR_CODE = "Local Error";
+  public static String UPSERT_FLUSH_WRITE_TIMEOUT = "UpsertFlushWriteTimeout";
+  public static String UPSERT_FLUSH_RESPONSE_TIMEOUT = "UpsertFlushResponseTimeout";
   public static String SEEK_TIME = "timestamp";
   public static String MODE = "mode";
   public static String STREAM_UPLOAD = "streamupload";

@@ -97,9 +97,11 @@ public class TunnelEndpointLocalCacheTest  extends TestBase {
         cache.putTunnelEndpointIntoLocalCache(odps,tunnelEndpoint);
 
         odps.setDefaultProject(project3);
-        assertEquals(cache.getTunnelCache().getIfPresent(odps.getEndpoint()+odps.getDefaultProject()),tunnelEndpoint);
+        assertEquals(tunnelEndpoint,
+            cache.getTunnelCache().getIfPresent(odps.getEndpoint() + "::" + odps.getDefaultProject() + "::null"));
         odps.setDefaultProject(project1);
-        assertEquals(cache.getTunnelCache().getIfPresent(odps.getEndpoint()+odps.getDefaultProject()),null);
+        assertEquals(null,
+            cache.getTunnelCache().getIfPresent(odps.getEndpoint() + "::" + odps.getDefaultProject() + "::null"));
     }
 
     @Test
@@ -122,8 +124,10 @@ public class TunnelEndpointLocalCacheTest  extends TestBase {
         odps.setDefaultProject(project6);
         cache.putTunnelEndpointIntoLocalCache(odps,tunnelEndpoint);
 
-        assertEquals(cache.getTunnelCache().getIfPresent(odps.getEndpoint()+odps.getDefaultProject()),tunnelEndpoint);
+        assertEquals(tunnelEndpoint,
+            cache.getTunnelCache().getIfPresent(odps.getEndpoint() + "::" + odps.getDefaultProject() + "::null"));
         odps.setDefaultProject(project1);
-        assertEquals(cache.getTunnelCache().getIfPresent(odps.getEndpoint()+odps.getDefaultProject()),null);
+        assertEquals(null,
+            cache.getTunnelCache().getIfPresent(odps.getEndpoint() + "::" + odps.getDefaultProject() + "::null"));
     }
 }

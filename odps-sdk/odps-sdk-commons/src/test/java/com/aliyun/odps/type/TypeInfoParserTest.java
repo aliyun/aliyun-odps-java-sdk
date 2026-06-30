@@ -366,4 +366,36 @@ public class TypeInfoParserTest {
     Assert.assertEquals(typeInfo.getTypeName(), "STRUCT<a b:INT,un xs:CHAR(20)>");
     Assert.assertEquals(((StructTypeInfo)typeInfo).getFieldNames().get(0), "a b");
   }
+
+  @Test
+  public void testParseVector() {
+    String name = "VECTOR(FLOAT,1536)";
+    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
+    Assert.assertTrue(typeInfo instanceof VectorTypeInfo);
+    Assert.assertEquals(OdpsType.VECTOR, typeInfo.getOdpsType());
+    Assert.assertEquals("VECTOR(FLOAT,1536)", typeInfo.getTypeName());
+    Assert.assertEquals(TypeInfoFactory.FLOAT, ((VectorTypeInfo) typeInfo).getElementTypeInfo());
+    Assert.assertEquals(1536, ((VectorTypeInfo) typeInfo).getDimension());
+
+    name = "vector(double,768)";
+    typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
+    Assert.assertTrue(typeInfo instanceof VectorTypeInfo);
+    Assert.assertEquals(OdpsType.VECTOR, typeInfo.getOdpsType());
+    Assert.assertEquals("VECTOR(DOUBLE,768)", typeInfo.getTypeName());
+    Assert.assertEquals(TypeInfoFactory.DOUBLE, ((VectorTypeInfo) typeInfo).getElementTypeInfo());
+    Assert.assertEquals(768, ((VectorTypeInfo) typeInfo).getDimension());
+
+    name = "Vector(Float,3)";
+    typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
+    Assert.assertTrue(typeInfo instanceof VectorTypeInfo);
+    Assert.assertEquals(3, ((VectorTypeInfo) typeInfo).getDimension());
+  }
+
+  @Test
+  public void testParseVectorBare() {
+    String name = "VECTOR";
+    TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
+    Assert.assertEquals(OdpsType.VECTOR, typeInfo.getOdpsType());
+    Assert.assertEquals(TypeInfoFactory.VECTOR, typeInfo);
+  }
 }

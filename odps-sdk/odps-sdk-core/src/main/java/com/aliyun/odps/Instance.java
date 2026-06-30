@@ -563,6 +563,17 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     void setJsonSummary(String jsonSummary) {
       this.jsonSummary = jsonSummary;
     }
+
+    private Boolean finalized;
+
+    public Boolean getFinalized() {
+      return finalized;
+    }
+
+    void setFinalized(Boolean finalized) {
+      this.finalized = finalized;
+    }
+
   }
 
   /**
@@ -710,13 +721,41 @@ public class Instance extends com.aliyun.odps.LazyLoad {
    * @return 汇总信息 {@link TaskSummary}
    * @throws OdpsException
    */
-  @SuppressWarnings({"unchecked", "rawtypes"})
   public TaskSummary getTaskSummary(String taskName) throws OdpsException {
+    return getTaskSummary(taskName, false);
+  }
+
+  /**
+   * 获得Instance中Task的运行汇总信息。
+   *
+   * <p>当 withFinalized 为 true 时，额外解析 x-odps-task-finalized header，
+   * 并将结果设置到 {@link TaskSummary#getFinalized()}。如果 summary body 解析失败
+   * 但服务端返回了 finalized header，则返回一个空的 TaskSummary（仅含 finalized 字段），
+   * 而非 null。</p>
+   *
+   * @param taskName
+   *     指定的TaskName
+   * @param withFinalized
+   *     是否解析 finalized header
+   * @return 汇总信息 {@link TaskSummary}，当 withFinalized 为 false 且解析失败时返回 null
+   * @throws OdpsException
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public TaskSummary getTaskSummary(String taskName, boolean withFinalized)
+      throws OdpsException {
     Map<String, String> params = new HashMap<String, String>();
     params.put("instancesummary", null);
     params.put("taskname", taskName);
     Response result = client.request(getResource(), "GET", params, null, null);
-    
+
+    Boolean finalized = null;
+    if (withFinalized) {
+      String finalizedHeader = result.getHeader(Headers.ODPS_TASK_FINALIZED);
+      if (finalizedHeader != null) {
+        finalized = "true".equalsIgnoreCase(finalizedHeader);
+      }
+    }
+
     TaskSummary summary = null;
     try {
       Gson gson = GsonObjectBuilder.get();
@@ -735,8 +774,20 @@ public class Instance extends com.aliyun.odps.LazyLoad {
         }
       }
     } catch (Exception e) {
-      return null;
+      if (!withFinalized) {
+        return null;
+      }
     }
+
+    if (withFinalized) {
+      if (summary == null && finalized != null) {
+        summary = new TaskSummary();
+      }
+      if (summary != null) {
+        summary.setFinalized(finalized);
+      }
+    }
+
     return summary;
   }
 

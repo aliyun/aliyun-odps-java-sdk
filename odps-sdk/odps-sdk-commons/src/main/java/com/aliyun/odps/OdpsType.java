@@ -156,6 +156,12 @@ public enum OdpsType implements Serializable {
   GEOGRAPHY(-2),
 
   /**
+   * 向量类型
+   */
+  VECTOR(-4),
+
+
+  /**
    * Unsupported types from external systems
    */
   UNKNOWN(-1);

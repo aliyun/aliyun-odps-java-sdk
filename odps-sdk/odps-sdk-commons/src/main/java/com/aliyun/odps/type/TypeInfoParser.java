@@ -76,6 +76,9 @@ public class TypeInfoParser {
       case DECIMAL: {
         return parseComplexDecimalTypeInfo();
       }
+      case VECTOR: {
+        return parseVectorTypeInfo();
+      }
       default: {
         return TypeInfoFactory.getPrimitiveTypeInfo(typeCategory);
       }
@@ -210,6 +213,20 @@ public class TypeInfoParser {
       return TypeInfoFactory.DECIMAL;
     }
     return TypeInfoFactory.getDecimalTypeInfo(params[0], params[1]);
+  }
+
+  private TypeInfo parseVectorTypeInfo() {
+    // VECTOR 可带参数 (FLOAT, 1536) 或不带参数
+    if (index < tokens.size() && tokens.get(index).equals("(")) {
+      expect("(");
+      TypeInfo elementType = parseTypeInfoInternal();
+      expect(",");
+      int dimension = getInteger();
+      expect(")");
+      return TypeInfoFactory.getVectorTypeInfo(elementType, dimension);
+    }
+    // 无参数形式，返回基础 VECTOR 类型
+    return TypeInfoFactory.VECTOR;
   }
 
   public static TypeInfo getTypeInfoFromTypeString(String name) {

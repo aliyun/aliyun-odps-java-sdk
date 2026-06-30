@@ -72,6 +72,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   private Map<String, String> properties = new HashMap<>();
   private String serviceName;
   private String taskName;
+  private String offlineTaskName;
   private String runningCluster;
   private String fallbackQuota;
   private int tunnelGetResultMaxRetryTime;
@@ -129,7 +130,10 @@ public class SQLExecutorImpl implements SQLExecutor {
   SQLExecutorImpl(SQLExecutorBuilder builder) throws OdpsException {
     this.properties.putAll(builder.getProperties());
     this.serviceName = builder.getServiceName();
-    this.taskName = builder.getTaskName();
+    String userTaskName = builder.getTaskName();
+    this.taskName = userTaskName != null ? userTaskName : SQLExecutorConstants.DEFAULT_TASK_NAME;
+    this.offlineTaskName = userTaskName != null
+        ? userTaskName : SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME;
     this.odps = builder.getOdps().clone();
     this.executeMode = builder.getExecuteMode();
     this.fallbackPolicy = builder.getFallbackPolicy();
@@ -416,7 +420,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
 
     if (queryInfo.getExecuteMode().equals(ExecuteMode.OFFLINE)) {
-      return queryInfo.getInstance().getTaskProgress(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+      return queryInfo.getInstance().getTaskProgress(offlineTaskName);
     } else {
       return session.getInstance().getTaskProgress(taskName);
     }
@@ -448,7 +452,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (queryInfo.getExecuteMode().equals(ExecuteMode.OFFLINE)) {
       Instance.TaskSummary
           summary =
-          queryInfo.getInstance().getTaskSummary(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+          queryInfo.getInstance().getTaskSummary(offlineTaskName);
       if (summary == null) {
         return null;
       }
@@ -1065,7 +1069,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     } else {
       queryInfo.addLog("Not select query, fetch result by API instead of instance tunnel.");
       Map<String, String> results = queryInfo.getInstance().getTaskResults();
-      String selectResult = results.get(SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME);
+      String selectResult = results.get(offlineTaskName);
       if (StringUtils.isNullOrEmpty(selectResult)) {
         return newEmptyResultSet();
       }
@@ -1127,7 +1131,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         odps,
         odps.getDefaultProject(),
         queryInfo.getSql(),
-        SQLExecutorConstants.DEFAULT_OFFLINE_TASKNAME,
+        offlineTaskName,
         queryInfo.getHint(),
         null,
         priority);

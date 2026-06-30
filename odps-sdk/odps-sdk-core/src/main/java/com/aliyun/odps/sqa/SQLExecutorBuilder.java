@@ -21,7 +21,7 @@ public class SQLExecutorBuilder {
   private boolean useInstanceTunnel = true;
   private Odps odps = null;
   private Map<String, String> properties = new ConcurrentHashMap<>();
-  private String taskName = SQLExecutorConstants.DEFAULT_TASK_NAME;
+  private String taskName = null;
   private String serviceName = SQLExecutorConstants.DEFAULT_SERVICE;
   private String tunnelEndpoint = null;
   // fallback offline quota

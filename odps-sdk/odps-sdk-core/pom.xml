@@ -22,6 +22,11 @@
 
         <dependency>
             <groupId>com.aliyun.odps</groupId>
+            <artifactId>odps-sdk-simplexml</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-arrow-helper</artifactId>
         </dependency>
 
@@ -104,19 +109,6 @@
         <dependency>
             <groupId>com.github.stephenc.jcip</groupId>
             <artifactId>jcip-annotations</artifactId>
-        </dependency>
-        <!-->Dependencies for simple-xml<-->
-        <dependency>
-            <groupId>stax</groupId>
-            <artifactId>stax-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>stax</groupId>
-            <artifactId>stax</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>xpp3</groupId>
-            <artifactId>xpp3</artifactId>
         </dependency>
 
         <dependency>

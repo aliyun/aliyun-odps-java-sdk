@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aliyun.odps</groupId>
+        <artifactId>odps-sdk</artifactId>
+        <version>0.57.3-public</version>
+    </parent>
+
+    <name>ODPS SDK SimpleXML</name>
+    <artifactId>odps-sdk-simplexml</artifactId>
+    <description>A secure XML serialization framework based on Simple XML framework with security fixes</description>
+
+    <dependencies>
+        <!-- Dependencies for simple-xml -->
+        <dependency>
+            <groupId>stax</groupId>
+            <artifactId>stax-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>stax</groupId>
+            <artifactId>stax</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>xpp3</groupId>
+            <artifactId>xpp3</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <author>false</author>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
