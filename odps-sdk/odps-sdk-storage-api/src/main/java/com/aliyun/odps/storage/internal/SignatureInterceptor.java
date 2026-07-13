@@ -46,6 +46,7 @@ public class SignatureInterceptor implements Interceptor {
   static final String DATE = "DATE";
   static final String AUTHORIZATION = "Authorization";
   static final String AUTHORIZATION_STS_TOKEN = "authorization-sts-token";
+  static final String ODPS_BEARER_TOKEN = "x-odps-bearer-token";
 
   private static final Logger log = LoggerFactory.getLogger(SignatureInterceptor.class);
 
@@ -87,14 +88,19 @@ public class SignatureInterceptor implements Interceptor {
     log.debug("CanonicalString: {}", canonicalString);
 
     ICredentials credentials = credentialProvider.getCredentials();
-    String signature =
-      CredentialUtils.getSignature(canonicalString, credentials.getAccessKeyId(),
-                            credentials.getAccessKeySecret());
+    if (CredentialUtils.isBearerToken(credentials)) {
+      // Bearer token: authenticate via the x-odps-bearer-token header, no AK/SK signature.
+      requestBuilder.header(DATE, date).header(ODPS_BEARER_TOKEN, credentials.getSecurityToken());
+    } else {
+      String signature =
+        CredentialUtils.getSignature(canonicalString, credentials.getAccessKeyId(),
+                              credentials.getAccessKeySecret());
 
-    requestBuilder.header(DATE, date).header(AUTHORIZATION, signature);
+      requestBuilder.header(DATE, date).header(AUTHORIZATION, signature);
 
-    if (StringUtils.isNotBlank(credentials.getSecurityToken())) {
-      requestBuilder.header(AUTHORIZATION_STS_TOKEN, credentials.getSecurityToken());
+      if (StringUtils.isNotBlank(credentials.getSecurityToken())) {
+        requestBuilder.header(AUTHORIZATION_STS_TOKEN, credentials.getSecurityToken());
+      }
     }
 
     return chain.proceed(requestBuilder.build());

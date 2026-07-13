@@ -43,6 +43,9 @@ public class CreateWriteStreamResponse {
 
   private String routeToken;
 
+  @SerializedName("AccessToken")
+  private String accessToken;
+
   public WriteSchema getDataSchema() {
     return dataSchema;
   }
@@ -73,5 +76,13 @@ public class CreateWriteStreamResponse {
 
   public void setSchemaVersion(Long schemaVersion) {
     this.schemaVersion = schemaVersion;
+  }
+
+  public String getAccessToken() {
+    return accessToken;
+  }
+
+  public void setAccessToken(String accessToken) {
+    this.accessToken = accessToken;
   }
 }

@@ -45,12 +45,15 @@ public class HttpSettings {
 
   private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
   private static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(120);
+  private static final Duration DEFAULT_WRITE_TIMEOUT = Duration.ofSeconds(300);
   private static final Duration DEFAULT_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
   private static final int DEFAULT_MAX_IDLE_CONNECTIONS = 5;
 
   private Duration connectTimeout;
 
   private Duration readTimeout;
+
+  private Duration writeTimeout;
 
   private int maxIdleConnections;
 
@@ -83,6 +86,10 @@ public class HttpSettings {
    */
   public Duration getReadTimeout() {
     return readTimeout;
+  }
+
+  public Duration getWriteTimeout() {
+    return writeTimeout;
   }
 
   /**
@@ -122,6 +129,7 @@ public class HttpSettings {
 
     private Duration connectTimeout = DEFAULT_CONNECT_TIMEOUT;
     private Duration readTimeout = DEFAULT_READ_TIMEOUT;
+    private Duration writeTimeout = DEFAULT_WRITE_TIMEOUT;
     private int maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
     private Duration keepAliveDuration = DEFAULT_KEEP_ALIVE_DURATION;
     private ProxyConfig proxyConfig;
@@ -154,6 +162,11 @@ public class HttpSettings {
      */
     public HttpSettingsBuilder withReadTimeout(Duration readTimeout) {
       this.readTimeout = readTimeout;
+      return this;
+    }
+
+    public HttpSettingsBuilder withWriteTimeout(Duration writeTimeout) {
+      this.writeTimeout = writeTimeout;
       return this;
     }
 
@@ -202,6 +215,7 @@ public class HttpSettings {
       httpSettings.proxyConfig = this.proxyConfig;
       httpSettings.connectTimeout = this.connectTimeout;
       httpSettings.readTimeout = this.readTimeout;
+      httpSettings.writeTimeout = this.writeTimeout;
       httpSettings.maxIdleConnections = this.maxIdleConnections;
       httpSettings.keepAliveDuration = this.keepAliveDuration;
       return httpSettings;

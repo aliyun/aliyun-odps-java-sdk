@@ -66,6 +66,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 
@@ -395,24 +396,46 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
             }
         }
 
-        SplitOptions.SplitMode splitMode =
-            SplitOptions.SplitMode.fromString(tree.get("SplitMode").getAsString());
-        // splits count，splitMode = size / bucket
         if (tree.has("SplitsCount")) {
             int splitsCount = tree.get("SplitsCount").getAsInt();
             if (splitsCount >= 0) {
-                if (splitMode == SplitOptions.SplitMode.SIZE) {
-                    inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
-                } else if (splitMode == SplitOptions.SplitMode.BUCKET) {
-                    JsonArray splitBucketIdJson = tree.get("SplitBucketId").getAsJsonArray();
-                    List<Integer> splitBucketId = new ArrayList<>(splitsCount);
-                    splitBucketIdJson.forEach(bucketId -> splitBucketId.add(
-                        Integer.parseInt(bucketId.getAsString())));
-                    inputSplitAssigner =
-                        new BucketInputSplitAssigner(sessionId, splitsCount, splitBucketId);
+                if (tree.has("SplitMode")) {
+                    // NEW SERVER: 通过 SplitMode 明确判断
+                    SplitOptions.SplitMode splitMode =
+                      SplitOptions.SplitMode.fromString(tree.get("SplitMode").getAsString());
+                    if (splitMode == SplitOptions.SplitMode.SIZE) {
+                        inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
+                    } else if (splitMode == SplitOptions.SplitMode.BUCKET) {
+                        JsonArray splitBucketIdJson = tree.get("SplitBucketId").getAsJsonArray();
+                        List<Integer> splitBucketId = new ArrayList<>(splitsCount);
+                        splitBucketIdJson.forEach(bucketId -> splitBucketId.add(
+                          Integer.parseInt(bucketId.getAsString())));
+                        inputSplitAssigner =
+                          new BucketInputSplitAssigner(sessionId, splitsCount, splitBucketId);
+                    }
+                } else {
+                    // OLD SERVER: 通过 SplitBucketId 是否存在及是否为空来推断
+                    // FIXME: 老 Server 用 SplitBucketId 是否为空区分 SIZE/BUCKET，存在歧义
+                    //        新 Server 应明确返回 SplitMode 字段
+                    if (tree.has("SplitBucketId")) {
+                        JsonArray splitBucketIdJson = tree.get("SplitBucketId").getAsJsonArray();
+                        // use size == 0 instead of isEmpty because interface compatibility
+                        if (splitBucketIdJson.size() == 0) {
+                            inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
+                        } else {
+                            List<Integer> splitBucketId = new ArrayList<>(splitsCount);
+                            splitBucketIdJson.forEach(bucketId -> splitBucketId.add(
+                              Integer.parseInt(bucketId.getAsString())));
+                            inputSplitAssigner =
+                              new BucketInputSplitAssigner(sessionId, splitsCount, splitBucketId);
+                        }
+                    } else {
+                        inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
+                    }
                 }
             }
         }
+
 
         if (tree.has("LatestVersion")) {
             long latestVersion = tree.get("LatestVersion").getAsLong();
@@ -428,6 +451,10 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
 
         if (tree.has("ExtendedArrowIPCEnabled")) {
             this.extendedArrowIPCEnabled = tree.get("ExtendedArrowIPCEnabled").getAsBoolean();
+        }
+
+        if (tree.has("LatestTxnId")) {
+            this.latestTxnId = tree.get("LatestTxnId").getAsString();
         }
     }
 
@@ -448,5 +475,10 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
     @Override
     public SessionStats getEstimatedStats() {
         return estimateStats;
+    }
+
+    @Override
+    public Optional<String> getLatestTxnId() {
+        return latestTxnId != null ? Optional.of(latestTxnId) : Optional.empty();
     }
 }

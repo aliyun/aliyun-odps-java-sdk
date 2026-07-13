@@ -1,4 +1,29 @@
 # Changelog
+## [Unreleased]
+
+### ✨ New Features
+* **[Storage API]**: **Exactly-once and richer streaming write controls** - Expanded Storage API write sessions and writers with additional write modes, exactly-once stream metadata, row offset propagation, access token handling, and configurable HTTP write timeout support for large or long-running uploads.
+    * *Related APIs*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`
+* **[Commons][Tunnel]**: **Extended `VECTOR` and protobuf stream support** - Added `DoubleVector`, generic vector element access/round-trip support in protobuf record streams, and raw-byte blob handling for Arrow varbinary write paths.
+    * *Related APIs*: `Vector`, `DoubleVector`, `ProtobufRecordStreamReader`, `ProtobufRecordStreamWriter`, `Blob`
+
+### 🚀 Enhancements & Performance
+* **[Project][Table]**: **Better EPV2 and project metadata handling** - Added direct XML-backed project flags for namespace schema and external catalog binding, and cached EPV2 status while listing tables to avoid repeated lookup overhead during reload.
+    * *Related APIs*: `Project.isSupportNamespaceSchema()`, `Project.isExternalCatalogBound()`, `Tables`, `Table`
+* **[Storage API][Blob]**: **Blob MIME type propagation across batch upload/download** - Blob batch upload now preserves per-row MIME type metadata, and batch download exposes it through a typed `BlobDataStream` wrapper.
+    * *Related APIs*: `Blob`, `BlobDataIterator`, `BlobDataStream`, `TableArrowBatchBlobWriter`
+* **[Auth]**: **Bearer token authentication for Storage API** - Storage API HTTP signing now supports bearer-token style credentials in addition to AK/SK and STS flows.
+    * *Related APIs*: `CredentialUtils.isBearerToken()`, `HttpClient`, `SignatureInterceptor`
+
+### 🐛 Bug Fixes
+* **[Tunnel]**: **Detect truncated protobuf record streams explicitly** - Record readers now throw a dedicated `StreamTruncatedException` when the footer is missing, and avoid retrying truncated stream failures as generic IO errors.
+    * *Related APIs*: `ProtobufRecordStreamReader`, `TunnelRecordReader`, `StreamTruncatedException`
+* **[Storage API]**: **Align write session requests with newer server contracts** - Added `WriteMode` propagation to write-session and stream operations, optional commit payloads for stream ids/versions, and richer write-stream response parsing used by new write paths.
+    * *Related APIs*: `StorageStub`, `GetTableWriteSessionResponse`, `GetWriteStreamResponse`, `WriteStreamResponse`
+
+### 📄 Documentation
+* **[Docs]**: **Refresh Storage API write and Blob guides** - Updated Storage API and Blob documentation to cover flush semantics, expanded write modes, batch Blob MIME type handling, and `BlobDataStream` usage.
+
 ## [0.58.1-public] - 2026-06-30
 
 ### 🐛 Bug Fixes

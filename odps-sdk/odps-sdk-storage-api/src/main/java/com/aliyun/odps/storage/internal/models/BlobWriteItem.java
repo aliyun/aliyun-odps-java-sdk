@@ -65,10 +65,14 @@ public class BlobWriteItem {
     @SerializedName("DistributionKey")
     private String distributionKey;
 
-    Header(List<String> partitionValues, long columnIndex, String distributionKey) {
+    @SerializedName("ContentType")
+    private String mimeType;
+
+    Header(List<String> partitionValues, long columnIndex, String distributionKey, String mimeType) {
       this.partitionValues = partitionValues;
       this.columnIndex = columnIndex;
       this.distributionKey = distributionKey;
+      this.mimeType = mimeType;
     }
   }
 
@@ -190,6 +194,7 @@ public class BlobWriteItem {
     private long columnId;
     private String primaryKey;
     private Footer.Checksum checksum;
+    private String mimeType;
 
     public Builder() {
       // Set default checksum to NONE.
@@ -204,6 +209,11 @@ public class BlobWriteItem {
     public Builder partitionValues(List<String> partitionValues) {
       this.partitionValues =
         Objects.requireNonNull(partitionValues, "PartitionValues cannot be null.");
+      return this;
+    }
+
+    public Builder mimeType(String mimeType) {
+      this.mimeType = mimeType;
       return this;
     }
 
@@ -252,7 +262,7 @@ public class BlobWriteItem {
     public BlobWriteItem build() {
       Objects.requireNonNull(data, "Data is required.");
 
-      Header header = new Header(this.partitionValues, this.columnId, this.primaryKey);
+      Header header = new Header(this.partitionValues, this.columnId, this.primaryKey, this.mimeType);
       Footer footer = new Footer(this.checksum);
 
       return new BlobWriteItem(header, footer, this.data);

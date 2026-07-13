@@ -59,10 +59,12 @@ import com.aliyun.odps.exceptions.SchemaMismatchException;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.data.Vector;
 import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.VectorTypeInfo;
 import com.github.luben.zstd.ZstdOutputStream;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
@@ -198,7 +200,8 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
       case DECIMAL:
       case ARRAY:
       case MAP:
-      case STRUCT:{
+      case STRUCT:
+      case VECTOR: {
         out.writeTag(pbIdx, com.google.protobuf.WireFormat.WIRETYPE_LENGTH_DELIMITED);
         break;
       }
@@ -382,6 +385,10 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         writeStruct((Struct) v, (StructTypeInfo) typeInfo);
         break;
       }
+      case VECTOR: {
+        writeVector((Vector) v, (VectorTypeInfo) typeInfo);
+        break;
+      }
       default:
         throw new IOException("Invalid data type: " + typeInfo);
     }
@@ -409,6 +416,15 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         out.writeBoolNoTag(false);
         writeField(v.get(i), type);
       }
+    }
+  }
+
+  private void writeVector(Vector v, VectorTypeInfo typeInfo) throws IOException {
+    TypeInfo elemTypeInfo = typeInfo.getElementTypeInfo();
+    int dim = v.dimension();
+    out.writeInt32NoTag(dim);
+    for (int i = 0; i < dim; i++) {
+      writeField(v.getElement(i), elemTypeInfo);
     }
   }
 

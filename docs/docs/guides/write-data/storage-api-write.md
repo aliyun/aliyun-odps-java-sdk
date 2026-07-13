@@ -436,7 +436,7 @@ if not success:
 |------|------|
 | `withPartition(PartitionSpec)` | 写入指定分区 |
 | `withOverwrite(boolean)` | 是否覆盖已有数据（默认 false） |
-| `withWriteMode(WriteMode)` | 写入模式：BATCH（默认）/ STREAMING |
+| `withWriteMode(WriteMode)` | 写入模式：BATCH（默认）/ BATCH_COMPATIBLE / STREAMING / STREAMING_REALTIME |
 | `withSessionId(String)` | 复用已有 Session |
 
 ### Writer 构建参数
@@ -446,6 +446,11 @@ if not success:
 | `withBufferSize(long)` | 64MB | 写入缓冲区大小（字节） |
 | `withAutoFlushEnabled(boolean)` | true | 缓冲区满时是否自动 flush |
 | `withExecutorService(ExecutorService)` | - | 异步 flush 线程池 |
+| `withBatchBlobUploadEnabled(boolean)` | false | 启用批量 Blob 上传 |
+| `withBlobMimeType(String)` | - | 为批量 Blob 上传指定默认 MIME Type |
+| `withExactlyOnceMode(boolean)` | false | 启用 Exactly-once 写入模式 |
+| `withResume(boolean)` | false | 复用服务端已有 stream 状态继续写入 |
+| `withMaxPendingBuffers(int)` | 1 | 控制异步发送时允许挂起的批次数 |
 
 ### 异步 Flush
 
@@ -480,9 +485,11 @@ writer.finish()
 1. **VectorSchemaRoot 生命周期**：调用方负责管理 `VectorSchemaRoot` 的关闭，必须使用 try-with-resources 或手动 `close()` 防止内存泄漏。
 2. **writeBatch 后可复用**：`writeBatch()` 方法内部会立即序列化数据，调用返回后 `VectorSchemaRoot` 可安全修改或重用。
 3. **Batch 模式必须 commit**：Batch 模式下如果 Session 关闭前未调用 `commit()`，会自动执行 `abort()` 丢弃所有数据。
-4. **Streaming 模式不可回滚**：Streaming 模式下 flush 后的数据无法撤回。
-5. **streamId 唯一性**：同一 Session 下不同 Writer 应使用不同的 `streamId`。
-6. **分区列不需写入**：写入分区表时，分区列不包含在写入数据中，通过 `withPartition()` 指定。
+4. **Streaming 模式不可回滚**：Streaming / StreamingRealtime 模式下 flush 后的数据无法撤回。
+5. **flush 只负责发送，不总是可见**：只有 Streaming / StreamingRealtime 模式在 `flush()` 后立即可见；Batch / BatchCompatible 仍需 `commit()`。
+6. **streamId 唯一性**：同一 Session 下不同 Writer 应使用不同的 `streamId`。
+7. **分区列不需写入**：写入分区表时，分区列不包含在写入数据中，通过 `withPartition()` 指定。
+8. **批量 Blob 上传可携带 MIME Type**：启用 `withBatchBlobUploadEnabled(true)` 后，可通过 `withBlobMimeType()` 设置默认值，或在每个 `Blob` 上单独指定 MIME Type。
 
 ## 相关文档
 

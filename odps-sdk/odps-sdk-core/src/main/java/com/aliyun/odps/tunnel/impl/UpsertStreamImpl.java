@@ -573,7 +573,7 @@ public class UpsertStreamImpl implements UpsertStream {
 
     void startWriteTimeout(Channel channel) {
       writeTimeoutFuture = channel.eventLoop().schedule(() -> failAndClose(
-          channel, newRetryableTimeoutException(
+          channel, newTimeoutException(
               TunnelConstants.UPSERT_FLUSH_WRITE_TIMEOUT,
               "Flush write timed out after %d ms while sending request body to server "
               + "(bucket=%d, records=%d, bytes=%d). The server may have stopped reading the "
@@ -653,7 +653,7 @@ public class UpsertStreamImpl implements UpsertStream {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
       if (cause instanceof ReadTimeoutException) {
         failAndClose(
-            ctx.channel(), newRetryableTimeoutException(
+            ctx.channel(), newTimeoutException(
                 TunnelConstants.UPSERT_FLUSH_RESPONSE_TIMEOUT,
                 "Flush response timed out after %d ms while waiting for server response "
                 + "(bucket=%d, records=%d, bytes=%d). The server may have stopped sending "
@@ -664,11 +664,10 @@ public class UpsertStreamImpl implements UpsertStream {
       }
     }
 
-    private TunnelException newRetryableTimeoutException(String errorCode,
-                                                         String messageTemplate,
-                                                         Object... args) {
+    private TunnelException newTimeoutException(String errorCode,
+                                                String messageTemplate,
+                                                Object... args) {
       TunnelException exception = new TunnelException(String.format(messageTemplate, args));
-      exception.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
       exception.setErrorCode(errorCode);
       return exception;
     }

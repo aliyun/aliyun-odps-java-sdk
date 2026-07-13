@@ -20,9 +20,9 @@
 package com.aliyun.odps.storage.internal.io;
 
 import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -33,6 +33,8 @@ import com.aliyun.odps.data.Blob;
 import com.aliyun.odps.storage.exceptions.BlobDownloadException;
 import com.aliyun.odps.storage.internal.utils.IOUtils;
 import com.aliyun.odps.storage.read.BlobDataIterator;
+import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
 
 /**
  *
@@ -65,6 +67,7 @@ import com.aliyun.odps.storage.read.BlobDataIterator;
 public class BlobDataIteratorImpl implements BlobDataIterator {
 
   private static final Logger log = LoggerFactory.getLogger(BlobDataIteratorImpl.class);
+  private static final Gson GSON = new Gson();
 
   private final DataInputStream sourceStream;
   private final List<Blob> orderedBlobRefs;
@@ -94,18 +97,19 @@ public class BlobDataIteratorImpl implements BlobDataIterator {
   }
 
   @Override
-  public InputStream next() {
+  public BlobDataStream next() {
     if (!hasNext()) {
       throw new NoSuchElementException("No more blobs to iterate.");
     }
 
     try {
       long headerLen = IOUtils.readLittleEndianLong(sourceStream);
-      byte[] header = IOUtils.readNBytes(sourceStream, (int)headerLen);
-      // deal with header util header is not empty
+      byte[] headerBytes = IOUtils.readNBytes(sourceStream, (int) headerLen);
+
+      String mimeType = parseHeaderMimeType(headerBytes);
       long dataLen = IOUtils.readLittleEndianLong(sourceStream);
 
-      LimitedInputStream currentStream = new LimitedInputStream(sourceStream, dataLen);
+      BlobDataStream currentStream = new BlobDataStream(sourceStream, dataLen, mimeType);
       this.previousStream = currentStream;
       this.blobIndex++;
 
@@ -114,6 +118,27 @@ public class BlobDataIteratorImpl implements BlobDataIterator {
     } catch (IOException e) {
       throw finishWithException(e);
     }
+  }
+
+  private static class BlobHeader {
+    @SerializedName("ContentType")
+    String mimeType;
+  }
+
+  private String parseHeaderMimeType(byte[] headerBytes) {
+    if (headerBytes == null || headerBytes.length == 0) {
+      return null;
+    }
+    try {
+      BlobHeader header =
+          GSON.fromJson(new String(headerBytes, StandardCharsets.UTF_8), BlobHeader.class);
+      if (header != null && header.mimeType != null && !header.mimeType.isEmpty()) {
+        return header.mimeType;
+      }
+    } catch (Exception e) {
+      log.warn("Failed to parse blob header: {}", e.getMessage());
+    }
+    return null;
   }
 
   private void ensurePreviousBlobIsConsumed() {

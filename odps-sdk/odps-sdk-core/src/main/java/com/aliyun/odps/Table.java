@@ -420,6 +420,10 @@ public class Table extends LazyLoad {
   private String metadataJson;
   private String extendedInfoJson;
 
+  // Cached EPV2 status to avoid N+1 queries when listing tables
+  // null means not cached, true/false means determined status
+  Boolean cachedIsEpv2;
+
   Table(TableModel model, String project, String schemaName, Odps odps) {
     this.model = model;
     this.model.projectName = project;
@@ -436,29 +440,53 @@ public class Table extends LazyLoad {
   }
   @Override
   public void reload() throws OdpsException {
-    odps.projects().get(model.projectName).executeIfEpv2(
-        () -> {
-          tableSchema = loadEpv2TableFromJson(model.projectName, model.schemaName,model.name);
-          this.setLoaded(true);
-          return null;
-        },
-        () -> {
-          String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
-          Map<String, String> params = initParamsWithSchema();
-          TableModel response = client.request(TableModel.class, resource, "GET", params);
-          if (this.model == null) {
-            this.model = response;
-          } else {
-            this.model.merge(response);
-          }
-          if (response.schema != null) {
-            tableSchema = loadSchemaFromJson(response.schema.content);
-            this.metadataJson = response.schema.content;
-          }
-          setLoaded(true);
-          return null;
+    // Use cached EPV2 status if available to avoid N+1 queries
+    if (cachedIsEpv2 != null) {
+      if (cachedIsEpv2) {
+        // EPV2 branch
+        tableSchema = loadEpv2TableFromJson(model.projectName, model.schemaName, model.name);
+      } else {
+        // Non-EPV2 branch
+        String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+        Map<String, String> params = initParamsWithSchema();
+        TableModel response = client.request(TableModel.class, resource, "GET", params);
+        if (this.model == null) {
+          this.model = response;
+        } else {
+          this.model.merge(response);
         }
-    );
+        if (response.schema != null) {
+          tableSchema = loadSchemaFromJson(response.schema.content);
+          this.metadataJson = response.schema.content;
+        }
+      }
+      setLoaded(true);
+    } else {
+      // No cached status, fall back to original logic with fault tolerance
+      odps.projects().get(model.projectName).executeIfEpv2(
+          () -> {
+            tableSchema = loadEpv2TableFromJson(model.projectName, model.schemaName, model.name);
+            this.setLoaded(true);
+            return null;
+          },
+          () -> {
+            String resource = ResourceBuilder.buildTableResource(model.projectName, model.name);
+            Map<String, String> params = initParamsWithSchema();
+            TableModel response = client.request(TableModel.class, resource, "GET", params);
+            if (this.model == null) {
+              this.model = response;
+            } else {
+              this.model.merge(response);
+            }
+            if (response.schema != null) {
+              tableSchema = loadSchemaFromJson(response.schema.content);
+              this.metadataJson = response.schema.content;
+            }
+            setLoaded(true);
+            return null;
+          }
+      );
+    }
   }
 
   public void reload(TableModel model) throws OdpsException {

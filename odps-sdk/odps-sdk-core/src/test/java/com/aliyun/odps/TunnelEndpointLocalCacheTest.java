@@ -40,7 +40,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
 
-public class TunnelEndpointLocalCacheTest {
+public class TunnelEndpointLocalCacheTest  extends TestBase {
     private final static String endPoint = "http://service.odps.aliyun.com/api";
     private final static String project1 = "localCacheTestProject1";
     private final static String project2 = "localCacheTestProject2";

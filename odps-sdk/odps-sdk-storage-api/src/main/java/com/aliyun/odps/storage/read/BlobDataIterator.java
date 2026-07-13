@@ -20,8 +20,9 @@
 package com.aliyun.odps.storage.read;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Iterator;
+
+import com.aliyun.odps.storage.internal.io.BlobDataStream;
 
 /**
  * 一个用于按顺序迭代批量下载的 Blob 内容的迭代器。
@@ -36,8 +37,9 @@ import java.util.Iterator;
  * <pre>{@code
  * try (BlobDataIterator iterator = blobManager.batchDownload(blobs)) {
  *     while (iterator.hasNext()) {
- *         try (InputStream blobContentStream = iterator.next()) {
- *             // 处理 blobContentStream...
+ *         try (BlobDataStream blobStream = iterator.next()) {
+ *             String mimeType = blobStream.getMimeType();
+ *             // 处理 blobStream...
  *         }
  *     }
  * } catch (BlobDownloadException e) {
@@ -47,10 +49,10 @@ import java.util.Iterator;
  *
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-public interface BlobDataIterator extends Iterator<InputStream>, AutoCloseable {
+public interface BlobDataIterator extends Iterator<BlobDataStream>, AutoCloseable {
 
   @Override
-  InputStream next();
+  BlobDataStream next();
 
   @Override
   void close() throws IOException;

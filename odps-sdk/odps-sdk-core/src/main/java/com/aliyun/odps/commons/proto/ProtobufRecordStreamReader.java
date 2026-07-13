@@ -53,6 +53,7 @@ import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.SimpleJsonValue;
 import com.aliyun.odps.data.SimpleStruct;
 import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.data.Vector;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
 import com.aliyun.odps.tunnel.io.Checksum;
@@ -61,12 +62,15 @@ import com.aliyun.odps.type.ArrayTypeInfo;
 import com.aliyun.odps.type.MapTypeInfo;
 import com.aliyun.odps.type.StructTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.VectorTypeInfo;
 import com.aliyun.odps.utils.StringUtils;
 import com.github.luben.zstd.ZstdInputStream;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+
+import com.aliyun.odps.tunnel.io.StreamTruncatedException;
 
 import net.jpountz.lz4.LZ4FrameInputStream;
 
@@ -85,6 +89,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
     private Checksum crc = new Checksum();
     private Checksum crccrc = new Checksum();
     protected boolean shouldTransform = false;
+    private boolean footerSeen = false;
 
     public ProtobufRecordStreamReader() {
 
@@ -202,6 +207,11 @@ public class ProtobufRecordStreamReader implements RecordReader {
             int checkSum = 0;
 
             if (in.isAtEnd()) {
+                if (!footerSeen) {
+                    throw new StreamTruncatedException(
+                        "Stream ended unexpectedly without receiving the footer tag (TUNNEL_META_COUNT). "
+                        + "The data stream may be truncated. Records read so far: " + count, count);
+                }
                 return null;
             }
 
@@ -240,6 +250,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
                 if (!in.isAtEnd()) {
                     throw new IOException("Expect at the end of stream, but not.");
                 }
+                footerSeen = true;
                 return null;
             }
             // tag index starts from 1.
@@ -409,6 +420,9 @@ public class ProtobufRecordStreamReader implements RecordReader {
             case STRUCT: {
                 return readStruct(type);
             }
+            case VECTOR: {
+                return readVector((VectorTypeInfo) type);
+            }
 
             case GEOGRAPHY: {
                 return JtsGeographyObject.fromWkb(readBytes());
@@ -475,6 +489,16 @@ public class ProtobufRecordStreamReader implements RecordReader {
         }
 
         return new SimpleStruct(typeInfo, values);
+    }
+
+    private Vector readVector(VectorTypeInfo typeInfo) throws IOException {
+        int dim = in.readUInt32();
+        TypeInfo elemTypeInfo = typeInfo.getElementTypeInfo();
+        List<Number> values = new ArrayList<>(dim);
+        for (int i = 0; i < dim; i++) {
+            values.add((Number) readField(elemTypeInfo));
+        }
+        return Vector.fromList(values, elemTypeInfo.getOdpsType());
     }
 
     public List readArray(TypeInfo type) throws IOException {

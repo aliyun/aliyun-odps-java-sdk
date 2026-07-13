@@ -29,7 +29,7 @@ import java.util.Objects;
  *
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-public final class LimitedInputStream extends InputStream {
+public class LimitedInputStream extends InputStream {
 
   private final InputStream underlyingStream;
   private long remainingBytes;

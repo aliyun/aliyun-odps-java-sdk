@@ -34,6 +34,9 @@ public class GetTableWriteSessionResponse {
   @SerializedName("Streams")
   protected Map<String, Long> streams;
 
+  @SerializedName("MinUncommittedStagingId")
+  protected String minUncommittedStagingId;
+
   protected String routeToken;
 
   public Map<String, Long> getStreams() {
@@ -42,6 +45,10 @@ public class GetTableWriteSessionResponse {
 
   public String getWarningMessage() {
     return warningMessage;
+  }
+
+  public String getMinUncommittedStagingId() {
+    return minUncommittedStagingId;
   }
 
   public String getRouteToken() {

@@ -17,24 +17,30 @@
  * under the License.
  */
 
-package com.aliyun.odps.storage.internal;
+package com.aliyun.odps.storage.internal.io;
+
+import java.io.InputStream;
 
 /**
+ * An InputStream wrapper that carries MIME type metadata from the blob header.
+ *
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-public class Constants {
+public class BlobDataStream extends LimitedInputStream {
 
-  public static final String OPERATION_COLUMN_NAME = "__operation";
+  private final String mimeType;
 
-  public static final byte OPERATION_UPSERT = 'U';
+  public BlobDataStream(InputStream source, long limit, String mimeType) {
+    super(source, limit);
+    this.mimeType = mimeType;
+  }
 
-  public static final byte OPERATION_DELETE = 'D';
-
-  public static final String ROUTE_TOKEN_HEADER = "x-odps-max-storage-route-token";
-
-  public static final String WRITE_ACCESS_TOKEN_HEADER = "x-odps-max-storage-write-access-token";
-
-  public static final String AUTO_COMMIT_SESSION_ID = "default";
-
-  public static final String AUTO_COMMIT_DEFAULT_STREAM_ID = "default";
+  /**
+   * Returns the MIME type of this blob data, as set during upload.
+   *
+   * @return the MIME type string (e.g. "image/png"), or {@code null} if not set
+   */
+  public String getMimeType() {
+    return mimeType;
+  }
 }

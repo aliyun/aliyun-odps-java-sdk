@@ -324,6 +324,9 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
       }
       offset += 1;
       return record;
+    } catch (StreamTruncatedException e) {
+      // 流截断不应重试，直接抛出
+      throw e;
     } catch (IOException e) {
       if (++retryCount > retryTimes || offset >= count /* no more data */ || !needRetry()) {
         throw e;

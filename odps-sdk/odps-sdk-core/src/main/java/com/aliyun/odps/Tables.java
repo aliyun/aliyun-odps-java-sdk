@@ -425,6 +425,8 @@ public class Tables implements Iterable<Table> {
         tableModel.name = t.get(1).toString();
         Table table = new Table(tableModel, projectName, schemaName, odps);
         table.setIsExtendInfoLoaded(true);
+        // This method is only called in EPV2 branch, so cache the status
+        table.cachedIsEpv2 = true;
         tables.add(table);
       }
       return tables;
@@ -464,6 +466,10 @@ public class Tables implements Iterable<Table> {
             () -> {
               tables.set(getExternalPrjTablelist(projectName));
               params.put("marker", "");
+              // Cache EPV2 status to avoid N+1 queries when reloading table schemas
+              for (Table table : tables.get()) {
+                table.cachedIsEpv2 = true;
+              }
               return tables.get();
             },
             () -> {
@@ -471,6 +477,8 @@ public class Tables implements Iterable<Table> {
                                                        params);
               for (TableModel model : resp.tables) {
                 Table t = new Table(model, projectName, schemaName, odps);
+                // Cache EPV2 status to avoid N+1 queries when reloading table schemas
+                t.cachedIsEpv2 = false;
                 tables.get().add(t);
               }
               params.put("marker", resp.marker);

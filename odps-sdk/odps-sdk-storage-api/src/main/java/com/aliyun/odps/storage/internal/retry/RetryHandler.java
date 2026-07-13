@@ -86,8 +86,10 @@ public class RetryHandler {
   public <T> T executeWithRetry(Callable<T> action, IntConsumer errorCodeHandler)
       throws Exception {
     int attempt = 1;
+    long startTime = 0;
     while (true) {
       try {
+        startTime = System.currentTimeMillis();
         return action.call();
       } catch (Exception e) {
         RetryPolicy policy = getRetryPolicy(e);
@@ -99,7 +101,7 @@ public class RetryHandler {
         if (!policy.shouldRetry(e, attempt)) {
           throw e;
         }
-        logRetryAttempt(e, attempt, policy);
+        logRetryAttempt(e, attempt, policy, System.currentTimeMillis() - startTime);
         if (retryLogger != null) {
           retryLogger.onRetryLog(e, attempt, policy.getRetryWaitTime(attempt));
         }
@@ -116,7 +118,7 @@ public class RetryHandler {
     }
   }
 
-  private void logRetryAttempt(Exception e, int attempt, RetryPolicy policy) {
+  private void logRetryAttempt(Exception e, int attempt, RetryPolicy policy, long failTime) {
     int httpStatus = 0;
     String errorCode = "N/A";
     String requestId = "N/A";
@@ -127,8 +129,8 @@ public class RetryHandler {
     }
     long waitTimeMs = policy.getRetryWaitTime(attempt);
 
-    log.warn("Request failed (attempt {}), will retry after {}ms. HTTP: {}, Error: {}, RequestId: {}",
-             attempt, waitTimeMs, httpStatus, errorCode, requestId);
+    log.warn("Request failed (attempt {}), will retry after {}ms. HTTP: {}, Error: {}, RequestId: {}, Waste {}ms",
+             attempt, waitTimeMs, httpStatus, errorCode, requestId, failTime + waitTimeMs);
   }
 
   private String getPolicyName(RetryPolicy policy) {

@@ -43,7 +43,9 @@ TableWriteSession session = client.createTableWriteSessionBuilder(tableId)
 | 枚举值 | 说明 |
 |--------|------|
 | `WriteMode.BATCH` | 批量模式（默认），`commit()` 后数据可见，支持事务回滚 |
+| `WriteMode.BATCH_COMPATIBLE` | 批量兼容模式，语义与 `BATCH` 一致，但使用兼容型存储布局 |
 | `WriteMode.STREAMING` | 流式模式，`flush()` 后数据立即可见，不支持回滚 |
+| `WriteMode.STREAMING_REALTIME` | 实时流式模式，客户端语义与 `STREAMING` 一致，但服务端采用更低延迟的实时链路 |
 
 ## TableWriteSessionBuilder
 
@@ -61,7 +63,7 @@ public TableWriteSessionBuilder withWriteMode(WriteMode writeMode)
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `writeMode` | `WriteMode` | `BATCH`（默认）或 `STREAMING` |
+| `writeMode` | `WriteMode` | `BATCH`（默认）、`BATCH_COMPATIBLE`、`STREAMING` 或 `STREAMING_REALTIME` |
 
 ---
 
@@ -206,6 +208,10 @@ public WriteMode getWriteMode()
 | `withAutoFlushEnabled(boolean)` | 是否启用自动 Flush，默认 `true` |
 | `withExecutorService(ExecutorService)` | 异步 Flush 线程池 |
 | `withBatchBlobUploadEnabled(boolean)` | 启用批量 Blob 上传 |
+| `withBlobMimeType(String)` | 为批量 Blob 上传设置默认 MIME Type |
+| `withExactlyOnceMode(boolean)` | 启用 Exactly-once 写入模式 |
+| `withResume(boolean)` | 基于已有 stream 元数据恢复写入 |
+| `withMaxPendingBuffers(int)` | 控制异步发送时允许挂起的批次数 |
 | `build()` | 构建 `ArrowWriter`（实际为 `TableArrowWriter`） |
 
 ---
@@ -239,6 +245,9 @@ public void writeBatch(VectorSchemaRoot root)
 ```java
 public void flush()
 ```
+
+- **Batch 模式**：`flush()` 仅把数据推送到服务端暂存区，仍需 `commit()` 才会对外可见
+- **Streaming / StreamingRealtime 模式**：`flush()` 返回后数据即可见
 
 ---
 

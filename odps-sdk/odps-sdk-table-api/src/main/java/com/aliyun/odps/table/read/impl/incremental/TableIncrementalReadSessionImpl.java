@@ -82,6 +82,10 @@ public class TableIncrementalReadSessionImpl extends TableBatchReadSessionImpl
         }
         incrementalRequest.addProperty("Mode", incrementalOptions.getIncrementalMode().toString());
 
+        // Add StartTxnId if present
+        incrementalOptions.getStartTxnId().ifPresent(txnId ->
+            incrementalRequest.addProperty("StartTxnId", txnId));
+
         sessionRequest.add("IncrementalReadOptions", incrementalRequest);
 
         return sessionRequest;
@@ -129,6 +133,11 @@ public class TableIncrementalReadSessionImpl extends TableBatchReadSessionImpl
                 IncrementalOptions.IncrementalMode incrementalMode =
                         IncrementalOptions.IncrementalMode.fromString(mode);
                 builder.withIncrementalMode(incrementalMode);
+            }
+
+            if (options.has("StartTxnId")) {
+                String startTxnId = options.get("StartTxnId").getAsString();
+                builder.startTxnId(startTxnId);
             }
 
             this.incrementalOptions = builder.build();

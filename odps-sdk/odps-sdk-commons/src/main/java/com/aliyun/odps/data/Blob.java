@@ -24,6 +24,10 @@ public class Blob implements Serializable {
 
     private transient final InputStream rawStream; // 原始流
 
+    private transient final byte[] rawBytes; // 原始字节（批量上传模式使用）
+
+    private final String mimeType; // Blob 的 MIME 类型（可选）
+
     private transient Function<Void, Blob> uploadTask; // 懒加载的上传任务
 
     /**
@@ -32,23 +36,54 @@ public class Blob implements Serializable {
      * @param blobReference the reference bytes
      * @throws IllegalArgumentException if referenceBytes is null
      */
-    private Blob(InputStream rawStream, String blobReference, Function<Void, Blob> uploadTask) {
+    private Blob(InputStream rawStream, byte[] rawBytes, String blobReference,
+                 Function<Void, Blob> uploadTask, String mimeType) {
         this.rawStream = rawStream;
+        this.rawBytes = rawBytes;
         this.blobReference = blobReference;
         this.uploadTask = uploadTask;
+        this.mimeType = mimeType;
     }
 
     public static Blob fromInputStream(InputStream stream) {
         // 创建一个最原始的、只包含流的Blob
-        return new Blob(stream, null, null);
+        return new Blob(stream, null, null, null, null);
+    }
+
+    public static Blob fromInputStream(InputStream stream, String mimeType) {
+        return new Blob(stream, null, null, null, mimeType);
+    }
+
+    public static Blob fromBytes(byte[] data) {
+        return new Blob(null, data, null, null, null);
+    }
+
+    public static Blob fromBytes(byte[] data, String mimeType) {
+        return new Blob(null, data, null, null, mimeType);
     }
 
     public static Blob fromReference(String blobReference) {
-        return new Blob(null, blobReference, null);
+        return new Blob(null, null, blobReference, null, null);
     }
 
     public boolean isRawStream() {
         return this.rawStream != null;
+    }
+
+    public InputStream getRawStream() {
+        return rawStream;
+    }
+
+    public boolean isRawBytes() {
+        return this.rawBytes != null;
+    }
+
+    public byte[] getRawBytes() {
+        return rawBytes;
+    }
+
+    public String getMimeType() {
+        return mimeType;
     }
 
     public boolean isPending() {
@@ -60,7 +95,7 @@ public class Blob implements Serializable {
             throw new IllegalStateException("Cannot upload null blob.");
         }
         Function<Void, Blob> task = (ignored) -> uploader.apply(this.rawStream, columnId);
-        return new Blob(null, null, task);
+        return new Blob(null, null, null, task, this.mimeType);
     }
 
     public String getReferenceAndUploadIfNecessary() {

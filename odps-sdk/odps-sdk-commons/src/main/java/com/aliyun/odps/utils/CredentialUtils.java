@@ -33,6 +33,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
 
+import com.aliyun.credentials.api.ICredentials;
+
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
@@ -56,6 +58,14 @@ public class CredentialUtils {
   public static final String DATE = "Date";
   public static final String AUTHORIZATION = "Authorization";
   public static final String AUTHORIZATION_STS_TOKEN = "authorization-sts-token";
+  public static final String ODPS_BEARER_TOKEN = "x-odps-bearer-token";
+
+  public static boolean isBearerToken(ICredentials credentials) {
+    return credentials != null
+        && StringUtils.isBlank(credentials.getAccessKeyId())
+        && StringUtils.isBlank(credentials.getAccessKeySecret())
+        && StringUtils.isNotBlank(credentials.getSecurityToken());
+  }
 
   public static String buildCanonicalString(String method, String resource,
                                             Map<String, String> params,

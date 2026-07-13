@@ -32,6 +32,9 @@ public class CreateWriteStreamRequest {
   @SerializedName("StreamVersion")
   private Long streamVersion;
 
+  @SerializedName("ExactlyOnceMode")
+  private Boolean exactlyOnceMode;
+
   public String getStreamId() {
     return streamId;
   }
@@ -46,5 +49,13 @@ public class CreateWriteStreamRequest {
 
   public void setStreamVersion(long streamVersion) {
     this.streamVersion = streamVersion;
+  }
+
+  public Boolean getExactlyOnceMode() {
+    return exactlyOnceMode;
+  }
+
+  public void setExactlyOnceMode(Boolean exactlyOnceMode) {
+    this.exactlyOnceMode = exactlyOnceMode;
   }
 }

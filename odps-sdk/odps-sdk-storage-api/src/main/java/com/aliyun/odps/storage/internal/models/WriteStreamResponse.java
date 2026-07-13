@@ -22,33 +22,43 @@ package com.aliyun.odps.storage.internal.models;
 import com.google.gson.annotations.SerializedName;
 
 /**
+ * Response model for WriteStream API.
+ * Used to parse the response body from write operations in Exactly-Once mode.
+ *
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
-public class GetWriteStreamResponse extends CreateWriteStreamResponse {
+public class WriteStreamResponse {
 
-  protected Integer status;
+  @SerializedName("WarningMessage")
+  private String warningMessage;
 
-  protected Long recordCount;
+  @SerializedName("ExactlyOnceRowOffset")
+  private Long exactlyOnceRowOffset;
 
-  @SerializedName("LatestSchemaVersion")
-  private Long latestSchemaVersion;
+  @SerializedName("StagingId")
+  private String stagingId;
 
-  @SerializedName("RowOffset")
-  private Long rowOffset;
-
-  public Integer getStatus() {
-    return status;
+  public String getWarningMessage() {
+    return warningMessage;
   }
 
-  public Long getRecordCount() {
-    return recordCount;
+  public void setWarningMessage(String warningMessage) {
+    this.warningMessage = warningMessage;
   }
 
-  public Long getLatestSchemaVersion() {
-    return latestSchemaVersion;
+  public Long getExactlyOnceRowOffset() {
+    return exactlyOnceRowOffset;
   }
 
-  public Long getRowOffset() {
-    return rowOffset;
+  public void setExactlyOnceRowOffset(Long exactlyOnceRowOffset) {
+    this.exactlyOnceRowOffset = exactlyOnceRowOffset;
+  }
+
+  public String getStagingId() {
+    return stagingId;
+  }
+
+  public void setStagingId(String stagingId) {
+    this.stagingId = stagingId;
   }
 }

@@ -19,10 +19,15 @@
 
 package com.aliyun.odps.storage.write;
 
+import java.util.List;
+
+import com.aliyun.odps.storage.internal.models.GetTableWriteSessionResponse;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.storage.ClientException;
+import com.aliyun.odps.storage.ServiceException;
+import com.aliyun.odps.storage.internal.Constants;
 import com.aliyun.odps.storage.internal.StorageStub;
 import com.aliyun.odps.table.TableIdentifier;
 
@@ -59,6 +64,8 @@ import com.aliyun.odps.table.TableIdentifier;
  *
  * <p>The session must be either committed or aborted to properly clean up resources
  * in BATCH mode. In STREAMING mode, data is visible after flush and no commit is needed.
+ * If {@link TableWriteSessionBuilder#withPartition} is set, STREAMING still skips an explicit
+ * commit, but the client creates a write session first so {@code PartialPartitionSpec} is sent.
  */
 public class TableWriteSession implements AutoCloseable {
 
@@ -97,6 +104,19 @@ public class TableWriteSession implements AutoCloseable {
     this.writeMode = writeMode != null ? writeMode : WriteMode.BATCH;
     this.routeToken = routeToken;
   }
+
+  /**
+   * Updates the route token if it has not been set yet. This is called when a writer is
+   * created for a streaming session, where the initial route token is {@code null} and
+   * is obtained from the {@code createTableWriteStream} response.
+   *
+   * @param token the route token returned by the server
+   */
+  void updateRouteToken(String token) {
+    if (this.routeToken == null && token != null) {
+      this.routeToken = token;
+    }
+  }
   /**
    * Gets the unique identifier of this write session.
    *
@@ -117,6 +137,42 @@ public class TableWriteSession implements AutoCloseable {
 
 
   /**
+   * Queries the server for the minimum uncommitted staging id of this streaming write session.
+   *
+   * <p>The returned value is the smallest staging id currently held by the streaming
+   * auto-committer (i.e. the next staging batch to be committed). It is useful for reasoning
+   * about async visibility progress of streaming writes.
+   *
+   * <p>Only valid in STREAMING mode. In BATCH mode, throws
+   * {@link UnsupportedOperationException}.
+   *
+   * @return the min uncommitted staging id, may be {@code null} if the server has no staging
+   *     batch pending (e.g. all flushed data already committed)
+   * @throws ClientException if the server returns an error
+   * @throws UnsupportedOperationException if not called on a streaming write session
+   */
+  public String getMinUncommittedStagingId() {
+    if (!writeMode.isStreaming() || !Constants.AUTO_COMMIT_SESSION_ID.equals(id)) {
+      throw new UnsupportedOperationException(
+        "getMinUncommittedStagingId is only supported on streaming write with default session");
+    }
+    try {
+      GetTableWriteSessionResponse resp =
+          storageStub.getTableWriteSession(tableId, id, routeToken, writeMode);
+      return resp.getMinUncommittedStagingId();
+    } catch (ServiceException e) {
+      // Session not found means the auto-committer session has expired on the server side.
+      // This typically indicates that all staging data has already been committed and the
+      // session was cleaned up. Treat it as "no uncommitted staging" (return null).
+      if (e.getHttpStatus() == 404) {
+        return null;
+      }
+      throw e;
+    }
+  }
+
+
+  /**
    * Creates a new builder for a writer for this write session.
    *
    * <p>This method initializes a writer builder that can be configured with
@@ -133,7 +189,21 @@ public class TableWriteSession implements AutoCloseable {
       throw new IllegalArgumentException("streamVersion must be >= 1, but was: " + streamVersion);
     }
     return new TableWriterBuilder(storageStub, tableId, staticPartitionSpec, allocator, id,
-                                  streamId, streamVersion, writeMode, routeToken);
+                                  streamId, streamVersion, writeMode, routeToken, this);
+  }
+
+  /**
+   * Creates a new builder for a writer for this write session.
+   *
+   * <p>This method is intended for Exactly-Once mode where streamVersion is not required.
+   * The streamVersion will be set to 0 internally.
+   *
+   * @param streamId The unique identifier for the write stream
+   * @return A new TableWriterBuilder instance to configure the writer
+   */
+  public TableWriterBuilder createWriterBuilder(String streamId) {
+    return new TableWriterBuilder(storageStub, tableId, staticPartitionSpec, allocator, id,
+                                  streamId, 0, writeMode, routeToken, this);
   }
 
   /**
@@ -143,20 +213,30 @@ public class TableWriteSession implements AutoCloseable {
    * After this call, all data written through the writers associated with this session
    * will be visible in the table. The session is automatically closed after committing.
    *
-   * <p>Note: In STREAMING mode, this method is a no-op since data is already visible
-   * after flush.
+   * <p>Note: For legacy unpartitioned streaming (session id {@code default}), this is a no-op.
+   * For STREAMING with an explicit write session, this calls {@code TableCommitWriteSession}.
    *
    * @throws IllegalStateException if the session is already closed
    */
   public void commit() {
+    commit(null, null);
+  }
+
+  /**
+   * Commits a batch write session. Pass closed stream ids and versions (same as used for
+   * {@link TableWriteSession#createWriterBuilder(String, long)}) when the service requires
+   * them in the commit body; otherwise use {@link #commit()}.
+   */
+  public void commit(List<String> streamIds, List<Long> streamVersions) {
     checkNotClosed();
-    if (writeMode == WriteMode.STREAMING) {
-      // In streaming mode, commit is not needed as data is visible after flush
+    if (writeMode.isStreaming()
+        && Constants.AUTO_COMMIT_SESSION_ID.equals(id)) {
+      // Unpartitioned streaming: no TableCreateWriteSession; data visible after flush.
       committed = true;
       closed = true;
       return;
     }
-    storageStub.commitTableWriteSession(tableId, id, routeToken);
+    storageStub.commitTableWriteSession(tableId, id, routeToken, streamIds, streamVersions, writeMode);
     committed = true;
     closed = true;
   }
@@ -168,19 +248,19 @@ public class TableWriteSession implements AutoCloseable {
    * After this call, all data written through the writers associated with this session
    * will be discarded. The session is automatically closed after aborting.
    *
-   * <p>Note: In STREAMING mode, this method is a no-op since data is already visible
-   * after flush and cannot be aborted.
+   * <p>Note: Legacy {@code default}-session streaming skips the HTTP abort; explicit sessions
+   * call {@code TableAbortWriteSession}.
    */
   public void abort() {
     if (closed) {
       return;
     }
-    if (writeMode == WriteMode.STREAMING) {
-      // In streaming mode, abort is not applicable as data is already visible
+    if (writeMode.isStreaming()
+        && Constants.AUTO_COMMIT_SESSION_ID.equals(id)) {
       closed = true;
       return;
     }
-    storageStub.abortTableWriteSession(tableId, id, routeToken);
+    storageStub.abortTableWriteSession(tableId, id, routeToken, writeMode);
     closed = true;
   }
 

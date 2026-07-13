@@ -7,7 +7,7 @@ import com.aliyun.odps.OdpsType;
 /**
  * Vector 类型的实现类。
  *
- * <p>向量类型表示固定维度的浮点数组，支持 FLOAT 和 DOUBLE 元素类型。
+ * <p>向量类型表示固定维度的浮点数组。
  * 类型名称格式为 {@code VECTOR(FLOAT,1536)} 或 {@code VECTOR(DOUBLE,768)}。
  */
 class SimpleVectorTypeInfo implements VectorTypeInfo {
@@ -20,18 +20,12 @@ class SimpleVectorTypeInfo implements VectorTypeInfo {
   /**
    * 创建向量类型信息
    *
-   * @param elementType 元素类型，必须为 FLOAT 或 DOUBLE
+   * @param elementType 元素类型
    * @param dimension   向量维度，必须大于 0
    */
   SimpleVectorTypeInfo(TypeInfo elementType, int dimension) {
     if (elementType == null) {
       throw new IllegalArgumentException("Vector element type cannot be null.");
-    }
-
-    OdpsType odpsType = elementType.getOdpsType();
-    if (odpsType != OdpsType.FLOAT && odpsType != OdpsType.DOUBLE) {
-      throw new IllegalArgumentException(
-          "Vector element type must be FLOAT or DOUBLE, but got: " + odpsType);
     }
 
     if (dimension <= 0) {

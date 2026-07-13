@@ -21,7 +21,9 @@ package com.aliyun.odps.storage.write;
 
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
@@ -49,6 +51,10 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
   private final List<Integer> blobColumnIndices;
   private final List<Long> blobColumnIds;
   private final BlobWriteItem.ChecksumType blobChecksumType;
+  private final String blobMimeType;
+
+  // Per-batch accumulator for per-row mimeType: columnIndex → list of mimeType (indexed by row)
+  private final Map<Integer, List<String>> rowMimeTypeAccumulator = new HashMap<>();
 
   TableArrowBatchBlobWriter(TableWriterBuilder builder,
                             CreateWriteStreamResponse response) {
@@ -57,6 +63,7 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
 
     this.blobColumnIds = new ArrayList<>();
     this.blobChecksumType = builder.getBlobChecksumType();
+    this.blobMimeType = builder.getBlobMimeType();
 
     List<Column> columns = tableSchema.getColumns();
     for (int i = 0; i < columns.size(); i++) {
@@ -66,6 +73,21 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
         blobColumnIds.add(column.getColumnId());
       }
     }
+  }
+
+  /**
+   * Accumulate per-row mimeType for a specific blob column.
+   * Called by {@link AppendTableRecordWriter} for each row before writeBatch.
+   *
+   * @param columnIndex the schema column index of the blob column
+   * @param mimeType the mimeType for this row (null if not set)
+   */
+  void accumulateRowMimeType(int columnIndex, String mimeType) {
+    rowMimeTypeAccumulator.computeIfAbsent(columnIndex, k -> new ArrayList<>()).add(mimeType);
+  }
+
+  List<Integer> getBlobColumnIndices() {
+    return blobColumnIndices;
   }
 
   @Override
@@ -78,6 +100,7 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
       processBlobColumns(root);
     }
 
+    rowMimeTypeAccumulator.clear();
     super.writeBatch(root);
   }
 
@@ -106,6 +129,7 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
           .data(blobData)
           .withChecksum(blobChecksumType)
           .columnId(columnId)
+          .mimeType(resolveRowMimeType(columnIndex, row))
           .distributionKey(generateDistributionKeyString(root, row, primaryKeyColumnIndices))
           .build();
         itemsToWrite.add(item);
@@ -130,5 +154,17 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
         ((VarBinaryVector) blobVector).setSafe(originalRow, Base64.getDecoder().decode(reference));
       }
     }
+  }
+
+  /**
+   * Resolve mimeType for a specific row and column.
+   * Per-row mimeType (from accumulator) takes precedence over builder-level default.
+   */
+  private String resolveRowMimeType(int columnIndex, int row) {
+    List<String> rowMimes = rowMimeTypeAccumulator.get(columnIndex);
+    if (rowMimes != null && row < rowMimes.size() && rowMimes.get(row) != null) {
+      return rowMimes.get(row);
+    }
+    return blobMimeType;
   }
 }

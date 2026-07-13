@@ -45,6 +45,8 @@ public class IncrementalOptions implements Serializable {
 
     private TableSnapshotSpec.Type type;
 
+    private String startTxnId;
+
     private IncrementalOptions() {
         this.mode = IncrementalMode.APPEND;
         this.type = TableSnapshotSpec.Type.UNSPECIFIED;
@@ -74,6 +76,10 @@ public class IncrementalOptions implements Serializable {
         return type;
     }
 
+    public Optional<String> getStartTxnId() {
+        return Optional.ofNullable(startTxnId);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -83,13 +89,14 @@ public class IncrementalOptions implements Serializable {
                 Objects.equals(endVersion, that.endVersion) &&
                 Objects.equals(startTimestamp, that.startTimestamp) &&
                 Objects.equals(endTimestamp, that.endTimestamp) &&
+                Objects.equals(startTxnId, that.startTxnId) &&
                 mode == that.mode &&
                 type == that.type;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(startVersion, endVersion, startTimestamp, endTimestamp, mode, type);
+        return Objects.hash(startVersion, endVersion, startTimestamp, endTimestamp, startTxnId, mode, type);
     }
 
     public static IncrementalOptions.Builder newBuilder() {
@@ -165,6 +172,11 @@ public class IncrementalOptions implements Serializable {
                     "Incremental options type is " + options.type);
             this.options.endTimestamp = TableAsOfTimestamp.create(timestamp);
             this.options.type = TableSnapshotSpec.Type.TIMESTAMP;
+            return this;
+        }
+
+        public IncrementalOptions.Builder startTxnId(String startTxnId) {
+            this.options.startTxnId = startTxnId;
             return this;
         }
 

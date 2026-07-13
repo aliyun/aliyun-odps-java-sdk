@@ -7,6 +7,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.BooleanUtils;
+import org.apache.commons.lang3.StringUtils;
+
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.DateUtils;
 import com.aliyun.odps.simpleframework.xml.Serializer;
@@ -164,5 +167,35 @@ public class SimpleXmlUtils {
               .fromJson(value, new TypeToken<Map<String, String>>() {}.getType());
         }
       }
+    }
+
+    public static class BooleanConvertor implements Converter<Boolean> {
+        @Override
+        public void write(OutputNode node, Boolean value) throws Exception {
+            node.setValue(value == null ? "" : Boolean.toString(value));
+            node.commit();
+        }
+
+        @Override
+        public Boolean read(InputNode node) throws Exception {
+            String value = node.getValue();
+
+            if (StringUtils.isBlank(value)) {
+                return null;
+            }
+            String trim = value.trim();
+            if (trim.equals("0")) {
+                return false;
+            } else if (trim.equals("1")) {
+                return true;
+            }
+            Boolean result = BooleanUtils.toBooleanObject(trim);
+            if (result == null) {
+                throw new IllegalArgumentException(
+                  String.format("Cannot parse '%s' as boolean. " +
+                                "Expected: true/false/yes/no/on/off/1/0", value));
+            }
+            return result;
+        }
     }
 }

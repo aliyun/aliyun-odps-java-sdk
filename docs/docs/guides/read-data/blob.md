@@ -42,8 +42,8 @@ import com.aliyun.odps.data.RecordReader;
 
 import org.apache.arrow.vector.ipc.ArrowReader;
 
-import java.io.InputStream;
 import java.nio.file.Files;
+import com.aliyun.odps.storage.internal.io.BlobDataStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -88,12 +88,13 @@ public class BlobDownloadExample {
             try (BlobDataIterator iterator = blobManager.batchDownload(blobs)) {
                 int index = 0;
                 while (iterator.hasNext()) {
-                    try (InputStream data = iterator.next()) {
+                    try (BlobDataStream data = iterator.next()) {
                         byte[] content = data.readAllBytes();
+                        String mimeType = data.getMimeType();
                         // 保存到本地文件
                         Path outputPath = Paths.get("/tmp/images/" + ids.get(index) + ".jpg");
                         Files.write(outputPath, content);
-                        System.out.println("已下载: " + outputPath + " (" + content.length + " bytes)");
+                        System.out.println("已下载: " + outputPath + " (" + content.length + " bytes, mime=" + mimeType + ")");
                     }
                     index++;
                 }
@@ -164,7 +165,7 @@ for idx, (data, mime_type) in enumerate(client.read_blobs(blob_references=blob_r
 3. **获取 BlobManager**：通过 `client.openBlobManager()` 获取 Blob 管理器实例。
 4. **收集 Blob 引用**：通过行接口（`RecordReader`）读取表数据，从 Record 中获取 `Blob` 对象。
 5. **批量下载**：调用 `blobManager.batchDownload(blobs)` 批量下载，返回 `BlobDataIterator` 迭代器。
-6. **处理数据**：从迭代器中逐个获取 `InputStream`，读取实际的二进制内容。
+6. **处理数据**：从迭代器中逐个获取 `BlobDataStream`，读取实际的二进制内容，并可通过 `getMimeType()` 获取上传时记录的 MIME Type。
 
 ## 配置选项
 
@@ -173,7 +174,7 @@ for idx, (data, mime_type) in enumerate(client.read_blobs(blob_references=blob_r
 | 方法 | 参数 | 返回值 | 说明 |
 |------|------|--------|------|
 | `download(Blob)` | Blob 引用对象 | InputStream | 下载单个 Blob，调用方必须关闭流 |
-| `batchDownload(List<Blob>)` | Blob 引用列表 | BlobDataIterator | 批量下载，返回顺序与输入一致 |
+| `batchDownload(List<Blob>)` | Blob 引用列表 | BlobDataIterator | 批量下载，返回顺序与输入一致；`next()` 返回 `BlobDataStream` |
 
 ### Blob 构造方式
 
@@ -234,9 +235,10 @@ List<Blob> blobs = new ArrayList<>();
 // 批量下载
 try (BlobDataIterator iterator = blobManager.batchDownload(blobs)) {
     while (iterator.hasNext()) {
-        try (InputStream data = iterator.next()) {
+        try (BlobDataStream data = iterator.next()) {
             byte[] content = data.readAllBytes();
-            // 处理 content...
+            String mimeType = data.getMimeType();
+            // 处理 content / mimeType...
         }
     }
 } catch (BlobDownloadException e) {
@@ -295,9 +297,10 @@ for (InputSplit split : session.getSplits()) {
             if (!blobRefs.isEmpty()) {
                 try (BlobDataIterator iterator = blobManager.batchDownload(blobRefs)) {
                     while (iterator.hasNext()) {
-                        try (InputStream data = iterator.next()) {
+                        try (BlobDataStream data = iterator.next()) {
                             byte[] content = data.readAllBytes();
-                            // 处理 content...
+                            String mimeType = data.getMimeType();
+                            // 处理 content / mimeType...
                         }
                     }
                 }
@@ -340,8 +343,9 @@ for split_index in range(read_resp.splits_count):
 ## 注意事项
 
 - **优先使用批量下载**：`batchDownload()` 单次请求传输多个 Blob，效率远高于循环调用 `download()`。
-- **必须关闭 InputStream**：每个 `InputStream` 用完后必须立即关闭，否则会阻塞迭代器读取下一个 Blob。
+- **必须关闭 BlobDataStream**：每个 `BlobDataStream` 用完后必须立即关闭，否则会阻塞迭代器读取下一个 Blob。
 - **BlobDataIterator 必须关闭**：务必使用 try-with-resources 确保底层网络连接正确释放。
+- **可读取 MIME Type**：如果上传时带了内容类型，`BlobDataStream.getMimeType()` 会返回该值；未设置时返回 `null`。
 - **迭代顺序**：`batchDownload()` 返回的数据顺序与输入的 Blob 引用列表顺序一致。
 - **行接口 vs Arrow 接口**：推荐使用行接口（`RecordReader`）读取 Blob 列，SDK 自动处理引用格式转换；使用 Arrow 列接口需要手动从字节解码引用字符串。
 - **异常处理**：`BlobDownloadException` 提供 `getFailedBlobRef()` 方法，可获取下载失败的具体 Blob 引用，便于重试。

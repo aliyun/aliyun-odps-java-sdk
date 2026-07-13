@@ -19,7 +19,9 @@
 
 package com.aliyun.odps.storage.write;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.function.BiFunction;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -31,6 +33,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.internal.models.WriteSchema;
+import com.aliyun.odps.storage.internal.utils.IOUtils;
 import com.aliyun.odps.table.arrow.constructor.ArrowBatchConstructor;
 import com.aliyun.odps.table.record.constructor.RecordToArrowConverter;
 
@@ -47,6 +50,11 @@ public class AppendTableRecordWriter implements RecordWriter {
 
   private final long rowCountPerBatch;
 
+  private final boolean batchBlobUploadEnabled;
+
+  // Blob column indices for per-row mimeType collection (only used in batch mode)
+  private final List<Integer> blobColumnIndices;
+
 
   public AppendTableRecordWriter(TableArrowWriter arrowWriter, long recordCountPerBatch) {
     this.arrowWriter = arrowWriter;
@@ -54,6 +62,10 @@ public class AppendTableRecordWriter implements RecordWriter {
       RecordToArrowConverter.createRecordArrowBatchConstructor(
         arrowWriter.getWriteSchema().getColumns(), arrowWriter.getAllocator());
     this.rowCountPerBatch = recordCountPerBatch;
+    this.batchBlobUploadEnabled = arrowWriter instanceof TableArrowBatchBlobWriter;
+    this.blobColumnIndices = batchBlobUploadEnabled
+        ? ((TableArrowBatchBlobWriter) arrowWriter).getBlobColumnIndices()
+        : null;
   }
 
   /**
@@ -61,6 +73,10 @@ public class AppendTableRecordWriter implements RecordWriter {
    */
   @Override
   public Record newRecord(boolean caseSensitive) {
+    if (batchBlobUploadEnabled) {
+      return new BatchBlobRecord(
+          arrowWriter.getWriteSchema(), false, null, caseSensitive);
+    }
     return new BlobUploadableRecord((is, cid) -> uploadBlob(cid, is),
                                     arrowWriter.getWriteSchema(), false, null,
                            caseSensitive);
@@ -70,11 +86,28 @@ public class AppendTableRecordWriter implements RecordWriter {
     if (!(r instanceof ArrayRecord)) {
       throw new ClientException("Record must be ArrayRecord");
     }
+
+    if (batchBlobUploadEnabled) {
+      collectBlobMimeTypes((ArrayRecord) r);
+    }
+
     recordToArrowConverter.write((ArrayRecord) r);
     rowCount++;
 
     if (rowCount >= rowCountPerBatch) {
       flushRecords();
+    }
+  }
+
+  /**
+   * Extract per-row mimeType from Blob columns and accumulate in the batch writer.
+   */
+  private void collectBlobMimeTypes(ArrayRecord record) {
+    TableArrowBatchBlobWriter batchWriter = (TableArrowBatchBlobWriter) arrowWriter;
+    for (int colIdx : blobColumnIndices) {
+      Object val = record.get(colIdx);
+      String mime = (val instanceof Blob) ? ((Blob) val).getMimeType() : null;
+      batchWriter.accumulateRowMimeType(colIdx, mime);
     }
   }
 
@@ -138,6 +171,41 @@ public class AppendTableRecordWriter implements RecordWriter {
         Column column = writeSchema.getColumns().get(idx);
         if (blob.isRawStream()) {
           value = blob.withUploader(this.uploader, column.getColumnId());
+        }
+      }
+      super.set(idx, value);
+    }
+  }
+
+  /**
+   * Record implementation for batch blob upload mode.
+   * Reads raw InputStream to byte[] so that raw bytes are written to VarBinaryVector,
+   * and later batch-uploaded by {@link TableArrowBatchBlobWriter#writeBatch}.
+   */
+  private static class BatchBlobRecord extends ArrayRecord {
+
+    private final WriteSchema writeSchema;
+
+    public BatchBlobRecord(WriteSchema schema,
+                           boolean strictTypeValidation,
+                           Long fieldMaxSize,
+                           boolean caseSensitive) {
+      super(schema.getColumns().toArray(new Column[0]), strictTypeValidation, fieldMaxSize,
+            caseSensitive);
+      this.writeSchema = schema;
+    }
+
+    @Override
+    public void set(int idx, Object value) {
+      if (value instanceof Blob) {
+        Blob blob = (Blob) value;
+        if (blob.isRawStream()) {
+          try {
+            value = Blob.fromBytes(
+                IOUtils.readAllBytes(blob.getRawStream()), blob.getMimeType());
+          } catch (IOException e) {
+            throw new ClientException("Failed to read blob input stream.", e);
+          }
         }
       }
       super.set(idx, value);

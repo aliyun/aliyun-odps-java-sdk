@@ -26,9 +26,11 @@ import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -58,6 +60,7 @@ import com.aliyun.odps.storage.internal.models.BlobWriteItem;
 import com.aliyun.odps.storage.internal.models.BlobWriteResponse;
 import com.aliyun.odps.storage.internal.models.CloseWriteStreamRequest;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamResponse;
+import com.aliyun.odps.storage.internal.models.GetWriteStreamRequest;
 import com.aliyun.odps.storage.internal.models.HttpResponse;
 import com.aliyun.odps.storage.internal.models.WriteSchema;
 import com.aliyun.odps.table.TableIdentifier;
@@ -65,6 +68,7 @@ import com.aliyun.odps.table.arrow.ArrowWriter;
 import com.aliyun.odps.table.arrow.compression.OdpsZstdCompressionCodec;
 import com.aliyun.odps.table.arrow.writers.ArrowCompressVectorUnloader;
 import com.aliyun.odps.table.utils.SchemaUtils;
+import com.aliyun.odps.utils.StringUtils;
 
 import okhttp3.RequestBody;
 
@@ -78,7 +82,13 @@ import okhttp3.RequestBody;
  * This design ensures the safety of reusable VectorSchemaRoot objects for users,
  * but consumes more memory to cache the data.
  * <p>
- * Note: This class is not thread-safe for concurrent write operations.
+ * <b>Threading model:</b> {@link #writeBatch}, {@link #flush}, {@link #flushAsync} and
+ * {@link #close} must all be invoked by a single thread (the "writer thread"). When an
+ * {@link ExecutorService} is configured via {@link TableWriterBuilder#withExecutorService},
+ * network uploads are offloaded to that executor while the writer thread proceeds with the
+ * next buffer; this is safe because the buffer swap is performed synchronously on the writer
+ * thread before the upload task is submitted. Calling these methods from multiple threads is
+ * not supported.
  *
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  * @author Refactored by Model
@@ -95,7 +105,6 @@ public class TableArrowWriter implements ArrowWriter {
   protected final StorageStub storageStub;
   private final IpcOption ipcOption;
   private List<byte[]> cachedBatches;
-  private List<byte[]> flushingBatches;
   private volatile Schema schema;
   private final long bufferSize;
   private long cachedSize;
@@ -105,7 +114,9 @@ public class TableArrowWriter implements ArrowWriter {
   private final boolean autoFlushEnabled;
   private final ExecutorService executorService;
   private final ReentrantLock flushLock;
-  private Future<Void> pendingFlushFuture;
+  private final Semaphore flushPermits;
+  private final int maxPendingBuffers;
+  private volatile Future<Void> lastFlushFuture;
   private volatile MaxStorageException lastAsyncException;
 
   protected final List<Integer> primaryKeyColumnIndices;
@@ -118,6 +129,18 @@ public class TableArrowWriter implements ArrowWriter {
 
   /** Last request ID from writeTable response, for client logging. */
   private volatile String lastRequestId;
+
+  /** Last StagingId from writeTable response (backend session id for streaming write). */
+  private volatile String lastStagingId;
+
+  /** Access token for Exactly-Once mode. */
+  private String accessToken;
+
+  /** Current row offset for Exactly-Once mode. */
+  private long rowOffset = 0;
+
+  /** Whether Exactly-Once mode is enabled. */
+  private final boolean exactlyOnceMode;
 
   TableArrowWriter(TableWriterBuilder builder, CreateWriteStreamResponse response) {
     this.sessionId = builder.getSessionId();
@@ -133,13 +156,15 @@ public class TableArrowWriter implements ArrowWriter {
     this.cachedBatches = new ArrayList<>();
     this.autoFlushEnabled = builder.isAutoFlushEnabled();
     this.executorService = builder.getExecutorService();
-    this.flushingBatches = new ArrayList<>();
+    this.maxPendingBuffers = builder.getMaxPendingBuffers();
     if (this.executorService != null) {
       this.flushLock = new ReentrantLock();
+      this.flushPermits = new Semaphore(maxPendingBuffers);
     } else {
       this.flushLock = null;
+      this.flushPermits = null;
     }
-    this.pendingFlushFuture = null;
+    this.lastFlushFuture = null;
     this.lastAsyncException = null;
     this.bytesWritten = 0;
     this.cachedSize = 0;
@@ -158,6 +183,23 @@ public class TableArrowWriter implements ArrowWriter {
       }
     }
     this.routeToken = response.getRouteToken();
+    this.accessToken = response.getAccessToken();
+    this.exactlyOnceMode = builder.isExactlyOnceMode();
+
+    // Validate access token in Exactly-Once mode
+    if (this.exactlyOnceMode && StringUtils.isNullOrEmpty(this.accessToken)) {
+      throw new ClientException(
+        "Server did not return a valid access token for Exactly-Once mode. " +
+        "Please ensure the server supports Exactly-Once semantics.");
+    }
+
+    if (response instanceof com.aliyun.odps.storage.internal.models.GetWriteStreamResponse) {
+      com.aliyun.odps.storage.internal.models.GetWriteStreamResponse getResponse =
+          (com.aliyun.odps.storage.internal.models.GetWriteStreamResponse) response;
+      if (getResponse.getRowOffset() != null) {
+        this.rowOffset = getResponse.getRowOffset();
+      }
+    }
   }
 
   @Override
@@ -166,37 +208,19 @@ public class TableArrowWriter implements ArrowWriter {
       return;
     }
 
-    if (!primaryKeyColumnIndices.isEmpty()) {
+    boolean hasOperationColumn =
+            tableSchema.getSystemColumns() != null
+                    && tableSchema.getSystemColumns().stream()
+                    .map(Column::getName)
+                    .anyMatch(Constants.OPERATION_COLUMN_NAME::equals);
+    if (hasOperationColumn) {
       validateAndSetOperationColumn(root);
     }
-    // Check for any pending async exceptions
     checkLastAsyncException();
-
-    // If there's a pending async flush that might have failed, check its status
-    if (executorService != null && pendingFlushFuture != null && pendingFlushFuture.isDone()) {
-      try {
-        pendingFlushFuture.get();
-        // Only clear exception after successful completion
-        lastAsyncException = null;
-      } catch (ExecutionException e) {
-        Throwable cause = e.getCause();
-        lastAsyncException =
-          (cause instanceof MaxStorageException) ? (MaxStorageException) cause
-                                                 : new ClientException(cause.getMessage(), cause);
-        checkLastAsyncException();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new ClientException("Async flush interrupted", e);
-      }
-    }
 
     writeInternal(root);
     if (this.autoFlushEnabled && this.cachedSize >= this.bufferSize) {
-      if (executorService != null) {
-        asyncFlush();
-      } else {
-        flush();
-      }
+      flushAsync();
     }
   }
 
@@ -261,36 +285,18 @@ public class TableArrowWriter implements ArrowWriter {
   }
 
   private void doFlush() {
-    // If there's a pending async flush, wait for it to complete first
-    if (executorService != null && pendingFlushFuture != null) {
-      try {
-        pendingFlushFuture.get();
-      } catch (ExecutionException e) {
-        Throwable cause = e.getCause();
-        if (cause instanceof MaxStorageException) {
-          throw (MaxStorageException) cause;
-        } else {
-          throw new ClientException("Failed to complete pending flush", cause);
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new ClientException("Flush interrupted", e);
-      }
+    waitForLastFlush();
+
+    if (cachedBatches.isEmpty()) {
+      log.info("Sync flush skipped: empty buffer [stream={}]", streamId);
+      return;
     }
 
-    // swap to avoid concurrent modify
-    List<byte[]> swap = cachedBatches;
-    cachedBatches = flushingBatches;
-    flushingBatches = swap;
-
+    long rowsToFlush = this.recordCount;
+    flushInternal(cachedBatches, schema, rowsToFlush);
+    cachedBatches.clear();
     this.cachedSize = 0;
     this.recordCount = 0;
-
-    // Flush any remaining data in the current buffer
-    if (!flushingBatches.isEmpty()) {
-      flushInternal(flushingBatches, schema, recordCount);
-      this.flushingBatches.clear();
-    }
   }
 
   /**
@@ -304,13 +310,11 @@ public class TableArrowWriter implements ArrowWriter {
     }
   }
 
-  /**
-   * 等待异步 Flush 任务完成，并提取其中的异常
-   */
-  private void waitForPendingFlush() throws MaxStorageException {
-    if (pendingFlushFuture != null) {
+  private void waitForLastFlush() throws MaxStorageException {
+    Future<Void> future = lastFlushFuture;
+    if (future != null) {
       try {
-        pendingFlushFuture.get();
+        future.get();
       } catch (ExecutionException e) {
         Throwable cause = e.getCause();
         if (cause instanceof MaxStorageException) {
@@ -321,7 +325,7 @@ public class TableArrowWriter implements ArrowWriter {
         Thread.currentThread().interrupt();
         throw new ClientException("Interrupted while waiting for async flush", e);
       } finally {
-        pendingFlushFuture = null;
+        lastFlushFuture = null;
       }
     }
   }
@@ -340,6 +344,10 @@ public class TableArrowWriter implements ArrowWriter {
     return Blob.fromReference(blobWriteResponse.getBlobReference());
   }
 
+  public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList) {
+    return batchUploadBlob(columnId, dataList, null);
+  }
+
   /**
    * Uploads multiple blobs in a single batch request.
    * <p>
@@ -350,10 +358,11 @@ public class TableArrowWriter implements ArrowWriter {
    *
    * @param columnId the column ID of the BLOB column
    * @param dataList a list of byte arrays, each containing the raw data for one blob
+   * @param mimeType the MIME type of the blob data (e.g. "image/png"), or null if not specified
    * @return a list of {@link Blob} references in the same order as the input list
    * @throws ClientException if called on a Delta Table or if the server response is inconsistent
    */
-  public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList) {
+  public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList, String mimeType) {
     if (!primaryKeyColumnIndices.isEmpty()) {
       throw new ClientException(
         "Cannot batch upload blob to PK Delta Table. "
@@ -369,6 +378,7 @@ public class TableArrowWriter implements ArrowWriter {
       BlobWriteItem item = BlobWriteItem.builder()
         .data(data)
         .columnId(columnId)
+        .mimeType(mimeType)
         .build();
       items.add(item);
     }
@@ -392,80 +402,130 @@ public class TableArrowWriter implements ArrowWriter {
 
   @Override
   public void close() {
-    // Flush any remaining data
-    flush();
-    waitForPendingFlush();
-
-    // In streaming mode, closeWriteStream is not supported
-    if (writeMode == WriteMode.STREAMING || Constants.AUTO_COMMIT_DEFAULT_STREAM_ID.equals(streamId)) {
-      return;
+    // Always attempt to close the server-side stream, even if flush failed, so we don't
+    // leave dangling streams that the server has to time out. Surface the original
+    // failure to the caller after best-effort cleanup.
+    Throwable failure = null;
+    try {
+      flush();
+      waitForLastFlush();
+    } catch (Throwable t) {
+      failure = t;
+      log.error("Flush during close failed; will still attempt to close write stream [stream={}]",
+          streamId, t);
     }
 
-    // Close the write stream
-    CloseWriteStreamRequest closeWriteStreamRequest =
-      CloseWriteStreamRequest.newBuilder().
-      withSessionId(sessionId).
-      withStreamId(streamId).
-      withStreamVersion(streamVersion).
-      build();
-    storageStub.closeWriteStream(tableId, closeWriteStreamRequest, routeToken);
+    // Legacy unpartitioned streaming uses session id "default" — no TableCloseWriteStream.
+    // STREAMING with an explicit session (e.g. static partition) must close the stream like BATCH.
+    boolean legacyDefaultStreaming =
+        writeMode.isStreaming()
+            && Constants.AUTO_COMMIT_SESSION_ID.equals(sessionId);
+    boolean skipCloseStream =
+        legacyDefaultStreaming || Constants.AUTO_COMMIT_DEFAULT_STREAM_ID.equals(streamId);
+
+    if (!skipCloseStream) {
+      try {
+        CloseWriteStreamRequest closeWriteStreamRequest =
+            CloseWriteStreamRequest.newBuilder().
+                withSessionId(sessionId).
+                withStreamId(streamId).
+                withStreamVersion(streamVersion).
+                build();
+        storageStub.closeWriteStream(tableId, closeWriteStreamRequest, routeToken, writeMode);
+      } catch (Throwable t) {
+        if (failure == null) {
+          failure = t;
+        } else {
+          failure.addSuppressed(t);
+        }
+      }
+    }
+
+    if (failure != null) {
+      if (failure instanceof RuntimeException) {
+        throw (RuntimeException) failure;
+      }
+      if (failure instanceof Error) {
+        throw (Error) failure;
+      }
+      throw new ClientException("Failed to close TableArrowWriter", failure);
+    }
   }
 
   public WriteSchema getWriteSchema() {
     return tableSchema;
   }
   /**
-   * Asynchronously flushes the current buffer when double buffering is enabled.
-   * This method swaps buffers and schedules the flush operation on a background thread,
-   * allowing write operations to continue immediately.
+   * Asynchronously flushes the current buffer when an {@link ExecutorService} is configured.
+   * <p>
+   * The current buffer is handed off to the executor for network upload and a fresh buffer is
+   * allocated for subsequent writes. Multiple buffers may be in flight simultaneously, up to
+   * {@code maxPendingBuffers}. When that limit is reached, this method blocks until a permit
+   * becomes available (backpressure). Since the executor is single-threaded, in-flight buffers
+   * are uploaded sequentially in submission order.
+   * <p>
+   * If no {@link ExecutorService} was configured on the builder, this method falls back to a
+   * synchronous {@link #flush()} and returns an already-completed future.
+   * <p>
+   * Must be called from the same thread as {@link #writeBatch} and {@link #flush}.
+   *
+   * @return a future that completes when the submitted async flush finishes
    */
-  private void asyncFlush() {
+  public Future<Void> flushAsync() {
+    checkLastAsyncException();
+
     if (executorService == null || flushLock == null) {
-      return;
+      flush();
+      return CompletableFuture.completedFuture(null);
     }
 
     flushLock.lock();
     try {
-      // 1. Wait for previous async flush to complete
-      waitForPendingFlush();
-
       if (cachedBatches.isEmpty()) {
-        return;
+        log.debug("Async flush skipped: empty buffer [stream={}]", streamId);
+        return CompletableFuture.completedFuture(null);
       }
 
-      // 2. Prepare data for flushing
+      // Backpressure: block if maxPendingBuffers already in flight
+      try {
+        flushPermits.acquire();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new ClientException("Interrupted waiting for flush permit", e);
+      }
+
+      // Capture data for flushing
       final Schema schemaToFlush = this.schema;
       final long recordCountToFlush = this.recordCount;
+      final long bytesToFlush = this.cachedSize;
+      final List<byte[]> batchesToFlush = cachedBatches;
 
-      // 3. Swap buffers: cachedBatches <-> secondaryBatches
-      // After swap: cachedBatches gets the empty list (cleared by previous task's finally),
-      // secondaryBatches gets the current data to flush
-      List<byte[]> batchesToFlush = cachedBatches;
-      cachedBatches = flushingBatches;
-      flushingBatches = batchesToFlush;
-
-      // Reset counters for the new active buffer
+      // Allocate a fresh buffer for subsequent writes (no swap)
+      cachedBatches = new ArrayList<>();
       this.cachedSize = 0;
       this.recordCount = 0;
 
-      // 4. Schedule async flush
-      pendingFlushFuture = executorService.submit(() -> {
+      // Submit async upload; single-threaded executor guarantees FIFO ordering
+      lastFlushFuture = executorService.submit(() -> {
         try {
           flushInternal(batchesToFlush, schemaToFlush, recordCountToFlush);
         } catch (MaxStorageException e) {
-          log.error("Async flush failed", e);
+          log.error("Async flush failed [stream={}, rows={}, bytes={}]",
+              streamId, recordCountToFlush, bytesToFlush, e);
           lastAsyncException = e;
           throw e;
         } catch (Exception oe) {
-          log.error("Async flush failed", oe);
+          log.error("Async flush failed [stream={}, rows={}, bytes={}]",
+              streamId, recordCountToFlush, bytesToFlush, oe);
           lastAsyncException = new ClientException(oe);
           throw lastAsyncException;
         } finally {
-          // Critical: Clear the list to release memory immediately after flush
           batchesToFlush.clear();
+          flushPermits.release();
         }
         return null;
       });
+      return lastFlushFuture;
 
     } finally {
       flushLock.unlock();
@@ -489,8 +549,11 @@ public class TableArrowWriter implements ArrowWriter {
     // Create a special RequestBody that assembles data in Arrow IPC Stream format
     RequestBody arrowStreamBody = new RawArrowRequestBody(batches, flushSchema, ipcOption);
 
-    HttpResponse response = storageStub.writeTable(tableId, sessionId, streamId, streamVersion, flushRecordCount,
-                             arrowStreamBody, routeToken, streamingTableId, streamingSchemaVersion);
+    // Always pass the row count for this flush payload (doFlush/flushAsync capture it before reset).
+    HttpResponse response =
+        storageStub.writeTable(tableId, sessionId, streamId, streamVersion, flushRecordCount,
+            arrowStreamBody, routeToken, streamingTableId, streamingSchemaVersion,
+            exactlyOnceMode ? rowOffset : -1, accessToken, writeMode);
     // Extract route token from response headers for next flush
     String newToken = response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER);
     if (newToken != null) {
@@ -499,6 +562,18 @@ public class TableArrowWriter implements ArrowWriter {
     String rid = response.getRequestId();
     if (rid != null && !rid.isEmpty()) {
       this.lastRequestId = rid;
+    }
+
+    // Parse StagingId (and ExactlyOnceRowOffset when in EO mode) from the writeTable response.
+    com.aliyun.odps.storage.internal.models.WriteStreamResponse writeResponse =
+        storageStub.parseWriteStreamResponse(response);
+    if (writeResponse != null) {
+      if (writeResponse.getStagingId() != null) {
+        this.lastStagingId = writeResponse.getStagingId();
+      }
+      if (exactlyOnceMode && writeResponse.getExactlyOnceRowOffset() != null) {
+        this.rowOffset = writeResponse.getExactlyOnceRowOffset();
+      }
     }
   }
 
@@ -509,21 +584,111 @@ public class TableArrowWriter implements ArrowWriter {
     return lastRequestId;
   }
 
+  /**
+   * Returns the StagingId returned by the most recent successful {@code TableWrite} flush.
+   *
+   * <p>The StagingId is the backend streaming session id that received the last flushed batch.
+   * For streaming write it can be compared with {@link TableWriteSession#getMinUncommittedStagingId()}
+   * to reason about async visibility progress.
+   *
+   * @return the last StagingId, or {@code null} if no flush has succeeded yet
+   */
+  public String getLastStagingId() {
+    return lastStagingId;
+  }
+
+  /**
+   * Returns the current row offset for Exactly-Once mode.
+   *
+   * <p>In Exactly-Once mode, this method calls the getWriteStream API to fetch
+   * the latest row offset from the server and updates the access token.
+   * In non-Exactly-Once mode, it returns the local row offset directly.
+   *
+   * @return the current row offset
+   */
+  public long getRowOffset() {
+    if (exactlyOnceMode) {
+      GetWriteStreamRequest request = GetWriteStreamRequest.newBuilder()
+          .withTableIdentifier(tableId)
+          .withSessionId(sessionId)
+          .withStreamId(streamId)
+          .withStreamVersion(streamVersion)
+          .withExactlyOnceMode(true)
+          .build();
+      com.aliyun.odps.storage.internal.models.GetWriteStreamResponse response =
+          storageStub.getWriteStream(request, routeToken, writeMode);
+      if (response.getRowOffset() != null) {
+        this.rowOffset = response.getRowOffset();
+      }
+      if (StringUtils.isNotBlank(response.getAccessToken())) {
+        this.accessToken = response.getAccessToken();
+      }
+    }
+    return rowOffset;
+  }
+
+  /**
+   * Sets a new row offset for Exactly-Once mode.
+   *
+   * <p>This method first flushes any cached data with the current row offset,
+   * then updates the row offset to the new value. This is useful when the client
+   * needs to resume writing from a specific position (e.g., after recovering from
+   * a failure with a known committed offset).
+   *
+   * <p>Note: This method is only meaningful in Exactly-Once mode. In non-Exactly-Once
+   * mode, this method has no effect on the write behavior.
+   *
+   * @param newRowOffset the new row offset to set
+   * @throws MaxStorageException if flush operation fails
+   */
+  public void setRowOffset(long newRowOffset) throws MaxStorageException {
+    // Flush any cached data with the current row offset before changing it
+    flush();
+    waitForLastFlush();
+    this.rowOffset = newRowOffset;
+  }
+
+  /**
+   * Returns whether Exactly-Once mode is enabled for this writer.
+   *
+   * @return true if Exactly-Once mode is enabled
+   */
+  public boolean isExactlyOnceMode() {
+    return exactlyOnceMode;
+  }
+
   public BufferAllocator getAllocator() {
     return allocator;
   }
 
   @Override
   public RecordWriter getAsRecordWriter(long rowCountPerBatch) {
-    boolean hasOperationColumn = tableSchema.getSystemColumns().stream()
-      .map(Column::getName)
-      .anyMatch(Constants.OPERATION_COLUMN_NAME::equals);
+    boolean hasOperationColumn =
+        tableSchema.getSystemColumns() != null
+            && tableSchema.getSystemColumns().stream()
+                .map(Column::getName)
+                .anyMatch(Constants.OPERATION_COLUMN_NAME::equals);
+    if (!hasOperationColumn && tableSchema.getColumns() != null) {
+      hasOperationColumn =
+          tableSchema.getColumns().stream()
+              .map(Column::getName)
+              .anyMatch(Constants.OPERATION_COLUMN_NAME::equals);
+    }
 
     if (hasOperationColumn) {
       return new DeltaTableRecordWriter(this, rowCountPerBatch);
     } else {
       return new AppendTableRecordWriter(this, rowCountPerBatch);
     }
+  }
+
+  /**
+   * Returns true if an async flush is still in flight (submitted but not yet completed).
+   * Callers can use this to avoid blocking the writer thread on a timer-triggered flush.
+   */
+  public boolean hasPendingFlush() {
+    Future<Void> f = lastFlushFuture;
+    return f != null && !f.isDone();
   }
 
   public long getCachedSize() {

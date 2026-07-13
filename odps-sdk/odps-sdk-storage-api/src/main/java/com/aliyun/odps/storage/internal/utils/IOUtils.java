@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.storage.internal.utils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -95,6 +96,12 @@ public class IOUtils {
     while ((bytesRead = inputStream.read(buffer)) != -1) {
       outputStream.write(buffer, 0, bytesRead);
     }
+  }
+
+  public static byte[] readAllBytes(InputStream in) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    transferTo(in, out);
+    return out.toByteArray();
   }
 
   /**

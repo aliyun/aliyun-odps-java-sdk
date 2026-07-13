@@ -64,6 +64,8 @@ public class TableWriterBuilder {
 
   private BlobWriteItem.ChecksumType blobChecksumType = BlobWriteItem.ChecksumType.None;
 
+  private String blobMimeType;
+
   private boolean autoFlushEnabled = true;
 
   private boolean resume = false;
@@ -73,6 +75,13 @@ public class TableWriterBuilder {
   private final WriteMode writeMode;
 
   private String routeToken;
+
+  /** Reference to the parent session, used to propagate the route token back. */
+  private final TableWriteSession session;
+
+  private boolean exactlyOnceMode = false;
+
+  private int maxPendingBuffers = 1;
 
   /**
    * Constructs a new TableWriterBuilder with the provided parameters.
@@ -93,7 +102,8 @@ public class TableWriterBuilder {
                      String streamId,
                      long streamVersion,
                      WriteMode writeMode,
-                     String routeToken) {
+                     String routeToken,
+                     TableWriteSession session) {
     this.storageStub = storageStub;
     this.tableId = tableId;
     this.staticPartitionSpec = staticPartitionSpec;
@@ -108,6 +118,7 @@ public class TableWriterBuilder {
 
     this.writeMode = writeMode != null ? writeMode : WriteMode.BATCH;
     this.routeToken = routeToken;
+    this.session = session;
   }
 
   public TableWriterBuilder withBufferSize(long bufferSize) {
@@ -125,6 +136,11 @@ public class TableWriterBuilder {
     return this;
   }
 
+  public TableWriterBuilder withBlobMimeType(String blobMimeType) {
+    this.blobMimeType = blobMimeType;
+    return this;
+  }
+
   public TableWriterBuilder withAutoFlushEnabled(boolean enabled) {
     this.autoFlushEnabled = enabled;
     return this;
@@ -137,6 +153,19 @@ public class TableWriterBuilder {
 
   public TableWriterBuilder withExecutorService(ExecutorService executorService) {
     this.executorService = executorService;
+    return this;
+  }
+
+  public TableWriterBuilder withExactlyOnceMode(boolean exactlyOnceMode) {
+    this.exactlyOnceMode = exactlyOnceMode;
+    return this;
+  }
+
+  public TableWriterBuilder withMaxPendingBuffers(int maxPendingBuffers) {
+    if (maxPendingBuffers < 1) {
+      throw new IllegalArgumentException("maxPendingBuffers must be >= 1");
+    }
+    this.maxPendingBuffers = maxPendingBuffers;
     return this;
   }
 
@@ -159,13 +188,20 @@ public class TableWriterBuilder {
                       .withStreamId(streamId)
                       .withStreamVersion(streamVersion)
                       .withTableIdentifier(tableId)
-                      .build(), routeToken);
+                      .withExactlyOnceMode(exactlyOnceMode)
+                      .build(), routeToken, writeMode);
     } else {
-      response = storageStub.createTableWriteStream(tableId, sessionId, request, routeToken);
+      request.setExactlyOnceMode(exactlyOnceMode);
+      response = storageStub.createTableWriteStream(tableId, sessionId, request, routeToken, writeMode);
     }
     if (batchBlobUploadEnabled) {
       return new TableArrowBatchBlobWriter(this, response);
     } else {
+      // Propagate the route token back to the session so that subsequent
+      // operations (e.g. getMinUncommittedStagingId) are routed correctly.
+      if (session != null && response.getRouteToken() != null) {
+        session.updateRouteToken(response.getRouteToken());
+      }
       return new TableArrowWriter(this, response);
     }
   }
@@ -206,6 +242,10 @@ public class TableWriterBuilder {
     return blobChecksumType;
   }
 
+  public String getBlobMimeType() {
+    return blobMimeType;
+  }
+
   public boolean isAutoFlushEnabled() {
     return autoFlushEnabled;
   }
@@ -220,5 +260,13 @@ public class TableWriterBuilder {
 
   public WriteMode getWriteMode() {
     return writeMode;
+  }
+
+  public boolean isExactlyOnceMode() {
+    return exactlyOnceMode;
+  }
+
+  public int getMaxPendingBuffers() {
+    return maxPendingBuffers;
   }
 }

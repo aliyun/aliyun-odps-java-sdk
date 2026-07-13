@@ -40,6 +40,9 @@ public class GetWriteStreamRequest {
   @SerializedName("StreamVersion")
   private Long streamVersion;
 
+  @SerializedName("ExactlyOnceMode")
+  private Boolean exactlyOnceMode;
+
 
   public TableIdentifier getTableIdentifier() {
     return tableIdentifier;
@@ -57,6 +60,10 @@ public class GetWriteStreamRequest {
     return streamVersion;
   }
 
+  public Boolean getExactlyOnceMode() {
+    return exactlyOnceMode;
+  }
+
 
   public static GetWriteStreamRequestBuilder newBuilder() {
     return new GetWriteStreamRequestBuilder();
@@ -71,6 +78,8 @@ public class GetWriteStreamRequest {
     private String streamId;
 
     private Long streamVersion;
+
+    private Boolean exactlyOnceMode;
 
 
     private GetWriteStreamRequestBuilder() {
@@ -96,6 +105,11 @@ public class GetWriteStreamRequest {
       return this;
     }
 
+    public GetWriteStreamRequestBuilder withExactlyOnceMode(Boolean exactlyOnceMode) {
+      this.exactlyOnceMode = exactlyOnceMode;
+      return this;
+    }
+
 
     public GetWriteStreamRequest build() {
       GetWriteStreamRequest getWriteStreamRequest = new GetWriteStreamRequest();
@@ -103,6 +117,7 @@ public class GetWriteStreamRequest {
       getWriteStreamRequest.sessionId = this.sessionId;
       getWriteStreamRequest.streamId = this.streamId;
       getWriteStreamRequest.streamVersion = this.streamVersion;
+      getWriteStreamRequest.exactlyOnceMode = this.exactlyOnceMode;
       return getWriteStreamRequest;
     }
   }

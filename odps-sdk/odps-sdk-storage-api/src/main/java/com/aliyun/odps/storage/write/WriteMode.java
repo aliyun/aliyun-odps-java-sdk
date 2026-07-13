@@ -25,9 +25,18 @@ package com.aliyun.odps.storage.write;
  * <p>BATCH mode: Default mode. Data is written to the table and becomes visible
  * only after the session is committed.
  *
+ * <p>BATCH_COMPATIBLE mode: Batch write with compatible storage layout.
+ * Data becomes visible only after session commit, same as BATCH, but the underlying
+ * storage uses a layout optimized for read performance.
+ *
  * <p>STREAMING mode: Data becomes visible immediately after flush, without requiring
  * explicit commit. The session uses a default session ID and does not require
  * explicit session creation.
+ *
+ * <p>STREAMING_REALTIME mode: Realtime streaming write mode. Data becomes visible
+ * immediately after flush with lowest latency. Behaves like STREAMING on the client
+ * side (no explicit session creation, no commit required), but the server uses
+ * a realtime-optimized pipeline.
  */
 public enum WriteMode {
 
@@ -37,10 +46,23 @@ public enum WriteMode {
   BATCH("Batch"),
 
   /**
-   * Streaming write mode. Data becomes visible immediately after flush.
-   * No explicit session creation required, uses default session ID.
+   * Batch read-optimize write mode. Data becomes visible only after session commit,
+   * with read-optimized storage layout.
    */
-  STREAMING("Streaming");
+  BATCH_COMPATIBLE("BatchCompatible"),
+
+  /**
+   * Streaming write mode. Data becomes visible immediately after flush.
+   * Without a static partition, the client uses session id {@code default} and skips
+   * {@code TableCreateWriteSession}. With a static partition, a write session is created first.
+   */
+  STREAMING("Streaming"),
+
+  /**
+   * Realtime streaming write mode. Data becomes visible immediately after flush
+   * with lowest latency. Client-side behavior is the same as STREAMING.
+   */
+  STREAMING_REALTIME("StreamingRealtime");
 
   private final String value;
 
@@ -50,6 +72,15 @@ public enum WriteMode {
 
   public String getValue() {
     return value;
+  }
+
+  /**
+   * Returns whether this write mode is a streaming mode (STREAMING or STREAMING_REALTIME).
+   *
+   * @return true if this is a streaming write mode
+   */
+  public boolean isStreaming() {
+    return this == STREAMING || this == STREAMING_REALTIME;
   }
 
   public static WriteMode fromValue(String value) {

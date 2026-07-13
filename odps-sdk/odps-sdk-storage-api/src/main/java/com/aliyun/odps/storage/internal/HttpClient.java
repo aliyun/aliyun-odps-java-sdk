@@ -129,6 +129,7 @@ public class HttpClient {
       .connectionPool(connectionPool)
       .connectTimeout(settings.getHttpSettings().getConnectTimeout())
       .readTimeout(settings.getHttpSettings().getReadTimeout())
+      .writeTimeout(settings.getHttpSettings().getWriteTimeout())
       .build();
 
     this.endpoint = settings.getTunnelEndpoint();
@@ -354,14 +355,21 @@ public class HttpClient {
     log.debug("CanonicalString: {}", canonicalString);
 
     ICredentials credentials = credentialsProvider.getCredentials();
-    String signature =
-      CredentialUtils.getSignature(canonicalString, credentials.getAccessKeyId(),
-                                   credentials.getAccessKeySecret());
+    if (CredentialUtils.isBearerToken(credentials)) {
+      // Bearer token: authenticate via the x-odps-bearer-token header, no AK/SK signature.
+      requestBuilder.header(CredentialUtils.ODPS_BEARER_TOKEN, credentials.getSecurityToken());
+      headers.forEach(requestBuilder::addHeader);
+    } else {
+      String signature =
+        CredentialUtils.getSignature(canonicalString, credentials.getAccessKeyId(),
+                                     credentials.getAccessKeySecret());
 
-    requestBuilder.header(CredentialUtils.AUTHORIZATION, signature);
-    headers.forEach(requestBuilder::addHeader);
-    if (StringUtils.isNotBlank(credentials.getSecurityToken())) {
-      requestBuilder.header(CredentialUtils.AUTHORIZATION_STS_TOKEN, credentials.getSecurityToken());
+      requestBuilder.header(CredentialUtils.AUTHORIZATION, signature);
+      headers.forEach(requestBuilder::addHeader);
+      if (StringUtils.isNotBlank(credentials.getSecurityToken())) {
+        requestBuilder.header(CredentialUtils.AUTHORIZATION_STS_TOKEN,
+                              credentials.getSecurityToken());
+      }
     }
     return requestBuilder.build();
   }

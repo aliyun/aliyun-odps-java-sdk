@@ -27,6 +27,7 @@ import com.aliyun.odps.table.read.split.InputSplitAssigner;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * A logical representation of a maxcompute table batch read session.
@@ -68,4 +69,11 @@ public interface TableBatchReadSession extends TableReadSession {
      * Returns the estimated stats for table session.
      */
     SessionStats getEstimatedStats();
+
+    /**
+     * Returns the latest transaction ID of this table read session
+     */
+    default Optional<String> getLatestTxnId() {
+        return Optional.empty();
+    }
 }

@@ -76,6 +76,9 @@ public class ArrowVarBinaryWriterImpl {
         @Override
         protected byte[] readBytes(ArrayRecord in, int ordinal) {
             Blob blob = (Blob) in.get(ordinal);
+            if (blob.isRawBytes()) {
+                return blob.getRawBytes();
+            }
             return Base64.getDecoder().decode(blob.getReferenceAndUploadIfNecessary());
         }
     }

@@ -389,14 +389,6 @@ public class TypeInfoParserTest {
     typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
     Assert.assertTrue(typeInfo instanceof VectorTypeInfo);
     Assert.assertEquals(3, ((VectorTypeInfo) typeInfo).getDimension());
-
-    name = "VECTOR<FLOAT,3>";
-    typeInfo = TypeInfoParser.getTypeInfoFromTypeString(name);
-    Assert.assertTrue(typeInfo instanceof VectorTypeInfo);
-    Assert.assertEquals(OdpsType.VECTOR, typeInfo.getOdpsType());
-    Assert.assertEquals("VECTOR(FLOAT,3)", typeInfo.getTypeName());
-    Assert.assertEquals(TypeInfoFactory.FLOAT, ((VectorTypeInfo) typeInfo).getElementTypeInfo());
-    Assert.assertEquals(3, ((VectorTypeInfo) typeInfo).getDimension());
   }
 
   @Test

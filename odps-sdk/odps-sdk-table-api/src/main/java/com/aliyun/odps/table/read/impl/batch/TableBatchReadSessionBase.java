@@ -94,6 +94,8 @@ public abstract class TableBatchReadSessionBase implements TableBatchReadSession
 
     protected boolean enableUniqueMapKey;
 
+    protected String latestTxnId;
+
     public TableBatchReadSessionBase(TableReadSessionBuilder builder) throws IOException {
         if (builder.getDetailsJson() != null) {
             initializeFromJson(builder.getDetailsJson());

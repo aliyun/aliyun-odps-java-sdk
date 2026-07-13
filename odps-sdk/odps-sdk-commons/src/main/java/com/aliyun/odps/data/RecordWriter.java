@@ -50,6 +50,10 @@ public interface RecordWriter extends Closeable {
       "Delete operation is only supported for tables with a primary key (Delta Table).");
   }
 
+  default void flush() throws IOException {
+    // NO OP DEFAULT
+  }
+
   /**
    * 创建一个可被写入的 Record
    * @param caseSensitive Record setByName 时是否区分大小写

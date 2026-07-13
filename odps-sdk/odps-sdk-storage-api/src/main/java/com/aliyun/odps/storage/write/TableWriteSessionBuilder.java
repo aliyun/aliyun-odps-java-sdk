@@ -58,8 +58,6 @@ import com.aliyun.odps.utils.StringUtils;
  */
 public class TableWriteSessionBuilder {
 
-  private static final String DEFAULT_STREAMING_SESSION_ID = "default";
-
   private final CreateTableWriteSessionRequest
     createTableWriteSessionRequest =
     new CreateTableWriteSessionRequest();
@@ -157,28 +155,27 @@ public class TableWriteSessionBuilder {
    * @return A new TableWriteSession instance
    */
   public TableWriteSession build() {
-    if (writeMode == WriteMode.STREAMING) {
+    if (writeMode.isStreaming()) {
       // Streaming mode: use default session ID without creating session
       return new TableWriteSession(storageStub, table, partitionSpec, allocator,
-                                   DEFAULT_STREAMING_SESSION_ID, writeMode, null);
+                                   Constants.AUTO_COMMIT_SESSION_ID, writeMode, null);
     }
 
     if (StringUtils.isNotBlank(sessionId)) {
       String routeToken = null;
       if (!Constants.AUTO_COMMIT_SESSION_ID.equals(sessionId)) {
-        GetTableWriteSessionResponse getTableWriteSessionResponse =
-                storageStub.getTableWriteSession(table, sessionId);
-        routeToken = getTableWriteSessionResponse.getRouteToken();
+        GetTableWriteSessionResponse resp = storageStub.getTableWriteSession(table, sessionId, null, writeMode);
+        routeToken = resp.getRouteToken();
       }
       return new TableWriteSession(storageStub, table, partitionSpec, allocator,
                                    sessionId, writeMode, routeToken);
     } else {
       CreateTableWriteSessionResponse createTableWriteSessionResponse =
-        storageStub.createTableWriteSession(table, createTableWriteSessionRequest);
+        storageStub.createTableWriteSession(table, createTableWriteSessionRequest, writeMode);
       this.sessionId = createTableWriteSessionResponse.getSessionId();
       return new TableWriteSession(storageStub, table, partitionSpec, allocator,
-                                   sessionId, writeMode,
-                                   createTableWriteSessionResponse.getRouteToken());
+              sessionId, writeMode,
+              createTableWriteSessionResponse.getRouteToken());
     }
   }
 }

@@ -191,6 +191,15 @@ public class Project extends LazyLoad {
     @Element(name = "DefaultQuota", required = false)
     @Convert(QuotaIdentifier.QuotaIdentifierConverter.class)
     QuotaIdentifier defaultQuota = null;
+
+
+    @Element(name = "Allow3Tier", required = false)
+    @Convert(SimpleXmlUtils.BooleanConvertor.class)
+    Boolean allow3Tier;
+
+    @Element(name = "IsExternalCatalogBound", required = false)
+    @Convert(SimpleXmlUtils.BooleanConvertor.class)
+    Boolean isExternalCatalogBound;
   }
 
   public static class ExternalProjectProperties {
@@ -406,7 +415,6 @@ public class Project extends LazyLoad {
   private Map<String, String> allProperties;
   private SecurityManager securityManager = null;
   private Clusters clusters;
-  private Boolean externalCatalogBound;
 
   // For compatibility. The static class 'Cluster' had strict schema validation. Unmarshalling will
   // failed because of the new xml tag 'Quotas'.
@@ -448,8 +456,6 @@ public class Project extends LazyLoad {
 
       properties = model.properties;
       clusters = model.clusters;
-
-      this.externalCatalogBound = isExternalCatalogBound(model.name);
     } catch (Exception e) {
       throw new OdpsException("Can't bind xml to " + ProjectModel.class, e);
     }
@@ -457,30 +463,25 @@ public class Project extends LazyLoad {
   }
 
   /**
-   * judge whether external epv2
-   *
-   * @param projectName
-   * @throws OdpsException
+   * 判断当前项目是否绑定外部 Catalog（EPv2）
+   * @return 是否绑定外部 Catalog
    */
-  private boolean isExternalCatalogBound(String projectName) throws OdpsException {
-    if (projectName.equalsIgnoreCase("system_catalog")) {
-      return false;
-    }
-    // get isEx from api-worker and put in cache
-    String propertyStr = properties.get("external_project_properties");
-    if (propertyStr != null) {
-      //judge isExternalCatalogBound=true whether in external_project_properties of properties
-      return propertyStr.contains("\"isExternalCatalogBound\":true");
-    } else {
-      return false;
-    }
-  }
-
   public boolean isExternalCatalogBound() {
-    if (externalCatalogBound == null) {
+    if (model.isExternalCatalogBound == null) {
       lazyLoad();
     }
-    return externalCatalogBound;
+    return model.isExternalCatalogBound;
+  }
+
+  /**
+   * 判断当前项目是否开启三层模型（支持 Schema 层级）
+   * @return 是否开启三层模型
+   */
+  public boolean isSupportNamespaceSchema() {
+    if (model.allow3Tier == null) {
+      lazyLoad();
+    }
+    return model.allow3Tier;
   }
 
   /**

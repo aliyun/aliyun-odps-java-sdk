@@ -1,4 +1,29 @@
 # 更新日志
+## [Unreleased]
+
+### ✨ 新功能
+* **[Storage API]**: **增强 Exactly-once 与流式写入控制能力** - 为 Storage API 写入会话和 Writer 扩展更多写入模式、Exactly-once 流元数据、row offset 透传、access token 处理，以及适用于大批量/长耗时上传的 HTTP 写超时配置。
+    * *相关 API*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`
+* **[Commons][Tunnel]**: **扩展 `VECTOR` 与 protobuf 流支持** - 新增 `DoubleVector`，补齐 protobuf Record 流中的通用向量序列化/反序列化能力，并为 Arrow varbinary 写路径增加原始字节 Blob 处理。
+    * *相关 API*: `Vector`, `DoubleVector`, `ProtobufRecordStreamReader`, `ProtobufRecordStreamWriter`, `Blob`
+
+### 🚀 功能增强与性能优化
+* **[Project][Table]**: **改进 EPV2 与项目元数据处理** - 增加基于 XML 字段的项目三层模型和外部 Catalog 绑定状态读取，并在表列表场景缓存 EPV2 状态，减少 reload 期间的重复探测开销。
+    * *相关 API*: `Project.isSupportNamespaceSchema()`, `Project.isExternalCatalogBound()`, `Tables`, `Table`
+* **[Storage API][Blob]**: **在批量上传/下载链路传递 Blob MIME Type** - Blob 批量上传支持保留逐行 MIME Type 元数据，批量下载则通过类型化的 `BlobDataStream` 暴露该信息。
+    * *相关 API*: `Blob`, `BlobDataIterator`, `BlobDataStream`, `TableArrowBatchBlobWriter`
+* **[认证]**: **Storage API 支持 Bearer Token 鉴权** - Storage API 的 HTTP 签名链路现已同时支持 bearer-token 凭证以及原有 AK/SK、STS 鉴权模式。
+    * *相关 API*: `CredentialUtils.isBearerToken()`, `HttpClient`, `SignatureInterceptor`
+
+### 🐛 问题修复
+* **[Tunnel]**: **显式识别截断的 protobuf Record 流** - 当数据流缺少 footer 时，RecordReader 现在会抛出专用 `StreamTruncatedException`，并避免把截断流当作普通 IO 异常重试。
+    * *相关 API*: `ProtobufRecordStreamReader`, `TunnelRecordReader`, `StreamTruncatedException`
+* **[Storage API]**: **让写会话请求与新服务端契约保持一致** - 为写会话与 Stream 操作补齐 `WriteMode` 透传、支持带 stream id/version 的 commit body，并增强写流响应解析能力以支撑新写入路径。
+    * *相关 API*: `StorageStub`, `GetTableWriteSessionResponse`, `GetWriteStreamResponse`, `WriteStreamResponse`
+
+### 📄 文档更新
+* **[Docs]**: **刷新 Storage API 写入与 Blob 指南** - 更新 Storage API 与 Blob 文档，补充 flush 语义、扩展写入模式、批量 Blob MIME Type 处理以及 `BlobDataStream` 的使用方式。
+
 ## [0.58.1-public] - 2026-06-30
 
 ### 🐛 问题修复
