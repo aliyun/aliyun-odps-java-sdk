@@ -1,22 +1,90 @@
 # 更新日志
 
-## [0.57.2-public] - 2026-05-07
+## [0.59.0-public] - 2026-07-13
+
+### ✨ 新功能
+* **[Storage API]**: **增强 Exactly-once 与流式写入控制能力** - 为 Storage API 写入会话和 Writer 扩展更多写入模式、Exactly-once 流元数据、row offset 透传、access token 处理，以及适用于大批量/长耗时上传的 HTTP 写超时配置。
+    * *相关 API*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`
+* **[Commons][Tunnel]**: **扩展 `VECTOR` 与 protobuf 流支持** - 新增 `DoubleVector`，补齐 protobuf Record 流中的通用向量序列化/反序列化能力，并为 Arrow varbinary 写路径增加原始字节 Blob 处理。
+    * *相关 API*: `Vector`, `DoubleVector`, `ProtobufRecordStreamReader`, `ProtobufRecordStreamWriter`, `Blob`
+
+### 🚀 功能增强与性能优化
+* **[Project][Table]**: **改进 EPV2 与项目元数据处理** - 增加基于 XML 字段的项目三层模型和外部 Catalog 绑定状态读取，并在表列表场景缓存 EPV2 状态，减少 reload 期间的重复探测开销。
+    * *相关 API*: `Project.isSupportNamespaceSchema()`, `Project.isExternalCatalogBound()`, `Tables`, `Table`
+* **[Storage API][Blob]**: **在批量上传/下载链路传递 Blob MIME Type** - Blob 批量上传支持保留逐行 MIME Type 元数据，批量下载则通过类型化的 `BlobDataStream` 暴露该信息。
+    * *相关 API*: `Blob`, `BlobDataIterator`, `BlobDataStream`, `TableArrowBatchBlobWriter`
+* **[认证]**: **Storage API 支持 Bearer Token 鉴权** - Storage API 的 HTTP 签名链路现已同时支持 bearer-token 凭证以及原有 AK/SK、STS 鉴权模式。
+    * *相关 API*: `CredentialUtils.isBearerToken()`, `HttpClient`, `SignatureInterceptor`
 
 ### 🐛 问题修复
-* **[Instance]**: **为 MaxQA 实例添加凭据确保机制** - 当通过 `Instances.get(id)` 获取 MCQA 2.0 实例时，自动从响应头获取 `x-odps-mcqa-conn` 和 `x-odps-mcqa-query-cookie` 凭据，确保后续 `/mcqa` 前缀请求能正确路由。
-    * *相关 API*: `Instance.ensureMaxQACredential()`
+* **[Tunnel]**: **显式识别截断的 protobuf Record 流** - 当数据流缺少 footer 时，RecordReader 现在会抛出专用 `StreamTruncatedException`，并避免把截断流当作普通 IO 异常重试。
+    * *相关 API*: `ProtobufRecordStreamReader`, `TunnelRecordReader`, `StreamTruncatedException`
+* **[Storage API]**: **让写会话请求与新服务端契约保持一致** - 为写会话与 Stream 操作补齐 `WriteMode` 透传、支持带 stream id/version 的 commit body，并增强写流响应解析能力以支撑新写入路径。
+    * *相关 API*: `StorageStub`, `GetTableWriteSessionResponse`, `GetWriteStreamResponse`, `WriteStreamResponse`
+
+### 📄 文档更新
+* **[Docs]**: **刷新 Storage API 写入与 Blob 指南** - 更新 Storage API 与 Blob 文档，补充 flush 语义、扩展写入模式、批量 Blob MIME Type 处理以及 `BlobDataStream` 的使用方式。
+
+## [0.58.1-public] - 2026-06-30
+
+### 🐛 问题修复
+* **[依赖]**: **升级共享 Jackson 与 Netty 版本** - 提升由根 POM 统一管理、并由 `odps-sdk-core` 传递给下游（如 JDBC 集成）的依赖版本，在不需要各模块单独覆盖版本的前提下，降低已知 Jackson 和 Netty 漏洞暴露面。
+    * *相关 API*: `odps-sdk-core`, `jackson-databind`, `netty-all`
+
+### 📦 依赖更新
+* **升级**: `com.fasterxml.jackson.core:jackson-databind`: `2.18.2` → `2.21.4`
+* **升级**: `io.netty:netty-all`: `4.1.130.Final` → `4.1.135.Final`
+
+## [0.58.0-public] - 2026-06-30
+
+### ✨ 新功能
+* **[Commons]**: **新增 `VECTOR` 类型支持** - 增加 `OdpsType.VECTOR`、`Vector` / `FloatVector`、`VectorTypeInfo`，并支持解析无参 `VECTOR` 以及 `VECTOR(FLOAT,1536)` 这类带参数的向量类型定义。
+    * *相关 API*: `Vector`, `FloatVector`, `TypeInfoFactory.getVectorTypeInfo()`, `ArrayRecord.getVector()`, `ArrayRecord.setVector()`
+* **[Packaging]**: **新增 `odps-sdk-simplexml` 模块** - 将原先内嵌在 `odps-sdk-core` 中的 SimpleXML 实现拆分为独立模块，便于制品拆分和依赖管理。
+    * *相关 API*: `odps-sdk-simplexml`
+
+### 🚀 功能增强与性能优化
+* **[Instance]**: **任务汇总 finalized 状态感知** - `getTaskSummary(String, boolean)` 新增对 `x-odps-task-finalized` 响应头的解析支持，即使 summary body 解析不完整，也能让调用方感知任务是否已 finalized。
+    * *相关 API*: `Instance.getTaskSummary(String, boolean)`, `Instance.TaskSummary.getFinalized()`
+* **[SQLExecutor]**: **离线任务名处理更一致** - 通过 `SQLExecutorBuilder` 配置的自定义 task name 现在会一致地应用到离线执行、进度查询、summary 查询和结果获取流程中。
+    * *相关 API*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel]**: **Upsert 超时错误信息更可诊断** - `UpsertStreamImpl` 现在区分请求体写超时和响应超时，并返回更明确的本地错误码与 HTTP 状态信息，便于重试和问题定位。
+    * *相关 API*: `UpsertStreamImpl`, `TunnelConstants.UPSERT_FLUSH_WRITE_TIMEOUT`, `TunnelConstants.UPSERT_FLUSH_RESPONSE_TIMEOUT`
+
+### 🐛 问题修复
+* **[Commons]**: **补充向量写入的 Schema 校验** - 在 ODPS 类型转换写路径中增加向量维度和元素类型校验，避免不匹配的向量数据被静默接受。
+
+## [0.57.3-public] - 2026-06-17
+
+### 🐛 问题修复
+* **[SQLExecutor]**: **支持通过 Tunnel Quota 获取 Instance Tunnel 结果** - 为 instance tunnel 结果拉取增加独立的 tunnel quota 通路，使 SQL 执行在读取结果时可以使用与计算 quota 不同的 tunnel quota。
+    * *相关 API*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel Cache]**: **按 Quota 隔离 Tunnel Endpoint 缓存** - Tunnel endpoint 本地缓存现在会按 tunnel quota 隔离，避免结果获取流程复用其他 quota 解析出的 endpoint。
+
+### 📄 文档更新
+* **[Docs]**: **全面升级 SDK 文档站点** - 新增大量任务导向指南、API 参考、多语言代码示例、控制台命令到 SDK 映射、搜索优化，以及 `robots.txt` / `llms.txt` 等 AI 可发现性支持。
+
+## [0.57.2-public] - 2026-05-07
+
+### ✨ 新功能
+* **[Instance][MaxQA]**: **为 MCQA v2 Instance 增加凭据确保机制** - 为 `_mcqa` 实例增加自动凭据/请求头回填能力，使 reload、stop、进度查询和 detail 查询无需调用方手动传递 MCQA 连接头也能正常工作。
+    * *相关 API*: `Instance`, `Headers.ODPS_MCQA_CONN`, `Headers.ODPS_MCQA_QUERY_COOKIE`
 
 ## [0.57.1-public] - 2026-04-08
 
-### 📦 维护
-* **[Storage API]**: 添加 Storage API 模块文档
-* **[Build]**: 修复 POM 配置问题
+### ✨ 新功能
+* **[Storage API]**: **增强写入与预览能力** - 为 Storage API 客户端增加表预览请求支持、Raw Arrow 请求体处理、显式写入模式，以及更完整的表/Blob 写入会话能力。
+    * *相关 API*: `MaxStorageClient`, `TableWriteSession`, `TableWriterBuilder`, `WriteMode`
 
-## [0.57.0-public] - 2026-03-25
+### 📄 文档更新
+* **[Storage API]**: **补充完整 Storage API 文档** - 新增 Storage API 的概览、客户端、读取、写入和 Blob 参考文档。
+
+## [0.57.0-public] - 2026-03-05
 
 ### ✨ 新功能
 * **[Storage API][Preview]**: **全新 `odps-sdk-storage-api` 模块** - 引入高性能 Storage API 客户端 `MaxStorageClient`，基于 Arrow 列式格式对 MaxCompute 表进行读写。支持通过 InputSplit 分片实现分布式并行读取、写入会话的 commit/abort 生命周期管理、表数据预览、Blob 下载以及 Instance 结果读取。
     * *相关 API*: `MaxStorageClient`, `MaxStorageClient.Builder`, `TableReadSession`, `TableWriteSession`, `InstanceReadSession`, `BlobManager`
+    * *相关 API*: `BlobManager.download()`, `BlobManager.batchDownload()`, `BlobDataIterator`
 * **[Arrow Helper]**: **全新 `odps-arrow-helper` 模块** - 将 Arrow 相关工具类抽取为独立模块，包含 `TableIdentifier`、`InstanceIdentifier`、`StreamIdentifier`、各类型 Arrow Accessor、`ArrowReaderBuilder`、`ArrowStreamRecordReader`、`SchemaUtils` 等。
     * *相关 API*: `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, `ArrowReaderBuilder`
 * **[SQLExecutor]**: **Storage API 结果集集成** - `SQLExecutorImpl` 在查询结果包含 `BLOB` 列时，自动通过 Storage API（`StorageAPIResultSet`）下载结果，提升兼容性与数据传输效率。
@@ -38,11 +106,12 @@
 
 ### 🚀 功能增强与性能优化
 * **[OdpsType]**: **`OdpsType` 枚举新增数字编码** - 每个 `OdpsType` 枚举值携带稳定的整型 code，并支持通过 `OdpsType.fromCode(int)` 反向查找，便于序列化和协议兼容。
-* **[Arrow Helper]**: **Arrow Accessor 层重构** - 将所有按类型实现的 Arrow 列访问器迁移至新的 `odps-arrow-helper` 模块，提升模块化程度和可复用性。
+* **[Arrow Helper]**: **Arrow Accessor 层重构** - 将所有按类型实现的 Arrow 列访问器（`ArrowBigIntAccessor`、`ArrowDecimalAccessor`、`ArrowTimestampAccessor` 等）迁移至新的 `odps-arrow-helper` 模块，提升模块化程度和可复用性。
 * **[TunnelBufferedWriter]**: **异步 flush 支持** - `TunnelBufferedWriter` 新增非阻塞异步 flush 能力，采用双 buffer 交换机制（`flush(boolean blocking)`），提供背压控制，提升流式上传的写入吞吐量。
     * *相关 API*: `TunnelBufferedWriter.flush(boolean blocking)`
 * **[UpsertStream]**: **异步 flush 及 Buffer 优化** - `UpsertStreamImpl` 支持通过可配置的 `ExecutorService` 执行异步 flush，采用按 bucket 双 buffer 交换机制，并新增 `sync()` 方法支持显式屏障同步。
     * *相关 API*: `UpsertStream.Builder.setAsyncFlushService()`, `UpsertStreamImpl.sync()`
+* **[CI]**: **接入 CodeQL 安全扫描** - 集成 GitHub Actions CodeQL 工作流，实现自动化安全漏洞扫描。
 
 ### 📦 依赖更新
 * **新增**: `com.squareup.okhttp3:okhttp:4.12.0`（在 `odps-sdk-storage-api` 中已 shade）
