@@ -99,7 +99,8 @@ public class StringUtils {
     return fullHostname;
   }
 
-  private static DecimalFormat oneDecimal = new DecimalFormat("0.0");
+  private static final ThreadLocal<DecimalFormat> ONE_DECIMAL =
+      ThreadLocal.withInitial(() -> new DecimalFormat("0.0"));
 
   /**
    * Given an integer, return a string that is in an approximate, but human
@@ -126,7 +127,7 @@ public class StringUtils {
       result = number / (1024.0 * 1024 * 1024);
       suffix = "G";
     }
-    return oneDecimal.format(result) + suffix;
+    return ONE_DECIMAL.get().format(result) + suffix;
   }
 
   /**
