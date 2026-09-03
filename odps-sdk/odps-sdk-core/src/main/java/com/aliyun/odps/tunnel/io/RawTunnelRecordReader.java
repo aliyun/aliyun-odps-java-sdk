@@ -13,6 +13,7 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.*;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.JsonObject;
@@ -61,9 +62,22 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
                                                                  InstanceTunnel.DownloadSession session,
                                                                  boolean longPolling)
       throws TunnelException, IOException {
+    return createInstanceTunnelReader(start, count, sizeLimit, compress, columns, restClient,
+                                      session, longPolling, RetryContext.create());
+  }
+
+  static RawTunnelRecordReader createInstanceTunnelReader(long start, long count, long sizeLimit,
+                                                           CompressOption compress,
+                                                           List<Column> columns,
+                                                           RestClient restClient,
+                                                           InstanceTunnel.DownloadSession session,
+                                                           boolean longPolling,
+                                                           RetryContext retryContext)
+      throws TunnelException, IOException {
     HashMap<String, String> params = new HashMap<String, String>();
     HashMap<String, String> headers = new HashMap<String, String>();
 
+    retryContext.injectHeaders(headers);
     headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
 
     headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));
@@ -261,9 +275,22 @@ public class RawTunnelRecordReader extends ProtobufRecordStreamReader {
                                                               TableTunnel.DownloadSession session,
                                                               boolean disableModifiedCheck)
       throws IOException, TunnelException {
+    return createTableTunnelReader(start, count, sizeLimit, compress, columns, restClient, session,
+                                   disableModifiedCheck, RetryContext.create());
+  }
+
+  static RawTunnelRecordReader createTableTunnelReader(long start, long count, long sizeLimit,
+                                                        CompressOption compress,
+                                                        List<Column> columns,
+                                                        RestClient restClient,
+                                                        TableTunnel.DownloadSession session,
+                                                        boolean disableModifiedCheck,
+                                                        RetryContext retryContext)
+      throws IOException, TunnelException {
     HashMap<String, String> params = new HashMap<String, String>();
     HashMap<String, String> headers = new HashMap<String, String>();
 
+    retryContext.injectHeaders(headers);
     headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
 
     headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_VERSION, String.valueOf(TunnelConstants.VERSION));

@@ -141,6 +141,7 @@ public class Configuration extends GeneralConfiguration {
     odpsServiceClient.setReadTimeout(getSocketTimeout());
     odpsServiceClient.setConnectTimeout(getSocketConnectTimeout());
     odpsServiceClient.setRetryTimes(getSocketRetryTimes());
+    odpsServiceClient.enableTunnelRetryHeaders();
 
     odpsServiceClient.setEndpoint(getEndpoint(projectName).toString());
     return odpsServiceClient;

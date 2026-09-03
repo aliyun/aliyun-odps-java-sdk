@@ -75,6 +75,7 @@ public class OdpsTypeTransformer {
     ODPS_TYPE_MAPPER.put(OdpsType.GEOGRAPHY, GeographyObject.class);
     ODPS_TYPE_MAPPER.put(OdpsType.BLOB, Blob.class);
     ODPS_TYPE_MAPPER.put(OdpsType.VECTOR, Vector.class);
+    ODPS_TYPE_MAPPER.put(OdpsType.VARIANT, Variant.class);
 
     // fix date type mapping
     ODPS_TYPE_MAPPER_V2.putAll(ODPS_TYPE_MAPPER);

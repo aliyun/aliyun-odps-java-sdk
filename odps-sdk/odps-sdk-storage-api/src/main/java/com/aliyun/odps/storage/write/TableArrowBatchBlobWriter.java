@@ -21,6 +21,7 @@ package com.aliyun.odps.storage.write;
 
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,8 @@ import java.util.Map;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +40,7 @@ import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.internal.models.BlobWriteItem;
 import com.aliyun.odps.storage.internal.models.BlobWriteResponse;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamResponse;
+import com.aliyun.odps.storage.internal.models.WriteSchema;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -50,28 +54,53 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
 
   private final List<Integer> blobColumnIndices;
   private final List<Long> blobColumnIds;
+  private final List<NestedBlobEntry> nestedBlobEntries;
   private final BlobWriteItem.ChecksumType blobChecksumType;
   private final String blobMimeType;
+  private final String blobCustomFileName;
 
   // Per-batch accumulator for per-row mimeType: columnIndex → list of mimeType (indexed by row)
   private final Map<Integer, List<String>> rowMimeTypeAccumulator = new HashMap<>();
+
+  // Per-batch accumulator for per-row customFileName: columnIndex → list of customFileName (indexed by row)
+  private final Map<Integer, List<String>> rowCustomFileNameAccumulator = new HashMap<>();
 
   TableArrowBatchBlobWriter(TableWriterBuilder builder,
                             CreateWriteStreamResponse response) {
     super(builder, response);
     this.blobColumnIndices = new ArrayList<>();
-
     this.blobColumnIds = new ArrayList<>();
+    this.nestedBlobEntries = new ArrayList<>();
     this.blobChecksumType = builder.getBlobChecksumType();
     this.blobMimeType = builder.getBlobMimeType();
+    this.blobCustomFileName = builder.getBlobCustomFileName();
 
+    Map<String, Long> allBlobIds = tableSchema.findAllBlobColumnIds();
     List<Column> columns = tableSchema.getColumns();
-    for (int i = 0; i < columns.size(); i++) {
-      Column column = columns.get(i);
-      if (column.getTypeInfo().getOdpsType() == OdpsType.BLOB) {
-        blobColumnIndices.add(i);
-        blobColumnIds.add(column.getColumnId());
+    for (Map.Entry<String, Long> entry : allBlobIds.entrySet()) {
+      String path = entry.getKey();
+      long columnId = entry.getValue();
+      if (path.contains(".")) {
+        nestedBlobEntries.add(new NestedBlobEntry(path, columnId));
+      } else {
+        for (int i = 0; i < columns.size(); i++) {
+          if (columns.get(i).getName().equals(path)) {
+            blobColumnIndices.add(i);
+            blobColumnIds.add(columnId);
+            break;
+          }
+        }
       }
+    }
+  }
+
+  private static class NestedBlobEntry {
+    final String path;
+    final long columnId;
+
+    NestedBlobEntry(String path, long columnId) {
+      this.path = path;
+      this.columnId = columnId;
     }
   }
 
@@ -86,6 +115,18 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
     rowMimeTypeAccumulator.computeIfAbsent(columnIndex, k -> new ArrayList<>()).add(mimeType);
   }
 
+  /**
+   * Accumulate per-row customFileName for a specific blob column.
+   * Called by {@link AppendTableRecordWriter} for each row before writeBatch.
+   *
+   * @param columnIndex the schema column index of the blob column
+   * @param customFileName the customFileName for this row (null if not set)
+   */
+  void accumulateRowCustomFileName(int columnIndex, String customFileName) {
+    rowCustomFileNameAccumulator.computeIfAbsent(columnIndex, k -> new ArrayList<>())
+        .add(customFileName);
+  }
+
   List<Integer> getBlobColumnIndices() {
     return blobColumnIndices;
   }
@@ -97,14 +138,19 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
     }
 
     if (!blobColumnIndices.isEmpty()) {
-      processBlobColumns(root);
+      processTopLevelBlobColumns(root);
+    }
+
+    if (!nestedBlobEntries.isEmpty()) {
+      processNestedBlobColumns(root);
     }
 
     rowMimeTypeAccumulator.clear();
+    rowCustomFileNameAccumulator.clear();
     super.writeBatch(root);
   }
 
-  private void processBlobColumns(VectorSchemaRoot root) {
+  private void processTopLevelBlobColumns(VectorSchemaRoot root) {
     int rowCount = root.getRowCount();
 
     for (int blobIdx = 0; blobIdx < blobColumnIndices.size(); blobIdx++) {
@@ -130,30 +176,95 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
           .withChecksum(blobChecksumType)
           .columnId(columnId)
           .mimeType(resolveRowMimeType(columnIndex, row))
+          .customFileName(resolveRowCustomFileName(columnIndex, row))
           .distributionKey(generateDistributionKeyString(root, row, primaryKeyColumnIndices))
           .build();
         itemsToWrite.add(item);
       }
       if (itemsToWrite.isEmpty()) {
-        return;
+        continue;
       }
-      BlobWriteResponse
-        blobWriteResponse =
+      replaceBlobReferences(
+          (VarBinaryVector) blobVector, originalRowIndices, itemsToWrite);
+    }
+  }
+
+  private void processNestedBlobColumns(VectorSchemaRoot root) {
+    for (NestedBlobEntry entry : nestedBlobEntries) {
+      VarBinaryVector blobVector = resolveBlobVector(root, entry.path);
+      if (blobVector == null) {
+        continue;
+      }
+      int valueCount = blobVector.getValueCount();
+
+      List<Integer> originalRowIndices = new ArrayList<>();
+      List<BlobWriteItem> itemsToWrite = new ArrayList<>();
+      for (int row = 0; row < valueCount; row++) {
+        if (blobVector.isNull(row)) {
+          continue;
+        }
+        byte[] blobData = blobVector.get(row);
+        originalRowIndices.add(row);
+
+        BlobWriteItem item = BlobWriteItem.builder()
+          .data(blobData)
+          .withChecksum(blobChecksumType)
+          .columnId(entry.columnId)
+          .mimeType(blobMimeType)
+          .customFileName(blobCustomFileName)
+          .build();
+        itemsToWrite.add(item);
+      }
+      if (itemsToWrite.isEmpty()) {
+        continue;
+      }
+      replaceBlobReferences(blobVector, originalRowIndices, itemsToWrite);
+    }
+  }
+
+  private void replaceBlobReferences(VarBinaryVector blobVector,
+                                     List<Integer> originalRowIndices,
+                                     List<BlobWriteItem> itemsToWrite) {
+    BlobWriteResponse blobWriteResponse =
         storageStub.tableBatchWriteBlob(tableId, sessionId, streamId, streamVersion, itemsToWrite);
 
-      List<String> receivedReferences = blobWriteResponse.getBlobReferences();
+    List<String> receivedReferences = blobWriteResponse.getBlobReferences();
 
-      if (receivedReferences.size() != itemsToWrite.size()) {
-        throw new ClientException(
-          String.format("Mismatch between sent items (%d) and received references (%d).",
-                        itemsToWrite.size(), receivedReferences.size()));
+    if (receivedReferences.size() != itemsToWrite.size()) {
+      throw new ClientException(
+        String.format("Mismatch between sent items (%d) and received references (%d).",
+                      itemsToWrite.size(), receivedReferences.size()));
+    }
+    for (int j = 0; j < receivedReferences.size(); j++) {
+      String reference = receivedReferences.get(j);
+      int originalRow = originalRowIndices.get(j);
+      blobVector.setSafe(originalRow, Base64.getDecoder().decode(reference));
+    }
+  }
+
+  private VarBinaryVector resolveBlobVector(VectorSchemaRoot root, String path) {
+    String[] parts = path.split("\\.");
+    FieldVector vector = root.getVector(parts[0]);
+    if (vector == null) {
+      return null;
+    }
+    for (int i = 1; i < parts.length; i++) {
+      if (vector instanceof ListVector) {
+        vector = (FieldVector) ((ListVector) vector).getDataVector();
+      } else if (vector instanceof StructVector) {
+        vector = ((StructVector) vector).getChild(parts[i]);
+      } else {
+        return null;
       }
-      for (int j = 0; j < receivedReferences.size(); j++) {
-        String reference = receivedReferences.get(j);
-        int originalRow = originalRowIndices.get(j);
-        ((VarBinaryVector) blobVector).setSafe(originalRow, Base64.getDecoder().decode(reference));
+      if (vector == null) {
+        return null;
       }
     }
+    if (!(vector instanceof VarBinaryVector)) {
+      throw new ClientException(
+        "Resolved blob vector must be VarBinaryVector, but got: " + vector.getClass().getName());
+    }
+    return (VarBinaryVector) vector;
   }
 
   /**
@@ -166,5 +277,17 @@ public class TableArrowBatchBlobWriter extends TableArrowWriter {
       return rowMimes.get(row);
     }
     return blobMimeType;
+  }
+
+  /**
+   * Resolve customFileName for a specific row and column.
+   * Per-row customFileName (from accumulator) takes precedence over builder-level default.
+   */
+  private String resolveRowCustomFileName(int columnIndex, int row) {
+    List<String> rowNames = rowCustomFileNameAccumulator.get(columnIndex);
+    if (rowNames != null && row < rowNames.size() && rowNames.get(row) != null) {
+      return rowNames.get(row);
+    }
+    return blobCustomFileName;
   }
 }

@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import com.aliyun.credentials.api.ICredentials;
 import com.aliyun.credentials.api.ICredentialsProvider;
+import com.aliyun.odps.retry.RetryContext;
+import com.aliyun.odps.retry.RetryHeaders;
 import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.MaxStorageException;
 import com.aliyun.odps.storage.ServiceException;
@@ -155,7 +157,7 @@ public class HttpClient {
     Request request =
       buildRequest(settings.getEndpoint(),
                    String.format("projects/%s/tunnel", settings.getProject()), "GET", params, null,
-                   null);
+                   null, RetryContext.create());
 
     HttpResponse response = requestWithoutRetry(request);
     String tunnelEndpoint = response.getBody();
@@ -176,7 +178,8 @@ public class HttpClient {
    */
   public HttpResponse request(Request request) {
     try {
-      return retryHandler.executeWithRetry(() -> requestWithoutRetry(request));
+      return retryHandler.executeWithRetry(context ->
+          requestWithoutRetry(withRetryContext(request, context)));
     } catch (ServiceException e) {
       throw e;
     } catch (Exception e) {
@@ -232,10 +235,19 @@ public class HttpClient {
                               Map<String, String> headers,
                               String body) {
 
-    Request request =
-      buildRequest(endpoint, path, method, params, headers,
-                   body == null ? null : RequestBody.create(JSON, body));
-    return request(request);
+    try {
+      return retryHandler.executeWithRetry(context -> requestWithoutRetry(
+          buildRequest(endpoint, path, method, params, headers,
+                       body == null ? null : RequestBody.create(JSON, body), context)));
+    } catch (ServiceException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e instanceof ClientException) {
+        throw (ClientException) e;
+      } else {
+        throw new ClientException(e);
+      }
+    }
   }
 
   /**
@@ -256,8 +268,18 @@ public class HttpClient {
                                    Map<String, String> params,
                                    Map<String, String> headers,
                                    RequestBody requestBody) {
+    return streamUpload(path, method, params, headers, requestBody, RetryContext.create());
+  }
 
-    Request request = buildRequest(endpoint, path, method, params, headers, requestBody);
+  HttpResponse streamUpload(String path,
+                            String method,
+                            Map<String, String> params,
+                            Map<String, String> headers,
+                            RequestBody requestBody,
+                            RetryContext retryContext) {
+
+    Request request =
+        buildRequest(endpoint, path, method, params, headers, requestBody, retryContext);
 
     try (Response response = client.newCall(request).execute()) {
       handleErrorResponse(response);
@@ -290,10 +312,11 @@ public class HttpClient {
                                      Map<String, String> params,
                                      Map<String, String> headers,
                                      String body) {
-    Request request = buildRequest(endpoint, path, method, params, headers,
-                                   body == null ? null : RequestBody.create(HTML, body));
     try {
-      return retryHandler.executeWithRetry(() -> {
+      return retryHandler.executeWithRetry(context -> {
+        Request request = buildRequest(
+            endpoint, path, method, params, headers,
+            body == null ? null : RequestBody.create(HTML, body), context);
         Response response = null;
         try {
           response = client.newCall(request).execute();
@@ -312,6 +335,11 @@ public class HttpClient {
             response.close();
           }
           throw new ClientException(e);
+        } catch (RuntimeException e) {
+          if (response != null) {
+            response.close();
+          }
+          throw e;
         }
       });
     } catch (ServiceException e) {
@@ -330,7 +358,8 @@ public class HttpClient {
                                String method,
                                Map<String, String> params,
                                Map<String, String> headers,
-                               RequestBody body) {
+                               RequestBody body,
+                               RetryContext retryContext) {
     HttpUrl.Builder urlBuilder = Objects.requireNonNull(HttpUrl.parse(endpoint))
       .newBuilder()
       .addPathSegments(path);
@@ -341,37 +370,46 @@ public class HttpClient {
     Request.Builder requestBuilder = new Request.Builder()
       .url(urlBuilder.build())
       .method(method, body);
-    if (headers == null) {
-      headers = new HashMap<>();
-    }
-    headers.put(CredentialUtils.DATE, CredentialUtils.getApiTimestamp());
+    Map<String, String> requestHeaders =
+        headers == null ? new HashMap<>() : new HashMap<>(headers);
+    retryContext.injectHeaders(requestHeaders);
+    requestHeaders.put(CredentialUtils.DATE, CredentialUtils.getApiTimestamp());
     // Add User-Agent header
-    headers.put("User-Agent", buildUserAgent());
+    requestHeaders.put("User-Agent", buildUserAgent());
     if (body != null) {
-      headers.put("Content-Type", body.contentType().toString());
+      requestHeaders.put("Content-Type", body.contentType().toString());
     }
     // calculate signature
-    String canonicalString = CredentialUtils.buildCanonicalString(method, path, params, headers);
+    String canonicalString =
+        CredentialUtils.buildCanonicalString(method, path, params, requestHeaders);
     log.debug("CanonicalString: {}", canonicalString);
 
     ICredentials credentials = credentialsProvider.getCredentials();
     if (CredentialUtils.isBearerToken(credentials)) {
       // Bearer token: authenticate via the x-odps-bearer-token header, no AK/SK signature.
       requestBuilder.header(CredentialUtils.ODPS_BEARER_TOKEN, credentials.getSecurityToken());
-      headers.forEach(requestBuilder::addHeader);
+      requestHeaders.forEach(requestBuilder::addHeader);
     } else {
       String signature =
         CredentialUtils.getSignature(canonicalString, credentials.getAccessKeyId(),
                                      credentials.getAccessKeySecret());
 
       requestBuilder.header(CredentialUtils.AUTHORIZATION, signature);
-      headers.forEach(requestBuilder::addHeader);
+      requestHeaders.forEach(requestBuilder::addHeader);
       if (StringUtils.isNotBlank(credentials.getSecurityToken())) {
         requestBuilder.header(CredentialUtils.AUTHORIZATION_STS_TOKEN,
                               credentials.getSecurityToken());
       }
     }
     return requestBuilder.build();
+  }
+
+  private Request withRetryContext(Request request, RetryContext retryContext) {
+    // Retry headers do not use the x-odps prefix and therefore do not change the signature.
+    return request.newBuilder()
+        .header(RetryHeaders.TRACE_ID, retryContext.getTraceId())
+        .header(RetryHeaders.RETRY_INDEX, String.valueOf(retryContext.getRetryIndex()))
+        .build();
   }
 
   private void handleErrorResponse(Response response) {
@@ -407,4 +445,3 @@ public class HttpClient {
     public String Message;
   }
 }
-

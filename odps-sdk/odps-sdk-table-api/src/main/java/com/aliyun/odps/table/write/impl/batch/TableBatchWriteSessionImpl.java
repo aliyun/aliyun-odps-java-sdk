@@ -25,6 +25,7 @@ import static com.aliyun.odps.tunnel.HttpHeaders.HEADER_ODPS_REQUEST_ID;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -96,14 +97,16 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
                         + "Session request:\n"
                         + "%s", identifier.toString(), req));
             }
-            retryHandler.executeWithRetry(() -> {
+            retryHandler.executeWithRetry(ctx -> {
+                        Map<String, String> requestHeaders = new HashMap<>(headers);
+                        ctx.injectHeaders(requestHeaders);
                         Response resp = restClient.stringRequest(ResourceBuilder.buildTableSessionResource(
                                         ConfigConstants.VERSION_1,
                                         identifier.getProject(),
                                         identifier.getSchema(),
                                         identifier.getTable(),
                                         null),
-                                "POST", params, headers, req);
+                                "POST", params, requestHeaders, req);
                         if (resp.isOK()) {
                             String response = new String(resp.getBody());
                             if (logger.isDebugEnabled()) {
@@ -201,6 +204,17 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
 
     @Override
     public void commit(WriterCommitMessage[] messages) throws IOException {
+        commit(messages, null);
+    }
+
+    @Override
+    public void commit(WriterCommitMessage[] messages,
+                       int waitFlyingWritersTimeoutSeconds) throws IOException {
+        commit(messages, Integer.valueOf(waitFlyingWritersTimeoutSeconds));
+    }
+
+    private void commit(WriterCommitMessage[] messages,
+                        Integer waitFlyingWritersTimeoutSeconds) throws IOException {
         ensureInitialized();
 
         if (messages == null) {
@@ -215,20 +229,23 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         params.put(ConfigConstants.SESSION_ID, sessionId);
 
         try {
-            String commitRequest = generateCommitRequest(messages);
+            String commitRequest = generateCommitRequest(
+                    messages, waitFlyingWritersTimeoutSeconds);
             if (logger.isDebugEnabled()) {
                 logger.debug(String.format("Commit table '%s'.\n"
                         + "Session request:\n"
                         + "%s", identifier.toString(), commitRequest));
             }
 
-            String response = retryHandler.executeWithRetry(() -> {
+            String response = retryHandler.executeWithRetry(ctx -> {
+                        Map<String, String> requestHeaders = new HashMap<>(headers);
+                        ctx.injectHeaders(requestHeaders);
                         Response resp = restClient.stringRequest(ResourceBuilder.buildTableCommitResource(
                                         VERSION_1,
                                         identifier.getProject(),
                                         identifier.getSchema(),
                                         identifier.getTable()),
-                                "POST", params, headers, commitRequest);
+                                "POST", params, requestHeaders, commitRequest);
                         String body;
                         if (!resp.isOK()) {
                             throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
@@ -351,7 +368,8 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
         return gson.toJson(request);
     }
 
-    private String generateCommitRequest(WriterCommitMessage[] messages) {
+    static String generateCommitRequest(WriterCommitMessage[] messages,
+                                        Integer waitFlyingWritersTimeoutSeconds) {
         JsonObject request = new JsonObject();
         JsonArray messageArray = new JsonArray();
         for (WriterCommitMessage commitMessage : messages) {
@@ -362,6 +380,11 @@ public class TableBatchWriteSessionImpl extends TableBatchWriteSessionBase {
             messageArray.add(new JsonPrimitive(msg.getCommitMessage()));
         }
         request.add("CommitMessages", messageArray);
+        if (waitFlyingWritersTimeoutSeconds != null) {
+            request.addProperty(
+                    "WaitFlyingWritersTimeoutSeconds",
+                    waitFlyingWritersTimeoutSeconds);
+        }
         return request.toString();
     }
 

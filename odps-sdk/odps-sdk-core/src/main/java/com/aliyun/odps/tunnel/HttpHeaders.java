@@ -16,6 +16,7 @@
 package com.aliyun.odps.tunnel;
 
 import com.aliyun.odps.commons.transport.Headers;
+import com.aliyun.odps.retry.RetryHeaders;
 
 // TODO: merge to Headers
 public class HttpHeaders extends Headers {
@@ -38,5 +39,7 @@ public class HttpHeaders extends Headers {
   public static final String HEADER_ODPS_TUNNEL_METRICS = "odps-tunnel-metrics";
   public static final String HEADER_ODPS_TUNNEL_BATCH_ID = "odps-tunnel-batch-id";
   public static final String HEADER_EXTENDED_ARROW_IPC_ENABLED = "extended-arrow-ipc-enabled";
+  public static final String HEADER_ODPS_RETRY_TRACE_ID = RetryHeaders.TRACE_ID;
+  public static final String HEADER_ODPS_RETRY_INDEX = RetryHeaders.RETRY_INDEX;
 
 }

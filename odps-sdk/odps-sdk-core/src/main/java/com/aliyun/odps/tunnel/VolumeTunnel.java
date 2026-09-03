@@ -36,6 +36,7 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.VolumeInputStream;
 import com.aliyun.odps.tunnel.io.VolumeOutputStream;
@@ -478,11 +479,15 @@ public class VolumeTunnel {
       headers.put(Headers.CONTENT_LENGTH, String.valueOf(0));
 
       int count = 0;
+      RetryContext retryContext = RetryContext.create();
       while (true) {
         count++;
         Connection conn = null;
         try {
-          conn = tunnelServiceClient.connect(getResource() + "/" + id, "PUT", params, headers);
+          HashMap<String, String> requestHeaders = new HashMap<>(headers);
+          retryContext.injectHeaders(requestHeaders);
+          conn = tunnelServiceClient.connect(
+              getResource() + "/" + id, "PUT", params, requestHeaders);
           Response resp = conn.getResponse();
 
           if (resp.isOK()) {
@@ -496,6 +501,7 @@ public class VolumeTunnel {
               } catch (InterruptedException e) {
                 throw new TunnelException(e.getMessage(), e);
               }
+              retryContext = retryContext.next();
               continue;
             }
             throw new TunnelException(conn.getInputStream());

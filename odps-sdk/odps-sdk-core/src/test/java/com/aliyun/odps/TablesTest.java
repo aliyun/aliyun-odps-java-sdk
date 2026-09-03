@@ -454,7 +454,12 @@ public class TablesTest extends TestBase {
       odps.projects().get().getSecurityManager()
           .runQuery("GRANT ADMIN TO " + OdpsTestUtils.getProperty("grant.user"), false);
     } catch (OdpsException e) {
-      assertTrue(e.getMessage().contains("Principal already have the Role:admin"));
+      // The grant user is shared by regression jobs; an existing ADMIN role is
+      // a valid precondition, not a test failure.  Re-throw unrelated errors.
+      String message = e.getMessage();
+      if (message == null || !message.toLowerCase().contains("already")) {
+        throw e;
+      }
     }
     odps.projects().get().getSecurityManager()
         .runQuery("GRANT LIST ON PROJECT " + odps.getDefaultProject() + " TO " + OdpsTestUtils.getProperty("grant.user"), false);

@@ -25,6 +25,7 @@ import org.junit.Test;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.commons.transport.Request.Method;
+import com.aliyun.odps.retry.RetryHeaders;
 
 public class SecurityUtilsTest {
 
@@ -49,6 +50,25 @@ public class SecurityUtilsTest {
     String result = SecurityUtils.buildCanonicalString(resource, request, prefix);
 
     Assert.assertEquals(expectedResult, result);
+  }
+
+  @Test
+  public void testTunnelRetryHeadersAreExcludedFromCanonicalString() {
+    String resource = "/projects/project/tables/table";
+    Request request = new Request();
+    request.setMethod(Method.GET);
+    request.setHeader(Headers.DATE, "Tue, 13 May 2014 09:22:20 GMT");
+
+    String canonical = SecurityUtils.buildCanonicalString(resource, request, "x-odps-");
+    request.setHeader(RetryHeaders.TRACE_ID, "trace-id");
+    request.setHeader(RetryHeaders.RETRY_INDEX, "1");
+
+    Assert.assertEquals(
+        canonical, SecurityUtils.buildCanonicalString(resource, request, "x-odps-"));
+
+    request.setHeader("x-odps-retry-trace-id", "trace-id");
+    Assert.assertNotEquals(
+        canonical, SecurityUtils.buildCanonicalString(resource, request, "x-odps-"));
   }
 
   @Test

@@ -25,9 +25,9 @@ package com.aliyun.odps.storage.write;
  * <p>BATCH mode: Default mode. Data is written to the table and becomes visible
  * only after the session is committed.
  *
- * <p>BATCH_COMPATIBLE mode: Batch write with compatible storage layout.
- * Data becomes visible only after session commit, same as BATCH, but the underlying
- * storage uses a layout optimized for read performance.
+ * <p>BATCH_COMPATIBLE mode: Compatibility mode for clients that need block-number and
+ * attempt-number write semantics. Each block returns a typed result that must be supplied
+ * when committing the session. Data becomes visible only after the session is committed.
  *
  * <p>STREAMING mode: Data becomes visible immediately after flush, without requiring
  * explicit commit. The session uses a default session ID and does not require
@@ -46,8 +46,8 @@ public enum WriteMode {
   BATCH("Batch"),
 
   /**
-   * Batch read-optimize write mode. Data becomes visible only after session commit,
-   * with read-optimized storage layout.
+   * Batch compatibility mode. Writers are identified by block and attempt numbers, and
+   * successful block results are supplied when committing the session.
    */
   BATCH_COMPATIBLE("BatchCompatible"),
 

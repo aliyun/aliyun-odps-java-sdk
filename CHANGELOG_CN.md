@@ -1,6 +1,11 @@
 # 更新日志
 ## [Unreleased]
 
+## [0.61.0-public] - 2026-09-03
+
+### 📦 发布与打包治理
+* **[Public Projection]**: **不向公共云发布 Inner-only KubeTask 内容** - 移除 KubeTask 凭据/配置测试资源及 public 分支中的历史残留，同时清理不属于公共云分发内容的旧 protoc 文件。
+
 ### ✨ 新功能
 * **[Storage API]**: **增强 Exactly-once 与流式写入控制能力** - 为 Storage API 写入会话和 Writer 扩展更多写入模式、Exactly-once 流元数据、row offset 透传、access token 处理，以及适用于大批量/长耗时上传的 HTTP 写超时配置。
     * *相关 API*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`

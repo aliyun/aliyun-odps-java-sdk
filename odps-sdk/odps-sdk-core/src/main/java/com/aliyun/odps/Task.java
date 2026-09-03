@@ -320,4 +320,39 @@ public abstract class Task {
 
     properties.put("settings", settings.toString());
   }
+
+  void loadEnvironmentSettings() {
+    loadEnvironmentSettings(SQLSettingsEnvironment.getSettings());
+  }
+
+  void loadEnvironmentSettings(Map<String, String> environmentSettings) {
+    if (!supportsSQLSettingsFromEnvironment() || environmentSettings.isEmpty()) {
+      return;
+    }
+
+    JsonObject settings;
+    if (properties.containsKey("settings")) {
+      try {
+        settings = JsonParser.parseString(properties.get("settings")).getAsJsonObject();
+      } catch (RuntimeException e) {
+        return;
+      }
+    } else {
+      settings = new JsonObject();
+    }
+    for (Entry<String, String> setting : environmentSettings.entrySet()) {
+      if (!settings.has(setting.getKey())) {
+        settings.addProperty(setting.getKey(), setting.getValue());
+      }
+    }
+
+    properties.put("settings", settings.toString());
+  }
+
+  /**
+   * Whether this task accepts SQL settings supplied through the process environment.
+   */
+  protected boolean supportsSQLSettingsFromEnvironment() {
+    return false;
+  }
 }

@@ -24,6 +24,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,11 +35,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.MaxStorageException;
 import com.aliyun.odps.storage.ServiceException;
 import com.aliyun.odps.storage.internal.io.CrcStrippedInputStream;
 import com.aliyun.odps.storage.internal.io.RawArrowRequestBody;
+import com.aliyun.odps.storage.internal.models.BatchCompatibleCommitRequest;
+import com.aliyun.odps.storage.internal.models.BatchCompatibleCreateSessionRequest;
+import com.aliyun.odps.storage.internal.models.BatchCompatibleSessionResponse;
+import com.aliyun.odps.storage.internal.models.BatchCompatibleWriteResponse;
 import com.aliyun.odps.storage.internal.models.BlobWriteItem;
 import com.aliyun.odps.storage.internal.models.BlobWriteRequest;
 import com.aliyun.odps.storage.internal.models.BlobWriteResponse;
@@ -111,7 +117,7 @@ import okio.BufferedSink;
  */
 public class StorageStub implements Closeable {
 
-  private static final String STORAGE_API_V2_RESOURCE = "api/storage/v2";
+  private static final String STORAGE_API_V2_RESOURCE = "api/storage/v3";
   private static final Logger log = LoggerFactory.getLogger(StorageStub.class);
 
   private final HttpClient httpClient;
@@ -281,6 +287,138 @@ public class StorageStub implements Closeable {
     log.info("Successfully aborted table write session for table: {} with session ID: {}", tableId, sessionId);
   }
 
+  // --- Batch-compatible block protocol ---
+
+  public BatchCompatibleSessionResponse createBatchCompatibleSession(
+      TableIdentifier tableId,
+      BatchCompatibleCreateSessionRequest request) {
+    Map<String, String> params = buildBatchCompatibleSessionParams(
+        tableId, "TableCreateWriteSession", null);
+    params.put("enableQuotaToken", "true");
+    HttpResponse response = httpClient.request(
+        STORAGE_API_V2_RESOURCE,
+        "POST",
+        params,
+        buildCommonHeaders(),
+        gson.toJson(request));
+
+    BatchCompatibleSessionResponse result =
+        gson.fromJson(response.getBody(), BatchCompatibleSessionResponse.class);
+    if (result == null) {
+      throw new ClientException("Create batch-compatible session returned an empty response");
+    }
+    result.setRouteToken(response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER));
+    return result;
+  }
+
+  public BatchCompatibleSessionResponse getBatchCompatibleSession(
+      TableIdentifier tableId,
+      String sessionId,
+      String routeToken) {
+    Map<String, String> params = buildBatchCompatibleSessionParams(
+        tableId, "TableGetWriteSession", sessionId);
+    HttpResponse response = httpClient.request(
+        STORAGE_API_V2_RESOURCE,
+        "POST",
+        params,
+        buildRouteHeaders(routeToken),
+        "{}");
+
+    BatchCompatibleSessionResponse result =
+        gson.fromJson(response.getBody(), BatchCompatibleSessionResponse.class);
+    if (result == null) {
+      throw new ClientException("Get batch-compatible session returned an empty response");
+    }
+    result.setRouteToken(response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER));
+    return result;
+  }
+
+  public BatchCompatibleWriteResponse writeBatchCompatibleBlock(
+      TableIdentifier tableId,
+      String sessionId,
+      int blockNumber,
+      int attemptNumber,
+      RequestBody arrowStreamBody,
+      String routeToken,
+      String quotaToken) {
+    Map<String, String> params = buildBatchCompatibleSessionParams(
+        tableId, "TableWrite", sessionId);
+    params.put("BlockNumber", String.valueOf(blockNumber));
+    params.put("AttemptNumber", String.valueOf(attemptNumber));
+    params.put("quotaToken", quotaToken);
+
+    try {
+      RetryHandler retryHandler = settings.getRetryHandler();
+      if (retryHandler == null) {
+        retryHandler = new RetryHandler();
+      }
+      RetryHandler effectiveRetryHandler = retryHandler;
+      HttpResponse response = effectiveRetryHandler.executeWithRetry(context ->
+          httpClient.streamUpload(
+              STORAGE_API_V2_RESOURCE,
+              "POST",
+              params,
+              buildRouteHeaders(routeToken),
+              arrowStreamBody,
+              context));
+      return gson.fromJson(response.getBody(), BatchCompatibleWriteResponse.class);
+    } catch (ServiceException | ClientException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ClientException(e);
+    }
+  }
+
+  public BatchCompatibleSessionResponse commitBatchCompatibleSession(
+      TableIdentifier tableId,
+      String sessionId,
+      String routeToken,
+      Collection<String> commitMessages) {
+    Map<String, String> params = buildBatchCompatibleSessionParams(
+        tableId, "TableCommitWriteSession", sessionId);
+    HttpResponse response = httpClient.request(
+        STORAGE_API_V2_RESOURCE,
+        "POST",
+        params,
+        buildRouteHeaders(routeToken),
+        gson.toJson(new BatchCompatibleCommitRequest(commitMessages)));
+
+    BatchCompatibleSessionResponse result =
+        gson.fromJson(response.getBody(), BatchCompatibleSessionResponse.class);
+    if (result == null) {
+      throw new ClientException("Commit batch-compatible session returned an empty response");
+    }
+    result.setRouteToken(response.getFirstHeader(Constants.ROUTE_TOKEN_HEADER));
+    return result;
+  }
+
+  private Map<String, String> buildBatchCompatibleSessionParams(
+      TableIdentifier tableId,
+      String action,
+      String sessionId) {
+    String resource = String.format(
+        "projects.%s.schemas.%s.tables.%s",
+        tableId.getProject(),
+        tableId.getSchema(),
+        tableId.getTable());
+    Map<String, String> params = new HashMap<>();
+    params.put("Action", action);
+    params.put("Target", resource);
+    params.put("WriteMode", WriteMode.BATCH_COMPATIBLE.getValue());
+    if (sessionId != null) {
+      params.put("SessionId", sessionId);
+    }
+    return params;
+  }
+
+  private Map<String, String> buildRouteHeaders(String routeToken) {
+    Map<String, String> headers = buildCommonHeaders();
+    if (StringUtils.isNotBlank(routeToken)) {
+      headers.put(Constants.ROUTE_TOKEN_HEADER, routeToken);
+    }
+    return headers;
+  }
+
   public CreateWriteStreamResponse createTableWriteStream(
     TableIdentifier tableId,
     String sessionId,
@@ -429,13 +567,14 @@ public class StorageStub implements Closeable {
         retryHandler = new RetryHandler();
       }
       long startTime = System.currentTimeMillis();
-      HttpResponse httpResponse = retryHandler.executeWithRetry(() -> {
+      HttpResponse httpResponse = retryHandler.executeWithRetry(context -> {
         return httpClient.streamUpload(
           STORAGE_API_V2_RESOURCE,
           "POST",
           params,
           headers,
-          arrowStreamBody);
+          arrowStreamBody,
+          context);
       });
       log.info(
         "Successfully write {} records, {} bytes(compressed) to table: {}, cost {}ms, request ID: {}", recordCount,
@@ -730,6 +869,7 @@ public class StorageStub implements Closeable {
     Map<String, String> headers = buildCommonHeaders();
     //headers.put("Content-Encoding", "zstd");
     MaxStorageException lastException = null;
+    RetryContext retryContext = RetryContext.create();
 
     try {
       // 1. Serialize all blob items into a single byte array.
@@ -750,7 +890,8 @@ public class StorageStub implements Closeable {
         try {
           // 3. Make the HTTP call.
           HttpResponse response =
-            httpClient.streamUpload(STORAGE_API_V2_RESOURCE, "POST", params, headers, requestBody);
+            httpClient.streamUpload(
+                STORAGE_API_V2_RESOURCE, "POST", params, headers, requestBody, retryContext);
 
           // 4. Parse the response.
           BlobWriteResponse blobWriteResponse =
@@ -777,6 +918,7 @@ public class StorageStub implements Closeable {
         } catch (MaxStorageException e) {
           lastException = e;
           log.error("Batch upload attempt {} failed due to network or server error: {}", attempt, e.getMessage(), e);
+          retryContext = retryContext.next();
         }
       }
       // If all retries fail, throw the last captured exception.
@@ -811,6 +953,7 @@ public class StorageStub implements Closeable {
     Map<String, String> headers = buildCommonHeaders();
     headers.put("Content-Encoding", "zstd");
     MaxStorageException lastException = null;
+    RetryContext retryContext = RetryContext.create();
     try (InputStream repeatableStream = IOUtils.newRepeatableInputStream(data)) {
       for (int attempt = 0; attempt <= 3; attempt++) {
         if (attempt > 0) {
@@ -824,7 +967,8 @@ public class StorageStub implements Closeable {
         RequestBody requestBody = createStreamingBody(repeatableStream, CompressionCodec.ZSTD);
         try {
           HttpResponse response =
-            httpClient.streamUpload(STORAGE_API_V2_RESOURCE, "POST", params, headers, requestBody);
+            httpClient.streamUpload(
+                STORAGE_API_V2_RESOURCE, "POST", params, headers, requestBody, retryContext);
           BlobWriteResponse
             blobWriteResponse =
             gson.fromJson(response.getBody(), BlobWriteResponse.class);
@@ -842,6 +986,7 @@ public class StorageStub implements Closeable {
           lastException = e;
           log.error("Upload attempt {} failed due to network error: {}", attempt, e.getMessage(),
                     e);
+          retryContext = retryContext.next();
         }
       }
       throw lastException;

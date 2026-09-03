@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -108,7 +109,9 @@ public class Table extends LazyLoad {
     /**
      * Object table
      */
-    OBJECT_TABLE
+    OBJECT_TABLE,
+
+    SNAPSHOT
   }
 
   /**
@@ -275,6 +278,8 @@ public class Table extends LazyLoad {
     long cdcRecordNum = -1;
     long cdcLatestVersion = -1;
     Date cdcLatestTimestamp;
+
+    List<VectorIndexInfo> vectorIndexes;
   }
 
   public static class ColumnMaskInfo {
@@ -300,6 +305,47 @@ public class Table extends LazyLoad {
   /**
    * ClusterInfo is used to express the Shuffle and Sort properties of the table when creating a clustered table.
    */
+  public static class VectorIndexInfo {
+
+    private final Map<String, String> attributes;
+    private final Map<String, String> properties;
+
+    VectorIndexInfo(Map<String, String> attributes, Map<String, String> properties) {
+      this.attributes = attributes;
+      this.properties = properties;
+    }
+
+    public String getId() {
+      return attributes.get("Id");
+    }
+
+    public String getName() {
+      return attributes.get("Name");
+    }
+
+    public String getType() {
+      return attributes.get("Type");
+    }
+
+    public Map<String, String> getProperties() {
+      return properties;
+    }
+
+    public String getAttribute(String key) {
+      return attributes.get(key);
+    }
+
+    public Map<String, String> getAttributes() {
+      return Collections.unmodifiableMap(attributes);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("VectorIndex{attributes=%s, properties=%s}",
+          attributes, properties);
+    }
+  }
+
   public static class ClusterInfo {
 
     public enum ClusterType {
@@ -1881,6 +1927,8 @@ public class Table extends LazyLoad {
 
     model.schemaVersion =
         reservedJson.has("schema_version") ? reservedJson.get("schema_version").getAsString() : null;
+
+    model.vectorIndexes = parseVectorIndexes(reservedJson);
   }
 
   private static boolean parseTransactionalInfo(JsonObject jsonObject) {
@@ -1925,6 +1973,32 @@ public class Table extends LazyLoad {
     }
 
     return clusterInfo;
+  }
+
+  private static List<VectorIndexInfo> parseVectorIndexes(JsonObject reservedJson) {
+    if (!reservedJson.has("VectorIndexes")) {
+      return null;
+    }
+
+    List<VectorIndexInfo> indexes = new ArrayList<>();
+    JsonArray indexArray = reservedJson.get("VectorIndexes").getAsJsonArray();
+    for (JsonElement elem : indexArray) {
+      JsonObject indexObj = elem.getAsJsonObject();
+      Map<String, String> attributes = new LinkedHashMap<>();
+      Map<String, String> properties = new LinkedHashMap<>();
+      for (Map.Entry<String, JsonElement> entry : indexObj.entrySet()) {
+        if ("Properties".equals(entry.getKey()) && entry.getValue().isJsonObject()) {
+          for (Map.Entry<String, JsonElement> prop : entry.getValue()
+              .getAsJsonObject().entrySet()) {
+            properties.put(prop.getKey(), prop.getValue().getAsString());
+          }
+        } else if (entry.getValue().isJsonPrimitive()) {
+          attributes.put(entry.getKey(), entry.getValue().getAsString());
+        }
+      }
+      indexes.add(new VectorIndexInfo(attributes, properties));
+    }
+    return indexes;
   }
 
   /**
@@ -2360,6 +2434,11 @@ public class Table extends LazyLoad {
   public Date getCdcLatestTimestamp() {
     lazyLoadExtendInfo();
     return model.cdcLatestTimestamp;
+  }
+
+  public List<VectorIndexInfo> getVectorIndexes() {
+    lazyLoadExtendInfo();
+    return model.vectorIndexes;
   }
 
   public Stream newStream(String streamName) throws OdpsException {

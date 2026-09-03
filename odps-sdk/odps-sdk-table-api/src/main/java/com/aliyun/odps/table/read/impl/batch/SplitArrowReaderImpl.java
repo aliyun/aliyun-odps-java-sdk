@@ -19,9 +19,13 @@
 
 package com.aliyun.odps.table.read.impl.batch;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -55,16 +59,24 @@ import com.aliyun.odps.tunnel.io.TunnelRetryHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
+public class SplitArrowReaderImpl
+        implements SplitReader<VectorSchemaRoot>, CancellableSplitReader {
 
-    private static final Logger logger = LoggerFactory.getLogger(SplitArrowReaderImpl.class.getName());
+    private static final Logger logger =
+            LoggerFactory.getLogger(SplitArrowReaderImpl.class.getName());
 
     private final ReaderOptions readerOptions;
     private final InputStream in;
 
     private ArrowReader reader;
     private Connection connection;
-    private boolean isClosed;
+    private volatile boolean isClosed;
+    private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
+    private final Object closeLock = new Object();
+    private volatile boolean readerClosed;
+    private volatile boolean transportDisconnected;
+    private volatile long cancellationTimeoutMillis =
+            TimeUnit.SECONDS.toMillis(RestClient.DEFAULT_READ_TIMEOUT);
     private Metrics metrics;
     private BytesCount bytesCount;
     private RecordCount recordCount;
@@ -79,18 +91,36 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
     public SplitArrowReaderImpl(TableIdentifier identifier,
                                 InputSplit split,
                                 ReaderOptions options) throws IOException {
-        openReaderConnection(identifier, split, options);
-        initMetrics();
-        this.isClosed = false;
         this.readerOptions = options;
-        this.in = connection.getInputStream();
-        this.reader = ArrowReaderBuilder.newBuilder(in,
-                        options.getBufferAllocator())
-                .withReuseBatch(options.isReuseBatch())
-                .withCompression(options.getCompressionCodec())
-                .withAsync(options.isAsync())
-                .withAsyncQueue(options.getAsyncQueue())
-                .build();
+        InputStream input = null;
+        ArrowReader arrowReader = null;
+        Throwable failure = null;
+        try {
+            openReaderConnection(identifier, split, options);
+            initMetrics();
+            input = new CancellationAwareInputStream(
+                    connection.getInputStream(), cancelRequested);
+            arrowReader = ArrowReaderBuilder.newBuilder(
+                            input, options.getBufferAllocator())
+                    .withReuseBatch(options.isReuseBatch())
+                    .withCompression(options.getCompressionCodec())
+                    .withAsync(options.isAsync())
+                    .withAsyncQueue(options.getAsyncQueue())
+                    .build();
+        } catch (Throwable t) {
+            failure = t;
+        }
+
+        if (failure != null) {
+            Throwable cleanupFailure =
+                    cleanupFailedConstruction(arrowReader, input);
+            failure = appendFailure(failure, cleanupFailure);
+            throwConstructionFailure(failure);
+        }
+
+        this.in = input;
+        this.reader = arrowReader;
+        this.isClosed = false;
         this.bytesRead = 0;
         this.streamTag = -1;
     }
@@ -116,6 +146,9 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                     }
                     bytesRead += reader.bytesRead();
                     reader.close(false);
+                    if (cancelRequested.get()) {
+                        return false;
+                    }
                     reader = ArrowReaderBuilder.newBuilder(in,
                                     readerOptions.getBufferAllocator())
                             .withReuseBatch(readerOptions.isReuseBatch())
@@ -129,7 +162,13 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                 return true;
             }
         } catch (IOException e) {
-            logger.error("Get next record batch failed, requestId=" + requestId, e);
+            if (cancelRequested.get()) {
+                logger.debug(
+                        "Arrow split read cancelled, requestId=" + requestId, e);
+            } else {
+                logger.error(
+                        "Get next record batch failed, requestId=" + requestId, e);
+            }
             throw e;
         }
     }
@@ -144,13 +183,44 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
 
     @Override
     public void close() throws IOException {
-        if (!isClosed) {
-            if (reader != null) {
-                reader.close();
+        synchronized (closeLock) {
+            if (isClosed) {
+                return;
             }
-            disconnect();
-            isClosed = true;
+
+            Throwable failure = null;
+            if (!readerClosed) {
+                try {
+                    if (reader != null) {
+                        reader.close();
+                    }
+                    readerClosed = true;
+                } catch (Throwable t) {
+                    failure = appendFailure(failure, t);
+                }
+            }
+
+            try {
+                disconnectTransport();
+            } catch (Throwable t) {
+                failure = appendFailure(failure, t);
+            }
+            isClosed = readerClosed && transportDisconnected;
+            throwCloseFailure(failure);
         }
+    }
+
+    @Override
+    public void cancelRead() throws IOException {
+        if (isClosed) {
+            return;
+        }
+        cancelRequested.set(true);
+    }
+
+    @Override
+    public long cancellationTimeoutMillis() {
+        return cancellationTimeoutMillis;
     }
 
     @Override
@@ -178,6 +248,12 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                                       ReaderOptions options) throws IOException {
         RestClient restClient = ExecutionEnvironment.create(options.getSettings())
                 .createHttpClient(identifier.getProject());
+        int readTimeoutSeconds = restClient.getReadTimeout();
+        if (options.getDiskSpillBufferOptions() != null && readTimeoutSeconds <= 0) {
+            throw new IllegalArgumentException(
+                    "Disk spill buffering requires a finite positive HTTP read timeout");
+        }
+        cancellationTimeoutMillis = TimeUnit.SECONDS.toMillis(readTimeoutSeconds);
         restClient.setRetryLogger(new RestClient.RetryLogger() {
             @Override
             public void onRetryLog(Throwable e, long retryCount, long retrySleepTime) {
@@ -216,7 +292,9 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
         params.put(ConfigConstants.MAX_BATCH_ROWS,
                 String.valueOf(options.getBatchRowCount()));
         if (options.getBatchRawSize() != 0L) {
-            params.put(ConfigConstants.MAX_BATCH_RAW_SIZE, String.valueOf(options.getBatchRawSize()));
+            params.put(
+                    ConfigConstants.MAX_BATCH_RAW_SIZE,
+                    String.valueOf(options.getBatchRawSize()));
         }
         params.put(ConfigConstants.DATA_FORMAT_TYPE,
                 options.getDataFormat().getType().toString());
@@ -229,34 +307,137 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                     identifier.getSchema(),
                     identifier.getTable());
 
-            retryHandler.executeWithRetry(() -> {
+            final Exception[] pendingDisconnectPrimary = new Exception[1];
+            retryHandler.executeWithRetry(ctx -> {
+                Exception pendingFailure = pendingDisconnectPrimary[0];
+                if (pendingFailure != null) {
+                    disconnectAfterFailure(pendingFailure);
+                    if (!transportDisconnected) {
+                        throw pendingFailure;
+                    }
+                    pendingDisconnectPrimary[0] = null;
+                }
+
                 try {
-                    this.connection = restClient.connect(resource, "GET", params, headers);
+                    Map<String, String> requestHeaders = new HashMap<>(headers);
+                    ctx.injectHeaders(requestHeaders);
+                    this.connection = restClient.connect(
+                            resource, "GET", params, requestHeaders);
+                    this.transportDisconnected = false;
                     Response resp = connection.getResponse();
                     this.requestId = resp.getHeader(HttpHeaders.HEADER_ODPS_REQUEST_ID);
-                    this.extendedArrowIPCEnabled = "true".equals(resp.getHeader(HttpHeaders.HEADER_EXTENDED_ARROW_IPC_ENABLED));
+                    this.extendedArrowIPCEnabled = "true".equals(
+                            resp.getHeader(HttpHeaders.HEADER_EXTENDED_ARROW_IPC_ENABLED));
 
                     if (!resp.isOK()) {
                         throw new TunnelException(requestId, connection.getInputStream(),
                                 resp.getStatus());
                     }
                 } catch (Exception e) {
-                    disconnect();
+                    disconnectAfterFailure(e);
+                    if (connection != null && !transportDisconnected) {
+                        pendingDisconnectPrimary[0] = e;
+                    }
                     throw e;
                 }
                 return null;
             });
         } catch (Exception e) {
-            disconnect();
+            disconnectAfterFailure(e);
             logger.error("Open split reader failed", e);
             throw new IOException(e.getMessage(), e);
         }
     }
 
-    private void disconnect() throws IOException {
-        if (connection != null) {
+    private void disconnectTransport() throws IOException {
+        if (!transportDisconnected && connection != null) {
             connection.disconnect();
+            transportDisconnected = true;
         }
+    }
+
+    private Throwable cleanupFailedConstruction(
+            ArrowReader arrowReader,
+            InputStream input) {
+        Throwable failure = null;
+        if (arrowReader != null) {
+            try {
+                arrowReader.close();
+            } catch (Throwable t) {
+                failure = appendFailure(failure, t);
+            }
+        }
+        if (input != null) {
+            try {
+                input.close();
+            } catch (Throwable t) {
+                failure = appendFailure(failure, t);
+            }
+        }
+        try {
+            disconnectTransport();
+        } catch (Throwable t) {
+            failure = appendFailure(failure, t);
+        }
+        return failure;
+    }
+
+    private void disconnectAfterFailure(Throwable primary) {
+        try {
+            disconnectTransport();
+        } catch (Throwable disconnectFailure) {
+            appendFailure(primary, disconnectFailure);
+        }
+    }
+
+    private static Throwable appendFailure(
+            Throwable primary,
+            Throwable secondary) {
+        if (secondary == null) {
+            return primary;
+        }
+        if (primary == null) {
+            return secondary;
+        }
+        if (primary != secondary) {
+            try {
+                primary.addSuppressed(secondary);
+            } catch (Throwable ignored) {
+                // Preserve the primary failure even if suppression itself cannot be recorded.
+            }
+        }
+        return primary;
+    }
+
+    private static void throwConstructionFailure(Throwable failure)
+            throws IOException {
+        if (failure instanceof IOException) {
+            throw (IOException) failure;
+        }
+        if (failure instanceof RuntimeException) {
+            throw (RuntimeException) failure;
+        }
+        if (failure instanceof Error) {
+            throw (Error) failure;
+        }
+        throw new IOException("Failed to initialize Arrow split reader", failure);
+    }
+
+    private static void throwCloseFailure(Throwable failure)
+            throws IOException {
+        if (failure == null) {
+            return;
+        }
+        if (failure instanceof IOException) {
+            throw (IOException) failure;
+        }
+        if (failure instanceof RuntimeException) {
+            throw (RuntimeException) failure;
+        }
+        if (failure instanceof Error) {
+            throw (Error) failure;
+        }
+        throw new IOException("Failed to close Arrow split reader", failure);
     }
 
     private void loadServerMetrics() {
@@ -269,6 +450,53 @@ public class SplitArrowReaderImpl implements SplitReader<VectorSchemaRoot> {
                     rateLimitCost.inc(Long.parseLong(value));
                 }
             });
+        }
+    }
+
+    /**
+     * Makes cancellation observable even when the server keeps trickling bytes. A blocked
+     * underlying read is still bounded by the positive RestClient read timeout required for disk
+     * spill mode.
+     */
+    private static final class CancellationAwareInputStream extends FilterInputStream {
+
+        private final AtomicBoolean cancelled;
+
+        private CancellationAwareInputStream(
+                InputStream input,
+                AtomicBoolean cancelled) {
+            super(input);
+            this.cancelled = cancelled;
+        }
+
+        @Override
+        public int read() throws IOException {
+            checkCancelled();
+            int value = super.read();
+            checkCancelled();
+            return value;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            checkCancelled();
+            int count = super.read(buffer, offset, length);
+            checkCancelled();
+            return count;
+        }
+
+        @Override
+        public long skip(long count) throws IOException {
+            checkCancelled();
+            long skipped = super.skip(count);
+            checkCancelled();
+            return skipped;
+        }
+
+        private void checkCancelled() throws IOException {
+            if (cancelled.get()) {
+                throw new IOException("Arrow split read cancelled");
+            }
         }
     }
 }

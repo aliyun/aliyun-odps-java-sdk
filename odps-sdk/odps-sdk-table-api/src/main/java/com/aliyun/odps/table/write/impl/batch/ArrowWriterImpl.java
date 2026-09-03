@@ -239,9 +239,12 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
 
             TunnelRetryHandler retryHandler = new TableRetryHandler(restClient);
 
-            return retryHandler.executeWithRetry(() -> {
+            return retryHandler.executeWithRetry(ctx -> {
                 try {
-                    this.connection = restClient.connect(resource, "POST", params, headers);
+                    Map<String, String> requestHeaders = new HashMap<>(headers);
+                    ctx.injectHeaders(requestHeaders);
+                    this.connection = restClient.connect(
+                            resource, "POST", params, requestHeaders);
                     return connection.getOutputStream();
                 } catch (Exception e) {
                     disconnect();

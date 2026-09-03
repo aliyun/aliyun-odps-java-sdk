@@ -91,7 +91,11 @@ public class SchemaUtils {
 
     private static List<Field> generateSubFields(TypeInfo typeInfo,
                                                  ArrowOptions options) {
-        if (typeInfo instanceof ArrayTypeInfo) {
+        if (typeInfo instanceof VectorTypeInfo) {
+            VectorTypeInfo vectorTypeInfo = (VectorTypeInfo) typeInfo;
+            TypeInfo subti = vectorTypeInfo.getElementTypeInfo();
+            return Arrays.asList(convertTypeInfoToArrowField("element", subti, true, options));
+        } else if (typeInfo instanceof ArrayTypeInfo) {
             ArrayTypeInfo arrayTypeInfo = (ArrayTypeInfo) typeInfo;
             TypeInfo subti = arrayTypeInfo.getElementTypeInfo();
             return Arrays.asList(convertTypeInfoToArrowField("element", subti, true, options));
@@ -175,6 +179,7 @@ public class SchemaUtils {
                 arrowType = parseTimeStamp(options.getTimestampUnit());
                 break;
             case ARRAY:
+            case VECTOR:
                 arrowType = new ArrowType.List();
                 break;
             case STRUCT:

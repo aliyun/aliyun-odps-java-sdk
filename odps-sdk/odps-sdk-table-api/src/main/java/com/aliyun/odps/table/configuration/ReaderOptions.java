@@ -24,6 +24,7 @@ import com.aliyun.odps.table.enviroment.EnvironmentSettings;
 import com.aliyun.odps.table.utils.ArrowUtils;
 import com.aliyun.odps.table.utils.Preconditions;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.VectorSchemaRoot;
 
 import java.util.concurrent.BlockingQueue;
 
@@ -40,6 +41,7 @@ public class ReaderOptions {
     private EnvironmentSettings settings;
     private CompressionCodec compressionCodec;
     private DataFormat dataFormat;
+    private DiskSpillBufferOptions diskSpillBufferOptions;
 
     private ReaderOptions() {
         this.batchRowCount = DEFAULT_BUFFERED_ROW_COUNT;
@@ -84,6 +86,10 @@ public class ReaderOptions {
         return compressionCodec;
     }
 
+    public DiskSpillBufferOptions getDiskSpillBufferOptions() {
+        return diskSpillBufferOptions;
+    }
+
     public static ReaderOptions.Builder newBuilder() {
         return new Builder();
     }
@@ -104,6 +110,15 @@ public class ReaderOptions {
             return this;
         }
 
+        /**
+         * Configures ownership of {@link VectorSchemaRoot} batches returned by
+         * {@code TableBatchReadSession.createArrowReader}.
+         *
+         * <p>When true, a batch remains valid only until the next {@code hasNext()} call or reader
+         * close, and the caller must not close it. When false, every returned batch is owned by the
+         * caller, may outlive later reader advances and reader close, and must be closed by the
+         * caller.
+         */
         public Builder withReuseBatch(boolean reuseBatch) {
             this.readerOptions.reuseBatch = reuseBatch;
             return this;
@@ -136,6 +151,17 @@ public class ReaderOptions {
         }
         public Builder withAsyncQueue(BlockingQueue<Object> asyncQueue) {
             this.readerOptions.asyncQueue = asyncQueue;
+            return this;
+        }
+
+        /**
+         * Enables bounded background buffering with local-disk spill.
+         *
+         * <p>Disk spill buffering already drains the network asynchronously and therefore cannot
+         * be combined with {@link #withAsync(boolean)}.
+         */
+        public Builder withDiskSpillBuffer(DiskSpillBufferOptions options) {
+            this.readerOptions.diskSpillBufferOptions = options;
             return this;
         }
 

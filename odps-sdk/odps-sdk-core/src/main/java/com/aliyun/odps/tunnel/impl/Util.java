@@ -37,6 +37,7 @@ public class Util {
 
         odpsServiceClient.setReadTimeout(conf.getSocketTimeout());
         odpsServiceClient.setConnectTimeout(conf.getSocketConnectTimeout());
+        odpsServiceClient.enableTunnelRetryHeaders();
         odpsServiceClient.setEndpoint(endpoint.toString());
 
         return odpsServiceClient;

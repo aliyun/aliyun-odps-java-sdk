@@ -76,6 +76,28 @@ public class StorageTierTest extends TestBase {
   }
 
   @Test
+  public void testColdArchiveStorageTierE2E() throws OdpsException {
+    String name = OdpsTestUtils.getRandomName();
+    String sql = "create table " + name
+                 + " (name string,id bigint) "
+                 + "TBLPROPERTIES ('storagetier'='coldarchive');";
+    try {
+      Instance instance =
+          SQLTask.run(odps, odps.getDefaultProject(), sql, hint, null);
+      instance.waitForSuccess();
+
+      Table table = odps.tables().get(name);
+      table.reloadExtendInfo();
+      assertNotNull(table.getStorageTierInfo());
+      assertEquals(StorageTierInfo.StorageTier.COLDARCHIVE,
+                   table.getStorageTierInfo().getStorageTier());
+      assertNotNull(table.getStorageTierInfo().getStorageLastModifiedTime());
+    } finally {
+      odps.tables().delete(name, true);
+    }
+  }
+
+  @Test
   public void testTableStorageTier() throws OdpsException {
     String name = OdpsTestUtils.getRandomName();
     //创建一个非分区表，设置其存储类型
@@ -276,4 +298,3 @@ public class StorageTierTest extends TestBase {
     return readToString(xmlPath).getBytes("UTF-8");
   }
 }
-

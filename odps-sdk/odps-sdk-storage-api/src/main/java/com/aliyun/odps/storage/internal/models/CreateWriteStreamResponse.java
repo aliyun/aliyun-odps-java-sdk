@@ -46,6 +46,12 @@ public class CreateWriteStreamResponse {
   @SerializedName("AccessToken")
   private String accessToken;
 
+  /**
+   * One-time quota reservation token returned for batch-compatible block writes.
+   */
+  @SerializedName("QuotaToken")
+  private String quotaToken;
+
   public WriteSchema getDataSchema() {
     return dataSchema;
   }
@@ -84,5 +90,13 @@ public class CreateWriteStreamResponse {
 
   public void setAccessToken(String accessToken) {
     this.accessToken = accessToken;
+  }
+
+  public String getQuotaToken() {
+    return quotaToken;
+  }
+
+  public void setQuotaToken(String quotaToken) {
+    this.quotaToken = quotaToken;
   }
 }

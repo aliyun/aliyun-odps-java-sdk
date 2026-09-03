@@ -25,6 +25,7 @@ import com.aliyun.odps.commons.transport.HttpStatus;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
 import com.aliyun.odps.tunnel.TunnelException;
@@ -399,6 +400,7 @@ public class UpsertStreamImpl implements UpsertStream {
     List<FlushResultHandler> handlers = new ArrayList<>();
     boolean success;
     int retry = 0;
+    Map<Integer, RetryContext> retryContexts = new HashMap<>();
 
     // update slot map
     Map<Integer, Slot> bucketMap = session.getBuckets();
@@ -427,7 +429,12 @@ public class UpsertStreamImpl implements UpsertStream {
               if (!flushAll) {
                 totalWriteBufferSize += bytes;
               }
-              Request request = session.buildRequest("PUT", bucketId, buckets.get(bucketId), pack.getTotalBytes(), pack.getSize(), compressOption);
+              RetryContext retryContext = retryContexts.computeIfAbsent(
+                  bucketId, ignored -> RetryContext.create());
+              Request request = session.buildRequest(
+                  "PUT", bucketId, buckets.get(bucketId), pack.getTotalBytes(), pack.getSize(),
+                  compressOption, retryContext);
+              retryContexts.put(bucketId, retryContext.next());
               channel = channelPool.acquire();
               FlushResultHandler handler = new FlushResultHandler(pack, latch, listener, retry, bucketId);
               channel.pipeline().addLast(handler);

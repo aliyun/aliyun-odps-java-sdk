@@ -32,6 +32,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.LogView;
 import com.aliyun.odps.Odps;
@@ -60,6 +63,8 @@ import com.aliyun.odps.utils.CSVRecordParser;
 import com.aliyun.odps.utils.StringUtils;
 
 public class SQLExecutorImpl implements SQLExecutor {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SQLExecutorImpl.class);
 
   private String id = null;
 
@@ -163,6 +168,8 @@ public class SQLExecutorImpl implements SQLExecutor {
         if (builder.getRecoverInstance().getStatus() == Instance.Status.RUNNING) {
           session = new Session(odps, builder.getRecoverInstance());
           attachSuccess = true;
+          LOG.debug("Session attached, instance: {}", session.getInstance().getId());
+          LOG.debug("Recovered session from instance: {}", builder.getRecoverInstance().getId());
         }
       }
       try {
@@ -172,16 +179,16 @@ public class SQLExecutorImpl implements SQLExecutor {
               .attach(odps, serviceName, this.properties, attachTimeout,
                   runningCluster, taskName);
           attachSuccess = true;
+          LOG.debug("Session attached, instance: {}", session.getInstance().getId());
         }
       } catch (OdpsException e) {
         if (fallbackPolicy.isAlwaysFallBack() || fallbackPolicy.isFallback4AttachError()) {
-          // ignore attach failed if fallback for alwaysFallback or fallback4AttachError
+          LOG.info("Session attach failed, will fallback to offline mode. Error: {}", e.getMessage());
         } else {
           throw e;
         }
       }
     } else if (executeMode.equals(ExecuteMode.OFFLINE)) {
-      // pass
     } else {
       throw new OdpsException("Invalid execution mode, can not init with NONE.");
     }
@@ -233,9 +240,10 @@ public class SQLExecutorImpl implements SQLExecutor {
       try {
         if (session != null) {
           session.stop();
+          LOG.debug("Session stopped on close, instance: {}", session.getInstance().getId());
         }
       } catch (OdpsException e) {
-        // ignore
+        LOG.info("Failed to stop session on close: {}", e.getMessage());
       }
     }
   }
@@ -366,11 +374,12 @@ public class SQLExecutorImpl implements SQLExecutor {
   public void cancel() throws OdpsException {
     if (queryInfo != null) {
       if (queryInfo.getExecuteMode().equals(ExecuteMode.OFFLINE)) {
-        // fallback to offline
         queryInfo.getInstance().stop();
       } else {
         session.cancelQuery(queryInfo.getId());
       }
+      LOG.info("Query cancelled, mode: {}", queryInfo.getExecuteMode());
+      LOG.debug("Cancelled query, instance: {}, subQueryId: {}", queryInfo.getInstance().getId(), queryInfo.getId());
     }
   }
 
@@ -682,6 +691,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
     queryInfo = new QueryInfo(sql, hint, executeMode);
     queryInfo.setCommandInfo(new CommandInfo(sql, hint));
+    LOG.debug("Running query in {} mode, sql length: {}", executeMode, sql.length());
 
     if (useCommandApi) {
       Command command = CommandUtil.parseCommand(sql);
@@ -694,6 +704,7 @@ public class SQLExecutorImpl implements SQLExecutor {
           command.run(odps, queryInfo.getCommandInfo());
         }
         parseSuccess = true;
+        LOG.debug("Query parsed as command API, command: {}, sync: {}", command.getClass().getSimpleName(), command.isSync());
         return;
       }
     }
@@ -715,12 +726,15 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (enableReattach) {
       try {
         attachSuccess = false;
+        LOG.debug("Reattaching to session due to: {}", errorMessage);
         session =
             Session
                 .attach(odps, serviceName, properties, attachTimeout,
                     runningCluster, taskName);
         attachSuccess = true;
+        LOG.debug("Reattach succeeded, instance: {}", session.getInstance().getId());
       } catch (OdpsException e) {
+        LOG.info("Reattach failed: {}", e.getMessage());
         if (!fallbackPolicy.isAlwaysFallBack() && !fallbackPolicy.isFallback4AttachError()) {
           throw new OdpsException(errorMessage);
         }
@@ -733,12 +747,14 @@ public class SQLExecutorImpl implements SQLExecutor {
   private ExecuteMode handleSessionException(String errorCode, String errorMessage)
       throws OdpsException {
     if (errorMessage.contains(SQLExecutorConstants.sessionReattachFlag)) {
+      LOG.debug("Session reattach required, errorCode: {}", errorCode);
       reattach(errorMessage);
       return ExecuteMode.INTERACTIVE;
     } else if (errorMessage.contains(SQLExecutorConstants.sessionJobCancelledComplierFlag) ||
                errorMessage.contains(SQLExecutorConstants.sessionJobCancelledFlag)) {
       throw new OdpsException(errorMessage);
     } else if (fallbackPolicy.shouldFallback(errorCode, errorMessage)) {
+      LOG.info("Falling back to offline mode, errorCode: {}, error: {}", errorCode, errorMessage);
       return ExecuteMode.OFFLINE;
     } else {
       throw new OdpsException(errorMessage);
@@ -762,6 +778,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     info.errMsg = errorMessage;
     if (!isSelect) {
       // tunnel do not support non-select query, double check task result
+      LOG.debug("Tunnel reports non-select query, verifying via session API");
       try {
         session.getSubQueryResult(queryInfo.getId(), skipCheckIfSelect);
         // query success
@@ -772,8 +789,8 @@ public class SQLExecutorImpl implements SQLExecutor {
         info.status = TunnelRetryStatus.QUERY_FAILED;
         info.errCode = e.getErrorCode();
         info.errMsg = e.getMessage();
+        LOG.debug("Non-select query verification failed, errorCode: {}", e.getErrorCode());
         return info;
-        //throw new OdpsException(e.getErrorCode() + ":" + e.getMessage());
       }
     }
     if (errorCode.equals(SQLExecutorConstants.sessionTunnelTimeoutFlag)
@@ -781,9 +798,11 @@ public class SQLExecutorImpl implements SQLExecutor {
       // get result timeout
       tunnelGetResultRetryCount++;
       if (tunnelGetResultRetryCount >= tunnelGetResultMaxRetryTime) {
+        LOG.info("Tunnel get result timeout, max retry reached");
         info.status = TunnelRetryStatus.QUERY_FAILED;
         return info;
       }
+      LOG.info("Tunnel get result timeout, retrying ({}/{})", tunnelGetResultRetryCount, tunnelGetResultMaxRetryTime);
       info.status = TunnelRetryStatus.NEED_RETRY;
       return info;
     }
@@ -922,6 +941,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         result = session.getRawSubQueryResult(queryInfo.getId());
       }
     } catch (OdpsException e) {
+      LOG.info("Session result fetch failed, errorCode: {}", e.getErrorCode());
       ExecuteMode executeMode = handleSessionException(e.getErrorCode(), e.getMessage());
       runQueryInternal(executeMode, e.getMessage(), true);
       return getResultSetInternal(null, null, null, true);
@@ -958,6 +978,7 @@ public class SQLExecutorImpl implements SQLExecutor {
 
       if (InternalBlobHelper.containBlob(reader.getTableSchema())) {
         String errorMsg = "Warning： MCQA not support blob column, fall back to Offline";
+        LOG.info("Fallback to offline: blob column not supported");
         getExecutionLog().add(errorMsg);
         runQueryInternal(ExecuteMode.OFFLINE, errorMsg, true);
         return getResultSetInternal(offset, countLimit, sizeLimit, limitEnabled);
@@ -1058,6 +1079,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         if (!isSelect || TunnelConstants.INSTANCE_NOT_TERMINATED.equals(
             tunnelException.getErrorCode())
             || TunnelConstants.TASK_FAILED.equals(tunnelException.getErrorCode())) {
+          LOG.info("Fallback from tunnel to API, errorCode: {}", tunnelException.getErrorCode());
           queryInfo.addLog(
               "Use instance tunnel to fetch result failed, fallback to get result by API. Error: ["
               + tunnelException.getErrorCode() + "] " + tunnelException.getMessage());
@@ -1089,6 +1111,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         session.runSubQuery(queryInfo.getSql(), queryInfo.getHint());
     if (subQueryInfo.status.equals(Session.SubQueryInfo.kOKCode)) {
       if (subQueryInfo.queryId == -1) {
+        LOG.debug("Session subQuery returned queryId=-1");
         ExecuteMode executeMode = handleSessionException(subQueryInfo.result, subQueryInfo.result);
         runQueryInternal(executeMode, subQueryInfo.result, true);
       } else {
@@ -1099,10 +1122,12 @@ public class SQLExecutorImpl implements SQLExecutor {
             ExecuteMode.INTERACTIVE,
             "",
             rerunMsg);
+        LOG.debug("Submitted interactive query, subQueryId: {}, instance: {}", subQueryInfo.queryId, session.getInstance().getId());
       }
     } else if (subQueryInfo.status.equals(Session.SubQueryInfo.kNotFoundCode)) {
       // odps worker cannot found instance, may stopped, reattach and retry
       String taskTerminateMsg = session.getInstance().getTaskResults().get(taskName);
+      LOG.info("SubQuery not found, reattaching session");
       reattach("Submit query failed:" + taskTerminateMsg);
       // if attach failed, will fallback to offline
       // if attach succeed, this will be the first try, no not inc retry count
@@ -1136,6 +1161,8 @@ public class SQLExecutorImpl implements SQLExecutor {
         null,
         priority);
 
+    LOG.debug("Submitted offline query, instance: {}, priority: {}", instance.getId(), priority);
+
     queryInfo.setInstance(instance, ExecuteMode.OFFLINE,
         new LogView(odps, logviewVersion).generateLogView(instance, 7 * 24), rerunMsg);
   }
@@ -1143,9 +1170,13 @@ public class SQLExecutorImpl implements SQLExecutor {
   private void runQueryInternal(ExecuteMode executeMode, String rerunMsg, boolean isRerun) throws OdpsException {
     boolean fallbackForAttachFailed = false;
     boolean forceRunInOffline = !queryInfo.isSelect() && !sessionSupportNonSelect;
+    if (forceRunInOffline) {
+      LOG.info("Fallback to offline: non-select query");
+    }
     if (queryInfo.getRetry() < SQLExecutorConstants.MaxRetryTimes) {
       if (isRerun) {
         queryInfo.incRetry();
+        LOG.info("Retrying query, attempt: {}/{}, reason: {}", queryInfo.getRetry(), SQLExecutorConstants.MaxRetryTimes, rerunMsg);
       }
       // INTERACTIVE mode and attach failed and always fallback, try to attach session
       if (executeMode == ExecuteMode.INTERACTIVE && !attachSuccess && (fallbackPolicy
@@ -1155,13 +1186,16 @@ public class SQLExecutorImpl implements SQLExecutor {
               Session.attach(odps, serviceName, properties,
                              attachTimeout, runningCluster, taskName);
           attachSuccess = true;
+          LOG.debug("Session attached, instance: {}", session.getInstance().getId());
         } catch (OdpsException e) {
           // ignore if attach failed, run SQL in offline mode
           fallbackForAttachFailed = true;
+          LOG.info("Session attach failed on retry, fallback to offline");
         }
       }
       if (executeMode == ExecuteMode.OFFLINE || fallbackForAttachFailed || forceRunInOffline) {
         queryInfo.setExecuteMode(ExecuteMode.OFFLINE);
+        LOG.info("Fallback to offline mode");
         // attach success and query fallback, disable sqa in fallback offline mode
         if (queryInfo != null) {
           if (queryInfo.getHint() == null) {
@@ -1209,6 +1243,9 @@ public class SQLExecutorImpl implements SQLExecutor {
 
   @Override
   public ExecuteMode getExecuteMode() {
+    if (queryInfo == null) {
+      return null;
+    }
     return queryInfo.getExecuteMode();
   }
 

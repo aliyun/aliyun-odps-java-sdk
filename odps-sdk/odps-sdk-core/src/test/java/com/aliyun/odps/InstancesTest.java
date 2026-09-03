@@ -58,13 +58,14 @@ public class InstancesTest extends TestBase {
 
   @Before
   public void testCreate() throws OdpsException {
-    SQLTask task = new SQLTask();
-    task.setQuery("select count(*) from " + TABLE_NAME + ";");
-    task.setName("testsqlcase");
-    gi = odps.instances().create(task);
-    gi.getId();
-    gi.waitForSuccess();
-    String testsqlcase = gi.getTaskDetailJson("testsqlcase");
+    // see bug 55099220
+    HashMap<String, String> hints = new HashMap<>();
+    hints.put("odps.sql.offline.result.cache.enable", "false");
+    gi = SQLTask.run(odps, odps.getDefaultProject(), "select count(*) from " + TABLE_NAME + ";",
+                    "testsqlcase", hints, null);
+    this.gi.getId();
+    this.gi.waitForSuccess();
+    String testsqlcase = this.gi.getTaskDetailJson("testsqlcase");
     System.out.println(testsqlcase);
     // i.getOwner();
     // i.getStartTime();

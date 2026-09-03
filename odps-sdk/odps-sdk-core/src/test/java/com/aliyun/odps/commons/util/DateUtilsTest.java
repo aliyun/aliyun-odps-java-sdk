@@ -45,7 +45,9 @@ public class DateUtilsTest extends TestBase {
   private static Calendar c9 = (Calendar)DateUtils.SHANGHAI_CAL.clone();    //2018-11-30 23:59:59
   private static Calendar c10 = (Calendar)DateUtils.SHANGHAI_CAL.clone();   //2499-01-01 00:00:00
   private static Calendar c11 = (Calendar)DateUtils.SHANGHAI_CAL.clone();   //1986-05-04 01:00:00
-  private static Calendar c12 = (Calendar)DateUtils.SHANGHAI_CAL.clone();   //1986-05-04 02:00:00
+  // 02:00 did not exist locally because Shanghai daylight saving time began
+  // at that instant. Use the first valid post-transition time instead.
+  private static Calendar c12 = (Calendar)DateUtils.SHANGHAI_CAL.clone();   //1986-05-04 03:00:00
 
   private static long __0001_01_01_00_00_00 = -62135625952L;
   private static long __1927_12_31_23_54_07 = -1325491905L;
@@ -58,7 +60,7 @@ public class DateUtilsTest extends TestBase {
   private static long __2018_11_30_23_59_59 = 1543593599L;
   private static long __2499_01_01_00_00_00 = 16693660800L;
   private static long __1986_05_04_01_00_00 = 515520000L;
-  private static long __1986_05_04_02_00_00 = 515523600L;
+  private static long __1986_05_04_03_00_00 = 515527200L;
 
   @Before
   public void setUp() throws Exception {
@@ -153,7 +155,7 @@ public class DateUtilsTest extends TestBase {
     c12.set(Calendar.YEAR, 1986);
     c12.set(Calendar.MONTH, 5 - 1);
     c12.set(Calendar.DAY_OF_MONTH, 4);
-    c12.set(Calendar.HOUR_OF_DAY, 2);
+    c12.set(Calendar.HOUR_OF_DAY, 3);
     c12.set(Calendar.MINUTE, 0);
     c12.set(Calendar.SECOND, 0);
     c12.set(Calendar.MILLISECOND, 0);
@@ -176,7 +178,7 @@ public class DateUtilsTest extends TestBase {
     Assert.assertEquals(DateUtils.rawtime2date(__2018_11_30_23_59_59), c9.getTime());
     Assert.assertEquals(DateUtils.rawtime2date(__2499_01_01_00_00_00), c10.getTime());
     Assert.assertEquals(DateUtils.rawtime2date(__1986_05_04_01_00_00), c11.getTime());
-    Assert.assertEquals(DateUtils.rawtime2date(__1986_05_04_02_00_00), c12.getTime());
+    Assert.assertEquals(DateUtils.rawtime2date(__1986_05_04_03_00_00), c12.getTime());
   }
 
   @Test
@@ -192,7 +194,7 @@ public class DateUtilsTest extends TestBase {
     Assert.assertEquals(DateUtils.date2rawtime(c9.getTime()), __2018_11_30_23_59_59);
     Assert.assertEquals(DateUtils.date2rawtime(c10.getTime()), __2499_01_01_00_00_00);
     Assert.assertEquals(DateUtils.date2rawtime(c11.getTime()), __1986_05_04_01_00_00);
-    Assert.assertEquals(DateUtils.date2rawtime(c12.getTime()), __1986_05_04_02_00_00);
+    Assert.assertEquals(DateUtils.date2rawtime(c12.getTime()), __1986_05_04_03_00_00);
   }
 
   @Test

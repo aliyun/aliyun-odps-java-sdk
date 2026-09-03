@@ -88,7 +88,55 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         Preconditions.checkNotNull(identifier, "Table read identifier");
         Preconditions.checkNotNull(split, "Input split");
         Preconditions.checkNotNull(options, "Reader options");
-        return new SplitArrowReaderImpl(identifier, split, options);
+        Preconditions.checkArgument(
+                options.getDiskSpillBufferOptions() == null || !options.isAsync(),
+                "Disk spill buffering cannot be combined with asynchronous Arrow reading");
+        if (options.getDiskSpillBufferOptions() == null) {
+            return new SplitArrowReaderImpl(identifier, split, options);
+        }
+
+        // Create the isolated local workspace before opening the remote stream. The workspace
+        // never scans or coordinates with other readers, so concurrent split creation does not
+        // serialize on the shared spill root.
+        DiskSpillWorkspace workspace = DiskSpillWorkspace.create(
+                options.getDiskSpillBufferOptions().getSpillDirectory(), split);
+        SplitReader<VectorSchemaRoot> reader;
+        try {
+            reader = new SplitArrowReaderImpl(identifier, split, options);
+        } catch (IOException | RuntimeException | Error failure) {
+            IOException cleanupFailure = workspace.cleanup();
+            if (cleanupFailure != null) {
+                failure.addSuppressed(cleanupFailure);
+                IOException retryFailure = workspace.cleanup();
+                if (retryFailure != null && retryFailure != failure) {
+                    failure.addSuppressed(retryFailure);
+                }
+            }
+            throw failure;
+        }
+        try {
+            // Ownership transfers only when the wrapper constructor returns successfully. Its
+            // failure cleanup is best-effort; this caller still owns both resources and retries
+            // them independently so one cleanup failure cannot hide or skip the other.
+            return new DiskSpillBufferedSplitReader(
+                    reader,
+                    options.getDiskSpillBufferOptions(),
+                    options.isReuseBatch(),
+                    workspace);
+        } catch (RuntimeException | Error failure) {
+            try {
+                reader.close();
+            } catch (Throwable closeFailure) {
+                if (closeFailure != failure) {
+                    failure.addSuppressed(closeFailure);
+                }
+            }
+            IOException cleanupFailure = workspace.cleanup();
+            if (cleanupFailure != null && cleanupFailure != failure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
+        }
     }
 
     @Override
@@ -125,7 +173,9 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                         + "%s", identifier.toString(), requestStr));
             }
 
-            String response = retryHandler.executeWithRetry(() -> {
+            String response = retryHandler.executeWithRetry(ctx -> {
+                Map<String, String> requestHeaders = new HashMap<>(headers);
+                ctx.injectHeaders(requestHeaders);
                 Response resp = restClient.stringRequest(
                         ResourceBuilder.buildTableSessionResource(
                                 ConfigConstants.VERSION_1,
@@ -133,7 +183,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                                 identifier.getSchema(),
                                 identifier.getTable(),
                                 null),
-                        "POST", params, headers, requestStr);
+                        "POST", params, requestHeaders, requestStr);
                 String body;
                 if (resp.isOK()) {
                     body = new String(resp.getBody());

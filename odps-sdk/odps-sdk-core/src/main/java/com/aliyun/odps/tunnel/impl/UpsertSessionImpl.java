@@ -23,6 +23,7 @@ import com.aliyun.odps.commons.transport.HttpStatus;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -70,6 +71,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
     private long readTimeout;
     private boolean supportPartialUpdate = false;
     private long lifecycle = 0;
+    private boolean strictTypeValidation = true;
 
     // netty
     private EventLoopGroup group;
@@ -98,6 +100,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         this.id = builder.getUpsertId();
         this.tunnelRetryHandler = new TunnelRetryHandler(config);
         this.lifecycle = builder.getLifecycle();
+        this.strictTypeValidation = !builder.skipValidation;
         if (id == null) {
             initiate();
         } else {
@@ -119,12 +122,16 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
     @Override
     public Record newRecord() {
-        return new UpsertRecord(this.recordSchema.getColumns().toArray(new Column[0]));
+        return new UpsertRecord(
+            this.recordSchema.getColumns().toArray(new Column[0]),
+            null, false, strictTypeValidation);
     }
 
     @Override
     public Record newRecord(boolean caseSensitive) {
-        return new UpsertRecord(this.recordSchema.getColumns().toArray(new Column[0]), null, caseSensitive);
+        return new UpsertRecord(
+            this.recordSchema.getColumns().toArray(new Column[0]),
+            null, caseSensitive, strictTypeValidation);
     }
 
     @Override
@@ -482,7 +489,8 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                                 Slot slot,
                                 long contentLength,
                                 long recordCount,
-                                CompressOption compressOption) throws TunnelException {
+                                CompressOption compressOption,
+                                RetryContext retryCtx) throws TunnelException {
         if (slot.getServer().isEmpty()) {
             throw new TunnelException("slot addr is empty");
         }
@@ -492,6 +500,9 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         params.put(TunnelConstants.UPSERT_ID, id);
 
         HashMap<String, String> headers = Util.getCommonHeader();
+        if (retryCtx != null) {
+            retryCtx.injectHeaders(headers);
+        }
         headers.put(Headers.CONTENT_LENGTH, String.valueOf(contentLength));
         headers.put(HttpHeaders.HEADER_ODPS_ROUTED_SERVER, slot.getServer());
         List<String> tags = config.getTags();
@@ -585,6 +596,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         private long slotNum = 1;
         private long commitTimeout = 120 * 1000;
         private long lifecycle = 0;
+        boolean skipValidation = false;
         Configuration config;
 
         public String getUpsertId() {
@@ -711,6 +723,12 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
         public UpsertSessionImpl.Builder setNettyBootStrap(Bootstrap bootstrap) {
             this.bootstrap = bootstrap;
+            return this;
+        }
+
+        @Override
+        public UpsertSessionImpl.Builder setSkipValidation(boolean skipValidation) {
+            this.skipValidation = skipValidation;
             return this;
         }
 

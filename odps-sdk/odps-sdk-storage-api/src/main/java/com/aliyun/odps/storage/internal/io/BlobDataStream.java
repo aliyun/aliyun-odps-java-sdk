@@ -30,9 +30,12 @@ public class BlobDataStream extends LimitedInputStream {
 
   private final String mimeType;
 
-  public BlobDataStream(InputStream source, long limit, String mimeType) {
+  private final String customFileName;
+
+  public BlobDataStream(InputStream source, long limit, String mimeType, String customFileName) {
     super(source, limit);
     this.mimeType = mimeType;
+    this.customFileName = customFileName;
   }
 
   /**
@@ -42,5 +45,14 @@ public class BlobDataStream extends LimitedInputStream {
    */
   public String getMimeType() {
     return mimeType;
+  }
+
+  /**
+   * Returns the custom file name of this blob data, as set during upload.
+   *
+   * @return the custom file name string, or {@code null} if not set
+   */
+  public String getCustomFileName() {
+    return customFileName;
   }
 }

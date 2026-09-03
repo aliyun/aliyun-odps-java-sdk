@@ -13,6 +13,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.BooleanUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.LogView;
@@ -53,6 +55,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class SQLExecutorImpl implements SQLExecutor {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SQLExecutorImpl.class);
+
   private static final String DEFAULT_TASK_NAME = "AnonymousMaxQATask";
   private final Odps odps;
   private InstanceTunnel instanceTunnel;
@@ -92,6 +96,10 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (builder.getTunnelReadTimeout() >= 0) {
       instanceTunnel.getConfig().setSocketTimeout(builder.getTunnelReadTimeout());
     }
+    if (!StringUtils.isNullOrEmpty(builder.getTunnelQuotaName())) {
+      ((com.aliyun.odps.tunnel.Configuration) instanceTunnel.getConfig()).setQuotaName(
+          builder.getTunnelQuotaName());
+    }
 
     this.log = new ArrayList<>();
     // each executor has a uuid
@@ -110,7 +118,9 @@ public class SQLExecutorImpl implements SQLExecutor {
       queryInfo = new QueryInfo("unknown", null, ExecuteMode.INTERACTIVE_V2);
       queryInfo.setInstance(builder.getRecoverInstance(), ExecuteMode.INTERACTIVE_V2, null, null);
       queryInfo.setSelect(true);
+      LOG.debug("Recovered from instance: {}", builder.getRecoverInstance().getId());
     }
+    LOG.debug("Initialized MCQA 2.0 executor, id: {}, useInstanceTunnel: {}, useCommandApi: {}", id, useInstanceTunnel, useCommandApi);
   }
 
   @Override
@@ -125,6 +135,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     }
     queryInfo = new QueryInfo(sql, hint, ExecuteMode.INTERACTIVE_V2);
     queryInfo.setCommandInfo(new CommandInfo(sql, hint));
+    LOG.debug("Running query in MCQA 2.0 mode, sql length: {}", sql.length());
 
     if (useCommandApi) {
       Command command = CommandUtil.parseCommand(sql);
@@ -135,6 +146,7 @@ public class SQLExecutorImpl implements SQLExecutor {
           command.run(odps, queryInfo.getCommandInfo());
         }
         parseSuccess = true;
+        LOG.debug("Query parsed as command API, command: {}, sync: {}", command.getClass().getSimpleName(), command.isSync());
         return;
       }
     }
@@ -158,6 +170,7 @@ public class SQLExecutorImpl implements SQLExecutor {
 
     queryInfo.setInstance(currentInstance, ExecuteMode.INTERACTIVE_V2, null, null);
     log.add("Successfully submitted MaxQA Job, ID: " + currentInstance.getId());
+    LOG.debug("Submitted MaxQA job, instance: {}", currentInstance.getId());
   }
 
   @Override
@@ -206,6 +219,7 @@ public class SQLExecutorImpl implements SQLExecutor {
   public void cancel() throws OdpsException {
     if (queryInfo != null) {
       Instance instance = queryInfo.getInstance();
+      LOG.debug("Cancelling query, instance: {}", instance.getId());
       try {
         instance.stop();
       } catch (OdpsException e) {
@@ -522,7 +536,9 @@ public class SQLExecutorImpl implements SQLExecutor {
         resultDescriptor.getSelectResultStatus() != Instance.ResultDescriptor.SelectResultStatus.FULL) {
       if (limitEnabled && resultDescriptor.getSelectResultStatus() == Instance.ResultDescriptor.SelectResultStatus.TRUNCATED) {
         log.add("Warning: result has been truncated, at most 10000 records return.");
+        LOG.info("Result truncated, returning limited result (limitEnabled=true)");
       } else {
+        LOG.info("Fallback to tunnel: result truncated");
         log.add("Result is truncated, use instance tunnel to get unlimited result.");
         return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, false);
       }
@@ -541,6 +557,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         } catch (Exception e) {
           if (enableTypedResults) {
             log.add("Warning: typed result parse failed, fallback to get result by tunnel.");
+            LOG.info("Fallback to tunnel: typed result parse failed");
             return getResultSetByInstanceTunnel(offset, countLimit, sizeLimit, limitEnabled);
           }
           throw new OdpsException(result.getString(), e);
@@ -577,6 +594,7 @@ public class SQLExecutorImpl implements SQLExecutor {
         }
       }
       if (InternalBlobHelper.containBlob(downloadSession.getSchema())) {
+        LOG.info("Fallback to StorageAPI: blob column detected");
         if (sizeLimit != null) {
           getExecutionLog().add("WARN: when feach blob column, size limit will not take effect");
         }
@@ -624,6 +642,7 @@ public class SQLExecutorImpl implements SQLExecutor {
       }
     } else {
       // fall back to non-tunnel when isSelect = false
+      LOG.info("Fallback to direct fetch: non-select query");
       return getResultSetDirectly(offset, countLimit, sizeLimit, limitEnabled);
     }
   }
@@ -649,6 +668,7 @@ public class SQLExecutorImpl implements SQLExecutor {
     if (pool != null) {
       pool.releaseExecutor(this);
     }
+    LOG.debug("Executor closed, id: {}", id);
   }
 
   @Override

@@ -450,6 +450,7 @@ public class Instances implements Iterable<Instance> {
       t.setProperty("uuid", guid);
       t.loadSystemSettings();
       t.loadGlobalSettings();
+      t.loadEnvironmentSettings();
       if (t.getName() == null) {
         throw new OdpsException("Task name required.");
       }

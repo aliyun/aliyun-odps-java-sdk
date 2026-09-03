@@ -140,6 +140,8 @@ public class ArrowStructWriterImpl {
                 return new ArrowVarCharWriterImpl.StructVarCharWriter((VarCharVector) vector);
             case BINARY:
                 return new ArrowVarBinaryWriterImpl.StructVarBinaryWriter((VarBinaryVector) vector);
+            case BLOB:
+                return new ArrowVarBinaryWriterImpl.StructBlobVarBinaryWriter((VarBinaryVector) vector);
             case DATE:
                 return new ArrowDateDayWriterImpl.StructDateWriter((DateDayVector) vector);
             case DATETIME:

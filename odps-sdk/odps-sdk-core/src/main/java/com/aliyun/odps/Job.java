@@ -35,6 +35,7 @@ import com.aliyun.odps.task.CupidTask;
 import com.aliyun.odps.task.GalaxyTask;
 import com.aliyun.odps.task.GraphTask;
 import com.aliyun.odps.task.LOTTask;
+import com.aliyun.odps.task.MaxFrameTask;
 import com.aliyun.odps.task.MergeTask;
 import com.aliyun.odps.task.MoyeTask;
 import com.aliyun.odps.task.SQLCostTask;

@@ -73,6 +73,7 @@ import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.options.MaxStorageDownloadOption;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.tunnel.impl.StreamUploadSessionImpl;
 import com.aliyun.odps.tunnel.impl.UpsertSessionImpl;
@@ -593,6 +594,11 @@ public class TableTunnel {
           String projectName,
           String tableName) {
     return new DownloadSessionBuilder().setProjectName(projectName).setTableName(tableName);
+  }
+
+  public UploadSessionBuilder buildUploadSession(String projectName, String tableName) {
+    return new UploadSessionBuilder().setProjectName(projectName).setTableName(tableName)
+        .setSchemaName(config.getOdps().getCurrentSchema());
   }
 
   /**
@@ -1362,6 +1368,11 @@ public class TableTunnel {
        */
       UpsertSession.Builder setLifecycle(long lifecycle);
 
+      /**
+       * 跳过客户端数据校验（如字符串长度限制），默认为 false
+       */
+      UpsertSession.Builder setSkipValidation(boolean skipValidation);
+
       UpsertSession build() throws TunnelException, IOException;
     }
   }
@@ -1440,6 +1451,7 @@ public class TableTunnel {
     private static final int RETRY_SLEEP_SECONDS = 5;
     private boolean shouldTransform = false;
     private boolean overwrite = false;
+    private boolean createPartition = false;
     private boolean fetchBlockId = true;
 
     /**
@@ -1469,7 +1481,7 @@ public class TableTunnel {
         String partitionSpec,
         String uploadId,
         boolean overwrite) throws TunnelException {
-      this(projectName, schemaName, tableName, partitionSpec, uploadId, overwrite, true);
+      this(projectName, schemaName, tableName, partitionSpec, uploadId, overwrite, false, true);
     }
 
     UploadSession(
@@ -1480,6 +1492,18 @@ public class TableTunnel {
         String uploadId,
         boolean overwrite,
         boolean fetchBlockId) throws TunnelException {
+      this(projectName, schemaName, tableName, partitionSpec, uploadId, overwrite, false, fetchBlockId);
+    }
+
+    UploadSession(
+        String projectName,
+        String schemaName,
+        String tableName,
+        String partitionSpec,
+        String uploadId,
+        boolean overwrite,
+        boolean createPartition,
+        boolean fetchBlockId) throws TunnelException {
       this.conf = TableTunnel.this.config;
       this.projectName = projectName;
       this.schemaName = schemaName;
@@ -1487,6 +1511,7 @@ public class TableTunnel {
       this.partitionSpec = partitionSpec;
       this.id = uploadId;
       this.overwrite = overwrite;
+      this.createPartition = createPartition;
       this.fetchBlockId = fetchBlockId;
 
       tunnelServiceClient = conf.newRestClient(projectName);
@@ -1498,11 +1523,11 @@ public class TableTunnel {
       TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
       try {
         retryHandler.executeWithRetry(
-            () -> {
+            ctx -> {
               if (this.id == null) {
-                initiate();
+                initiate(ctx);
               } else {
-                reload();
+                reload(ctx);
               }
               return null;
             }
@@ -1515,8 +1540,9 @@ public class TableTunnel {
     }
 
     /* Initiate upload session */
-    private void initiate() throws TunnelException {
+    private void initiate(RetryContext ctx) throws TunnelException {
       HashMap<String, String> headers = getCommonHeader();
+      ctx.injectHeaders(headers);
 
       List<String> tags = this.conf.getTags();
       if (tags != null) {
@@ -1530,6 +1556,9 @@ public class TableTunnel {
       }
       if (this.overwrite) {
         params.put(TunnelConstants.OVERWRITE, "true");
+      }
+      if (this.createPartition) {
+        params.put(TunnelConstants.CREATE_PARTITION, "true");
       }
       if (this.conf.availableQuotaName()) {
         params.put(TunnelConstants.PARAM_QUOTA_NAME, this.conf.getQuotaName());
@@ -1637,18 +1666,21 @@ public class TableTunnel {
         throws IOException {
       TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
       try {
-        retryHandler.executeWithRetry(() -> {
+        retryHandler.executeWithRetry(ctx -> {
           Connection conn = null;
           try {
             if (pack instanceof ProtobufRecordPack) {
               ProtobufRecordPack protoPack = (ProtobufRecordPack) pack;
               long startTime = System.currentTimeMillis();
-              conn = getConnection(blockId, protoPack.getCompressOption(), blockVersion);
+              conn = getConnection(blockId, protoPack.getCompressOption(), blockVersion, ctx);
               protoPack.addNetworkWallTimeMs(System.currentTimeMillis() - startTime);
               protoPack.addLocalWallTimeMs(System.currentTimeMillis() - startTime);
               sendBlock(protoPack, conn, timeout);
             } else {
-              RecordWriter writer = openRecordWriter(blockId);
+              CompressOption option = new CompressOption(
+                  CompressOption.CompressAlgorithm.ODPS_RAW, 0, 0);
+              RecordWriter writer = openRecordWriterInternal(
+                  blockId, option, blockVersion, ctx);
               RecordReader reader = pack.getRecordReader();
               Record record;
               while ((record = reader.read()) != null) {
@@ -1770,14 +1802,21 @@ public class TableTunnel {
 
     private RecordWriter openRecordWriterInternal(long blockId, CompressOption compress, long blockVersion)
         throws TunnelException {
+      return openRecordWriterInternal(blockId, compress, blockVersion, RetryContext.create());
+    }
+
+    private RecordWriter openRecordWriterInternal(long blockId, CompressOption compress,
+                                                  long blockVersion,
+                                                  RetryContext initialContext)
+        throws TunnelException {
       long startTime = System.currentTimeMillis();
       TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
       try {
-        return retryHandler.executeWithRetry(() -> {
+        return retryHandler.executeWithRetry(initialContext, ctx -> {
           Connection conn = null;
           try {
             TunnelRecordWriter writer = null;
-            conn = getConnection(blockId, compress, blockVersion);
+            conn = getConnection(blockId, compress, blockVersion, ctx);
             writer =
                 new TunnelRecordWriter(schema, conn, compress);
             writer.setTransform(shouldTransform);
@@ -1908,14 +1947,25 @@ public class TableTunnel {
       return arrowTunnelRecordWriter;
     }
 
-    private Connection getConnection(long blockId, CompressOption compress, long blockVersion)
+    private Connection getConnection(long blockId, CompressOption compress, long blockVersion,
+                                     RetryContext ctx)
             throws OdpsException, IOException {
-      return getConnection(blockId, false, compress, blockVersion);
+      return getConnection(blockId, false, compress, blockVersion, ctx);
     }
 
-    private Connection getConnection(long blockId, boolean isArrow, CompressOption compress, long blockVersion)
+    private Connection getConnection(long blockId, boolean isArrow, CompressOption compress,
+                                     long blockVersion)
+        throws OdpsException, IOException {
+      return getConnection(blockId, isArrow, compress, blockVersion, null);
+    }
+
+    private Connection getConnection(long blockId, boolean isArrow, CompressOption compress,
+                                     long blockVersion, RetryContext ctx)
         throws OdpsException, IOException {
       HashMap<String, String> headers = new HashMap<>();
+      if (ctx != null) {
+        ctx.injectHeaders(headers);
+      }
       headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
       headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
       // req.setHeader("Expect", "100-continue");
@@ -1973,7 +2023,14 @@ public class TableTunnel {
     }
 
     private void reload() throws TunnelException {
+      reload(null);
+    }
+
+    private void reload(RetryContext ctx) throws TunnelException {
       HashMap<String, String> headers = getCommonHeader();
+      if (ctx != null) {
+        ctx.injectHeaders(headers);
+      }
       List<String> tags = this.conf.getTags();
       if (tags != null) {
         headers.put(HttpHeaders.HEADER_ODPS_TUNNEL_TAGS, String.join(",", tags));
@@ -2082,10 +2139,13 @@ public class TableTunnel {
 
       TunnelRetryHandler retryHandler = new TunnelRetryHandler(conf);
       try {
-        retryHandler.executeWithRetry(() -> {
+        retryHandler.executeWithRetry(ctx -> {
+          HashMap<String, String> requestHeaders = new HashMap<>(headers);
+          ctx.injectHeaders(requestHeaders);
           Connection conn = null;
           try {
-            conn = tunnelServiceClient.connect(getResource(), "POST", params, headers);
+            conn = tunnelServiceClient.connect(
+                getResource(), "POST", params, requestHeaders);
             Response resp = conn.getResponse();
 
             if (resp.isOK()) {
@@ -3043,6 +3103,68 @@ public class TableTunnel {
       } catch (Exception e) {
         throw new TunnelException("Invalid json content.", e);
       }
+    }
+  }
+
+  public class UploadSessionBuilder {
+    private String projectName;
+    private String schemaName;
+    private String tableName;
+    private PartitionSpec partitionSpec;
+    private boolean overwrite = false;
+    private boolean createPartition = false;
+
+    public UploadSessionBuilder setProjectName(String projectName) {
+      this.projectName = projectName;
+      return this;
+    }
+
+    public UploadSessionBuilder setSchemaName(String schemaName) {
+      this.schemaName = schemaName;
+      return this;
+    }
+
+    public UploadSessionBuilder setTableName(String tableName) {
+      this.tableName = tableName;
+      return this;
+    }
+
+    public UploadSessionBuilder setPartitionSpec(PartitionSpec partitionSpec) {
+      this.partitionSpec = partitionSpec;
+      return this;
+    }
+
+    public UploadSessionBuilder setPartitionSpec(String partitionSpec) {
+      this.partitionSpec = partitionSpec == null ? null : new PartitionSpec(partitionSpec);
+      return this;
+    }
+
+    public UploadSessionBuilder setOverwrite(boolean overwrite) {
+      this.overwrite = overwrite;
+      return this;
+    }
+
+    public UploadSessionBuilder setCreatePartition(boolean createPartition) {
+      this.createPartition = createPartition;
+      return this;
+    }
+
+    public UploadSession build() throws TunnelException {
+      if (partitionSpec != null && partitionSpec.keys().size() == 0) {
+        throw new IllegalArgumentException("Invalid arguments, partition spec required.");
+      }
+      if (createPartition && partitionSpec == null) {
+        throw new IllegalArgumentException("Invalid arguments, partition spec required.");
+      }
+      return new TableTunnel.UploadSession(
+          projectName,
+          schemaName,
+          tableName,
+          partitionSpec == null ? null : partitionSpec.toString().replaceAll("'", ""),
+          null,
+          overwrite,
+          createPartition,
+          true);
     }
   }
 

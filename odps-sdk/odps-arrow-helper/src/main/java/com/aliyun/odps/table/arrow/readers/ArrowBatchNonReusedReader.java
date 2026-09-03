@@ -25,7 +25,6 @@ import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.compression.CompressionCodec;
@@ -45,6 +44,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ArrowBatchNonReusedReader implements ArrowReader {
 
@@ -56,9 +56,16 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
     private int loadedDictionaryCount;
     private Map<Long, Dictionary> dictionaries;
     private VectorSchemaRoot currentBatch;
+    // Ownership transfers to the caller only when getCurrentValue() returns this batch.
+    private boolean currentBatchClaimed;
     private Schema originalSchema;
     private List<Field> fieldList;
     private boolean hasDictionaries = false;
+    private boolean dictionariesClosed;
+    private boolean messageReaderClosed;
+    private volatile Throwable terminalFailure;
+    private final ConcurrentLinkedQueue<FieldVector> retainedFieldVectors =
+            new ConcurrentLinkedQueue<>();
 
     public ArrowBatchNonReusedReader(InputStream is,
                                      BufferAllocator allocator) {
@@ -77,6 +84,10 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
 
     @Override
     public VectorSchemaRoot getCurrentValue() {
+        throwTerminalFailureUnchecked();
+        if (currentBatch != null) {
+            currentBatchClaimed = true;
+        }
         return currentBatch;
     }
 
@@ -87,40 +98,43 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
 
     @Override
     public boolean nextBatch() throws IOException {
-        boolean hasNext = loadNextBatch();
-        if (!hasNext) {
-            currentBatch.close();
-            currentBatch = null;
+        throwTerminalFailure();
+        releaseCurrentBatchBeforeAdvance();
+        try {
+            return loadNextBatch();
+        } catch (IOException | RuntimeException | Error e) {
+            terminalFailure = e;
+            closeUnpublishedBatch(e);
+            throw e;
         }
-        return hasNext;
     }
 
     @Override
     public void close() throws IOException {
-        closeDictionary();
-        messageReader.close();
+        close(true);
     }
 
     @Override
     public void close(boolean closeReadSource) throws IOException {
-        closeDictionary();
+        Throwable failure = releaseUnclaimedCurrentBatch(null);
+        failure = closeRetainedFieldVectors(failure);
+        failure = closeDictionaries(failure);
 
-        if (closeReadSource) {
-            messageReader.close();
+        if (closeReadSource && !messageReaderClosed) {
+            try {
+                messageReader.close();
+                messageReaderClosed = true;
+            } catch (IOException | RuntimeException | Error closeError) {
+                failure = addFailure(failure, closeError);
+            }
         }
+
+        throwIfCloseFailed(failure);
     }
 
     @Override
     public long bytesRead() {
         return messageReader.bytesRead();
-    }
-
-    private void closeDictionary() {
-        if (initialized) {
-            for (Dictionary dictionary : dictionaries.values()) {
-                dictionary.getVector().close();
-            }
-        }
     }
 
     /**
@@ -130,7 +144,10 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
      * @throws IOException on error
      */
     private boolean loadNextBatch() throws IOException {
-        prepareLoadNextBatch();
+        if (!initialized) {
+            initialize();
+            this.initialized = true;
+        }
         MessageResult result = messageReader.readNext();
 
         // Reached EOS
@@ -139,20 +156,8 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
         }
 
         if (result.getMessage().headerType() == MessageHeader.RecordBatch) {
-            ArrowBuf bodyBuffer = result.getBodyBuffer();
-
-            // For zero-length batches, need an empty buffer to deserialize the batch
-            if (bodyBuffer == null) {
-                bodyBuffer = allocator.getEmpty();
-            }
-
-            VectorLoader loader = new VectorLoader(currentBatch, compressionFactory);
-            ArrowRecordBatch batch = MessageSerializer.deserializeRecordBatch(result.getMessage(), bodyBuffer);
-            try {
-                loader.load(batch);
-            } finally {
-                batch.close();
-            }
+            ArrowRecordBatch batch = readRecordBatch(result);
+            loadRecordBatch(batch);
             checkDictionaries();
 
             if (hasDictionaries) {
@@ -166,29 +171,121 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
             loadedDictionaryCount++;
             return loadNextBatch();
         } else {
-            throw new IOException("Expected RecordBatch or DictionaryBatch but header was " +
-                    result.getMessage().headerType());
+            IOException failure = new IOException(
+                    "Expected RecordBatch or DictionaryBatch but header was "
+                            + result.getMessage().headerType());
+            closeBodyBuffer(result.getBodyBuffer(), failure);
+            throw failure;
         }
     }
 
 
-    /**
-     * Ensure the reader has been initialized and reset the VectorSchemaRoot row count to 0.
-     *
-     * @throws IOException on error
-     */
-    private void prepareLoadNextBatch() throws IOException {
-        if (!initialized) {
-            initialize();
-            this.initialized = true;
-        }
+    /** Creates an empty root for a record batch that has not been exposed to the caller. */
+    private VectorSchemaRoot createBatchRoot() {
         List<FieldVector> vectors = new ArrayList<>(fieldList.size());
-        for (Field field : fieldList) {
-            vectors.add(field.createVector(allocator));
+        try {
+            for (Field field : fieldList) {
+                vectors.add(field.createVector(allocator));
+            }
+            Schema schema = new Schema(fieldList, originalSchema.getCustomMetadata());
+            VectorSchemaRoot batch = new VectorSchemaRoot(schema, vectors, 0);
+            batch.setRowCount(0);
+            return batch;
+        } catch (RuntimeException | Error e) {
+            for (FieldVector vector : vectors) {
+                closeFieldVectorOrRetain(vector, e);
+            }
+            throw e;
         }
-        Schema schema = new Schema(fieldList, originalSchema.getCustomMetadata());
-        this.currentBatch = new VectorSchemaRoot(schema, vectors, 0);
-        currentBatch.setRowCount(0);
+    }
+
+    private ArrowRecordBatch readRecordBatch(MessageResult result) throws IOException {
+        ArrowBuf bodyBuffer = result.getBodyBuffer();
+
+        // For zero-length batches, need an empty buffer to deserialize the batch
+        if (bodyBuffer == null) {
+            bodyBuffer = allocator.getEmpty();
+        }
+
+        try {
+            return MessageSerializer.deserializeRecordBatch(
+                    result.getMessage(), bodyBuffer);
+        } catch (IOException | RuntimeException | Error e) {
+            closeBodyBuffer(bodyBuffer, e);
+            throw e;
+        }
+    }
+
+    private void loadRecordBatch(ArrowRecordBatch batch) {
+        Throwable failure = null;
+        try {
+            currentBatch = createBatchRoot();
+            currentBatchClaimed = false;
+            VectorLoader loader = new VectorLoader(currentBatch, compressionFactory);
+            loader.load(batch);
+        } catch (RuntimeException | Error e) {
+            failure = e;
+            throw e;
+        } finally {
+            try {
+                batch.close();
+            } catch (RuntimeException | Error closeError) {
+                if (failure == null) {
+                    throw closeError;
+                }
+                failure.addSuppressed(closeError);
+            }
+        }
+    }
+
+    private void releaseCurrentBatchBeforeAdvance() {
+        VectorSchemaRoot batch = currentBatch;
+        boolean claimed = currentBatchClaimed;
+        if (batch == null) {
+            return;
+        }
+        if (claimed) {
+            currentBatch = null;
+            currentBatchClaimed = false;
+        } else {
+            batch.close();
+            currentBatch = null;
+            currentBatchClaimed = false;
+        }
+    }
+
+    private Throwable releaseUnclaimedCurrentBatch(Throwable failure) {
+        VectorSchemaRoot batch = currentBatch;
+        boolean claimed = currentBatchClaimed;
+        if (batch == null) {
+            return failure;
+        }
+        if (claimed) {
+            currentBatch = null;
+            currentBatchClaimed = false;
+        } else {
+            try {
+                batch.close();
+                currentBatch = null;
+                currentBatchClaimed = false;
+            } catch (RuntimeException | Error closeError) {
+                failure = addFailure(failure, closeError);
+            }
+        }
+        return failure;
+    }
+
+    private void closeUnpublishedBatch(Throwable failure) {
+        VectorSchemaRoot batch = currentBatch;
+        if (batch != null) {
+            try {
+                batch.close();
+                currentBatch = null;
+                currentBatchClaimed = false;
+            } catch (RuntimeException | Error closeError) {
+                failure.addSuppressed(closeError);
+            }
+        }
     }
 
     /**
@@ -196,16 +293,26 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
      */
     private void initialize() throws IOException {
         this.originalSchema = readSchema();
-        this.fieldList = new ArrayList<>(originalSchema.getFields().size());
-        Map<Long, Dictionary> dictionaries = new HashMap<>();
+        List<Field> fields = new ArrayList<>(originalSchema.getFields().size());
+        Map<Long, Dictionary> dictionaryMap = new HashMap<>();
+        // Publish the live backing map before dictionary vectors are allocated. If
+        // initialization or a first close attempt fails, close() must retain a path to retry
+        // every vector instead of losing the only strong references with this stack frame.
+        this.dictionaries = Collections.unmodifiableMap(dictionaryMap);
 
-        // Convert fields with dictionaries to have the index type
-        for (Field field : originalSchema.getFields()) {
-            Field updated = DictionaryUtility.toMemoryFormat(field, allocator, dictionaries);
-            this.fieldList.add(updated);
+        try {
+            // Convert fields with dictionaries to have the index type
+            for (Field field : originalSchema.getFields()) {
+                Field updated =
+                        DictionaryUtility.toMemoryFormat(field, allocator, dictionaryMap);
+                fields.add(updated);
+            }
+        } catch (RuntimeException | Error e) {
+            closeDictionaries(e);
+            throw e;
         }
-        this.dictionaries = Collections.unmodifiableMap(dictionaries);
-        this.hasDictionaries = !dictionaries.isEmpty();
+        this.fieldList = fields;
+        this.hasDictionaries = !dictionaryMap.isEmpty();
     }
 
     private Schema readSchema() throws IOException {
@@ -216,16 +323,26 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
         }
 
         if (result.getMessage().headerType() != MessageHeader.Schema) {
-            throw new IOException("Expected schema but header was " + result.getMessage().headerType());
+            IOException failure = new IOException(
+                    "Expected schema but header was " + result.getMessage().headerType());
+            closeBodyBuffer(result.getBodyBuffer(), failure);
+            throw failure;
         }
 
-        final Schema schema = MessageSerializer.deserializeSchema(result.getMessage());
-        MetadataV4UnionChecker.checkRead(schema, MetadataVersion.fromFlatbufID(result.getMessage().version()));
+        final Schema schema;
+        try {
+            schema = MessageSerializer.deserializeSchema(result.getMessage());
+            MetadataV4UnionChecker.checkRead(
+                    schema, MetadataVersion.fromFlatbufID(result.getMessage().version()));
+        } catch (IOException | RuntimeException | Error e) {
+            closeBodyBuffer(result.getBodyBuffer(), e);
+            throw e;
+        }
+        closeBodyBuffer(result.getBodyBuffer(), null);
         return schema;
     }
 
     private ArrowDictionaryBatch readDictionary(MessageResult result) throws IOException {
-
         ArrowBuf bodyBuffer = result.getBodyBuffer();
 
         // For zero-length batches, need an empty buffer to deserialize the batch
@@ -233,26 +350,54 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
             bodyBuffer = allocator.getEmpty();
         }
 
-        return MessageSerializer.deserializeDictionaryBatch(result.getMessage(), bodyBuffer);
+        try {
+            return MessageSerializer.deserializeDictionaryBatch(
+                    result.getMessage(), bodyBuffer);
+        } catch (IOException | RuntimeException | Error e) {
+            closeBodyBuffer(bodyBuffer, e);
+            throw e;
+        }
     }
 
     private void loadDictionary(ArrowDictionaryBatch dictionaryBatch) {
-        long id = dictionaryBatch.getDictionaryId();
-        Dictionary dictionary = dictionaries.get(id);
-        if (dictionary == null) {
-            throw new IllegalArgumentException("Dictionary ID " + id + " not defined in schema");
-        }
-        FieldVector vector = dictionary.getVector();
-        // if is deltaVector, concat it with non-delta vector with the same ID.
-        if (dictionaryBatch.isDelta()) {
-            try (FieldVector deltaVector = vector.getField().createVector(allocator)) {
-                load(dictionaryBatch, deltaVector);
-                VectorBatchAppender.batchAppend(vector, deltaVector);
+        Throwable failure = null;
+        try {
+            long id = dictionaryBatch.getDictionaryId();
+            Dictionary dictionary = dictionaries.get(id);
+            if (dictionary == null) {
+                throw new IllegalArgumentException(
+                        "Dictionary ID " + id + " not defined in schema");
             }
-            return;
+            FieldVector vector = dictionary.getVector();
+            // if is deltaVector, concat it with non-delta vector with the same ID.
+            if (dictionaryBatch.isDelta()) {
+                FieldVector deltaVector = vector.getField().createVector(allocator);
+                Throwable deltaFailure = null;
+                try {
+                    load(dictionaryBatch, deltaVector);
+                    VectorBatchAppender.batchAppend(vector, deltaVector);
+                } catch (RuntimeException | Error e) {
+                    deltaFailure = e;
+                    throw e;
+                } finally {
+                    closeFieldVectorOrRetain(deltaVector, deltaFailure);
+                }
+            } else {
+                load(dictionaryBatch, vector);
+            }
+        } catch (RuntimeException | Error e) {
+            failure = e;
+            throw e;
+        } finally {
+            try {
+                dictionaryBatch.close();
+            } catch (RuntimeException | Error closeError) {
+                if (failure == null) {
+                    throw closeError;
+                }
+                failure.addSuppressed(closeError);
+            }
         }
-
-        load(dictionaryBatch, vector);
     }
 
     private void load(ArrowDictionaryBatch dictionaryBatch, FieldVector vector) {
@@ -260,11 +405,97 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
                 Collections.singletonList(vector.getField()),
                 Collections.singletonList(vector), 0);
         VectorLoader loader = new VectorLoader(root, compressionFactory);
-        try {
-            loader.load(dictionaryBatch.getDictionary());
-        } finally {
-            dictionaryBatch.close();
+        loader.load(dictionaryBatch.getDictionary());
+    }
+
+    private Throwable closeDictionaries(Throwable failure) {
+        if (dictionariesClosed || dictionaries == null) {
+            return failure;
         }
+        boolean closeFailed = false;
+        for (Dictionary dictionary : dictionaries.values()) {
+            try {
+                dictionary.getVector().close();
+            } catch (RuntimeException | Error closeError) {
+                closeFailed = true;
+                failure = addFailure(failure, closeError);
+            }
+        }
+        dictionariesClosed = !closeFailed;
+        return failure;
+    }
+
+    private Throwable closeRetainedFieldVectors(Throwable failure) {
+        List<FieldVector> vectors = new ArrayList<>(retainedFieldVectors);
+        for (FieldVector vector : vectors) {
+            try {
+                vector.close();
+            } catch (RuntimeException | Error closeError) {
+                failure = addFailure(failure, closeError);
+                continue;
+            }
+            if (!retainedFieldVectors.remove(vector)) {
+                failure = addFailure(
+                        failure,
+                        new IllegalStateException(
+                                "Retained Arrow vector queue changed unexpectedly"));
+            }
+        }
+        return failure;
+    }
+
+    private void closeFieldVectorOrRetain(
+            FieldVector vector,
+            Throwable failure) {
+        try {
+            vector.close();
+        } catch (RuntimeException | Error closeError) {
+            retainedFieldVectors.add(vector);
+            if (failure == null) {
+                throw closeError;
+            }
+            failure.addSuppressed(closeError);
+        }
+    }
+
+    private void closeBodyBuffer(ArrowBuf bodyBuffer, Throwable failure) {
+        if (bodyBuffer == null) {
+            return;
+        }
+        try {
+            bodyBuffer.close();
+        } catch (RuntimeException | Error closeError) {
+            if (failure == null) {
+                throw closeError;
+            }
+            failure.addSuppressed(closeError);
+        }
+    }
+
+    private Throwable addFailure(Throwable failure, Throwable closeError) {
+        if (failure == null) {
+            return closeError;
+        }
+        if (failure != closeError) {
+            failure.addSuppressed(closeError);
+        }
+        return failure;
+    }
+
+    private void throwIfCloseFailed(Throwable failure) throws IOException {
+        if (failure == null) {
+            return;
+        }
+        if (failure instanceof IOException) {
+            throw (IOException) failure;
+        }
+        if (failure instanceof RuntimeException) {
+            throw (RuntimeException) failure;
+        }
+        if (failure instanceof Error) {
+            throw (Error) failure;
+        }
+        throw new IOException("Failed to close Arrow batch reader", failure);
     }
 
     /**
@@ -288,37 +519,88 @@ public class ArrowBatchNonReusedReader implements ArrowReader {
 
     private void loadDictionaries() throws IOException {
         List<FieldVector> updateFieldVectors = new ArrayList<>();
+        List<FieldVector> decodedVectors = new ArrayList<>();
+        List<FieldVector> encodedVectors = new ArrayList<>();
 
-        for (FieldVector vector : currentBatch.getFieldVectors()) {
-            Field field = vector.getField();
-            DictionaryEncoding encoding = field.getDictionary();
-            List<FieldVector> children = vector.getChildrenFromFields();
+        try {
+            for (FieldVector vector : currentBatch.getFieldVectors()) {
+                Field field = vector.getField();
+                DictionaryEncoding encoding = field.getDictionary();
+                List<FieldVector> children = vector.getChildrenFromFields();
 
-            if (encoding == null) {
-                if (!children.isEmpty()) {
-                    for (FieldVector child : children) {
-                        if (ArrowUtils.hasDictionaryEncoding(child)) {
-                            throw new IOException("The dictionary encoding was not available for field: " + field.getName());
+                if (encoding == null) {
+                    if (!children.isEmpty()) {
+                        for (FieldVector child : children) {
+                            if (ArrowUtils.hasDictionaryEncoding(child)) {
+                                throw new IOException(
+                                        "The dictionary encoding was not available for field: "
+                                                + field.getName());
+                            }
                         }
                     }
-                }
-                updateFieldVectors.add(vector);
-            } else {
-                if (!dictionaries.containsKey(encoding.getId())) {
-                    throw new IOException("The dictionary was not available, id was: " + encoding.getId());
-                }
-                if (!children.isEmpty()) {
-                    throw new IOException("The dictionary encoding was not available for field: " + field.getName());
-                }
+                    updateFieldVectors.add(vector);
+                } else {
+                    if (!dictionaries.containsKey(encoding.getId())) {
+                        throw new IOException(
+                                "The dictionary was not available, id was: "
+                                        + encoding.getId());
+                    }
+                    if (!children.isEmpty()) {
+                        throw new IOException(
+                                "The dictionary encoding was not available for field: "
+                                        + field.getName());
+                    }
 
-                Dictionary dict = dictionaries.get(encoding.getId());
-                ValueVector newVector = ArrowUtils.decode(vector, dict);
+                    Dictionary dict = dictionaries.get(encoding.getId());
+                    FieldVector decoded = (FieldVector) ArrowUtils.decode(vector, dict);
 
-                vector.close();
-                updateFieldVectors.add((FieldVector) newVector);
+                    decodedVectors.add(decoded);
+                    encodedVectors.add(vector);
+                    updateFieldVectors.add(decoded);
+                }
             }
-        }
 
-        this.currentBatch = new VectorSchemaRoot(updateFieldVectors);
+            for (FieldVector vector : encodedVectors) {
+                vector.close();
+            }
+            this.currentBatch = new VectorSchemaRoot(updateFieldVectors);
+        } catch (IOException | RuntimeException | Error e) {
+            for (FieldVector vector : decodedVectors) {
+                closeFieldVectorOrRetain(vector, e);
+            }
+            throw e;
+        }
+    }
+
+    private void throwTerminalFailure() throws IOException {
+        Throwable failure = terminalFailure;
+        if (failure == null) {
+            return;
+        }
+        if (failure instanceof IOException) {
+            throw (IOException) failure;
+        }
+        if (failure instanceof RuntimeException) {
+            throw (RuntimeException) failure;
+        }
+        if (failure instanceof Error) {
+            throw (Error) failure;
+        }
+        throw new IOException("Arrow reader cannot continue after a prior failure", failure);
+    }
+
+    private void throwTerminalFailureUnchecked() {
+        Throwable failure = terminalFailure;
+        if (failure == null) {
+            return;
+        }
+        if (failure instanceof RuntimeException) {
+            throw (RuntimeException) failure;
+        }
+        if (failure instanceof Error) {
+            throw (Error) failure;
+        }
+        throw new IllegalStateException(
+                "Arrow reader cannot expose data after a prior failure", failure);
     }
 }

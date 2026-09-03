@@ -25,6 +25,7 @@ import java.util.function.IntConsumer;
 
 import com.aliyun.odps.commons.transport.HttpStatus;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.TunnelException;
 
@@ -99,10 +100,40 @@ public class TunnelRetryHandler {
 
     public <T> T executeWithRetry(Callable<T> action, IntConsumer errorCodeHandler)
         throws Exception {
-        int attempt = 1;
+        return executeWithRetry(ctx -> action.call(), errorCodeHandler);
+    }
+
+    public <T> T executeWithRetry(RetryableAction<T> action) throws Exception {
+        return executeWithRetry(action, null);
+    }
+
+    public <T> T executeWithRetry(RetryableAction<T> action,
+                                  IntConsumer errorCodeHandler)
+        throws Exception {
+        return executeWithRetry(RetryContext.create(), action, errorCodeHandler);
+    }
+
+    /**
+     * Executes an action using an existing retry sequence.
+     *
+     * <p>This overload allows nested retry loops to share one trace ID and monotonically
+     * increasing zero-based request indexes. Retry policies still receive their historical
+     * one-based attempt number. The supplied context represents the first actual request and
+     * must not concurrently start another retry loop.</p>
+     */
+    public <T> T executeWithRetry(RetryContext initialContext,
+                                  RetryableAction<T> action) throws Exception {
+        return executeWithRetry(initialContext, action, null);
+    }
+
+    public <T> T executeWithRetry(RetryContext initialContext,
+                                  RetryableAction<T> action,
+                                  IntConsumer errorCodeHandler) throws Exception {
+        RetryContext context = initialContext;
+        int policyAttempt = 1;
         while (true) {
             try {
-                return action.call();
+                return action.call(context);
             } catch (Exception e) {
                 RetryPolicy policy;
                 if (e instanceof TunnelException) {
@@ -113,21 +144,29 @@ public class TunnelRetryHandler {
                 if (errorCodeHandler != null && e instanceof TunnelException) {
                     errorCodeHandler.accept(((TunnelException) e).getStatus());
                 }
-                if (!policy.shouldRetry(e, attempt)) {
+                if (!policy.shouldRetry(e, policyAttempt)) {
                     throw e;
                 }
                 if (retryLogger != null) {
-                    retryLogger.onRetryLog(e, attempt, policy.getRetryWaitTime(attempt));
+                    retryLogger.onRetryLog(
+                        e, policyAttempt, policy.getRetryWaitTime(policyAttempt));
                 }
                 try {
-                    policy.waitForNextRetry(attempt);
+                    policy.waitForNextRetry(policyAttempt);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw e;
                 }
-                attempt++;
+                context = context.next();
+                policyAttempt++;
             }
         }
+    }
+
+    @FunctionalInterface
+    public interface RetryableAction<T> {
+        /** Executes one actual request with its zero-based retry context. */
+        T call(RetryContext ctx) throws Exception;
     }
 
     public interface RetryPolicy {

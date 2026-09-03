@@ -71,6 +71,9 @@ public class TypeInfoFactory {
   public static final PrimitiveTypeInfo
     VECTOR = new SimplePrimitiveTypeInfo(OdpsType.VECTOR);
 
+  public static final PrimitiveTypeInfo
+      VARIANT = new SimplePrimitiveTypeInfo(OdpsType.VARIANT);
+
   private static HashMap<OdpsType, PrimitiveTypeInfo> typeInfoMap = new HashMap<OdpsType, PrimitiveTypeInfo>();
 
   static {
@@ -97,6 +100,7 @@ public class TypeInfoFactory {
     typeInfoMap.put(GEOGRAPHY.getOdpsType(), GEOGRAPHY);
     typeInfoMap.put(BLOB.getOdpsType(), BLOB);
     typeInfoMap.put(VECTOR.getOdpsType(), VECTOR);
+    typeInfoMap.put(VARIANT.getOdpsType(), VARIANT);
   }
 
   public static PrimitiveTypeInfo getPrimitiveTypeInfo(OdpsType odpsType) {

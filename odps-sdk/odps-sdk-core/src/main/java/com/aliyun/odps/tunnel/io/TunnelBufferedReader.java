@@ -30,6 +30,7 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
   private final TunnelMetrics metrics = new TunnelMetrics();
   private final LinkedList<Record> recordBuffer = new LinkedList<>();
   private boolean shouldTransform = false;
+  private boolean requireStreamFooter = false;
 
   /**
    * 构造此类对象
@@ -108,6 +109,7 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
     }
 
     recordReader.setTransform(this.shouldTransform);
+    recordReader.setRequireStreamFooter(this.requireStreamFooter);
     Record record = recordReader.read();
     while (record != null) {
       recordBuffer.add(record);
@@ -119,6 +121,10 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
 
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;
+  }
+
+  public void setRequireStreamFooter(boolean requireStreamFooter) {
+    this.requireStreamFooter = requireStreamFooter;
   }
 
   public TunnelMetrics getMetrics() {

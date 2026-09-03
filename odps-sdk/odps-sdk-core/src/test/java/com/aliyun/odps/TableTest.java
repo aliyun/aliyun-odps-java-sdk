@@ -959,6 +959,72 @@ public class TableTest extends TestBase {
 
   }
 
+  @Test
+  public void testVectorIndex() throws OdpsException {
+    String tableName = OdpsTestUtils.getRandomName("vector_idx_test");
+    String project = odps.getDefaultProject();
+
+    Map<String, String> hints = new HashMap<>();
+    hints.put("odps.sql.type.system.odps2", "true");
+    hints.put("odps.sql.type.vector.enable", "true");
+    hints.put("odps.sql.executionengine.enable.columnar.complex.type", "true");
+    hints.put("odps.optimizer.cbo.rule.filter.black", "vr,re");
+
+    try {
+      // create table
+      String createSql = "CREATE TABLE IF NOT EXISTS " + tableName
+          + "(c0 int, c1 vector(float, 2), c2 vector(float, 3)) "
+          + "STORED AS aliorc "
+          + "TBLPROPERTIES ('table.format.version'='2', "
+          + "'acid.data.retain.hours'='24', "
+          + "'columnar.nested.type'='true', "
+          + "'transactional'='true');";
+      SQLTask.run(odps, project, createSql, hints, null).waitForSuccess();
+
+      // insert data
+      String insertSql = "insert overwrite " + tableName + " "
+          + "SELECT 1, vector(1.1F,2.2F), vector(1.1F,2.2F,3.3F) union all "
+          + "SELECT 2, vector(2.2F,3.3F), vector(2.2F,3.3F,4.4F) union all "
+          + "SELECT 3, vector(3.3F,4.4F), vector(3.3F,4.4F,5.5F);";
+      SQLTask.run(odps, project, insertSql, hints, null).waitForSuccess();
+
+      // create vector index
+      String indexSql = "CREATE VECTOR INDEX c2_vector_index ON " + tableName
+          + " (c2) IDXPROPERTIES ('algorithm' = 'hgraph', "
+          + "'distance_type' = 'cosine', "
+          + "'build_params' = '{\"max_degree\": 16, \"ef_construction\": 128}');";
+      SQLTask.run(odps, project, indexSql, hints, null).waitForSuccess();
+
+      // verify indexes
+      Table table = odps.tables().get(tableName);
+      table.reload();
+      List<Table.VectorIndexInfo> indexes = table.getVectorIndexes();
+      assertNotNull(indexes);
+      assertEquals(1, indexes.size());
+
+      Table.VectorIndexInfo idx = indexes.get(0);
+      assertNotNull(idx.getId());
+      assertEquals("c2_vector_index", idx.getName());
+      assertEquals("VECTOR", idx.getType());
+      assertNotNull(idx.getProperties());
+      assertEquals("hgraph", idx.getProperties().get("algorithm"));
+
+      // verify table without index returns null
+      String noIndexTable = OdpsTestUtils.getRandomName("no_idx_test");
+      String createNoIdx = "CREATE TABLE IF NOT EXISTS " + noIndexTable
+          + "(c0 int) lifecycle 1;";
+      SQLTask.run(odps, project, createNoIdx, hints, null).waitForSuccess();
+      try {
+        Table plain = odps.tables().get(noIndexTable);
+        plain.reload();
+        assertNull(plain.getVectorIndexes());
+      } finally {
+        odps.tables().delete(noIndexTable, true);
+      }
+    } finally {
+      odps.tables().delete(tableName, true);
+    }
+  }
 
   @Test
   @Ignore

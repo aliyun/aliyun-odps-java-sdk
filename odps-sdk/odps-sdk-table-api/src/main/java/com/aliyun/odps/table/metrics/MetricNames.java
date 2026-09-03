@@ -30,4 +30,17 @@ public class MetricNames {
     public static final String SERVER_PROCESS_COST = "serverProcessCost";
     public static final String RATE_LIMIT_COST = "rateLimitCost";
 
+    /** Read-only Counter and Gauge: cumulative Arrow record batches spilled by one reader. */
+    public static final String DISK_SPILL_BATCH_COUNT = "diskSpillBatchCount";
+    /** Read-only Counter and Gauge: cumulative physical Arrow IPC bytes written by one reader. */
+    public static final String DISK_SPILL_BYTES_WRITTEN = "diskSpillBytesWritten";
+    /** Read-only Gauge: current physical spill-file bytes held by one reader. */
+    public static final String DISK_SPILL_BYTES_IN_USE = "diskSpillBytesInUse";
+    /** Read-only Gauge: peak physical spill-file bytes held by one reader. */
+    public static final String DISK_SPILL_PEAK_BYTES_IN_USE = "diskSpillPeakBytesInUse";
+    /** Read-only Gauge: current spill-file count held by one reader. */
+    public static final String DISK_SPILL_FILE_COUNT = "diskSpillFileCount";
+    /** Read-only Gauge: 1 after the producer no longer reads from the delegate; otherwise 0. */
+    public static final String DISK_SPILL_PRODUCER_FINISHED = "diskSpillProducerFinished";
+
 }

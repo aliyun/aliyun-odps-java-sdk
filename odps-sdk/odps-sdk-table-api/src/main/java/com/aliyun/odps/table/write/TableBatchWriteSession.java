@@ -39,6 +39,17 @@ public interface TableBatchWriteSession extends TableWriteSession {
     void commit(WriterCommitMessage[] messages) throws IOException;
 
     /**
+     * Commits this writing job and configures how long the server waits for unfinished writers.
+     *
+     * @param messages commit messages produced by successful data writers
+     * @param waitFlyingWritersTimeoutSeconds timeout in seconds; the valid range is enforced by the server
+     */
+    default void commit(WriterCommitMessage[] messages,
+                        int waitFlyingWritersTimeoutSeconds) throws IOException {
+        throw new UnsupportedOperationException("Commit timeout is not supported.");
+    }
+
+    /**
      * Clean up this writing job because some data writers are failed and keep failing when retry,
      */
     void cleanup();

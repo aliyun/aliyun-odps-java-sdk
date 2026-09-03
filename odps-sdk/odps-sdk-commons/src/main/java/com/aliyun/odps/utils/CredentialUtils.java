@@ -60,6 +60,18 @@ public class CredentialUtils {
   public static final String AUTHORIZATION_STS_TOKEN = "authorization-sts-token";
   public static final String ODPS_BEARER_TOKEN = "x-odps-bearer-token";
 
+  /**
+   * Returns whether the given credentials represent a bearer token.
+   *
+   * <p>A bearer token (e.g. obtained from {@code SecurityManager.generateAuthorizationToken}
+   * with type {@code "Bearer"} and wrapped in a {@link
+   * com.aliyun.odps.account.BearerTokenAccount}) is carried as the security token with no
+   * access key id / secret. This distinguishes it from a normal AK/SK credential (with or
+   * without an STS token), which always carries a non-blank access key id and secret.
+   *
+   * @param credentials the credentials to inspect
+   * @return {@code true} if the credentials should be authenticated as a bearer token
+   */
   public static boolean isBearerToken(ICredentials credentials) {
     return credentials != null
         && StringUtils.isBlank(credentials.getAccessKeyId())

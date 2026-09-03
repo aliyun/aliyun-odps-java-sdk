@@ -1,17 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version='1.0' encoding='utf-8'?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>odps-sdk</artifactId>
         <groupId>com.aliyun.odps</groupId>
-        <version>0.59.0-public</version>
+        <version>0.61.0-public</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-lot</artifactId>
-    <name>ODPS SDK Lot</name>
 
     <dependencies>
         <dependency>
@@ -34,4 +31,6 @@
         </plugins>
     </build>
 
-</project>
+<name>ODPS SDK Lot</name>
+
+    </project>

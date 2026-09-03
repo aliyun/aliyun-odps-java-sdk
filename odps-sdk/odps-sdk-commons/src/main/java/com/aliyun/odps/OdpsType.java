@@ -146,6 +146,11 @@ public enum OdpsType implements Serializable {
   BLOB(22),
 
   /**
+   * 半结构化类型
+   */
+  VARIANT(23),
+
+  /**
    * 空
    */
   VOID(-3),

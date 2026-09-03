@@ -1,6 +1,11 @@
 # Changelog
 ## [Unreleased]
 
+## [0.61.0-public] - 2026-09-03
+
+### 📦 Packaging & Release Hygiene
+* **[Public Projection]**: **Keep inner-only KubeTask content out of the public SDK** - Removed KubeTask credential/config fixtures and stale public copies, including the legacy protoc payloads that are not part of the public cloud distribution.
+
 ### ✨ New Features
 * **[Storage API]**: **Exactly-once and richer streaming write controls** - Expanded Storage API write sessions and writers with additional write modes, exactly-once stream metadata, row offset propagation, access token handling, and configurable HTTP write timeout support for large or long-running uploads.
     * *Related APIs*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`
@@ -974,4 +979,3 @@ org.antlr relocated to com.aliyun.odps.thirdparty.antlr
     - Allows setting the number of Netty thread pools with the default changed to 1.
     - Enables setting maximum concurrency with the default value changed to 16.
 - `TableTunnel` now supports setting `quotaName` option.
-

@@ -25,6 +25,7 @@ import java.util.function.IntConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.storage.ServiceException;
 
 /**
@@ -85,12 +86,58 @@ public class RetryHandler {
    */
   public <T> T executeWithRetry(Callable<T> action, IntConsumer errorCodeHandler)
       throws Exception {
+    return executeWithRetry(ctx -> action.call(), errorCodeHandler);
+  }
+
+  /**
+   * Executes an action with retry logic and a context for each actual request.
+   *
+   * @param action The action to execute
+   * @param <T> The return type of the action
+   * @return The result of the action
+   * @throws Exception if the action fails after all retries
+   */
+  public <T> T executeWithRetry(RetryableAction<T> action) throws Exception {
+    return executeWithRetry(action, null);
+  }
+
+  /**
+   * Executes an action with retry logic, a request context, and an error code handler.
+   *
+   * @param action The action to execute
+   * @param errorCodeHandler Handler for error codes (called before each retry)
+   * @param <T> The return type of the action
+   * @return The result of the action
+   * @throws Exception if the action fails after all retries
+   */
+  public <T> T executeWithRetry(RetryableAction<T> action, IntConsumer errorCodeHandler)
+      throws Exception {
+    return executeWithRetry(RetryContext.create(), action, errorCodeHandler);
+  }
+
+  /**
+   * Executes an action using an existing retry sequence.
+   *
+   * <p>This overload allows nested retry loops to share one trace ID and monotonically
+   * increasing zero-based request indexes. Retry policies still receive their historical
+   * one-based attempt number. The supplied context represents the first actual request and
+   * must not concurrently start another retry loop.</p>
+   */
+  public <T> T executeWithRetry(RetryContext initialContext, RetryableAction<T> action)
+      throws Exception {
+    return executeWithRetry(initialContext, action, null);
+  }
+
+  public <T> T executeWithRetry(RetryContext initialContext,
+                                RetryableAction<T> action,
+                                IntConsumer errorCodeHandler) throws Exception {
+    RetryContext context = initialContext;
     int attempt = 1;
     long startTime = 0;
     while (true) {
       try {
         startTime = System.currentTimeMillis();
-        return action.call();
+        return action.call(context);
       } catch (Exception e) {
         RetryPolicy policy = getRetryPolicy(e);
         
@@ -113,9 +160,16 @@ public class RetryHandler {
           throw e;
         }
         
+        context = context.next();
         attempt++;
       }
     }
+  }
+
+  @FunctionalInterface
+  public interface RetryableAction<T> {
+    /** Executes one actual request with its zero-based retry context. */
+    T call(RetryContext context) throws Exception;
   }
 
   private void logRetryAttempt(Exception e, int attempt, RetryPolicy policy, long failTime) {

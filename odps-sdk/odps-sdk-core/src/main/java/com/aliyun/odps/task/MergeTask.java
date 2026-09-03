@@ -46,6 +46,11 @@ public class MergeTask extends Task {
 
   private static final String DEFAULT_NAME = "AnonymousMergeTask";
 
+  @Override
+  protected boolean supportsSQLSettingsFromEnvironment() {
+    return true;
+  }
+
   @ElementList(entry = "TableName", inline = true, required = false)
   private List<String> tables;
 

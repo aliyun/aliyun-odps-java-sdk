@@ -28,6 +28,8 @@ public class Blob implements Serializable {
 
     private final String mimeType; // Blob 的 MIME 类型（可选）
 
+    private final String customFileName; // Blob 的自定义文件名（可选）
+
     private transient Function<Void, Blob> uploadTask; // 懒加载的上传任务
 
     /**
@@ -37,33 +39,42 @@ public class Blob implements Serializable {
      * @throws IllegalArgumentException if referenceBytes is null
      */
     private Blob(InputStream rawStream, byte[] rawBytes, String blobReference,
-                 Function<Void, Blob> uploadTask, String mimeType) {
+                 Function<Void, Blob> uploadTask, String mimeType, String customFileName) {
         this.rawStream = rawStream;
         this.rawBytes = rawBytes;
         this.blobReference = blobReference;
         this.uploadTask = uploadTask;
         this.mimeType = mimeType;
+        this.customFileName = customFileName;
     }
 
     public static Blob fromInputStream(InputStream stream) {
         // 创建一个最原始的、只包含流的Blob
-        return new Blob(stream, null, null, null, null);
+        return new Blob(stream, null, null, null, null, null);
     }
 
     public static Blob fromInputStream(InputStream stream, String mimeType) {
-        return new Blob(stream, null, null, null, mimeType);
+        return new Blob(stream, null, null, null, mimeType, null);
+    }
+
+    public static Blob fromInputStream(InputStream stream, String mimeType, String customFileName) {
+        return new Blob(stream, null, null, null, mimeType, customFileName);
     }
 
     public static Blob fromBytes(byte[] data) {
-        return new Blob(null, data, null, null, null);
+        return new Blob(null, data, null, null, null, null);
     }
 
     public static Blob fromBytes(byte[] data, String mimeType) {
-        return new Blob(null, data, null, null, mimeType);
+        return new Blob(null, data, null, null, mimeType, null);
+    }
+
+    public static Blob fromBytes(byte[] data, String mimeType, String customFileName) {
+        return new Blob(null, data, null, null, mimeType, customFileName);
     }
 
     public static Blob fromReference(String blobReference) {
-        return new Blob(null, null, blobReference, null, null);
+        return new Blob(null, null, blobReference, null, null, null);
     }
 
     public boolean isRawStream() {
@@ -86,6 +97,10 @@ public class Blob implements Serializable {
         return mimeType;
     }
 
+    public String getCustomFileName() {
+        return customFileName;
+    }
+
     public boolean isPending() {
         return this.uploadTask != null;
     }
@@ -95,7 +110,7 @@ public class Blob implements Serializable {
             throw new IllegalStateException("Cannot upload null blob.");
         }
         Function<Void, Blob> task = (ignored) -> uploader.apply(this.rawStream, columnId);
-        return new Blob(null, null, null, task, this.mimeType);
+        return new Blob(null, null, null, task, this.mimeType, this.customFileName);
     }
 
     public String getReferenceAndUploadIfNecessary() {

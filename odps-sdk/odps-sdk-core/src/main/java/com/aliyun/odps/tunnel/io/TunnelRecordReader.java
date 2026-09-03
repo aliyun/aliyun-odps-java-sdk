@@ -28,6 +28,7 @@ import com.aliyun.odps.commons.proto.ProtobufRecordStreamReader;
 import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import com.aliyun.odps.tunnel.TableTunnel;
 import com.aliyun.odps.tunnel.TunnelException;
@@ -69,7 +70,9 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
   private InstanceTunnel.DownloadSession instanceSession;
   private RawTunnelRecordReader reader;
   private boolean disableModifiedCheck = false;
+  private boolean requireStreamFooter = false;
   private TunnelMetrics metrics = new TunnelMetrics();
+  private RetryContext retryContext = RetryContext.create();
 
 
   /**
@@ -191,6 +194,15 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
   public void setTransform(boolean shouldTransform) {
     this.shouldTransform = shouldTransform;
     this.reader.setTransform(shouldTransform);
+  }
+
+  @Override
+  public void setRequireStreamFooter(boolean requireStreamFooter) {
+    super.setRequireStreamFooter(requireStreamFooter);
+    this.requireStreamFooter = requireStreamFooter;
+    if (this.reader != null) {
+      this.reader.setRequireStreamFooter(requireStreamFooter);
+    }
   }
 
   /**
@@ -331,6 +343,7 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
       if (++retryCount > retryTimes || offset >= count /* no more data */ || !needRetry()) {
         throw e;
       }
+      retryContext = retryContext.next();
       createNewReader();
       return readWithRetry(reusedRecord);
     }
@@ -352,24 +365,30 @@ public class TunnelRecordReader extends ProtobufRecordStreamReader {
         if (tableSession != null) {
           reader = RawTunnelRecordReader
                   .createTableTunnelReader(start + offset, count - offset, sizeLimit, option, columnList,
-                                           tunnelServiceClient, tableSession, disableModifiedCheck);
+                                           tunnelServiceClient, tableSession, disableModifiedCheck,
+                                           retryContext);
           reader.setTransform(this.shouldTransform);
+          reader.setRequireStreamFooter(this.requireStreamFooter);
         }
 
         if (instanceSession != null) {
           reader = RawTunnelRecordReader
               .createInstanceTunnelReader(start + offset, count - offset, sizeLimit, option, columnList,
-                  tunnelServiceClient, instanceSession, instanceSession.getIsLongPolling());
+                  tunnelServiceClient, instanceSession, instanceSession.getIsLongPolling(),
+                  retryContext);
           reader.setTransform(this.shouldTransform);
+          reader.setRequireStreamFooter(this.requireStreamFooter);
         }
 
         return;
       } catch (TunnelException e) {
+        retryContext = retryContext.next();
         if (++retryCount == retryTimes || !needRetry()) {
           throw e;
         }
         sleep(DEFAULT_CONNECT_TIMEOUT);
       } catch (IOException e) {
+        retryContext = retryContext.next();
         if (++retryCount == retryTimes || !needRetry()) {
           throw e;
         }

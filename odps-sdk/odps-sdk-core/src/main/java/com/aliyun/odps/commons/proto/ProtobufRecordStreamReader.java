@@ -89,6 +89,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
     private Checksum crc = new Checksum();
     private Checksum crccrc = new Checksum();
     protected boolean shouldTransform = false;
+    private boolean requireStreamFooter = false;
     private boolean footerSeen = false;
 
     public ProtobufRecordStreamReader() {
@@ -184,6 +185,10 @@ public class ProtobufRecordStreamReader implements RecordReader {
         this.shouldTransform = shouldTransform;
     }
 
+    public void setRequireStreamFooter(boolean requireStreamFooter) {
+        this.requireStreamFooter = requireStreamFooter;
+    }
+
     /**
      * 使用 reuse 的Record 读取数据
      * 当 reuseRecord 为 null 时，返回一个新的 Record 对象
@@ -207,7 +212,7 @@ public class ProtobufRecordStreamReader implements RecordReader {
             int checkSum = 0;
 
             if (in.isAtEnd()) {
-                if (!footerSeen) {
+                if (requireStreamFooter && !footerSeen) {
                     throw new StreamTruncatedException(
                         "Stream ended unexpectedly without receiving the footer tag (TUNNEL_META_COUNT). "
                         + "The data stream may be truncated. Records read so far: " + count, count);

@@ -68,11 +68,16 @@ public class BlobWriteItem {
     @SerializedName("ContentType")
     private String mimeType;
 
-    Header(List<String> partitionValues, long columnIndex, String distributionKey, String mimeType) {
+    @SerializedName("CustomFileName")
+    private String customFileName;
+
+    Header(List<String> partitionValues, long columnIndex, String distributionKey,
+           String mimeType, String customFileName) {
       this.partitionValues = partitionValues;
       this.columnIndex = columnIndex;
       this.distributionKey = distributionKey;
       this.mimeType = mimeType;
+      this.customFileName = customFileName;
     }
   }
 
@@ -195,6 +200,7 @@ public class BlobWriteItem {
     private String primaryKey;
     private Footer.Checksum checksum;
     private String mimeType;
+    private String customFileName;
 
     public Builder() {
       // Set default checksum to NONE.
@@ -214,6 +220,11 @@ public class BlobWriteItem {
 
     public Builder mimeType(String mimeType) {
       this.mimeType = mimeType;
+      return this;
+    }
+
+    public Builder customFileName(String customFileName) {
+      this.customFileName = customFileName;
       return this;
     }
 
@@ -262,7 +273,8 @@ public class BlobWriteItem {
     public BlobWriteItem build() {
       Objects.requireNonNull(data, "Data is required.");
 
-      Header header = new Header(this.partitionValues, this.columnId, this.primaryKey, this.mimeType);
+      Header header = new Header(this.partitionValues, this.columnId, this.primaryKey,
+                                 this.mimeType, this.customFileName);
       Footer footer = new Footer(this.checksum);
 
       return new BlobWriteItem(header, footer, this.data);

@@ -12,15 +12,21 @@ public class StorageTierInfo {
 
   public enum StorageTier {
     /**
-     * 分层存储的标准存储(Standard)枚举类型: 标准存储(Standard),低频存储(LowFrequency),长期存储(Longterm)
+     * 分层存储枚举类型: 标准存储(Standard),低频存储(LowFrequency),
+     * 长期存储(LongTerm),冷归档存储(ColdArchive)
      */
     STANDARD("Standard", "StandardSize", "chargableAliveDataSize"),
     LOWFREQUENCY("LowFrequency", "LowFrequencySize", "chargableLowFreqStorageSize"),
-    LONGTERM("LongTerm", "LongTermSize", "chargableLongTermStorageSize");
+    LONGTERM("LongTerm", "LongTermSize", "chargableLongTermStorageSize"),
+    COLDARCHIVE("ColdArchive");
 
     private final String name;
     private final String sizeName;
     private final String chargeSizeName;
+
+    StorageTier(String name) {
+      this(name, null, null);
+    }
 
     StorageTier(String name, String sizeName, String chargeSizeName) {
       this.name = name;
@@ -38,18 +44,21 @@ public class StorageTierInfo {
     }
 
     /**
-     * 获取从服务端中返回的当前分层存储类型大小对应的字段名,用于table/partition级别
+     * 获取从服务端中返回的当前分层存储类型大小对应的字段名,
+     * 用于table/partition级别
      *
-     * @return 分层存储大小的字符串表示
+     * @return 分层存储大小的字符串表示，服务端未提供字段时返回 null
      */
     public String getSizeName() {
       return sizeName;
     }
 
     /**
-     * 获取从服务端中返回的可计量的分层存储大小对应的字段名,用于project级别
+     * 获取从服务端中返回的可计量的分层存储大小对应的字段名,
+     * 用于project级别
      *
-     * @return 可计量分层存储大小对应的字符名称
+     * @return 可计量分层存储大小对应的字符名称，
+     * 服务端未提供字段时返回 null
      */
     public String getChargeSizeName() {
       return chargeSizeName;
@@ -137,7 +146,8 @@ public class StorageTierInfo {
     }
     Map<StorageTier, Long>
         filterSize =
-        Arrays.stream(StorageTier.values()).filter(tier -> tree.has(tier.getSizeName())).collect(
+        Arrays.stream(StorageTier.values())
+            .filter(tier -> tier.getSizeName() != null && tree.has(tier.getSizeName())).collect(
             Collectors.toMap(tier -> tier, tier -> tree.get(tier.getSizeName()).getAsLong()));
     if (filterSize.size() != 0) {
       isNull = false;
@@ -161,7 +171,8 @@ public class StorageTierInfo {
     Map<StorageTier, Long>
         filterSize =
         Arrays.stream(StorageTier.values())
-            .filter(tier -> map.containsKey(tier.getChargeSizeName()))
+            .filter(tier -> tier.getChargeSizeName() != null
+                            && map.containsKey(tier.getChargeSizeName()))
             .collect(
                 Collectors.toMap(tier -> tier,
                                  tier -> Long.valueOf(map.get(tier.getChargeSizeName()))));

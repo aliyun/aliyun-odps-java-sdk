@@ -100,6 +100,7 @@ public abstract class ExecutionEnvironment {
 
         Credentials credentials = settings.getCredentials();
         RestClient restClient = new RestClient(new DefaultTransport());
+        restClient.enableTunnelRetryHeaders();
         restClient.setAccount(credentials.getAccount());
         credentials.getAppAccount().ifPresent(restClient::setAppAccount);
         credentials.getAppStsAccount().ifPresent(restClient::setAppStsAccount);

@@ -29,6 +29,7 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.exceptions.SchemaMismatchException;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TableTunnel;
@@ -163,6 +164,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase
     private void initiateUntilUseLatestSchema(long slotNum, boolean createPartition)
         throws TunnelException {
         Table table = config.getOdps().tables().get(projectName, schemaName, tableName);
+        RetryContext retryContext = RetryContext.create();
         // max retry 5 minutes
         int maxRetry = 60;
         for (int i = 0; i < maxRetry; i++) {
@@ -172,12 +174,13 @@ public class StreamUploadSessionImpl extends StreamSessionBase
                     "Cannot init session use latest schema version: " + schemaVersion);
             }
             try {
-                initiate(slotNum, createPartition);
+                initiate(slotNum, createPartition, retryContext);
                 break;
             } catch (OdpsException e) {
                 if (!"NoSuchSchema".equals(e.getErrorCode())) {
                     throw e;
                 }
+                retryContext = retryContext.next();
                 try {
                     TimeUnit.SECONDS.sleep(5);
                 } catch (InterruptedException e1) {
@@ -189,6 +192,11 @@ public class StreamUploadSessionImpl extends StreamSessionBase
     }
 
     private void initiate(long slotNum, boolean createPartition) throws TunnelException {
+        initiate(slotNum, createPartition, RetryContext.create());
+    }
+
+    private void initiate(long slotNum, boolean createPartition,
+                          RetryContext retryContext) throws TunnelException {
 
         HashMap<String, String> params = getCommonParams();
 
@@ -215,7 +223,7 @@ public class StreamUploadSessionImpl extends StreamSessionBase
 
         StreamSessionBase.HttpResult
             result =
-            httpRequest(headers, params, "POST", "create stream upload session");
+            httpRequest(headers, params, "POST", "create stream upload session", retryContext);
 
         try {
             JsonObject tree = new JsonParser().parse(result.body).getAsJsonObject();
@@ -354,6 +362,12 @@ public class StreamUploadSessionImpl extends StreamSessionBase
     private Connection getConnection(CompressOption compress, Slot slot, long size,
                                      long reocrdCount, String partition)
         throws OdpsException, IOException {
+        return getConnection(compress, slot, size, reocrdCount, partition, null);
+    }
+
+    private Connection getConnection(CompressOption compress, Slot slot, long size,
+                                     long reocrdCount, String partition, RetryContext ctx)
+        throws OdpsException, IOException {
         HashMap<String, String> params = new HashMap<String, String>();
 
         params.put(TunnelConstants.UPLOADID, id);
@@ -381,6 +395,9 @@ public class StreamUploadSessionImpl extends StreamSessionBase
         }
 
         HashMap<String, String> headers = getCommonHeaders();
+        if (ctx != null) {
+            ctx.injectHeaders(headers);
+        }
 
         if (size < 0) {
             headers.put(Headers.TRANSFER_ENCODING, Headers.CHUNKED);
@@ -478,13 +495,13 @@ public class StreamUploadSessionImpl extends StreamSessionBase
         throws IOException {
         TunnelRetryHandler tunnelRetryHandler = new TunnelRetryHandler(config);
         try {
-            return tunnelRetryHandler.executeWithRetry(() -> {
+            return tunnelRetryHandler.executeWithRetry(ctx -> {
                 Connection conn = null;
                 try {
                     Slot slot = slots.iterator().next();
                     conn =
                         getConnection(pack.getCompressOption(), slot, pack.getTotalBytes(),
-                                      pack.getSize(), partition);
+                                      pack.getSize(), partition, ctx);
                     return sendBlock(pack, conn, slot, timeout);
                 } finally {
                     if (conn != null) {

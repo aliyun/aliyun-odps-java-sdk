@@ -64,7 +64,11 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 /**
- * SQLTask的定义
+ * SQLTask的定义。
+ *
+ * <p>进程环境中的 {@code MC_PLATFORM_ID} 会映射为 {@code EXT_PLATFORM_ID}，
+ * {@code TRACEPARENT} 会原值映射为 {@code EXT_TASK_ID}。它们会作为默认 SQL Settings
+ * 提交，通过 hints 显式设置的同名参数优先。
  *
  * @author shenggong.wang@alibaba-inc.com
  */
@@ -80,6 +84,11 @@ public class SQLTask extends Task {
   public static final String AnonymousSQLTaskName = "AnonymousSQLTask";
 
   private static final String AnonymousLineageTask = "AnonymousLineageTask";
+
+  @Override
+  protected boolean supportsSQLSettingsFromEnvironment() {
+    return true;
+  }
 
   public String getQuery() {
     return query;

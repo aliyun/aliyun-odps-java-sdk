@@ -22,7 +22,9 @@ package com.aliyun.odps.storage.write;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -58,6 +60,7 @@ import org.junit.jupiter.api.Test;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.storage.MaxStorageException;
+import com.aliyun.odps.storage.ServiceException;
 import com.aliyun.odps.storage.internal.StorageStub;
 import com.aliyun.odps.storage.internal.models.CreateWriteStreamResponse;
 import com.aliyun.odps.storage.internal.models.HttpResponse;
@@ -305,6 +308,39 @@ class TableArrowWriterFlushAsyncTest {
         } catch (ExecutionException ignored) { /* expected */ }
 
         assertThrows(MaxStorageException.class, () -> writer.flushAsync());
+    }
+
+    @Test
+    void asyncFailureUsesDistinctExceptionsForWriteAndClose() throws Exception {
+        writer = newWriter(64L * 1024 * 1024);
+        ServiceException uploadFailure =
+            new ServiceException(409, "ConcurrentOperation", "boom", "req-upload");
+        when(stub.writeTable(any(), any(), any(), anyLong(), anyLong(),
+                              any(RequestBody.class), any(), any(), any(), anyLong(), any(), any()))
+            .thenThrow(uploadFailure);
+
+        try (VectorSchemaRoot b = makeBatch(10)) {
+            writer.writeBatch(b);
+        }
+        Future<Void> future = writer.flushAsync();
+        assertThrows(ExecutionException.class, () -> future.get(2, TimeUnit.SECONDS));
+
+        ServiceException writeFailure = assertThrows(ServiceException.class, () -> {
+            try (VectorSchemaRoot b = makeBatch(1)) {
+                writer.writeBatch(b);
+            }
+        });
+        ServiceException closeFailure = assertThrows(ServiceException.class, writer::close);
+
+        assertNotSame(writeFailure, closeFailure,
+            "write and cleanup must not rethrow the same Throwable instance");
+        assertEquals(uploadFailure.getHttpStatus(), writeFailure.getHttpStatus());
+        assertEquals(uploadFailure.getErrorCode(), writeFailure.getErrorCode());
+        assertEquals(uploadFailure.getRequestId(), writeFailure.getRequestId());
+        assertSame(uploadFailure, writeFailure.getCause());
+        assertSame(uploadFailure, closeFailure.getCause());
+        writeFailure.addSuppressed(closeFailure);
+        assertEquals(1, writeFailure.getSuppressed().length);
     }
 
     @Test

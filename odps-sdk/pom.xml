@@ -1,31 +1,29 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version='1.0' encoding='utf-8'?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps</artifactId>
-        <version>0.59.0-public</version>
+        <version>0.61.0-public</version>
     </parent>
 
     <artifactId>odps-sdk</artifactId>
     <packaging>pom</packaging>
 
     <modules>
-        <!-- MR/UDF/Graph commons -->
-        <module>odps-sdk-commons</module>
-
         <!-- ODPS SDK -->
-        <module>odps-arrow-helper</module>
-        <module>odps-sdk-storage-api</module>
         <module>odps-sdk-core</module>
         <module>odps-sdk-simplexml</module>
         <module>odps-sdk-table-api</module>
+        <module>odps-sdk-storage-api</module>
+        <module>odps-arrow-helper</module>
 
         <!-- Tunnel SDK UT -->
         <!-- Quota SDK UT -->
+
+        <!-- MR/UDF/Graph commons -->
+        <module>odps-sdk-commons</module>
         <module>odps-sdk-udf</module>
         <module>odps-sdk-mapred</module>
         <module>odps-sdk-graph</module>

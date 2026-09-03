@@ -13,6 +13,7 @@ import com.aliyun.odps.commons.transport.Connection;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.tunnel.Configuration;
 import com.aliyun.odps.tunnel.HttpHeaders;
 import com.aliyun.odps.tunnel.TunnelConstants;
@@ -86,9 +87,20 @@ public abstract class SessionBase {
     protected SessionBase.HttpResult httpRequest(HashMap<String, String> headers,
                                                  Map<String, String> params, String method,
                                                  String action) throws TunnelException {
+        return httpRequest(headers, params, method, action, RetryContext.create());
+    }
+
+    protected SessionBase.HttpResult httpRequest(HashMap<String, String> headers,
+                                                 Map<String, String> params, String method,
+                                                 String action,
+                                                 RetryContext initialContext)
+        throws TunnelException {
         try {
-           return tunnelRetryHandler.executeWithRetry(
-                () -> httpRequestWithNoRetry(headers, params, method, action));
+           return tunnelRetryHandler.executeWithRetry(initialContext, ctx -> {
+                HashMap<String, String> requestHeaders = new HashMap<>(headers);
+                ctx.injectHeaders(requestHeaders);
+                return httpRequestWithNoRetry(requestHeaders, params, method, action);
+            });
         } catch (TunnelException | RuntimeException e) {
             throw e;
         } catch (Exception e) {

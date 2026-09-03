@@ -29,4 +29,9 @@ import com.aliyun.odps.simpleframework.xml.Root;
 
 @Root(name = "SQLRT", strict = false)
 public class SQLRTTask extends Task {
+
+  @Override
+  protected boolean supportsSQLSettingsFromEnvironment() {
+    return true;
+  }
 }

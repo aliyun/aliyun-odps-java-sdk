@@ -124,6 +124,8 @@ public class ArrowArrayWriterImpl {
                 return new ArrowVarCharWriterImpl.ListVarCharWriter((VarCharVector) vector);
             case BINARY:
                 return new ArrowVarBinaryWriterImpl.ListVarBinaryWriter((VarBinaryVector) vector);
+            case BLOB:
+                return new ArrowVarBinaryWriterImpl.ListBlobVarBinaryWriter((VarBinaryVector) vector);
             case DATE:
                 return new ArrowDateDayWriterImpl.ListDateWriter((DateDayVector) vector);
             case DATETIME:

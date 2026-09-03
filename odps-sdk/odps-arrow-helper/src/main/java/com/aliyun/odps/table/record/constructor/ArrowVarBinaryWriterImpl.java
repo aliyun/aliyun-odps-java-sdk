@@ -100,6 +100,27 @@ public class ArrowVarBinaryWriterImpl {
         }
     }
 
+    public static final class ListBlobVarBinaryWriter extends ArrowVarBinaryWriterBase<List<Object>> {
+
+        ListBlobVarBinaryWriter(VarBinaryVector varBinaryVector) {
+            super(varBinaryVector);
+        }
+
+        @Override
+        protected boolean isNullAt(List<Object> in, int ordinal) {
+            return in.get(ordinal) == null;
+        }
+
+        @Override
+        protected byte[] readBytes(List<Object> in, int ordinal) {
+            Blob blob = (Blob) in.get(ordinal);
+            if (blob.isRawBytes()) {
+                return blob.getRawBytes();
+            }
+            return Base64.getDecoder().decode(blob.getReferenceAndUploadIfNecessary());
+        }
+    }
+
     public static final class StructVarBinaryWriter extends ArrowVarBinaryWriterBase<Struct> {
 
         StructVarBinaryWriter(VarBinaryVector VarBinaryVector) {
@@ -114,6 +135,27 @@ public class ArrowVarBinaryWriterImpl {
         @Override
         protected byte[] readBytes(Struct in, int ordinal) {
             return ((Binary) in.getFieldValue(ordinal)).data();
+        }
+    }
+
+    public static final class StructBlobVarBinaryWriter extends ArrowVarBinaryWriterBase<Struct> {
+
+        StructBlobVarBinaryWriter(VarBinaryVector varBinaryVector) {
+            super(varBinaryVector);
+        }
+
+        @Override
+        protected boolean isNullAt(Struct in, int ordinal) {
+            return in.getFieldValue(ordinal) == null;
+        }
+
+        @Override
+        protected byte[] readBytes(Struct in, int ordinal) {
+            Blob blob = (Blob) in.getFieldValue(ordinal);
+            if (blob.isRawBytes()) {
+                return blob.getRawBytes();
+            }
+            return Base64.getDecoder().decode(blob.getReferenceAndUploadIfNecessary());
         }
     }
 }

@@ -6,10 +6,16 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.TunnelConstants;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+
+import com.aliyun.odps.Odps;
+import com.aliyun.odps.account.AliyunAccount;
+import com.aliyun.odps.tunnel.TableTunnel;
+import com.aliyun.odps.tunnel.streams.UpsertStream;
 
 public class UpsertRecord extends ArrayRecord {
     private Column [] columns;
@@ -17,15 +23,20 @@ public class UpsertRecord extends ArrayRecord {
     private HashMap<String, Integer> nameMap = new HashMap<>();
 
     public UpsertRecord(Column[] columns) {
-        this(columns, null);
+        this(columns, null, false, true);
     }
 
     public UpsertRecord(Column[] columns, Object[] values) {
-        this(columns, values, false);
+        this(columns, values, false, true);
     }
 
     public UpsertRecord(Column[] columns, Object[] values, boolean caseSensitive) {
-        super(columns, true, null, caseSensitive);
+        this(columns, values, caseSensitive, true);
+    }
+
+    public UpsertRecord(Column[] columns, Object[] values,
+                        boolean caseSensitive, boolean strictTypeValidation) {
+        super(columns, strictTypeValidation, null, caseSensitive);
         if (columns.length < 5) {
             throw new IllegalArgumentException("Incomplete schema");
         }
@@ -61,9 +72,9 @@ public class UpsertRecord extends ArrayRecord {
             }
         }
         if (values == null) {
-            record = new ArrayRecord(columns, true, null, caseSensitive);
+            record = new ArrayRecord(columns, strictTypeValidation, null, caseSensitive);
         } else {
-            record = new ArrayRecord(columns, values, true, caseSensitive);
+            record = new ArrayRecord(columns, values, strictTypeValidation, caseSensitive);
         }
     }
 

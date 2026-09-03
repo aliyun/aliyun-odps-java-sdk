@@ -1498,7 +1498,10 @@ public class Instance extends com.aliyun.odps.LazyLoad {
     return new String(resp.getBody());
   }
 
-  /* Un-document */
+  /**
+   * 从Instance中获取Task的详情
+   * 注意，当开启 odps.sql.offline.result.cache.enable = true 时，此接口将只读存储，无法获得Instance details信息，此将返回空字符串
+   */
   public String getTaskDetailJson(String taskName) throws OdpsException {
     if (isMcqaV2) {
       return getTaskDetailJson2(taskName);

@@ -20,7 +20,9 @@ package com.aliyun.odps.storage.internal.serializer;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.aliyun.odps.Column;
 import com.aliyun.odps.OdpsType;
@@ -42,17 +44,20 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
     JsonObject schemaObject = json.getAsJsonObject();
     WriteSchema dataSchema = new WriteSchema();
 
-    dataSchema.setColumns(deserializeColumnList(schemaObject, "DataColumns"));
+    Map<String, Long> nestedColumnIds = new LinkedHashMap<>();
+    dataSchema.setColumns(deserializeColumnList(schemaObject, "DataColumns", nestedColumnIds));
     // PartitionColumns 用户无需感知
-    // dataSchema.setPartitionColumns(deserializeColumnList(schemaObject, "PartitionColumns"));
-    dataSchema.setSystemColumns(deserializeColumnList(schemaObject, "SystemColumns"));
+    // dataSchema.setPartitionColumns(deserializeColumnList(schemaObject, "PartitionColumns", nestedColumnIds));
+    dataSchema.setSystemColumns(deserializeColumnList(schemaObject, "SystemColumns", nestedColumnIds));
+    dataSchema.setNestedColumnIds(nestedColumnIds);
     return dataSchema;
   }
 
   /**
    * 辅助方法，用于将 JSON 中特定键的列数组反序列化为 List<Column>
    */
-  private List<Column> deserializeColumnList(JsonObject schemaObject, String key) {
+  private List<Column> deserializeColumnList(JsonObject schemaObject, String key,
+                                             Map<String, Long> nestedColumnIds) {
     List<Column> columnList = new ArrayList<>();
     JsonElement columnsElement = schemaObject.get(key);
 
@@ -81,7 +86,7 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
       boolean hasDefaultValue = getJsonBoolean(typeInfoJson, "HasDefaultValue", false);
       boolean isDistributionKey = getJsonBoolean(typeInfoJson, "IsDistributionKey", false);
       String defaultValue = getJsonString(typeInfoJson, "DefaultValue", "");
-      TypeInfo typeInfo = parseTypeInfo(typeInfoJson);
+      TypeInfo typeInfo = parseTypeInfo(typeInfoJson, name, nestedColumnIds);
 
 
       // 3. 使用 ODPS Column 的 Builder 构建实例
@@ -116,9 +121,21 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
   }
 
   /**
-   * 递归地将 columnType 的 JSON 对象解析为 ODPS 的 TypeInfo 对象
+   * 递归地将 columnType 的 JSON 对象解析为 ODPS 的 TypeInfo 对象，
+   * 同时将嵌套列的 ColumnId 收集到 nestedColumnIds 中。
+   *
+   * @param typeInfoJson   当前层级的 columnType JSON 对象
+   * @param path           当前层级的点分路径（顶层为列名，嵌套层为 "col.element" 或 "col.field"）
+   * @param nestedColumnIds 用于累积所有层级列 ID 的 map
    */
-  private TypeInfo parseTypeInfo(JsonObject typeInfoJson) throws JsonParseException {
+  private TypeInfo parseTypeInfo(JsonObject typeInfoJson, String path,
+                                 Map<String, Long> nestedColumnIds) throws JsonParseException {
+    // 记录当前层级的 columnId
+    long columnId = getJsonLong(typeInfoJson, "ColumnId", -1);
+    if (columnId != -1) {
+      nestedColumnIds.put(path, columnId);
+    }
+
     // C++ enum ColumnType (int)
     int typeCode = getJsonInt(typeInfoJson, "Type", -1);
 
@@ -141,7 +158,13 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
         if (subTypesArray == null || subTypesArray.size() != 1) {
           throw new JsonParseException("ARRAY type must have exactly one sub-type.");
         }
-        TypeInfo elementType = parseTypeInfo(subTypesArray.get(0).getAsJsonObject());
+        JsonObject elemJson = subTypesArray.get(0).getAsJsonObject();
+        String elemMemberName = getJsonString(elemJson, "MemberName", "element");
+        if (elemMemberName.isEmpty()) {
+          elemMemberName = "element";
+        }
+        String elemPath = path + "." + elemMemberName;
+        TypeInfo elementType = parseTypeInfo(elemJson, elemPath, nestedColumnIds);
         return TypeInfoFactory.getArrayTypeInfo(elementType);
       }
       case 18: { // MAP
@@ -149,8 +172,18 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
         if (subTypesArray == null || subTypesArray.size() != 2) {
           throw new JsonParseException("MAP type must have exactly two sub-types (key, value).");
         }
-        TypeInfo keyType = parseTypeInfo(subTypesArray.get(0).getAsJsonObject());
-        TypeInfo valueType = parseTypeInfo(subTypesArray.get(1).getAsJsonObject());
+        JsonObject keyJson = subTypesArray.get(0).getAsJsonObject();
+        JsonObject valJson = subTypesArray.get(1).getAsJsonObject();
+        String keyMemberName = getJsonString(keyJson, "MemberName", "key");
+        if (keyMemberName.isEmpty()) {
+          keyMemberName = "key";
+        }
+        String valMemberName = getJsonString(valJson, "MemberName", "value");
+        if (valMemberName.isEmpty()) {
+          valMemberName = "value";
+        }
+        TypeInfo keyType = parseTypeInfo(keyJson, path + "." + keyMemberName, nestedColumnIds);
+        TypeInfo valueType = parseTypeInfo(valJson, path + "." + valMemberName, nestedColumnIds);
         return TypeInfoFactory.getMapTypeInfo(keyType, valueType);
       }
       case 19: { // STRUCT
@@ -168,7 +201,7 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
             throw new JsonParseException("Struct member must have a 'MemberName'.");
           }
           fieldNames.add(memberName);
-          fieldTypeInfos.add(parseTypeInfo(subTypeJson));
+          fieldTypeInfos.add(parseTypeInfo(subTypeJson, path + "." + memberName, nestedColumnIds));
         }
         return TypeInfoFactory.getStructTypeInfo(fieldNames, fieldTypeInfos);
       }

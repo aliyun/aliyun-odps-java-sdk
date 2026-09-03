@@ -66,6 +66,8 @@ import com.aliyun.odps.rest.interceptor.InterceptorChain;
 import com.aliyun.odps.rest.interceptor.InterceptorContext;
 import com.aliyun.odps.rest.interceptor.RequestInterceptor;
 import com.aliyun.odps.rest.interceptor.ResponseInterceptor;
+import com.aliyun.odps.retry.RetryContext;
+import com.aliyun.odps.retry.RetryHeaders;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.GsonBuilder;
 
@@ -156,6 +158,7 @@ public class RestClient {
       "JavaSDK" + " Revision:" + SvnRevisionUtils.getSvnRevision()
       + " Version:" + SvnRevisionUtils.getMavenVersion() + " JavaVersion:" + SvnRevisionUtils
           .getJavaVersion();
+  private static final String PLATFORM_ID_ENV = "MC_PLATFORM_ID";
 
   private String userAgent;
   private Proxy proxy;
@@ -177,6 +180,9 @@ public class RestClient {
    * By default, deprecated logger is enabled
    */
   private boolean deprecatedLoggerEnabled = true;
+
+  /** Whether requests made by this client carry Tunnel retry correlation headers. */
+  private boolean tunnelRetryHeadersEnabled = false;
 
   /**
    * 创建RestClient对象
@@ -325,9 +331,12 @@ public class RestClient {
   public Response request(String resource, String method, Map<String, String> params,
                           Map<String, String> headers,
                           InputStream body, long bodyLen) throws OdpsException {
+    RetryContext suppliedRetryContext = tunnelRetryHeadersEnabled
+        ? parseRetryContext(headers) : null;
     int retryTimes = 0;
-    if (method.equalsIgnoreCase(Method.GET.toString()) || method
-        .equalsIgnoreCase(Method.HEAD.toString())) {
+    if (suppliedRetryContext == null
+        && (method.equalsIgnoreCase(Method.GET.toString())
+        || method.equalsIgnoreCase(Method.HEAD.toString()))) {
       retryTimes = getRetryTimes();
       if (body != null && body.markSupported()) {
         body.mark(0);
@@ -342,12 +351,21 @@ public class RestClient {
     }
     FixedBackOffStrategy backOffStrategy = new FixedBackOffStrategy(waitTime);
     RetryStrategy retryStrategy = new RestRetryStrategy(retryTimes, backOffStrategy);
+    RetryContext retryContext = tunnelRetryHeadersEnabled
+        ? (suppliedRetryContext == null ? RetryContext.create() : suppliedRetryContext)
+        : null;
 
     while (true) {
       backOffStrategy.setStartTime(System.currentTimeMillis());
 
       try {
-        Response resp = requestWithNoRetry(resource, method, params, headers, body, bodyLen);
+        Map<String, String> requestHeaders = headers;
+        if (retryContext != null) {
+          requestHeaders = headers == null ? new HashMap<>() : new HashMap<>(headers);
+          retryContext.injectHeaders(requestHeaders);
+        }
+        Response resp = requestWithNoRetry(
+            resource, method, params, requestHeaders, body, bodyLen);
 
         if (resp == null) {
           throw new OdpsException("Response is null.");
@@ -370,6 +388,9 @@ public class RestClient {
         }
 
         resetBody(body);
+        if (retryContext != null) {
+          retryContext = retryContext.next();
+        }
       }
     }
   }
@@ -698,6 +719,13 @@ public class RestClient {
       if (headers != null) {
         reqHeaders.putAll(headers);
       }
+      if (tunnelRetryHeadersEnabled) {
+        RetryContext retryContext = parseRetryContext(headers);
+        if (retryContext == null) {
+          retryContext = RetryContext.create();
+        }
+        retryContext.injectHeaders(reqHeaders);
+      }
 
       req.setHeaders(reqHeaders);
 
@@ -739,7 +767,13 @@ public class RestClient {
    * @param userAgent
    */
   public void setUserAgent(String userAgent) {
-    this.userAgent = (USER_AGENT_PREFIX + " " + userAgent).trim();
+    setUserAgent(userAgent, System.getenv(PLATFORM_ID_ENV));
+  }
+
+  void setUserAgent(String userAgent, String platformId) {
+    String platform = platformId == null || platformId.isEmpty()
+        ? "" : " Platform:" + platformId;
+    this.userAgent = (USER_AGENT_PREFIX + " " + userAgent + platform).trim();
   }
 
   int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
@@ -857,6 +891,35 @@ public class RestClient {
 
   public void disableDeprecatedLogger() {
     this.deprecatedLoggerEnabled = false;
+  }
+
+  /**
+   * Enables stable trace IDs and zero-based indexes for Tunnel requests and retries.
+   *
+   * <p>A request that already carries a valid retry context is treated as part of an
+   * outer-managed retry sequence, so this client does not add a nested GET/HEAD retry loop.</p>
+   */
+  public void enableTunnelRetryHeaders() {
+    this.tunnelRetryHeadersEnabled = true;
+  }
+
+  public boolean isTunnelRetryHeadersEnabled() {
+    return tunnelRetryHeadersEnabled;
+  }
+
+  private RetryContext parseRetryContext(Map<String, String> headers) {
+    if (headers != null) {
+      String traceId = headers.get(RetryHeaders.TRACE_ID);
+      String retryIndex = headers.get(RetryHeaders.RETRY_INDEX);
+      if (!StringUtils.isNullOrEmpty(traceId) && !StringUtils.isNullOrEmpty(retryIndex)) {
+        try {
+          return RetryContext.create(traceId, Integer.parseInt(retryIndex));
+        } catch (IllegalArgumentException ignored) {
+          // Replace malformed internal tracing headers with a fresh sequence.
+        }
+      }
+    }
+    return null;
   }
 
 

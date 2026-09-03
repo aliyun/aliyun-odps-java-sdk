@@ -53,6 +53,7 @@ import com.aliyun.odps.data.Blob;
 import com.aliyun.odps.data.RecordWriter;
 import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.MaxStorageException;
+import com.aliyun.odps.storage.ServiceException;
 import com.aliyun.odps.storage.internal.Constants;
 import com.aliyun.odps.storage.internal.StorageStub;
 import com.aliyun.odps.storage.internal.io.RawArrowRequestBody;
@@ -303,11 +304,25 @@ public class TableArrowWriter implements ArrowWriter {
    * 检查并抛出异步链路发生的异常
    */
   private void checkLastAsyncException() throws MaxStorageException {
-    if (lastAsyncException != null) {
-      MaxStorageException e = lastAsyncException;
-      lastAsyncException = null; // 消费后清除
-      throw e;
+    MaxStorageException failure = lastAsyncException;
+    if (failure != null) {
+      // Keep the writer in a failed state, but create a fresh exception for every public call.
+      // Reusing the async task's Throwable lets caller-side cleanup try to suppress the same
+      // instance and fail with "Self-suppression not permitted".
+      throw copyAsyncException(failure);
     }
+  }
+
+  private MaxStorageException copyAsyncException(MaxStorageException failure) {
+    if (failure instanceof ServiceException) {
+      ServiceException serviceFailure = (ServiceException) failure;
+      return new ServiceException(serviceFailure.getHttpStatus(), serviceFailure.getErrorCode(),
+                                  serviceFailure.getMessage(), serviceFailure.getRequestId(), failure);
+    }
+    if (failure instanceof ClientException) {
+      return new ClientException(failure.getMessage(), failure);
+    }
+    return new MaxStorageException(failure.getMessage(), failure);
   }
 
   private void waitForLastFlush() throws MaxStorageException {
@@ -318,7 +333,7 @@ public class TableArrowWriter implements ArrowWriter {
       } catch (ExecutionException e) {
         Throwable cause = e.getCause();
         if (cause instanceof MaxStorageException) {
-          throw (MaxStorageException) cause;
+          throw copyAsyncException((MaxStorageException) cause);
         }
         throw new ClientException("Async flush execution failed", cause);
       } catch (InterruptedException e) {
@@ -345,7 +360,11 @@ public class TableArrowWriter implements ArrowWriter {
   }
 
   public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList) {
-    return batchUploadBlob(columnId, dataList, null);
+    return batchUploadBlob(columnId, dataList, null, null);
+  }
+
+  public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList, String mimeType) {
+    return batchUploadBlob(columnId, dataList, mimeType, null);
   }
 
   /**
@@ -359,10 +378,12 @@ public class TableArrowWriter implements ArrowWriter {
    * @param columnId the column ID of the BLOB column
    * @param dataList a list of byte arrays, each containing the raw data for one blob
    * @param mimeType the MIME type of the blob data (e.g. "image/png"), or null if not specified
+   * @param customFileName the custom file name of the blob data, or null if not specified
    * @return a list of {@link Blob} references in the same order as the input list
    * @throws ClientException if called on a Delta Table or if the server response is inconsistent
    */
-  public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList, String mimeType) {
+  public List<Blob> batchUploadBlob(long columnId, List<byte[]> dataList, String mimeType,
+                                    String customFileName) {
     if (!primaryKeyColumnIndices.isEmpty()) {
       throw new ClientException(
         "Cannot batch upload blob to PK Delta Table. "
@@ -379,6 +400,7 @@ public class TableArrowWriter implements ArrowWriter {
         .data(data)
         .columnId(columnId)
         .mimeType(mimeType)
+        .customFileName(customFileName)
         .build();
       items.add(item);
     }

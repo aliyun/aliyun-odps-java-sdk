@@ -106,10 +106,13 @@ public class BlobDataIteratorImpl implements BlobDataIterator {
       long headerLen = IOUtils.readLittleEndianLong(sourceStream);
       byte[] headerBytes = IOUtils.readNBytes(sourceStream, (int) headerLen);
 
-      String mimeType = parseHeaderMimeType(headerBytes);
+      BlobHeader header = parseHeader(headerBytes);
+      String mimeType = normalizeHeaderValue((header != null) ? header.mimeType : null);
+      String customFileName = normalizeHeaderValue((header != null) ? header.customFileName : null);
       long dataLen = IOUtils.readLittleEndianLong(sourceStream);
 
-      BlobDataStream currentStream = new BlobDataStream(sourceStream, dataLen, mimeType);
+      BlobDataStream currentStream = new BlobDataStream(sourceStream, dataLen, mimeType,
+                                                         customFileName);
       this.previousStream = currentStream;
       this.blobIndex++;
 
@@ -123,22 +126,27 @@ public class BlobDataIteratorImpl implements BlobDataIterator {
   private static class BlobHeader {
     @SerializedName("ContentType")
     String mimeType;
+
+    @SerializedName("CustomFileName")
+    String customFileName;
   }
 
-  private String parseHeaderMimeType(byte[] headerBytes) {
+  private BlobHeader parseHeader(byte[] headerBytes) {
     if (headerBytes == null || headerBytes.length == 0) {
       return null;
     }
     try {
       BlobHeader header =
           GSON.fromJson(new String(headerBytes, StandardCharsets.UTF_8), BlobHeader.class);
-      if (header != null && header.mimeType != null && !header.mimeType.isEmpty()) {
-        return header.mimeType;
-      }
+      return header;
     } catch (Exception e) {
       log.warn("Failed to parse blob header: {}", e.getMessage());
+      return null;
     }
-    return null;
+  }
+
+  private String normalizeHeaderValue(String value) {
+    return (value == null || value.isEmpty()) ? null : value;
   }
 
   private void ensurePreviousBlobIsConsumed() {

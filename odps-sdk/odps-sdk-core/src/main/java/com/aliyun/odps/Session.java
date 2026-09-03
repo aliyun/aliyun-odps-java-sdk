@@ -523,9 +523,7 @@ public class Session {
     JsonObject request = new JsonObject();
     request.add("query", new JsonPrimitive(sql));
 
-    if (hints == null) {
-      hints = new HashMap<String, String>();
-    }
+    hints = SQLSettingsEnvironment.merge(hints);
 
     JsonObject settings = new JsonObject();
 
@@ -597,9 +595,7 @@ public class Session {
     JsonObject request = new JsonObject();
     request.add("query", new JsonPrimitive(sql));
 
-    if (hints == null) {
-      hints = new HashMap<String, String>();
-    }
+    hints = SQLSettingsEnvironment.merge(hints);
 
     JsonObject settings = new JsonObject();
 

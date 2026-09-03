@@ -19,15 +19,19 @@
 
 package com.aliyun.odps.storage.write;
 
-import com.aliyun.odps.storage.internal.Constants;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.storage.ClientException;
+import com.aliyun.odps.storage.internal.Constants;
 import com.aliyun.odps.storage.internal.StorageStub;
+import com.aliyun.odps.storage.internal.models.BatchCompatibleCreateSessionRequest;
+import com.aliyun.odps.storage.internal.models.BatchCompatibleSessionResponse;
 import com.aliyun.odps.storage.internal.models.CreateTableWriteSessionRequest;
 import com.aliyun.odps.storage.internal.models.CreateTableWriteSessionResponse;
 import com.aliyun.odps.storage.internal.models.GetTableWriteSessionResponse;
 import com.aliyun.odps.table.TableIdentifier;
+import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.utils.StringUtils;
 
@@ -36,7 +40,7 @@ import com.aliyun.odps.utils.StringUtils;
  * <ul>
  *   <li>Partition specifications for writing data to specific partitions</li>
  *   <li>Overwrite mode for replacing existing data</li>
- *   <li>Write mode (Batch or Streaming)</li>
+ *   <li>Write mode (Batch, BatchCompatible, or Streaming)</li>
  * </ul>
  *
  * <p>Example usage:
@@ -55,6 +59,16 @@ import com.aliyun.odps.utils.StringUtils;
  *     .withWriteMode(WriteMode.STREAMING);
  * TableWriteSession session = builder.build();
  * }</pre>
+ *
+ * <p>Batch-compatible mode example:
+ * <pre>{@code
+ * TableWriteSession session = client.createWriteSessionBuilder(tableId)
+ *     .withWriteMode(WriteMode.BATCH_COMPATIBLE)
+ *     .withBatchCompatibleOptions(BatchCompatibleOptions.newBuilder()
+ *         .withEnhanceWriteCheck(true)
+ *         .build())
+ *     .build();
+ * }</pre>
  */
 public class TableWriteSessionBuilder {
 
@@ -68,6 +82,9 @@ public class TableWriteSessionBuilder {
   private PartitionSpec partitionSpec;
   private String sessionId;
   private WriteMode writeMode = WriteMode.BATCH;
+  private boolean overwrite;
+  private BatchCompatibleOptions batchCompatibleOptions = BatchCompatibleOptions.createDefault();
+  private boolean batchCompatibleOptionsConfigured;
 
   /**
    * Constructs a new TableWriteSessionBuilder with the provided parameters.
@@ -123,7 +140,21 @@ public class TableWriteSessionBuilder {
    * @return This builder instance for method chaining
    */
   public TableWriteSessionBuilder withOverwrite(boolean overwrite) {
+    this.overwrite = overwrite;
     this.createTableWriteSessionRequest.getFlags().put("overwrite", String.valueOf(overwrite));
+    return this;
+  }
+
+  /**
+   * Sets advanced options used only by {@link WriteMode#BATCH_COMPATIBLE}.
+   *
+   * @param options batch-compatible block protocol settings
+   * @return this builder
+   */
+  public TableWriteSessionBuilder withBatchCompatibleOptions(BatchCompatibleOptions options) {
+    this.batchCompatibleOptions = Preconditions.checkNotNull(
+        options, "Batch-compatible options cannot be null");
+    this.batchCompatibleOptionsConfigured = true;
     return this;
   }
 
@@ -131,11 +162,12 @@ public class TableWriteSessionBuilder {
    * Sets the write mode for the session.
    *
    * <p>In BATCH mode (default), data becomes visible only after the session is committed.
+   * BATCH_COMPATIBLE uses block and attempt numbers and commits typed block results.
    * In STREAMING mode, data becomes visible immediately after flush, without requiring
    * explicit commit. Streaming mode uses a default session ID and does not require
    * explicit session creation.
    *
-   * @param writeMode The write mode to use (BATCH or STREAMING)
+   * @param writeMode The write mode to use
    * @return This builder instance for method chaining
    */
   public TableWriteSessionBuilder withWriteMode(WriteMode writeMode) {
@@ -146,8 +178,8 @@ public class TableWriteSessionBuilder {
   /**
    * Builds and returns a new TableWriteSession instance with the configured settings.
    *
-   * <p>For BATCH mode, this method makes an API call to the MaxCompute service to create
-   * a write session with the specified configuration.
+   * <p>For BATCH and BATCH_COMPATIBLE modes, this method makes an API call to the MaxCompute
+   * service to create a write session with the specified configuration.
    *
    * <p>For STREAMING mode, no session creation API call is made. The session uses a
    * default session ID ("default") and data becomes visible immediately after flush.
@@ -155,16 +187,26 @@ public class TableWriteSessionBuilder {
    * @return A new TableWriteSession instance
    */
   public TableWriteSession build() {
+    if (batchCompatibleOptionsConfigured && writeMode != WriteMode.BATCH_COMPATIBLE) {
+      throw new IllegalStateException(
+          "BatchCompatibleOptions require WriteMode.BATCH_COMPATIBLE");
+    }
+
     if (writeMode.isStreaming()) {
       // Streaming mode: use default session ID without creating session
       return new TableWriteSession(storageStub, table, partitionSpec, allocator,
                                    Constants.AUTO_COMMIT_SESSION_ID, writeMode, null);
     }
 
+    if (writeMode == WriteMode.BATCH_COMPATIBLE) {
+      return buildBatchCompatibleSession();
+    }
+
     if (StringUtils.isNotBlank(sessionId)) {
       String routeToken = null;
       if (!Constants.AUTO_COMMIT_SESSION_ID.equals(sessionId)) {
-        GetTableWriteSessionResponse resp = storageStub.getTableWriteSession(table, sessionId, null, writeMode);
+        GetTableWriteSessionResponse resp =
+            storageStub.getTableWriteSession(table, sessionId, null, writeMode);
         routeToken = resp.getRouteToken();
       }
       return new TableWriteSession(storageStub, table, partitionSpec, allocator,
@@ -177,5 +219,50 @@ public class TableWriteSessionBuilder {
               sessionId, writeMode,
               createTableWriteSessionResponse.getRouteToken());
     }
+  }
+
+  private TableWriteSession buildBatchCompatibleSession() {
+    BatchCompatibleSessionResponse response;
+    if (StringUtils.isNotBlank(sessionId)) {
+      response = storageStub.getBatchCompatibleSession(table, sessionId, null);
+    } else {
+      BatchCompatibleCreateSessionRequest request =
+          new BatchCompatibleCreateSessionRequest();
+      request.setPartitionSpec(
+          partitionSpec == null ? "" : partitionSpec.toString(false, true));
+      request.setOverwrite(overwrite);
+      request.setDynamicPartitionOptions(
+          new BatchCompatibleCreateSessionRequest.DynamicPartitionOptions(
+              batchCompatibleOptions.getDynamicPartitionLimit()));
+      request.setArrowOptions(ArrowOptions.createDefault());
+      request.setMaxFieldSize(batchCompatibleOptions.getMaxFieldSize());
+      request.setEnhanceWriteCheck(batchCompatibleOptions.isEnhanceWriteCheck());
+      response = storageStub.createBatchCompatibleSession(table, request);
+      if (response == null || StringUtils.isBlank(response.getSessionId())) {
+        throw new ClientException(
+            "Create batch-compatible session returned no session identifier");
+      }
+      sessionId = response.getSessionId();
+    }
+
+    if (response == null) {
+      throw new ClientException("Get batch-compatible session returned an empty response");
+    }
+    if (response.getDataSchema() == null) {
+      throw new ClientException(
+          "Batch-compatible session response did not contain DataSchema");
+    }
+
+    return new TableWriteSession(
+        storageStub,
+        table,
+        partitionSpec,
+        allocator,
+        sessionId,
+        writeMode,
+        response.getRouteToken(),
+        response.getMaxBlockNumber(),
+        response.getDataSchema(),
+        response.isEnhanceWriteCheck());
   }
 }

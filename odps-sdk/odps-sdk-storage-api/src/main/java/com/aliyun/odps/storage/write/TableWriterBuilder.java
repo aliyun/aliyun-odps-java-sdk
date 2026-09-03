@@ -66,6 +66,8 @@ public class TableWriterBuilder {
 
   private String blobMimeType;
 
+  private String blobCustomFileName;
+
   private boolean autoFlushEnabled = true;
 
   private boolean resume = false;
@@ -138,6 +140,11 @@ public class TableWriterBuilder {
 
   public TableWriterBuilder withBlobMimeType(String blobMimeType) {
     this.blobMimeType = blobMimeType;
+    return this;
+  }
+
+  public TableWriterBuilder withBlobCustomFileName(String blobCustomFileName) {
+    this.blobCustomFileName = blobCustomFileName;
     return this;
   }
 
@@ -244,6 +251,10 @@ public class TableWriterBuilder {
 
   public String getBlobMimeType() {
     return blobMimeType;
+  }
+
+  public String getBlobCustomFileName() {
+    return blobCustomFileName;
   }
 
   public boolean isAutoFlushEnabled() {
