@@ -1,6 +1,18 @@
 # Changelog
 ## [Unreleased]
 
+## [0.61.1-public] - 2026-09-08
+
+### Security dependency updates
+- Align Netty modules to 4.1.137.Final using the BOM, including Arrow/UDF transitive dependencies.
+- Upgrade LZ4 to 1.11.2 and Commons Collections to 3.2.2; align Jackson modules with BOM 2.21.5.
+- Add offline HTTP/LZ4/Tunnel compatibility regression tests and a scoped CVE applicability report.
+
+### Packaging and release hygiene
+- Preserve public-only source fixes and release metadata during deterministic projection; update all reactor coordinates to 0.61.1-public.
+- Keep protobuf 2.4.1 and legacy Jackson/MR dependencies where compatibility migration remains incomplete. The report documents limited non-applicability findings and remaining risks; this release is not a blanket CVE exemption.
+
+
 ## [0.61.0-public] - 2026-09-03
 
 ### 📦 Packaging & Release Hygiene

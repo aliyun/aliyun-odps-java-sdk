@@ -1,6 +1,18 @@
 # 更新日志
 ## [Unreleased]
 
+## [0.61.1-public] - 2026-09-08
+
+### 依赖安全更新
+- 通过 BOM 将 Netty 统一到 4.1.137.Final，覆盖 Arrow/UDF 的传递依赖。
+- LZ4 升级到 1.11.2、Commons Collections 升级到 3.2.2，通过 Jackson BOM 统一到 2.21.5。
+- 增加 HTTP/LZ4/Tunnel 离线兼容回归及限定范围的 CVE 适用性报告。
+
+### 发布与打包治理
+- 确定性投影保留公仓已有源码修复及发布元数据，统一 reactor 坐标为 0.61.1-public。
+- protobuf 2.4.1 及部分旧 Jackson/MR 依赖的兼容迁移尚未完成，报告保留限定路径不适用结论与剩余风险，不提供全库 CVE 豁免。
+
+
 ## [0.61.0-public] - 2026-09-03
 
 ### 📦 发布与打包治理
