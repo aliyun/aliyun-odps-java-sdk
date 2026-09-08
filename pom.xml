@@ -23,6 +23,27 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Align transitive modules as well as the direct aggregate dependencies. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.137.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>2.21.5</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>commons-collections</groupId>
+                <artifactId>commons-collections</artifactId>
+                <version>3.2.2</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-table-api</artifactId>
@@ -146,10 +167,8 @@
                 <version>4.11.1</version>
             </dependency>
 
-            <!-- protobuf-java have 3 CVE vulnerability, however we don't have to upgrade it since below reasons -->
-            <!-- CVE-2024-7254: Vulnerability is not exploitable as we only parse Protobuf data from our Server-Side. -->
-            <!-- CVE-2022-3509: Vulnerability is in the TextFormat parser, which is not used; this code only performs binary serialization. -->
-            <!-- CVE-2021-22569: Vulnerability is not exploitable as we only parse Protobuf data from our Server-Side. -->
+            <!-- Protobuf 2.4.1 is a compatibility constraint, not a blanket CVE exemption.
+                 See docs/security/dependency-cve-assessment-2026-09-08.md. -->
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
@@ -222,7 +241,7 @@
             <dependency>
                 <groupId>at.yawk.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
-                <version>1.10.3</version>
+                <version>1.11.2</version>
             </dependency>
 
             <dependency>
@@ -344,7 +363,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
-                <version>4.1.135.Final</version>
+                <version>4.1.137.Final</version>
             </dependency>
             <dependency>
                 <groupId>org.yaml</groupId>
