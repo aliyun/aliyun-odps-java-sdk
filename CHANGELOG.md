@@ -1,6 +1,18 @@
 # Changelog
 ## [Unreleased]
 
+## [0.61.2-public] - 2026-09-09
+
+### Table API write timeout
+- Add opt-in request-body write timeout through `RestOptions.Builder.withWriteTimeout(seconds)`; configured Table API requests use OkHttp, while the default retains the JDK transport.
+- Surface stalled writes through `RestWriteTimeoutException` with timeout and byte-progress details, and disconnect failed Arrow writers without replaying the request.
+- Add transport regression coverage for streaming, session requests, blocked sockets, and compression headers.
+
+### Packaging and release hygiene
+- Align the public source projection with the corresponding 0.61.0 internal release while preserving public-only fixes, metadata, and the security dependency updates from 0.61.1-public.
+- Publish the Table API shaded classifier with relocated OkHttp, Okio, and Kotlin dependencies; keep internal modules and configuration fixtures out of the public distribution.
+
+
 ## [0.61.1-public] - 2026-09-08
 
 ### Security dependency updates

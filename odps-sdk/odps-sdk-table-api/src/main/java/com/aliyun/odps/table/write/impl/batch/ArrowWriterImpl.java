@@ -25,6 +25,7 @@ import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.util.IOUtils;
 import com.aliyun.odps.rest.ResourceBuilder;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.rest.RestWriteTimeoutException;
 import com.aliyun.odps.table.DataSchema;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.arrow.ArrowWriter;
@@ -126,6 +127,10 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
             recordCount.inc(root.getRowCount());
             bytesCount.setValue(batchWriter.bytesWritten());
         } catch (IOException e) {
+            if (e instanceof RestWriteTimeoutException) {
+                disconnectAfterFailure(e);
+                throw e;
+            }
             Response response = connection.getResponse();
             if (response != null && !response.isOK()) {
                 TunnelException exception = new TunnelException(response.getHeader(HEADER_ODPS_REQUEST_ID),
@@ -282,6 +287,14 @@ public class ArrowWriterImpl implements BatchWriter<VectorSchemaRoot> {
     private void disconnect() throws IOException {
         if (connection != null) {
             connection.disconnect();
+        }
+    }
+
+    private void disconnectAfterFailure(IOException original) {
+        try {
+            disconnect();
+        } catch (IOException disconnectFailure) {
+            original.addSuppressed(disconnectFailure);
         }
     }
 

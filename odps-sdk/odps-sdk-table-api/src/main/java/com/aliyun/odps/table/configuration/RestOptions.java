@@ -30,6 +30,8 @@ public class RestOptions implements Serializable {
 
     private Integer readTimeout;
 
+    private Integer writeTimeout;
+
     private Integer retryTimes;
 
     private Boolean ignoreCerts;
@@ -57,6 +59,18 @@ public class RestOptions implements Serializable {
 
     public Optional<Integer> getConnectTimeout() {
         return Optional.ofNullable(connectTimeout);
+    }
+
+    /**
+     * Returns the HTTP request-body write timeout in seconds.
+     *
+     * <p>When present, every Table API request uses the OkHttp transport so a blocked request
+     * body write can time out. This includes read/write session requests and streaming data
+     * operations. When absent, all requests keep using the JDK transport for backward
+     * compatibility.</p>
+     */
+    public Optional<Integer> getWriteTimeout() {
+        return Optional.ofNullable(writeTimeout);
     }
 
     public Optional<String> getUserAgent() {
@@ -111,6 +125,20 @@ public class RestOptions implements Serializable {
 
         public Builder withReadTimeout(int readTimeout) {
             this.restOptions.readTimeout = readTimeout;
+            return this;
+        }
+
+        /**
+         * Sets the HTTP request-body write timeout for all Table API requests.
+         *
+         * @param writeTimeout timeout in seconds; must be positive
+         * @return this builder
+         */
+        public Builder withWriteTimeout(int writeTimeout) {
+            if (writeTimeout <= 0) {
+                throw new IllegalArgumentException("Write timeout must be greater than 0");
+            }
+            this.restOptions.writeTimeout = writeTimeout;
             return this;
         }
 

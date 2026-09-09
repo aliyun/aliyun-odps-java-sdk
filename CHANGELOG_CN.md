@@ -1,6 +1,18 @@
 # 更新日志
 ## [Unreleased]
 
+## [0.61.2-public] - 2026-09-09
+
+### Table API 写超时
+- 新增 `RestOptions.Builder.withWriteTimeout(seconds)` 可选请求体写超时；配置后 Table API 使用 OkHttp，默认继续使用 JDK transport。
+- 写入阻塞时抛出包含超时与字节进度的 `RestWriteTimeoutException`，Arrow writer 断开失败连接，不重放请求。
+- 增加流式写入、会话请求、阻塞 socket 与压缩 header 的传输回归测试。
+
+### 发布与打包治理
+- 公有化源码对应弹内 0.61.0，保留公仓独有修复、发布元数据及 0.61.1-public 的安全依赖升级。
+- Table API shaded 包重定位 OkHttp、Okio 与 Kotlin 依赖；内部模块与配置资源继续排除在公有云分发之外。
+
+
 ## [0.61.1-public] - 2026-09-08
 
 ### 依赖安全更新

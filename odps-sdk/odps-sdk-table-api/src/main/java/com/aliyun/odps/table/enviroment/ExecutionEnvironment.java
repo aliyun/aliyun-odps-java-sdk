@@ -20,8 +20,8 @@
 package com.aliyun.odps.table.enviroment;
 
 import com.aliyun.odps.Odps;
-import com.aliyun.odps.commons.transport.DefaultTransport;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.table.transport.TableTransport;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -99,7 +99,10 @@ public abstract class ExecutionEnvironment {
         ensureInitialized();
 
         Credentials credentials = settings.getCredentials();
-        RestClient restClient = new RestClient(new DefaultTransport());
+        Integer writeTimeoutSeconds = settings.getRestOptions()
+                .flatMap(restOptions -> restOptions.getWriteTimeout())
+                .orElse(null);
+        RestClient restClient = new RestClient(new TableTransport(writeTimeoutSeconds));
         restClient.enableTunnelRetryHeaders();
         restClient.setAccount(credentials.getAccount());
         credentials.getAppAccount().ifPresent(restClient::setAppAccount);
