@@ -1,0 +1,56 @@
+name: Docs check
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs-check.yml"
+  push:
+    branches:
+      - "release/**"
+    paths:
+      - "docs/**"
+      - ".github/workflows/docs-check.yml"
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-check:
+    name: Docs are consistent with the pinned release
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - name: Install documentation toolchain
+        run: npm ci
+      - name: Check source snippets, checked-in llms copies and the built site
+        run: node scripts/check-docs-release.js --build
+
+  maven-drift:
+    name: Docs pin still matches Maven Central
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Compare the pinned docs release with the live Maven Central release
+        run: node scripts/check-docs-release.js --drift
