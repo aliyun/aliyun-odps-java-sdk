@@ -5,23 +5,143 @@
 
 # 更新日志
 
-## [0.57.2-public] - 2026-05-07
+## [0.61.2-public] - 2026-09-09
+
+### Table API 写超时
+- 新增 `RestOptions.Builder.withWriteTimeout(seconds)` 可选请求体写超时；配置后 Table API 使用 OkHttp，默认继续使用 JDK transport。
+- 写入阻塞时抛出包含超时与字节进度的 `RestWriteTimeoutException`，Arrow writer 断开失败连接，不重放请求。
+- 增加流式写入、会话请求、阻塞 socket 与压缩 header 的传输回归测试。
+
+### 发布与打包治理
+- 本次公仓发布保留公仓独有修复与发布元数据，并承接 0.61.1-public 的安全依赖升级。
+- Table API shaded 包重定位 OkHttp、Okio 与 Kotlin 依赖；内部模块与配置资源继续排除在公有云分发之外。
+
+
+## [0.61.1-public] - 2026-09-08
+
+### 依赖安全更新
+- 通过 BOM 将 Netty 统一到 4.1.137.Final，覆盖 Arrow/UDF 的传递依赖。
+- LZ4 升级到 1.11.2、Commons Collections 升级到 3.2.2，通过 Jackson BOM 统一到 2.21.5。
+- 增加 HTTP/LZ4/Tunnel 离线兼容回归及限定范围的 CVE 适用性报告。
+
+### 发布与打包治理
+- 确定性投影保留公仓已有源码修复及发布元数据，统一 reactor 坐标为 0.61.1-public。
+- protobuf 2.4.1 及部分旧 Jackson/MR 依赖的兼容迁移尚未完成，报告保留限定路径不适用结论与剩余风险，不提供全库 CVE 豁免。
+
+
+## [0.61.0-public] - 2026-09-03
+
+### 📦 发布与打包治理
+* **[Public Projection]**: **不向公共云发布 Inner-only KubeTask 内容** - 移除 KubeTask 凭据/配置测试资源及 public 分支中的历史残留，同时清理不属于公共云分发内容的旧 protoc 文件。
+
+### ✨ 新功能
+* **[Storage API]**: **增强 Exactly-once 与流式写入控制能力** - 为 Storage API 写入会话和 Writer 扩展更多写入模式、Exactly-once 流元数据、row offset 透传、access token 处理，以及适用于大批量/长耗时上传的 HTTP 写超时配置。
+    * *相关 API*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`
+* **[Commons][Tunnel]**: **扩展 `VECTOR` 与 protobuf 流支持** - 新增 `DoubleVector`，补齐 protobuf Record 流中的通用向量序列化/反序列化能力，并为 Arrow varbinary 写路径增加原始字节 Blob 处理。
+    * *相关 API*: `Vector`, `DoubleVector`, `ProtobufRecordStreamReader`, `ProtobufRecordStreamWriter`, `Blob`
+
+### 🚀 功能增强与性能优化
+* **[Project][Table]**: **改进 EPV2 与项目元数据处理** - 增加基于 XML 字段的项目三层模型和外部 Catalog 绑定状态读取，并在表列表场景缓存 EPV2 状态，减少 reload 期间的重复探测开销。
+    * *相关 API*: `Project.isSupportNamespaceSchema()`, `Project.isExternalCatalogBound()`, `Tables`, `Table`
+* **[Storage API][Blob]**: **在批量上传/下载链路传递 Blob MIME Type** - Blob 批量上传支持保留逐行 MIME Type 元数据，批量下载则通过类型化的 `BlobDataStream` 暴露该信息。
+    * *相关 API*: `Blob`, `BlobDataIterator`, `BlobDataStream`, `TableArrowBatchBlobWriter`
+* **[认证]**: **Storage API 支持 Bearer Token 鉴权** - Storage API 的 HTTP 签名链路现已同时支持 bearer-token 凭证以及原有 AK/SK、STS 鉴权模式。
+    * *相关 API*: `CredentialUtils.isBearerToken()`, `HttpClient`, `SignatureInterceptor`
 
 ### 🐛 问题修复
-* **[Instance]**: **为 MaxQA 实例添加凭据确保机制** - 当通过 `Instances.get(id)` 获取 MCQA 2.0 实例时，自动从响应头获取 `x-odps-mcqa-conn` 和 `x-odps-mcqa-query-cookie` 凭据，确保后续 `/mcqa` 前缀请求能正确路由。
-    * *相关 API*: `Instance.ensureMaxQACredential()`
+* **[Tunnel]**: **显式识别截断的 protobuf Record 流** - 当数据流缺少 footer 时，RecordReader 现在会抛出专用 `StreamTruncatedException`，并避免把截断流当作普通 IO 异常重试。
+    * *相关 API*: `ProtobufRecordStreamReader`, `TunnelRecordReader`, `StreamTruncatedException`
+* **[Storage API]**: **让写会话请求与新服务端契约保持一致** - 为写会话与 Stream 操作补齐 `WriteMode` 透传、支持带 stream id/version 的 commit body，并增强写流响应解析能力以支撑新写入路径。
+    * *相关 API*: `StorageStub`, `GetTableWriteSessionResponse`, `GetWriteStreamResponse`, `WriteStreamResponse`
+
+### 📄 文档更新
+* **[Docs]**: **刷新 Storage API 写入与 Blob 指南** - 更新 Storage API 与 Blob 文档，补充 flush 语义、扩展写入模式、批量 Blob MIME Type 处理以及 `BlobDataStream` 的使用方式。
+
+## [0.59.0-public] - 2026-07-13
+
+### ✨ 新功能
+* **[Storage API]**: **增强 Exactly-once 与流式写入控制能力** - 为 Storage API 写入会话和 Writer 扩展更多写入模式、Exactly-once 流元数据、row offset 透传、access token 处理，以及适用于大批量/长耗时上传的 HTTP 写超时配置。
+    * *相关 API*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`
+* **[Commons][Tunnel]**: **扩展 `VECTOR` 与 protobuf 流支持** - 新增 `DoubleVector`，补齐 protobuf Record 流中的通用向量序列化/反序列化能力，并为 Arrow varbinary 写路径增加原始字节 Blob 处理。
+    * *相关 API*: `Vector`, `DoubleVector`, `ProtobufRecordStreamReader`, `ProtobufRecordStreamWriter`, `Blob`
+
+### 🚀 功能增强与性能优化
+* **[Project][Table]**: **改进 EPV2 与项目元数据处理** - 增加基于 XML 字段的项目三层模型和外部 Catalog 绑定状态读取，并在表列表场景缓存 EPV2 状态，减少 reload 期间的重复探测开销。
+    * *相关 API*: `Project.isSupportNamespaceSchema()`, `Project.isExternalCatalogBound()`, `Tables`, `Table`
+* **[Storage API][Blob]**: **在批量上传/下载链路传递 Blob MIME Type** - Blob 批量上传支持保留逐行 MIME Type 元数据，批量下载则通过类型化的 `BlobDataStream` 暴露该信息。
+    * *相关 API*: `Blob`, `BlobDataIterator`, `BlobDataStream`, `TableArrowBatchBlobWriter`
+* **[认证]**: **Storage API 支持 Bearer Token 鉴权** - Storage API 的 HTTP 签名链路现已同时支持 bearer-token 凭证以及原有 AK/SK、STS 鉴权模式。
+    * *相关 API*: `CredentialUtils.isBearerToken()`, `HttpClient`, `SignatureInterceptor`
+
+### 🐛 问题修复
+* **[Tunnel]**: **显式识别截断的 protobuf Record 流** - 当数据流缺少 footer 时，RecordReader 现在会抛出专用 `StreamTruncatedException`，并避免把截断流当作普通 IO 异常重试。
+    * *相关 API*: `ProtobufRecordStreamReader`, `TunnelRecordReader`, `StreamTruncatedException`
+* **[Storage API]**: **让写会话请求与新服务端契约保持一致** - 为写会话与 Stream 操作补齐 `WriteMode` 透传、支持带 stream id/version 的 commit body，并增强写流响应解析能力以支撑新写入路径。
+    * *相关 API*: `StorageStub`, `GetTableWriteSessionResponse`, `GetWriteStreamResponse`, `WriteStreamResponse`
+
+### 📄 文档更新
+* **[Docs]**: **刷新 Storage API 写入与 Blob 指南** - 更新 Storage API 与 Blob 文档，补充 flush 语义、扩展写入模式、批量 Blob MIME Type 处理以及 `BlobDataStream` 的使用方式。
+
+## [0.58.1-public] - 2026-06-30
+
+### 🐛 问题修复
+* **[依赖]**: **升级共享 Jackson 与 Netty 版本** - 提升由根 POM 统一管理、并由 `odps-sdk-core` 传递给下游（如 JDBC 集成）的依赖版本，在不需要各模块单独覆盖版本的前提下，降低已知 Jackson 和 Netty 漏洞暴露面。
+    * *相关 API*: `odps-sdk-core`, `jackson-databind`, `netty-all`
+
+### 📦 依赖更新
+* **升级**: `com.fasterxml.jackson.core:jackson-databind`: `2.18.2` → `2.21.4`
+* **升级**: `io.netty:netty-all`: `4.1.130.Final` → `4.1.135.Final`
+
+## [0.58.0-public] - 2026-06-30
+
+### ✨ 新功能
+* **[Commons]**: **新增 `VECTOR` 类型支持** - 增加 `OdpsType.VECTOR`、`Vector` / `FloatVector`、`VectorTypeInfo`，并支持解析无参 `VECTOR` 以及 `VECTOR(FLOAT,1536)` 这类带参数的向量类型定义。
+    * *相关 API*: `Vector`, `FloatVector`, `TypeInfoFactory.getVectorTypeInfo()`, `ArrayRecord.getVector()`, `ArrayRecord.setVector()`
+* **[Packaging]**: **新增 `odps-sdk-simplexml` 模块** - 将原先内嵌在 `odps-sdk-core` 中的 SimpleXML 实现拆分为独立模块，便于制品拆分和依赖管理。
+    * *相关 API*: `odps-sdk-simplexml`
+
+### 🚀 功能增强与性能优化
+* **[Instance]**: **任务汇总 finalized 状态感知** - `getTaskSummary(String, boolean)` 新增对 `x-odps-task-finalized` 响应头的解析支持，即使 summary body 解析不完整，也能让调用方感知任务是否已 finalized。
+    * *相关 API*: `Instance.getTaskSummary(String, boolean)`, `Instance.TaskSummary.getFinalized()`
+* **[SQLExecutor]**: **离线任务名处理更一致** - 通过 `SQLExecutorBuilder` 配置的自定义 task name 现在会一致地应用到离线执行、进度查询、summary 查询和结果获取流程中。
+    * *相关 API*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel]**: **Upsert 超时错误信息更可诊断** - `UpsertStreamImpl` 现在区分请求体写超时和响应超时，并返回更明确的本地错误码与 HTTP 状态信息，便于重试和问题定位。
+    * *相关 API*: `UpsertStreamImpl`, `TunnelConstants.UPSERT_FLUSH_WRITE_TIMEOUT`, `TunnelConstants.UPSERT_FLUSH_RESPONSE_TIMEOUT`
+
+### 🐛 问题修复
+* **[Commons]**: **补充向量写入的 Schema 校验** - 在 ODPS 类型转换写路径中增加向量维度和元素类型校验，避免不匹配的向量数据被静默接受。
+
+## [0.57.3-public] - 2026-06-17
+
+### 🐛 问题修复
+* **[SQLExecutor]**: **支持通过 Tunnel Quota 获取 Instance Tunnel 结果** - 为 instance tunnel 结果拉取增加独立的 tunnel quota 通路，使 SQL 执行在读取结果时可以使用与计算 quota 不同的 tunnel quota。
+    * *相关 API*: `SQLExecutorBuilder`, `SQLExecutorImpl`
+* **[Tunnel Cache]**: **按 Quota 隔离 Tunnel Endpoint 缓存** - Tunnel endpoint 本地缓存现在会按 tunnel quota 隔离，避免结果获取流程复用其他 quota 解析出的 endpoint。
+
+### 📄 文档更新
+* **[Docs]**: **全面升级 SDK 文档站点** - 新增大量任务导向指南、API 参考、多语言代码示例、控制台命令到 SDK 映射、搜索优化，以及 `robots.txt` / `llms.txt` 等 AI 可发现性支持。
+
+## [0.57.2-public] - 2026-05-07
+
+### ✨ 新功能
+* **[Instance][MaxQA]**: **为 MCQA v2 Instance 增加凭据确保机制** - 为 `_mcqa` 实例增加自动凭据/请求头回填能力，使 reload、stop、进度查询和 detail 查询无需调用方手动传递 MCQA 连接头也能正常工作。
+    * *相关 API*: `Instance`, `Headers.ODPS_MCQA_CONN`, `Headers.ODPS_MCQA_QUERY_COOKIE`
 
 ## [0.57.1-public] - 2026-04-08
 
-### 📦 维护
-* **[Storage API]**: 添加 Storage API 模块文档
-* **[Build]**: 修复 POM 配置问题
+### ✨ 新功能
+* **[Storage API]**: **增强写入与预览能力** - 为 Storage API 客户端增加表预览请求支持、Raw Arrow 请求体处理、显式写入模式，以及更完整的表/Blob 写入会话能力。
+    * *相关 API*: `MaxStorageClient`, `TableWriteSession`, `TableWriterBuilder`, `WriteMode`
 
-## [0.57.0-public] - 2026-03-25
+### 📄 文档更新
+* **[Storage API]**: **补充完整 Storage API 文档** - 新增 Storage API 的概览、客户端、读取、写入和 Blob 参考文档。
+
+## [0.57.0-public] - 2026-03-05
 
 ### ✨ 新功能
 * **[Storage API][Preview]**: **全新 `odps-sdk-storage-api` 模块** - 引入高性能 Storage API 客户端 `MaxStorageClient`，基于 Arrow 列式格式对 MaxCompute 表进行读写。支持通过 InputSplit 分片实现分布式并行读取、写入会话的 commit/abort 生命周期管理、表数据预览、Blob 下载以及 Instance 结果读取。
     * *相关 API*: `MaxStorageClient`, `MaxStorageClient.Builder`, `TableReadSession`, `TableWriteSession`, `InstanceReadSession`, `BlobManager`
+    * *相关 API*: `BlobManager.download()`, `BlobManager.batchDownload()`, `BlobDataIterator`
 * **[Arrow Helper]**: **全新 `odps-arrow-helper` 模块** - 将 Arrow 相关工具类抽取为独立模块，包含 `TableIdentifier`、`InstanceIdentifier`、`StreamIdentifier`、各类型 Arrow Accessor、`ArrowReaderBuilder`、`ArrowStreamRecordReader`、`SchemaUtils` 等。
     * *相关 API*: `TableIdentifier`, `InstanceIdentifier`, `StreamIdentifier`, `ArrowReaderBuilder`
 * **[SQLExecutor]**: **Storage API 结果集集成** - `SQLExecutorImpl` 在查询结果包含 `BLOB` 列时，自动通过 Storage API（`StorageAPIResultSet`）下载结果，提升兼容性与数据传输效率。
@@ -43,11 +163,12 @@
 
 ### 🚀 功能增强与性能优化
 * **[OdpsType]**: **`OdpsType` 枚举新增数字编码** - 每个 `OdpsType` 枚举值携带稳定的整型 code，并支持通过 `OdpsType.fromCode(int)` 反向查找，便于序列化和协议兼容。
-* **[Arrow Helper]**: **Arrow Accessor 层重构** - 将所有按类型实现的 Arrow 列访问器迁移至新的 `odps-arrow-helper` 模块，提升模块化程度和可复用性。
+* **[Arrow Helper]**: **Arrow Accessor 层重构** - 将所有按类型实现的 Arrow 列访问器（`ArrowBigIntAccessor`、`ArrowDecimalAccessor`、`ArrowTimestampAccessor` 等）迁移至新的 `odps-arrow-helper` 模块，提升模块化程度和可复用性。
 * **[TunnelBufferedWriter]**: **异步 flush 支持** - `TunnelBufferedWriter` 新增非阻塞异步 flush 能力，采用双 buffer 交换机制（`flush(boolean blocking)`），提供背压控制，提升流式上传的写入吞吐量。
     * *相关 API*: `TunnelBufferedWriter.flush(boolean blocking)`
 * **[UpsertStream]**: **异步 flush 及 Buffer 优化** - `UpsertStreamImpl` 支持通过可配置的 `ExecutorService` 执行异步 flush，采用按 bucket 双 buffer 交换机制，并新增 `sync()` 方法支持显式屏障同步。
     * *相关 API*: `UpsertStream.Builder.setAsyncFlushService()`, `UpsertStreamImpl.sync()`
+* **[CI]**: **接入 CodeQL 安全扫描** - 集成 GitHub Actions CodeQL 工作流，实现自动化安全漏洞扫描。
 
 ### 📦 依赖更新
 * **新增**: `com.squareup.okhttp3:okhttp:4.12.0`（在 `odps-sdk-storage-api` 中已 shade）
@@ -1820,7 +1941,7 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-core</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 ```
 
@@ -1833,21 +1954,21 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-table-api</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 
 <!-- 存储层访问接口 -->
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-storage-api</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 
 <!-- UDF 开发框架 -->
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-udf</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 ```
 
@@ -1888,7 +2009,7 @@ SDK 发布在 Maven Central，可直接使用。如需加速下载，可配置�
 
 ```groovy
 dependencies {
-    implementation 'com.aliyun.odps:odps-sdk-core:0.57.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-core:0.61.2-public'
 }
 ```
 
@@ -1896,10 +2017,10 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation 'com.aliyun.odps:odps-sdk-core:0.57.2-public'
-    implementation 'com.aliyun.odps:odps-sdk-table-api:0.57.2-public'
-    implementation 'com.aliyun.odps:odps-sdk-storage-api:0.57.2-public'
-    implementation 'com.aliyun.odps:odps-sdk-udf:0.57.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-core:0.61.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-table-api:0.61.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-storage-api:0.61.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-udf:0.61.2-public'
 }
 ```
 
@@ -1922,7 +2043,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.aliyun.odps:odps-sdk-core:0.57.2-public")
+    implementation("com.aliyun.odps:odps-sdk-core:0.61.2-public")
 }
 ```
 
@@ -8620,8 +8741,8 @@ import com.aliyun.odps.data.RecordReader;
 
 import org.apache.arrow.vector.ipc.ArrowReader;
 
-import java.io.InputStream;
 import java.nio.file.Files;
+import com.aliyun.odps.storage.internal.io.BlobDataStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -8666,12 +8787,13 @@ public class BlobDownloadExample {
             try (BlobDataIterator iterator = blobManager.batchDownload(blobs)) {
                 int index = 0;
                 while (iterator.hasNext()) {
-                    try (InputStream data = iterator.next()) {
+                    try (BlobDataStream data = iterator.next()) {
                         byte[] content = data.readAllBytes();
+                        String mimeType = data.getMimeType();
                         // 保存到本地文件
                         Path outputPath = Paths.get("/tmp/images/" + ids.get(index) + ".jpg");
                         Files.write(outputPath, content);
-                        System.out.println("已下载: " + outputPath + " (" + content.length + " bytes)");
+                        System.out.println("已下载: " + outputPath + " (" + content.length + " bytes, mime=" + mimeType + ")");
                     }
                     index++;
                 }
@@ -8742,7 +8864,7 @@ for idx, (data, mime_type) in enumerate(client.read_blobs(blob_references=blob_r
 3. **获取 BlobManager**：通过 `client.openBlobManager()` 获取 Blob 管理器实例。
 4. **收集 Blob 引用**：通过行接口（`RecordReader`）读取表数据，从 Record 中获取 `Blob` 对象。
 5. **批量下载**：调用 `blobManager.batchDownload(blobs)` 批量下载，返回 `BlobDataIterator` 迭代器。
-6. **处理数据**：从迭代器中逐个获取 `InputStream`，读取实际的二进制内容。
+6. **处理数据**：从迭代器中逐个获取 `BlobDataStream`，读取实际的二进制内容，并可通过 `getMimeType()` 获取上传时记录的 MIME Type。
 
 ## 配置选项
 
@@ -8751,7 +8873,7 @@ for idx, (data, mime_type) in enumerate(client.read_blobs(blob_references=blob_r
 | 方法 | 参数 | 返回值 | 说明 |
 |------|------|--------|------|
 | `download(Blob)` | Blob 引用对象 | InputStream | 下载单个 Blob，调用方必须关闭流 |
-| `batchDownload(List<Blob>)` | Blob 引用列表 | BlobDataIterator | 批量下载，返回顺序与输入一致 |
+| `batchDownload(List<Blob>)` | Blob 引用列表 | BlobDataIterator | 批量下载，返回顺序与输入一致；`next()` 返回 `BlobDataStream` |
 
 ### Blob 构造方式
 
@@ -8812,9 +8934,10 @@ List<Blob> blobs = new ArrayList<>();
 // 批量下载
 try (BlobDataIterator iterator = blobManager.batchDownload(blobs)) {
     while (iterator.hasNext()) {
-        try (InputStream data = iterator.next()) {
+        try (BlobDataStream data = iterator.next()) {
             byte[] content = data.readAllBytes();
-            // 处理 content...
+            String mimeType = data.getMimeType();
+            // 处理 content / mimeType...
         }
     }
 } catch (BlobDownloadException e) {
@@ -8873,9 +8996,10 @@ for (InputSplit split : session.getSplits()) {
             if (!blobRefs.isEmpty()) {
                 try (BlobDataIterator iterator = blobManager.batchDownload(blobRefs)) {
                     while (iterator.hasNext()) {
-                        try (InputStream data = iterator.next()) {
+                        try (BlobDataStream data = iterator.next()) {
                             byte[] content = data.readAllBytes();
-                            // 处理 content...
+                            String mimeType = data.getMimeType();
+                            // 处理 content / mimeType...
                         }
                     }
                 }
@@ -8918,8 +9042,9 @@ for split_index in range(read_resp.splits_count):
 ## 注意事项
 
 - **优先使用批量下载**：`batchDownload()` 单次请求传输多个 Blob，效率远高于循环调用 `download()`。
-- **必须关闭 InputStream**：每个 `InputStream` 用完后必须立即关闭，否则会阻塞迭代器读取下一个 Blob。
+- **必须关闭 BlobDataStream**：每个 `BlobDataStream` 用完后必须立即关闭，否则会阻塞迭代器读取下一个 Blob。
 - **BlobDataIterator 必须关闭**：务必使用 try-with-resources 确保底层网络连接正确释放。
+- **可读取 MIME Type**：如果上传时带了内容类型，`BlobDataStream.getMimeType()` 会返回该值；未设置时返回 `null`。
 - **迭代顺序**：`batchDownload()` 返回的数据顺序与输入的 Blob 引用列表顺序一致。
 - **行接口 vs Arrow 接口**：推荐使用行接口（`RecordReader`）读取 Blob 列，SDK 自动处理引用格式转换；使用 Arrow 列接口需要手动从字节解码引用字符串。
 - **异常处理**：`BlobDownloadException` 提供 `getFailedBlobRef()` 方法，可获取下载失败的具体 Blob 引用，便于重试。
@@ -11176,7 +11301,7 @@ if not success:
 |------|------|
 | `withPartition(PartitionSpec)` | 写入指定分区 |
 | `withOverwrite(boolean)` | 是否覆盖已有数据（默认 false） |
-| `withWriteMode(WriteMode)` | 写入模式：BATCH（默认）/ STREAMING |
+| `withWriteMode(WriteMode)` | 写入模式：BATCH（默认）/ BATCH_COMPATIBLE / STREAMING / STREAMING_REALTIME |
 | `withSessionId(String)` | 复用已有 Session |
 
 ### Writer 构建参数
@@ -11186,6 +11311,11 @@ if not success:
 | `withBufferSize(long)` | 64MB | 写入缓冲区大小（字节） |
 | `withAutoFlushEnabled(boolean)` | true | 缓冲区满时是否自动 flush |
 | `withExecutorService(ExecutorService)` | - | 异步 flush 线程池 |
+| `withBatchBlobUploadEnabled(boolean)` | false | 启用批量 Blob 上传 |
+| `withBlobMimeType(String)` | - | 为批量 Blob 上传指定默认 MIME Type |
+| `withExactlyOnceMode(boolean)` | false | 启用 Exactly-once 写入模式 |
+| `withResume(boolean)` | false | 复用服务端已有 stream 状态继续写入 |
+| `withMaxPendingBuffers(int)` | 1 | 控制异步发送时允许挂起的批次数 |
 
 ### 异步 Flush
 
@@ -11220,9 +11350,11 @@ writer.finish()
 1. **VectorSchemaRoot 生命周期**：调用方负责管理 `VectorSchemaRoot` 的关闭，必须使用 try-with-resources 或手动 `close()` 防止内存泄漏。
 2. **writeBatch 后可复用**：`writeBatch()` 方法内部会立即序列化数据，调用返回后 `VectorSchemaRoot` 可安全修改或重用。
 3. **Batch 模式必须 commit**：Batch 模式下如果 Session 关闭前未调用 `commit()`，会自动执行 `abort()` 丢弃所有数据。
-4. **Streaming 模式不可回滚**：Streaming 模式下 flush 后的数据无法撤回。
-5. **streamId 唯一性**：同一 Session 下不同 Writer 应使用不同的 `streamId`。
-6. **分区列不需写入**：写入分区表时，分区列不包含在写入数据中，通过 `withPartition()` 指定。
+4. **Streaming 模式不可回滚**：Streaming / StreamingRealtime 模式下 flush 后的数据无法撤回。
+5. **flush 只负责发送，不总是可见**：只有 Streaming / StreamingRealtime 模式在 `flush()` 后立即可见；Batch / BatchCompatible 仍需 `commit()`。
+6. **streamId 唯一性**：同一 Session 下不同 Writer 应使用不同的 `streamId`。
+7. **分区列不需写入**：写入分区表时，分区列不包含在写入数据中，通过 `withPartition()` 指定。
+8. **批量 Blob 上传可携带 MIME Type**：启用 `withBatchBlobUploadEnabled(true)` 后，可通过 `withBlobMimeType()` 设置默认值，或在每个 `Blob` 上单独指定 MIME Type。
 
 ## 相关文档
 
@@ -12277,7 +12409,7 @@ MaxCompute(ODPS) SDK 是阿里云 MaxCompute 大数据计算服务的官方客�
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-core</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 ```
 
@@ -18044,7 +18176,9 @@ TableWriteSession session = client.createTableWriteSessionBuilder(tableId)
 | 枚举值 | 说明 |
 |--------|------|
 | `WriteMode.BATCH` | 批量模式（默认），`commit()` 后数据可见，支持事务回滚 |
+| `WriteMode.BATCH_COMPATIBLE` | 批量兼容模式，语义与 `BATCH` 一致，但使用兼容型存储布局 |
 | `WriteMode.STREAMING` | 流式模式，`flush()` 后数据立即可见，不支持回滚 |
+| `WriteMode.STREAMING_REALTIME` | 实时流式模式，客户端语义与 `STREAMING` 一致，但服务端采用更低延迟的实时链路 |
 
 ## TableWriteSessionBuilder
 
@@ -18062,7 +18196,7 @@ public TableWriteSessionBuilder withWriteMode(WriteMode writeMode)
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `writeMode` | `WriteMode` | `BATCH`（默认）或 `STREAMING` |
+| `writeMode` | `WriteMode` | `BATCH`（默认）、`BATCH_COMPATIBLE`、`STREAMING` 或 `STREAMING_REALTIME` |
 
 ---
 
@@ -18207,6 +18341,10 @@ public WriteMode getWriteMode()
 | `withAutoFlushEnabled(boolean)` | 是否启用自动 Flush，默认 `true` |
 | `withExecutorService(ExecutorService)` | 异步 Flush 线程池 |
 | `withBatchBlobUploadEnabled(boolean)` | 启用批量 Blob 上传 |
+| `withBlobMimeType(String)` | 为批量 Blob 上传设置默认 MIME Type |
+| `withExactlyOnceMode(boolean)` | 启用 Exactly-once 写入模式 |
+| `withResume(boolean)` | 基于已有 stream 元数据恢复写入 |
+| `withMaxPendingBuffers(int)` | 控制异步发送时允许挂起的批次数 |
 | `build()` | 构建 `ArrowWriter`（实际为 `TableArrowWriter`） |
 
 ---
@@ -18240,6 +18378,9 @@ public void writeBatch(VectorSchemaRoot root)
 ```java
 public void flush()
 ```
+
+- **Batch 模式**：`flush()` 仅把数据推送到服务端暂存区，仍需 `commit()` 才会对外可见
+- **Streaming / StreamingRealtime 模式**：`flush()` 返回后数据即可见
 
 ---
 
