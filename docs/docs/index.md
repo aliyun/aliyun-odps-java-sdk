@@ -25,7 +25,7 @@ MaxCompute(ODPS) SDK 是阿里云 MaxCompute 大数据计算服务的官方客�
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-core</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 ```
 
