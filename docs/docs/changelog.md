@@ -1,5 +1,57 @@
 # 更新日志
 
+## [0.61.2-public] - 2026-09-09
+
+### Table API 写超时
+- 新增 `RestOptions.Builder.withWriteTimeout(seconds)` 可选请求体写超时；配置后 Table API 使用 OkHttp，默认继续使用 JDK transport。
+- 写入阻塞时抛出包含超时与字节进度的 `RestWriteTimeoutException`，Arrow writer 断开失败连接，不重放请求。
+- 增加流式写入、会话请求、阻塞 socket 与压缩 header 的传输回归测试。
+
+### 发布与打包治理
+- 本次公仓发布保留公仓独有修复与发布元数据，并承接 0.61.1-public 的安全依赖升级。
+- Table API shaded 包重定位 OkHttp、Okio 与 Kotlin 依赖；内部模块与配置资源继续排除在公有云分发之外。
+
+
+## [0.61.1-public] - 2026-09-08
+
+### 依赖安全更新
+- 通过 BOM 将 Netty 统一到 4.1.137.Final，覆盖 Arrow/UDF 的传递依赖。
+- LZ4 升级到 1.11.2、Commons Collections 升级到 3.2.2，通过 Jackson BOM 统一到 2.21.5。
+- 增加 HTTP/LZ4/Tunnel 离线兼容回归及限定范围的 CVE 适用性报告。
+
+### 发布与打包治理
+- 确定性投影保留公仓已有源码修复及发布元数据，统一 reactor 坐标为 0.61.1-public。
+- protobuf 2.4.1 及部分旧 Jackson/MR 依赖的兼容迁移尚未完成，报告保留限定路径不适用结论与剩余风险，不提供全库 CVE 豁免。
+
+
+## [0.61.0-public] - 2026-09-03
+
+### 📦 发布与打包治理
+* **[Public Projection]**: **不向公共云发布 Inner-only KubeTask 内容** - 移除 KubeTask 凭据/配置测试资源及 public 分支中的历史残留，同时清理不属于公共云分发内容的旧 protoc 文件。
+
+### ✨ 新功能
+* **[Storage API]**: **增强 Exactly-once 与流式写入控制能力** - 为 Storage API 写入会话和 Writer 扩展更多写入模式、Exactly-once 流元数据、row offset 透传、access token 处理，以及适用于大批量/长耗时上传的 HTTP 写超时配置。
+    * *相关 API*: `TableWriteSession`, `TableWriterBuilder`, `WriteMode`, `HttpSettings`, `StorageStub`
+* **[Commons][Tunnel]**: **扩展 `VECTOR` 与 protobuf 流支持** - 新增 `DoubleVector`，补齐 protobuf Record 流中的通用向量序列化/反序列化能力，并为 Arrow varbinary 写路径增加原始字节 Blob 处理。
+    * *相关 API*: `Vector`, `DoubleVector`, `ProtobufRecordStreamReader`, `ProtobufRecordStreamWriter`, `Blob`
+
+### 🚀 功能增强与性能优化
+* **[Project][Table]**: **改进 EPV2 与项目元数据处理** - 增加基于 XML 字段的项目三层模型和外部 Catalog 绑定状态读取，并在表列表场景缓存 EPV2 状态，减少 reload 期间的重复探测开销。
+    * *相关 API*: `Project.isSupportNamespaceSchema()`, `Project.isExternalCatalogBound()`, `Tables`, `Table`
+* **[Storage API][Blob]**: **在批量上传/下载链路传递 Blob MIME Type** - Blob 批量上传支持保留逐行 MIME Type 元数据，批量下载则通过类型化的 `BlobDataStream` 暴露该信息。
+    * *相关 API*: `Blob`, `BlobDataIterator`, `BlobDataStream`, `TableArrowBatchBlobWriter`
+* **[认证]**: **Storage API 支持 Bearer Token 鉴权** - Storage API 的 HTTP 签名链路现已同时支持 bearer-token 凭证以及原有 AK/SK、STS 鉴权模式。
+    * *相关 API*: `CredentialUtils.isBearerToken()`, `HttpClient`, `SignatureInterceptor`
+
+### 🐛 问题修复
+* **[Tunnel]**: **显式识别截断的 protobuf Record 流** - 当数据流缺少 footer 时，RecordReader 现在会抛出专用 `StreamTruncatedException`，并避免把截断流当作普通 IO 异常重试。
+    * *相关 API*: `ProtobufRecordStreamReader`, `TunnelRecordReader`, `StreamTruncatedException`
+* **[Storage API]**: **让写会话请求与新服务端契约保持一致** - 为写会话与 Stream 操作补齐 `WriteMode` 透传、支持带 stream id/version 的 commit body，并增强写流响应解析能力以支撑新写入路径。
+    * *相关 API*: `StorageStub`, `GetTableWriteSessionResponse`, `GetWriteStreamResponse`, `WriteStreamResponse`
+
+### 📄 文档更新
+* **[Docs]**: **刷新 Storage API 写入与 Blob 指南** - 更新 Storage API 与 Blob 文档，补充 flush 语义、扩展写入模式、批量 Blob MIME Type 处理以及 `BlobDataStream` 的使用方式。
+
 ## [0.59.0-public] - 2026-07-13
 
 ### ✨ 新功能

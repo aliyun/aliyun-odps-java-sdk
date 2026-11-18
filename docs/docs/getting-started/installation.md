@@ -40,7 +40,7 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-core</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 ```
 
@@ -53,21 +53,21 @@ MaxCompute Java SDK 由多个模块组成，可按需引入：
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-table-api</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 
 <!-- 存储层访问接口 -->
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-storage-api</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 
 <!-- UDF 开发框架 -->
 <dependency>
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps-sdk-udf</artifactId>
-    <version>0.57.2-public</version>
+    <version>0.61.2-public</version>
 </dependency>
 ```
 
@@ -108,7 +108,7 @@ SDK 发布在 Maven Central，可直接使用。如需加速下载，可配置�
 
 ```groovy
 dependencies {
-    implementation 'com.aliyun.odps:odps-sdk-core:0.57.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-core:0.61.2-public'
 }
 ```
 
@@ -116,10 +116,10 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation 'com.aliyun.odps:odps-sdk-core:0.57.2-public'
-    implementation 'com.aliyun.odps:odps-sdk-table-api:0.57.2-public'
-    implementation 'com.aliyun.odps:odps-sdk-storage-api:0.57.2-public'
-    implementation 'com.aliyun.odps:odps-sdk-udf:0.57.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-core:0.61.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-table-api:0.61.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-storage-api:0.61.2-public'
+    implementation 'com.aliyun.odps:odps-sdk-udf:0.61.2-public'
 }
 ```
 
@@ -142,7 +142,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.aliyun.odps:odps-sdk-core:0.57.2-public")
+    implementation("com.aliyun.odps:odps-sdk-core:0.61.2-public")
 }
 ```
 

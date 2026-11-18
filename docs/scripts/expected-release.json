@@ -1,0 +1,6 @@
+{
+  "expectedRelease": "0.61.2-public",
+  "purpose": "Single pinned release used by the docs PR check. Bump this together with docs/docs/getting-started/installation.md, docs/docs/index.md and docs/docs/changelog.md when a release is published.",
+  "whyPinned": "A PR check that reads the live Maven Central release would turn older commits red the moment a new version is published. The live comparison runs on a schedule instead.",
+  "driftCheckWorkflow": ".github/workflows/docs-check.yml"
+}
