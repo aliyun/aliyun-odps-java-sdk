@@ -2,9 +2,6 @@ name: Docs check
 
 on:
   pull_request:
-    paths:
-      - "docs/**"
-      - ".github/workflows/docs-check.yml"
   push:
     branches:
       - "release/**"
@@ -29,15 +26,59 @@ jobs:
         working-directory: docs
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether this run touches docs
+        id: scope
+        working-directory: .
+        env:
+          PR_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PR_BASE" ]; then
+            files=$(git diff --name-only "$PR_BASE" HEAD)
+          else
+            files=$(git ls-files)
+          fi
+          if printf '%s\n' "$files" | grep -q '^docs/'; then
+            echo 'docs_changed=true' >> "$GITHUB_OUTPUT"
+            echo "docs/ is part of this run"
+          else
+            echo 'docs_changed=false' >> "$GITHUB_OUTPUT"
+            echo "no docs/ paths in this run"
+          fi
+
+      - name: Set up node
+        if: steps.scope.outputs.docs_changed == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: docs/package-lock.json
+
       - name: Install documentation toolchain
+        if: steps.scope.outputs.docs_changed == 'true'
         run: npm ci
+
       - name: Check source snippets, checked-in llms copies and the built site
+        if: steps.scope.outputs.docs_changed == 'true'
         run: node scripts/check-docs-release.js --build
+
+      - name: Gate (always reports, so the check can be made required)
+        if: always()
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.scope.outputs.docs_changed }}" != "true" ]; then
+            echo "Nothing under docs/ changed; reporting success without an install."
+            exit 0
+          fi
+          if [ "${{ job.status }}" != "success" ]; then
+            echo "docs/ changed and one of the steps above failed - see that step."
+            exit 1
+          fi
+          echo "docs/ changed: install, pinned-release assertions and the build all passed."
 
   maven-drift:
     name: Docs pin still matches Maven Central
