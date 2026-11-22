@@ -6,6 +6,10 @@
  *   node scripts/check-docs-release.js           PR check against the pinned release in scripts/expected-release.json
  *   node scripts/check-docs-release.js --build    additionally run `npm run build` and verify the generated site
  *   node scripts/check-docs-release.js --drift     compare the pin with the live Maven Central <release> (scheduled job)
+ *   node scripts/check-docs-release.js --scope     decide whether this run is in docs scope; appends
+ *                                                  docs_changed=true|false to $GITHUB_OUTPUT when set
+ *   node scripts/check-docs-release.js --scope --paths-file <list>   feed a newline-separated path list
+ *                                                  instead of asking git (used by the scope regressions)
  *
  * What the PR check guarantees, in order:
  *   1. the install snippets and the changelog head in docs/docs use the pinned release;
@@ -28,11 +32,58 @@ const CENTRAL_URL = 'https://repo1.maven.org/maven2/com/aliyun/odps/odps-sdk-cor
 const VERSION_RE = /\b\d+\.\d+\.\d+-public\b/g;
 
 const mode = process.argv.slice(2).find((a) => a.startsWith('--')) || '';
+const argv = process.argv.slice(2);
+const pathsFileIdx = argv.indexOf('--paths-file');
+const PATHS_FILE = pathsFileIdx >= 0 ? argv[pathsFileIdx + 1] : '';
 const failures = [];
 const notes = [];
 
 function fail(step, detail) { failures.push(`${step}: ${detail}`); console.error(`FAIL ${step}: ${detail}`); }
 function ok(step, detail) { notes.push(`${step}: ${detail}`); console.log(`PASS ${step}: ${detail}`); }
+
+/*
+ * Scope decision, kept in JS on purpose: the earlier shell version piped a possibly huge
+ * `git diff --name-only` list into `grep -q`, and grep's early exit makes printf die on SIGPIPE,
+ * so a `set -o pipefail` shell could report "no docs changed" for a run that did change docs.
+ * Here the list is filtered in memory, so there is no pipe to break and no first-match shortcut.
+ */
+const SCOPE_PREFIXES = ['docs/'];
+const SCOPE_EXACT = ['.github/workflows/docs-check.yml'];
+
+function isInScope(path) {
+  return SCOPE_PREFIXES.some((p) => path.startsWith(p)) || SCOPE_EXACT.includes(path);
+}
+
+function changedPaths() {
+  if (PATHS_FILE) {
+    return fs.readFileSync(PATHS_FILE, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+  }
+  const base = process.env.PR_BASE || '';
+  const out = base
+    ? execFileSync('git', ['-C', REPO_DIR, 'diff', '--name-only', base, 'HEAD'], { encoding: 'utf8' })
+    : execFileSync('git', ['-C', REPO_DIR, 'ls-files'], { encoding: 'utf8' });
+  return out.split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+function scopeMode() {
+  let paths;
+  try {
+    paths = changedPaths();
+  } catch (e) {
+    console.error(`FAIL scope: could not list changed files: ${e.message}`);
+    process.exitCode = 1;
+    return;
+  }
+  const hit = paths.filter(isInScope);
+  const value = hit.length > 0 ? 'true' : 'false';
+  if (process.env.GITHUB_OUTPUT) {
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `docs_changed=${value}\n`);
+  }
+  console.log(`SCOPE paths_seen=${paths.length} in_scope=${hit.length} docs_changed=${value}`);
+  console.log(`SCOPE basis=${PATHS_FILE ? 'paths-file' : (process.env.PR_BASE ? 'git diff base..HEAD' : 'git ls-files (push/dispatch)')}`);
+  if (hit.length) console.log(`SCOPE first_hits=${hit.slice(0, 5).join(', ')}`);
+  process.exitCode = 0;
+}
 
 function readPin() {
   if (!fs.existsSync(PIN_FILE)) { fail('pin', `${path.relative(REPO_DIR, PIN_FILE)} is missing`); return null; }
@@ -160,6 +211,7 @@ function checkDrift(pin) {
 }
 
 async function main() {
+  if (mode === '--scope') { scopeMode(); return; }
   const pin = readPin();
   if (mode === '--drift') {
     await checkDrift(pin);
