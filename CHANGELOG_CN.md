@@ -1,6 +1,25 @@
 # 更新日志
 ## [Unreleased]
 
+## [0.62.0-public] - 2026-11-24
+
+### Storage API
+
+- Table API 可显式选择 `v2` provider，支持批量和增量读取、Arrow 批量写入。默认仍为 V1。V2 支持从 JSON 恢复读会话，以及按会话 ID 恢复写入。
+- V2 批兼容写入为每个活跃 block writer 默认聚合 256 KiB 数据，缓冲大小可调。上传先发请求头再等首批 Arrow 数据，支持零行 block，恢复写会话时复用首次查询结果。
+- V1 和 V2 读取 Arrow 数据时优先使用本地 LZ4 frame 解码，原生库无法加载时自动回退到 Java 实现。
+
+### SDK 稳定性与兼容性
+
+- REST 和 Storage API 支持带认证的 HTTP 代理。错误响应体为空或读取失败时，仍保留 HTTP 状态和请求 ID。
+- 按操作和 Upsert bucket 隔离 Tunnel 重试计数，读取失败时释放临时 Arrow reader，并在池中复用仍可用的 SQL executor。
+- 增加推理 Quota 管理和 Quota 用量查询。可通过 `OdpsOptions` 或支持的环境变量配置请求追踪。旧版从 `MC_PLATFORM_ID`、`TRACEPARENT` 自动注入 SQL 设置的行为已撤销，显式 SQL 设置仍然生效。
+
+### 发布与打包治理
+
+- 将构建模块统一到 `0.62.0-public`，保留公仓发布配置和依赖版本，提供 Storage API 和 Table API 的 shaded 制品。
+- 过滤部署专用测试配置及预生成 TLS 密钥。代理和 TLS 测试使用文档专用地址、占位值及运行时生成的证书。
+
 ## [0.61.2-public] - 2026-09-09
 
 ### Table API 写超时

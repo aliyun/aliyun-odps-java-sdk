@@ -1050,6 +1050,9 @@ public class Instance extends com.aliyun.odps.LazyLoad {
       try {
         Thread.sleep(interval);
       } catch (InterruptedException e) {
+        // Waking up from the poll interval because someone interrupted us is a cancel request,
+        // not a terminated instance: keep the flag so the caller can tell the two apart.
+        Thread.currentThread().interrupt();
         break;
       }
     }

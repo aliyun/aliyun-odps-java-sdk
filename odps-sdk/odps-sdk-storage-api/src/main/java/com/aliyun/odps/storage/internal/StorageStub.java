@@ -35,10 +35,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.MaxStorageException;
 import com.aliyun.odps.storage.ServiceException;
+import com.aliyun.odps.storage.internal.io.StreamingUpload;
 import com.aliyun.odps.storage.internal.io.CrcStrippedInputStream;
 import com.aliyun.odps.storage.internal.io.RawArrowRequestBody;
 import com.aliyun.odps.storage.internal.models.BatchCompatibleCommitRequest;
@@ -71,6 +73,7 @@ import com.aliyun.odps.storage.internal.models.WriteStreamResponse;
 import com.aliyun.odps.storage.internal.retry.RetryHandler;
 import com.aliyun.odps.storage.internal.serializer.ArrowOptionsSerializer;
 import com.aliyun.odps.storage.internal.serializer.ReadSchemaDeserializer;
+import com.aliyun.odps.storage.internal.serializer.TableSchemaSerializer;
 import com.aliyun.odps.storage.internal.serializer.WriteSchemaDeserializer;
 import com.aliyun.odps.storage.internal.utils.IOUtils;
 import com.aliyun.odps.storage.models.SplitMode;
@@ -133,16 +136,31 @@ public class StorageStub implements Closeable {
     this.httpClient = new HttpClient(stubSettings);
     this.settings = stubSettings;
 
-    this.gson = new GsonBuilder()
+    this.gson = createWireGson();
+  }
+
+  /** Shared offline wire codec; does not allocate a client or perform I/O. */
+  public static Gson createWireGson() {
+    return new GsonBuilder()
       .disableHtmlEscaping()
       .registerTypeAdapter(TimestampUnit.class, new TimestampUnit.TimestampUnitSerializer())
       .registerTypeAdapter(TimestampUnit.class, new TimestampUnit.TimestampUnitDeserializer())
       .registerTypeAdapter(SplitMode.class, new SplitMode.SplitModeDeserializer())
       .registerTypeAdapter(SplitMode.class, new SplitMode.SplitModeSerializer())
       .registerTypeAdapter(ArrowOptions.class, new ArrowOptionsSerializer())
+      .registerTypeHierarchyAdapter(TableSchema.class, new TableSchemaSerializer())
       .registerTypeAdapter(ReadSchema.class, new ReadSchemaDeserializer())
       .registerTypeAdapter(WriteSchema.class, new WriteSchemaDeserializer())
       .create();
+  }
+
+  /**
+   * Gson instance configured with the wire serializers used by this stub. Exposed so that
+   * higher-level clients (e.g. the table-api v2 session provider) can re-serialize typed
+   * responses back to the exact wire JSON shape without duplicating adapter registration.
+   */
+  public Gson getGson() {
+    return gson;
   }
 
   // --- Session Management ---
@@ -333,6 +351,18 @@ public class StorageStub implements Closeable {
     return result;
   }
 
+  /** Opens a one-shot block upload. A failed streamed attempt must be retried with a new writer. */
+  public StreamingUpload openBatchCompatibleBlock(
+      TableIdentifier tableId, String sessionId, int blockNumber, int attemptNumber,
+      String routeToken, String quotaToken, int chunkSize) {
+    Map<String, String> params = buildBatchCompatibleSessionParams(tableId, "TableWrite", sessionId);
+    params.put("BlockNumber", String.valueOf(blockNumber));
+    params.put("AttemptNumber", String.valueOf(attemptNumber));
+    params.put("quotaToken", quotaToken);
+    return httpClient.openStreamingUpload(STORAGE_API_V2_RESOURCE, params,
+        buildRouteHeaders(routeToken), chunkSize);
+  }
+
   public BatchCompatibleWriteResponse writeBatchCompatibleBlock(
       TableIdentifier tableId,
       String sessionId,
@@ -374,6 +404,17 @@ public class StorageStub implements Closeable {
       String sessionId,
       String routeToken,
       Collection<String> commitMessages) {
+    return commitBatchCompatibleSession(tableId, sessionId, routeToken, commitMessages, null);
+  }
+
+  public BatchCompatibleSessionResponse commitBatchCompatibleSession(
+      TableIdentifier tableId,
+      String sessionId,
+      String routeToken,
+      Collection<String> commitMessages,
+      Integer waitFlyingWritersTimeoutSeconds) {
+    BatchCompatibleCommitRequest request =
+        new BatchCompatibleCommitRequest(commitMessages, waitFlyingWritersTimeoutSeconds);
     Map<String, String> params = buildBatchCompatibleSessionParams(
         tableId, "TableCommitWriteSession", sessionId);
     HttpResponse response = httpClient.request(
@@ -381,7 +422,7 @@ public class StorageStub implements Closeable {
         "POST",
         params,
         buildRouteHeaders(routeToken),
-        gson.toJson(new BatchCompatibleCommitRequest(commitMessages)));
+        gson.toJson(request));
 
     BatchCompatibleSessionResponse result =
         gson.fromJson(response.getBody(), BatchCompatibleSessionResponse.class);

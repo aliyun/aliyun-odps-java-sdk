@@ -19,42 +19,50 @@
 
 package com.aliyun.odps.storage.internal;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.aliyun.credentials.api.ICredentials;
 import com.aliyun.credentials.api.ICredentialsProvider;
+import com.aliyun.odps.ProxyConfig;
 import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.retry.RetryHeaders;
 import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.MaxStorageException;
 import com.aliyun.odps.storage.ServiceException;
+import com.aliyun.odps.storage.internal.io.StreamingUpload;
+import com.aliyun.odps.storage.internal.io.UploadSocketFactory;
 import com.aliyun.odps.storage.internal.models.HttpResponse;
 import com.aliyun.odps.storage.internal.retry.RetryHandler;
 import com.aliyun.odps.storage.internal.utils.OkHttpProxyHelper;
 import com.aliyun.odps.storage.internal.utils.SvnRevisionUtils;
+import com.aliyun.odps.tracing.RequestTrace;
 import com.aliyun.odps.utils.CredentialUtils;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonSyntaxException;
-
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import okhttp3.Call;
 import okhttp3.ConnectionPool;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * HTTP client for making requests to the MaxCompute Storage API.
@@ -72,8 +80,13 @@ public class HttpClient {
   private String endpoint;
 
   private final OkHttpClient client;
+  private final OkHttpClient uploadClient;
+  private final String sharingQuotaToken;
+  private final String tunnelTags;
+  private final Consumer<Map<String, String>> additionalHeaderSigner;
   private final String region;
   private final String userAgent;
+  private final RequestTrace requestTrace;
   private final ICredentialsProvider credentialsProvider;
   private final RetryHandler retryHandler;
 
@@ -113,6 +126,10 @@ public class HttpClient {
     this.credentialsProvider = settings.getCredentialsProvider();
     this.region = settings.getRegion(); // Save region for User-Agent
     this.userAgent = settings.getUserAgent();
+    this.requestTrace = settings.getRequestTrace();
+    this.sharingQuotaToken = settings.getSharingQuotaToken();
+    this.tunnelTags = settings.getTunnelTags();
+    this.additionalHeaderSigner = settings.getAdditionalHeaderSigner();
 
     // 1. configure Connection Pool
     ConnectionPool connectionPool = new ConnectionPool(
@@ -123,16 +140,43 @@ public class HttpClient {
 
     OkHttpClient.Builder builder = new OkHttpClient.Builder();
     if (settings.getHttpSettings().getProxyConfig() != null) {
-      builder.proxySelector(
-        OkHttpProxyHelper.createProxySelector(settings.getHttpSettings().getProxyConfig()));
+      ProxyConfig proxyConfig = settings.getHttpSettings().getProxyConfig();
+      builder.proxySelector(OkHttpProxyHelper.createProxySelector(proxyConfig));
+      // Only set when the proxy carries credentials: without them OkHttp keeps its default
+      // Authenticator.NONE and a 407 is reported exactly as in previous SDK versions.
+      okhttp3.Authenticator proxyAuthenticator =
+        OkHttpProxyHelper.createProxyAuthenticator(proxyConfig);
+      if (proxyAuthenticator != null) {
+        builder.proxyAuthenticator(proxyAuthenticator);
+      }
+    }
+    if (settings.getHttpSettings().isIgnoreCerts()) {
+      configureInsecureTls(builder);
     }
     // 2. build OkHttpClient
-    this.client = builder
-      .connectionPool(connectionPool)
-      .connectTimeout(settings.getHttpSettings().getConnectTimeout())
-      .readTimeout(settings.getHttpSettings().getReadTimeout())
-      .writeTimeout(settings.getHttpSettings().getWriteTimeout())
-      .build();
+    this.client =
+        builder
+            .connectionPool(connectionPool)
+            .eventListenerFactory(UploadSocketFactory.listenerFactory())
+            .connectTimeout(settings.getHttpSettings().getConnectTimeout())
+            .readTimeout(settings.getHttpSettings().getReadTimeout())
+            .writeTimeout(settings.getHttpSettings().getWriteTimeout())
+            .build();
+
+    // Keep bulk-upload sockets out of the control/read pool. SocketFactory is not part of
+    // OkHttp's address reuse identity, so sharing the old pool could reuse unbuffered sockets.
+    // HTTPS uses the original client: buffering raw TLS sockets changes handshake semantics.
+    this.uploadClient =
+        client
+            .newBuilder()
+            .connectionPool(
+                new ConnectionPool(
+                    settings.getHttpSettings().getMaxIdleConnections(),
+                    settings.getHttpSettings().getKeepAliveDuration().toMillis(),
+                    TimeUnit.MILLISECONDS))
+            .socketFactory(new UploadSocketFactory())
+            .protocols(java.util.Collections.singletonList(Protocol.HTTP_1_1))
+            .build();
 
     this.endpoint = settings.getTunnelEndpoint();
     if (StringUtils.isBlank(this.endpoint)) {
@@ -360,48 +404,77 @@ public class HttpClient {
                                Map<String, String> headers,
                                RequestBody body,
                                RetryContext retryContext) {
+    params = params == null ? new HashMap<>() : new HashMap<>(params);
+    if (sharingQuotaToken != null) {
+      params.put("sharingQuotaToken", sharingQuotaToken);
+    }
     HttpUrl.Builder urlBuilder = Objects.requireNonNull(HttpUrl.parse(endpoint))
       .newBuilder()
       .addPathSegments(path);
-    if (params != null) {
-      params.forEach(urlBuilder::addQueryParameter);
-    }
+    params.forEach(urlBuilder::addQueryParameter);
 
     Request.Builder requestBuilder = new Request.Builder()
       .url(urlBuilder.build())
       .method(method, body);
     Map<String, String> requestHeaders =
         headers == null ? new HashMap<>() : new HashMap<>(headers);
+    if (tunnelTags != null) {
+      requestHeaders.put("odps-tunnel-tags", tunnelTags);
+    }
     retryContext.injectHeaders(requestHeaders);
     requestHeaders.put(CredentialUtils.DATE, CredentialUtils.getApiTimestamp());
     // Add User-Agent header
     requestHeaders.put("User-Agent", buildUserAgent());
+    requestTrace.apply(requestHeaders, null, headers);
     if (body != null) {
       requestHeaders.put("Content-Type", body.contentType().toString());
     }
     // calculate signature
     String canonicalString =
         CredentialUtils.buildCanonicalString(method, path, params, requestHeaders);
-    log.debug("CanonicalString: {}", canonicalString);
 
     ICredentials credentials = credentialsProvider.getCredentials();
     if (CredentialUtils.isBearerToken(credentials)) {
       // Bearer token: authenticate via the x-odps-bearer-token header, no AK/SK signature.
-      requestBuilder.header(CredentialUtils.ODPS_BEARER_TOKEN, credentials.getSecurityToken());
-      requestHeaders.forEach(requestBuilder::addHeader);
+      requestHeaders.put(CredentialUtils.ODPS_BEARER_TOKEN, credentials.getSecurityToken());
     } else {
       String signature =
         CredentialUtils.getSignature(canonicalString, credentials.getAccessKeyId(),
                                      credentials.getAccessKeySecret());
 
-      requestBuilder.header(CredentialUtils.AUTHORIZATION, signature);
-      requestHeaders.forEach(requestBuilder::addHeader);
+      requestHeaders.put(CredentialUtils.AUTHORIZATION, signature);
       if (StringUtils.isNotBlank(credentials.getSecurityToken())) {
-        requestBuilder.header(CredentialUtils.AUTHORIZATION_STS_TOKEN,
+        requestHeaders.put(CredentialUtils.AUTHORIZATION_STS_TOKEN,
                               credentials.getSecurityToken());
       }
     }
+    if (additionalHeaderSigner != null) {
+      additionalHeaderSigner.accept(requestHeaders);
+    }
+    requestHeaders.forEach(requestBuilder::header);
     return requestBuilder.build();
+  }
+
+  public StreamingUpload openStreamingUpload(
+      String path, Map<String, String> params, Map<String, String> headers, int chunkSize) {
+    StreamingUpload upload =
+        new StreamingUpload(chunkSize, client.writeTimeoutMillis());
+    Request request = buildRequest(endpoint, path, "POST", params, headers, upload,
+        RetryContext.create());
+    OkHttpClient transport = request.url().isHttps() ? client : uploadClient;
+    Call call = transport.newCall(request);
+    upload.start(call, () -> {
+      try (Response response = call.execute()) {
+        handleErrorResponse(response);
+        HttpResponse result = new HttpResponse();
+        result.setStatusCode(response.code());
+        result.setRequestId(response.header(ODPS_REQUEST_ID));
+        result.setHeaders(response.headers().toMultimap());
+        result.setBody(response.body() == null ? null : response.body().string());
+        return result;
+      }
+    });
+    return upload;
   }
 
   private Request withRetryContext(Request request, RetryContext retryContext) {
@@ -425,19 +498,84 @@ public class HttpClient {
       }
       int statusCode = response.code();
       String requestId = response.header(ODPS_REQUEST_ID, "N/A");
+      // Parsing may fail as data, never as a crash. The status and the request id are already known
+      // here, and when the peer answers with nothing but a status they are the whole story. They
+      // used to be lost: reading fields off a payload that deserialized to null threw a
+      // NullPointerException that callers could only report as 'java.lang.NullPointerException',
+      // and being a bare RuntimeException it also bypassed the status-based retry policy.
+      ErrorResponsePayload payload = null;
+      boolean bodyIsJson = true;
       try {
-        ErrorResponsePayload payload = gson.fromJson(errorBody, ErrorResponsePayload.class);
-        throw new ServiceException(statusCode, payload.Code, payload.Message,
-                                   requestId);
-      } catch (JsonSyntaxException e) {
-        throw new ServiceException(statusCode, "N/A", errorBody, requestId);
+        payload = gson.fromJson(errorBody, ErrorResponsePayload.class);
+      } catch (RuntimeException ignored) {
+        // A gateway's HTML page, plain text, a JSON array: not a payload, but not a client-side
+        // failure either. Such a body is quoted verbatim below, exactly as before.
+        bodyIsJson = false;
       }
+      String errorCode = payload != null && StringUtils.isNotBlank(payload.Code)
+                         ? payload.Code : "N/A";
+      throw new ServiceException(statusCode, errorCode,
+                                 errorMessageFor(statusCode, requestId, errorBody, payload,
+                                                 bodyIsJson),
+                                 requestId);
+    }
+  }
+
+  /**
+   * The most specific message available for a non-2xx response: never null, never blank.
+   *
+   * <p>Order of trust: the service's own {@code Message}; then the body verbatim when it says
+   * something the payload model cannot represent (gateway HTML, or a document using key names
+   * other than {@code Code}/{@code Message}); then a line built from the status and the request id,
+   * which is what is left when the peer sent nothing but a status. When the body was not accepted
+   * as JSON at all ({@code bodyIsJson} false), the raw body is the only description of the failure
+   * and is therefore kept.
+   */
+  private static String errorMessageFor(int statusCode,
+                                        String requestId,
+                                        String errorBody,
+                                        ErrorResponsePayload payload,
+                                        boolean bodyIsJson) {
+    if (payload != null && StringUtils.isNotBlank(payload.Message)) {
+      return payload.Message;
+    }
+    if (StringUtils.isNotBlank(errorBody) && (payload != null || !bodyIsJson)) {
+      return errorBody;
+    }
+    return "HTTP " + statusCode + " with an empty error response body (request id: " + requestId
+        + ")";
+  }
+
+  private static void configureInsecureTls(OkHttpClient.Builder builder) {
+    X509TrustManager trustManager = new X509TrustManager() {
+      @Override
+      public void checkClientTrusted(X509Certificate[] chain, String authType) {
+      }
+
+      @Override
+      public void checkServerTrusted(X509Certificate[] chain, String authType) {
+      }
+
+      @Override
+      public X509Certificate[] getAcceptedIssuers() {
+        return new X509Certificate[0];
+      }
+    };
+    try {
+      SSLContext context = SSLContext.getInstance("TLS");
+      context.init(null, new TrustManager[]{trustManager}, null);
+      builder.sslSocketFactory(context.getSocketFactory(), trustManager)
+          .hostnameVerifier((hostname, session) -> true);
+    } catch (GeneralSecurityException e) {
+      throw new ClientException(e);
     }
   }
 
   public void shutdown() {
+    client.dispatcher().cancelAll();
     client.dispatcher().executorService().shutdown();
     client.connectionPool().evictAll();
+    uploadClient.connectionPool().evictAll();
   }
 
   private static class ErrorResponsePayload {

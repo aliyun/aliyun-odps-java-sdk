@@ -26,6 +26,7 @@ import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 import com.aliyun.odps.Odps;
+import com.aliyun.odps.RequestMetadata;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.GeneralConfiguration;
 import com.aliyun.odps.credentials.StaticCredentialProvider;
@@ -218,6 +219,7 @@ public class StorageAPIResultSet extends ResultSet {
                       .build())
       .credentialsProvider(new StaticCredentialProvider(odps.getAccount().getCredentials()))
       .project(odps.getDefaultProject())
+      .requestTrace(RequestMetadata.capture(odps.options()).forStorage())
       .build();
   }
 }

@@ -485,7 +485,8 @@ public class OdpsRecordConverterBuilder {
             OdpsType.STRUCT,
 
             OdpsType.GEOGRAPHY,
-            OdpsType.BLOB
+            OdpsType.BLOB,
+            OdpsType.VECTOR
     };
 
     /**

@@ -19,7 +19,7 @@
 
 package com.aliyun.odps.storage.write;
 
-import org.apache.arrow.memory.BufferAllocator;
+import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_UPLOAD_BUFFER_SIZE;
 
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.storage.ClientException;
@@ -30,10 +30,11 @@ import com.aliyun.odps.storage.internal.models.BatchCompatibleSessionResponse;
 import com.aliyun.odps.storage.internal.models.CreateTableWriteSessionRequest;
 import com.aliyun.odps.storage.internal.models.CreateTableWriteSessionResponse;
 import com.aliyun.odps.storage.internal.models.GetTableWriteSessionResponse;
+import com.aliyun.odps.storage.models.SessionDescriptor;
 import com.aliyun.odps.table.TableIdentifier;
-import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.table.utils.Preconditions;
 import com.aliyun.odps.utils.StringUtils;
+import org.apache.arrow.memory.BufferAllocator;
 
 /**
  * <p>This builder allows configuration of various write session settings including:
@@ -81,10 +82,13 @@ public class TableWriteSessionBuilder {
   private final BufferAllocator allocator;
   private PartitionSpec partitionSpec;
   private String sessionId;
+  private SessionDescriptor sessionDescriptor;
   private WriteMode writeMode = WriteMode.BATCH;
   private boolean overwrite;
   private BatchCompatibleOptions batchCompatibleOptions = BatchCompatibleOptions.createDefault();
   private boolean batchCompatibleOptionsConfigured;
+  private int uploadBufferSize = DEFAULT_UPLOAD_BUFFER_SIZE;
+  private boolean uploadBufferSizeConfigured;
 
   /**
    * Constructs a new TableWriteSessionBuilder with the provided parameters.
@@ -101,6 +105,23 @@ public class TableWriteSessionBuilder {
     this.table = table;
     this.allocator = allocator;
     this.storageStub = storageStub;
+  }
+
+  /**
+   * Restores a batch-compatible data-plane worker locally, without creating or reloading a
+   * session. Descriptor schema, state and Arrow units are authoritative. The worker borrows
+   * this builder's client and allocator, and cannot commit or abort the global session.
+   *
+   * <p>Session-creation options (partition, overwrite and batch-compatible options, including
+   * Arrow units) are ignored when a descriptor is present, regardless of setter order. The
+   * descriptor preserves the options negotiated by the coordinator; worker overrides cannot
+   * change its encoding. The table, write mode and any explicit session id must still match.
+   */
+  public TableWriteSessionBuilder withSessionDescriptor(SessionDescriptor descriptor) {
+    this.sessionDescriptor =
+        Preconditions.checkNotNull(descriptor, "Session descriptor is required");
+    this.writeMode = WriteMode.BATCH_COMPATIBLE;
+    return this;
   }
 
   /**
@@ -159,6 +180,23 @@ public class TableWriteSessionBuilder {
   }
 
   /**
+   * Sets the per-block local aggregation target in bytes for BATCH_COMPATIBLE writes.
+   *
+   * <p>Defaults to 256 KiB; zero disables extra aggregation. The transport retains its minimum
+   * buffering and may coalesce network writes independently. This target is bounded by the writer
+   * chunk size and does not change Arrow batch size or compression. It is not sent to the service
+   * or serialized in the session descriptor.
+   */
+  public TableWriteSessionBuilder withUploadBufferSize(int uploadBufferSize) {
+    if (uploadBufferSize < 0) {
+      throw new IllegalArgumentException("Upload buffer size must not be negative");
+    }
+    this.uploadBufferSize = uploadBufferSize;
+    this.uploadBufferSizeConfigured = true;
+    return this;
+  }
+
+  /**
    * Sets the write mode for the session.
    *
    * <p>In BATCH mode (default), data becomes visible only after the session is committed.
@@ -187,6 +225,20 @@ public class TableWriteSessionBuilder {
    * @return A new TableWriteSession instance
    */
   public TableWriteSession build() {
+    if (uploadBufferSizeConfigured && writeMode != WriteMode.BATCH_COMPATIBLE) {
+      throw new IllegalStateException("Upload buffer size requires WriteMode.BATCH_COMPATIBLE");
+    }
+    if (sessionDescriptor != null) {
+      if (writeMode != WriteMode.BATCH_COMPATIBLE) {
+        throw new IllegalArgumentException("Write descriptors require BATCH_COMPATIBLE mode");
+      }
+      if (StringUtils.isNotBlank(sessionId)
+          && !sessionId.equals(sessionDescriptor.getSessionId())) {
+        throw new IllegalArgumentException("Session identifier does not match the descriptor");
+      }
+      return TableWriteSession.restoreDescriptor(
+          storageStub, table, allocator, sessionDescriptor, uploadBufferSize);
+    }
     if (batchCompatibleOptionsConfigured && writeMode != WriteMode.BATCH_COMPATIBLE) {
       throw new IllegalStateException(
           "BatchCompatibleOptions require WriteMode.BATCH_COMPATIBLE");
@@ -231,10 +283,14 @@ public class TableWriteSessionBuilder {
       request.setPartitionSpec(
           partitionSpec == null ? "" : partitionSpec.toString(false, true));
       request.setOverwrite(overwrite);
-      request.setDynamicPartitionOptions(
+      BatchCompatibleCreateSessionRequest.DynamicPartitionOptions dynamicOptions =
           new BatchCompatibleCreateSessionRequest.DynamicPartitionOptions(
-              batchCompatibleOptions.getDynamicPartitionLimit()));
-      request.setArrowOptions(ArrowOptions.createDefault());
+              batchCompatibleOptions.getDynamicPartitionLimit());
+      dynamicOptions.setInvalidStrategy(batchCompatibleOptions.getInvalidStrategy().toString());
+      dynamicOptions.setInvalidLimit(batchCompatibleOptions.getInvalidLimit());
+      request.setDynamicPartitionOptions(dynamicOptions);
+      request.setSupportWriteCluster(batchCompatibleOptions.isSupportWriteCluster());
+      request.setArrowOptions(batchCompatibleOptions.getArrowOptions());
       request.setMaxFieldSize(batchCompatibleOptions.getMaxFieldSize());
       request.setEnhanceWriteCheck(batchCompatibleOptions.isEnhanceWriteCheck());
       response = storageStub.createBatchCompatibleSession(table, request);
@@ -245,13 +301,7 @@ public class TableWriteSessionBuilder {
       sessionId = response.getSessionId();
     }
 
-    if (response == null) {
-      throw new ClientException("Get batch-compatible session returned an empty response");
-    }
-    if (response.getDataSchema() == null) {
-      throw new ClientException(
-          "Batch-compatible session response did not contain DataSchema");
-    }
+    TableWriteSession.validateBatchCompatibleResponse(response);
 
     return new TableWriteSession(
         storageStub,
@@ -263,6 +313,8 @@ public class TableWriteSessionBuilder {
         response.getRouteToken(),
         response.getMaxBlockNumber(),
         response.getDataSchema(),
-        response.isEnhanceWriteCheck());
+        response.isEnhanceWriteCheck(),
+        response,
+        batchCompatibleOptions.getArrowOptions(), uploadBufferSize);
   }
 }

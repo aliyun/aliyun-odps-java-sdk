@@ -52,7 +52,7 @@ public class CreateTableReadSessionResponse {
   private String message;
 
   @SerializedName("RecordCount")
-  private long recordCount;
+  private long recordCount = -1L;
 
   @SerializedName("SessionId")
   private String sessionId;
@@ -77,6 +77,12 @@ public class CreateTableReadSessionResponse {
 
   @SerializedName("SupportedDataFormat")
   private List<DataFormat> supportedDataFormat;
+
+  @SerializedName("ExtendedArrowIPCEnabled")
+  private boolean extendedArrowIPCEnabled;
+
+  @SerializedName("LatestTxnId")
+  private String latestTxnId;
 
   private String routeToken;
 
@@ -201,6 +207,22 @@ public class CreateTableReadSessionResponse {
   public void setSupportedDataFormat(
     List<DataFormat> supportedDataFormat) {
     this.supportedDataFormat = supportedDataFormat;
+  }
+
+  public boolean isExtendedArrowIPCEnabled() {
+    return extendedArrowIPCEnabled;
+  }
+
+  public void setExtendedArrowIPCEnabled(boolean extendedArrowIPCEnabled) {
+    this.extendedArrowIPCEnabled = extendedArrowIPCEnabled;
+  }
+
+  public String getLatestTxnId() {
+    return latestTxnId;
+  }
+
+  public void setLatestTxnId(String latestTxnId) {
+    this.latestTxnId = latestTxnId;
   }
 
   public void setRouteToken(String routeToken) {

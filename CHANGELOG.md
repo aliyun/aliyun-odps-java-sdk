@@ -1,6 +1,25 @@
 # Changelog
 ## [Unreleased]
 
+## [0.62.0-public] - 2026-11-24
+
+### Storage API
+
+- Add the opt-in `v2` Table API provider for batch and incremental reads and Arrow batch writes. V1 remains the default. V2 supports restoring read sessions from JSON and resuming writes by session ID.
+- Aggregate V2 batch-compatible uploads in a configurable 256 KiB buffer per active block writer. Send request headers before waiting for the first Arrow payload, accept zero-row blocks, and reuse the session lookup when resuming a write.
+- Prefer native LZ4 frame decoding for V1 and V2 Arrow reads, with automatic Java fallback when the native library cannot load.
+
+### SDK reliability and compatibility
+
+- Support authenticated HTTP proxies in REST and Storage API transports, and preserve the HTTP status and request ID when the error body is missing or unreadable.
+- Isolate Tunnel retry counters per operation and per Upsert bucket, close temporary Arrow readers on read failure, and reuse eligible SQL executors in the pool.
+- Add inference quota management and quota usage queries. Configure request tracing through `OdpsOptions` or the supported environment variables. The legacy automatic SQL settings derived from `MC_PLATFORM_ID` and `TRACEPARENT` are retired. Explicit SQL settings still apply.
+
+### Packaging and release hygiene
+
+- Align all reactor artifacts to `0.62.0-public`, retain the public release metadata and dependency pins, and ship the Storage and Table API shaded classifiers.
+- Exclude deployment-specific fixtures and pregenerated TLS keys. The proxy and TLS tests use documentation-only addresses, placeholder values, and certificates generated at runtime.
+
 ## [0.61.2-public] - 2026-09-09
 
 ### Table API write timeout

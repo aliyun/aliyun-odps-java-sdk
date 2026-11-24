@@ -1,5 +1,6 @@
 package com.aliyun.odps.tunnel.impl;
 
+import com.aliyun.odps.Odps;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.tunnel.Configuration;
@@ -33,7 +34,9 @@ public class Util {
 
     public static RestClient newRestClient(Configuration conf, URI endpoint) {
 
-        RestClient odpsServiceClient = conf.getOdps().clone().getRestClient();
+        Odps tunnelOdps = conf.getOdps().clone();
+        tunnelOdps.options().setCallContextJson(null);
+        RestClient odpsServiceClient = tunnelOdps.getRestClient();
 
         odpsServiceClient.setReadTimeout(conf.getSocketTimeout());
         odpsServiceClient.setConnectTimeout(conf.getSocketConnectTimeout());

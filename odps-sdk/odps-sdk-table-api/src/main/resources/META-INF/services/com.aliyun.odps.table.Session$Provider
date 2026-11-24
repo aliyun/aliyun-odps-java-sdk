@@ -1,0 +1,2 @@
+com.aliyun.odps.table.read.impl.v2.TableReadSessionProviderImplV2
+com.aliyun.odps.table.write.impl.v2.TableWriteSessionProviderImplV2

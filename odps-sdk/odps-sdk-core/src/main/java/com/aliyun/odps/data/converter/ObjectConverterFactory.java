@@ -31,7 +31,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.TimeZone;
 
 import org.apache.commons.codec.binary.Hex;
@@ -43,9 +45,11 @@ import com.aliyun.odps.data.Char;
 import com.aliyun.odps.data.GeographyObject;
 import com.aliyun.odps.data.JtsGeographyObject;
 import com.aliyun.odps.data.SimpleJsonValue;
+import com.aliyun.odps.data.Vector;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.type.DecimalTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.VectorTypeInfo;
 import com.aliyun.odps.utils.StringUtils;
 
 class ObjectConverterFactory {
@@ -821,6 +825,98 @@ class ObjectConverterFactory {
         }
     }
 
+    private enum VectorConverter implements OdpsObjectConverter {
+        INSTANCE;
+
+        @Override
+        public String format(Object object, TypeInfo typeInfo, OdpsRecordConverter converter) {
+            if (!(object instanceof Vector)) {
+                throw new IllegalArgumentException("Vector value must implement "
+                                                   + Vector.class.getName());
+            }
+
+            Vector vector = (Vector) object;
+            validateVector(vector, typeInfo);
+
+            StringBuilder result = new StringBuilder("[");
+            for (int i = 0; i < vector.dimension(); i++) {
+                if (i > 0) {
+                    result.append(", ");
+                }
+                result.append(vector.getElement(i));
+            }
+            return result.append("]").toString();
+        }
+
+        @Override
+        public Object parse(String str, TypeInfo typeInfo, OdpsRecordConverter converter) {
+            String value = str.trim();
+            if (value.length() < 2 || value.charAt(0) != '['
+                || value.charAt(value.length() - 1) != ']') {
+                throw new IllegalArgumentException("Invalid vector format: " + str);
+            }
+
+            String elements = value.substring(1, value.length() - 1).trim();
+            if (elements.isEmpty()) {
+                throw new IllegalArgumentException("Vector must contain at least one element");
+            }
+
+            OdpsType elementType = getElementType(typeInfo);
+            String[] tokens = elements.split(",", -1);
+            List<Number> values = new ArrayList<>(tokens.length);
+            for (String token : tokens) {
+                String element = token.trim();
+                if (element.isEmpty()) {
+                    throw new IllegalArgumentException("Invalid vector element in: " + str);
+                }
+                try {
+                    if (elementType == OdpsType.FLOAT) {
+                        values.add(Float.valueOf(element));
+                    } else if (elementType == OdpsType.DOUBLE) {
+                        values.add(Double.valueOf(element));
+                    } else {
+                        throw new IllegalArgumentException("Unsupported vector element type: "
+                                                           + elementType);
+                    }
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid vector element: " + element, e);
+                }
+            }
+
+            Vector vector = Vector.fromList(values, elementType);
+            validateVector(vector, typeInfo);
+            return vector;
+        }
+
+        private static OdpsType getElementType(TypeInfo typeInfo) {
+            if (typeInfo instanceof VectorTypeInfo) {
+                return ((VectorTypeInfo) typeInfo).getElementTypeInfo().getOdpsType();
+            }
+            // The bare VECTOR type has no element type. MaxCompute currently supports FLOAT.
+            return OdpsType.FLOAT;
+        }
+
+        private static void validateVector(Vector vector, TypeInfo typeInfo) {
+            if (!(typeInfo instanceof VectorTypeInfo)) {
+                return;
+            }
+
+            VectorTypeInfo vectorTypeInfo = (VectorTypeInfo) typeInfo;
+            if (vector.dimension() != vectorTypeInfo.getDimension()) {
+                throw new IllegalArgumentException("Vector dimension mismatch: expected "
+                                                   + vectorTypeInfo.getDimension() + ", but got "
+                                                   + vector.dimension());
+            }
+
+            OdpsType expectedElementType = vectorTypeInfo.getElementTypeInfo().getOdpsType();
+            if (vector.elementType() != expectedElementType) {
+                throw new IllegalArgumentException("Vector element type mismatch: expected "
+                                                   + expectedElementType + ", but got "
+                                                   + vector.elementType());
+            }
+        }
+    }
+
     static OdpsObjectConverter getFormatter(OdpsType odpsType, OdpsRecordConverterBuilder.Config config) {
         switch (odpsType) {
             case TINYINT:
@@ -906,6 +1002,8 @@ class ObjectConverterFactory {
                 return GeographyConverter.INSTANCE;
             case BLOB:
                 return BlobConverter.INSTANCE;
+            case VECTOR:
+                return VectorConverter.INSTANCE;
             default:
                 throw new IllegalArgumentException("unsupported data type");
         }

@@ -30,6 +30,7 @@ import java.util.Optional;
 
 import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_BUFFERED_ROW_COUNT;
 import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_CHUNK_SIZE;
+import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_UPLOAD_BUFFER_SIZE;
 
 public class WriterOptions {
 
@@ -38,6 +39,7 @@ public class WriterOptions {
     private BufferAllocator bufferAllocator;
     private EnvironmentSettings settings;
     private int chunkSize;
+    private int uploadBufferSize;
     private CompressionCodec compressionCodec;
     private DataFormat dataFormat;
     private long maxBlockNumber;
@@ -47,6 +49,7 @@ public class WriterOptions {
         this.bufferedRowCount = DEFAULT_BUFFERED_ROW_COUNT;
         this.bufferAllocator = ArrowUtils.getDefaultRootAllocator();
         this.chunkSize = DEFAULT_CHUNK_SIZE;
+        this.uploadBufferSize = DEFAULT_UPLOAD_BUFFER_SIZE;
         this.compressionCodec = CompressionCodec.NO_COMPRESSION;
         this.dataFormat = ArrowUtils.getDefaultDataFormat();
         this.maxBlockNumber = -1L;
@@ -70,6 +73,11 @@ public class WriterOptions {
 
     public int getChunkSize() {
         return chunkSize;
+    }
+
+    /** Returns the V2 batch-compatible output aggregation buffer size in bytes. */
+    public int getUploadBufferSize() {
+        return uploadBufferSize;
     }
 
     public DataFormat getDataFormat() {
@@ -119,6 +127,19 @@ public class WriterOptions {
         public WriterOptions.Builder withChunkSize(int chunkSize) {
             Preconditions.checkInteger(chunkSize, 1500 - 4, "Chunk size");
             this.writerOptions.chunkSize = chunkSize;
+            return this;
+        }
+
+        /**
+         * Sets the local aggregation target for the V2 batch-compatible writer.
+         * Defaults to 256 KiB. Zero disables extra aggregation; negative values are rejected.
+         * The target is bounded by chunk size and a minimum transport granularity still applies.
+         * Network writes may be coalesced independently. Compression, Arrow batch size and V1
+         * writers are unchanged.
+         */
+        public WriterOptions.Builder withUploadBufferSize(int uploadBufferSize) {
+            Preconditions.checkInteger(uploadBufferSize, 0, "Upload buffer size");
+            this.writerOptions.uploadBufferSize = uploadBufferSize;
             return this;
         }
 

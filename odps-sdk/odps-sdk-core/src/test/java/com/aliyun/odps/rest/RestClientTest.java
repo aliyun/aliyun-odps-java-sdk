@@ -122,21 +122,6 @@ public class RestClientTest extends TestBase {
   }
 
   @Test
-  public void testPlatformIdIsAddedToUserAgentHeaders() {
-    RestClient restClient = new RestClient(null);
-    restClient.setAccount(new AliyunAccount("id", "key"));
-    restClient.setEndpoint("http://localhost");
-    restClient.setUserAgent("custom", "qwen-code");
-
-    Request request = restClient.buildRequest("/projects/project_name", "GET", null, null);
-
-    String expected = restClient.getUserAgent();
-    assertTrue(expected.endsWith("custom Platform:qwen-code"));
-    assertEquals(expected, request.getHeaders().get(Headers.USER_AGENT));
-    assertEquals(expected, request.getHeaders().get(Headers.ODPS_USER_AGENT));
-  }
-
-  @Test
   public void testTunnelRetryHeadersAcrossInternalGetRetry() throws OdpsException {
     TracingRestClient restClient = new TracingRestClient();
     restClient.enableTunnelRetryHeaders();

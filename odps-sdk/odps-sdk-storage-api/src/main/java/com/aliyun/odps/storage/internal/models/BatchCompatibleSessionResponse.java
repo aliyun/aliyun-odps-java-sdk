@@ -44,6 +44,35 @@ public class BatchCompatibleSessionResponse {
   @SerializedName("Message")
   private String message;
 
+  @SerializedName("SupportedDataFormat")
+  private List<com.aliyun.odps.storage.models.DataFormat> supportedDataFormat;
+
+  @SerializedName("RequiredOrdering")
+  private List<OrderKey> requiredOrdering;
+
+  @SerializedName("RequiredDistribution")
+  private ClusterDistribution requiredDistribution;
+
+  /** Ordering requirements must survive session response serialization. */
+  public static class OrderKey {
+    @SerializedName("Name")
+    private String name;
+    @SerializedName("SortDirection")
+    private String sortDirection;
+    @SerializedName("NullOrdering")
+    private String nullOrdering;
+  }
+
+  /** Distribution requirements returned by the batch-compatible protocol. */
+  public static class ClusterDistribution {
+    @SerializedName("Type")
+    private String type;
+    @SerializedName("ClusterKeys")
+    private List<String> clusterKeys;
+    @SerializedName("BucketsNumber")
+    private int bucketsNumber = -1;
+  }
+
   private String routeToken;
 
   public String getSessionId() {

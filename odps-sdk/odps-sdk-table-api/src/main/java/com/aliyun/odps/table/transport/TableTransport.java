@@ -25,6 +25,7 @@ import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.commons.transport.Transport;
 import com.aliyun.odps.commons.util.IOUtils;
+import com.aliyun.odps.rest.RestClient;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -49,7 +50,7 @@ public final class TableTransport implements Transport {
 
     @Override
     public Response request(Request request) throws IOException {
-        if (writeTimeoutSeconds == null) {
+        if (!usesOkHttp(request)) {
             return jdkTransport.request(request);
         }
 
@@ -75,11 +76,19 @@ public final class TableTransport implements Transport {
 
     @Override
     public Connection connect(Request request) throws IOException {
-        Connection connection = writeTimeoutSeconds == null
+        Connection connection = !usesOkHttp(request)
                 ? new JdkConnection(jdkTransport)
-                : new OkHttpConnection(writeTimeoutSeconds);
+                // OkHttp uses 0 for no write timeout. Proxy credentials alone must not turn the
+                // previously unbounded JDK write into a 120-second write timeout.
+                : new OkHttpConnection(writeTimeoutSeconds == null ? 0 : writeTimeoutSeconds);
         connection.connect(request);
         return connection;
+    }
+
+    private boolean usesOkHttp(Request request) {
+        RestClient client = request.getRestClient();
+        return writeTimeoutSeconds != null || (client != null && client.getProxy() != null
+                && client.getProxyCredential() != null);
     }
 
     @Override

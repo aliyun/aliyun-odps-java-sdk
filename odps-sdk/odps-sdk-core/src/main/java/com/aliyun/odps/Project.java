@@ -150,6 +150,7 @@ public class Project extends LazyLoad {
     @Convert(PropertyConverter.class)
     LinkedHashMap<String, String> properties;
 
+
     @Element(name = "Property", required = false)
     @Convert(SimpleXmlUtils.EmptyStringConverter.class)
     String propertyJsonString;

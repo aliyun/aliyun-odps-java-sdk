@@ -38,7 +38,7 @@ public class ArrowReaderImpl extends ArrowBatchReusedReader {
   private TableSchema tableSchema;
 
   public ArrowReaderImpl(TableReaderBuilder builder, InputStream is) {
-    super(is, builder.getAllocator(), OdpsCompressionFactory.INSTANCE, builder.isAsync(),
+    super(is, builder.getAllocator(), OdpsCompressionFactory.V2_READ_INSTANCE, builder.isAsync(),
           builder.getAsyncQueue());
     this.tableSchema = builder.getTableSchema();
   }

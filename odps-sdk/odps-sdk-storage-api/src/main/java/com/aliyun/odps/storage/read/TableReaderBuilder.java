@@ -56,6 +56,8 @@ public class TableReaderBuilder {
 
   private String routeToken;
 
+  private boolean extendedArrowIPCEnabled;
+
 
   TableReaderBuilder(StorageStub storageStub,
                      TableIdentifier tableId,
@@ -145,9 +147,17 @@ public class TableReaderBuilder {
     return tableSchema;
   }
 
+  TableReaderBuilder withExtendedArrowIPC(boolean enabled) {
+    this.extendedArrowIPCEnabled = enabled;
+    return this;
+  }
+
   public ArrowReader build() {
     InputStream response = storageStub.createTableReadStream(tableId, inputSplit, request, routeToken);
 
+    if (extendedArrowIPCEnabled) {
+      return new ExtendedTableArrowReader(this, response);
+    }
     return new ArrowReaderImpl(this, response);
   }
 }

@@ -72,6 +72,7 @@ import com.aliyun.odps.table.arrow.accessor.ArrowVarCharAccessor;
 import com.aliyun.odps.table.arrow.accessor.ArrowVectorAccessor;
 import com.aliyun.odps.table.utils.ConfigConstants;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.VectorTypeInfo;
 
 public class ArrowToRecordConverter {
 
@@ -138,6 +139,10 @@ public class ArrowToRecordConverter {
       case ARRAY:
         return new ArrowArrayAccessorImpl.ArrowArrayAccessorForRecord((ListVector) vector,
                                                                       typeInfo, isExtension, encodeString);
+      case VECTOR:
+        return new ArrowVectorAccessorImpl.ArrowVectorAccessorForRecord((ListVector) vector,
+                                                                         (VectorTypeInfo) typeInfo,
+                                                                         isExtension, encodeString);
       case MAP:
         return new ArrowMapAccessorImpl.ArrowMapAccessorForRecord((MapVector) vector, typeInfo,
                                                                   isExtension, encodeString);
@@ -229,6 +234,9 @@ public class ArrowToRecordConverter {
             new String(((ArrowVarCharAccessor) dataAccessor).getBytes(rowId)));
       case ARRAY:
         return (((ArrowArrayAccessorImpl.ArrowArrayAccessorForRecord) dataAccessor)).getArray(
+            rowId);
+      case VECTOR:
+        return ((ArrowVectorAccessorImpl.ArrowVectorAccessorForRecord) dataAccessor).getVector(
             rowId);
       case MAP:
         return (((ArrowMapAccessorImpl.ArrowMapAccessorForRecord) dataAccessor)).getMap(rowId);

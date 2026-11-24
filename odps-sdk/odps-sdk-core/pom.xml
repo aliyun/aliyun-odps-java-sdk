@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.61.2-public</version>
+        <version>0.62.0-public</version>
     </parent>
 
     <name>ODPS SDK Core</name>
@@ -16,6 +16,14 @@
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-commons</artifactId>
+        </dependency>
+
+        <!-- 仅测试作用域:没有 binding 时 slf4j 是 NOP,WARN 日志在 CI 里一个字都看不到。
+             test scope 不会被传递,依赖 odps-sdk-core 的应用不受影响(版本由父 pom 管理)。 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

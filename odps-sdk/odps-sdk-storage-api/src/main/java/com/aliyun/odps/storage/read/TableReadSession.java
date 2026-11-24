@@ -19,34 +19,37 @@
 
 package com.aliyun.odps.storage.read;
 
+import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.storage.ClientException;
+import com.aliyun.odps.storage.internal.SessionDescriptorCodec;
+import com.aliyun.odps.storage.internal.StorageStub;
+import com.aliyun.odps.storage.internal.models.CreateTableReadSessionResponse;
+import com.aliyun.odps.storage.models.SessionDescriptor;
+import com.aliyun.odps.storage.models.SplitMode;
+import com.aliyun.odps.table.TableIdentifier;
+import com.aliyun.odps.table.read.split.InputSplit;
+import com.aliyun.odps.table.read.split.impl.BucketInputSplit;
+import com.aliyun.odps.table.read.split.impl.IndexedInputSplit;
+import com.aliyun.odps.table.read.split.impl.RowRangeInputSplit;
+import com.aliyun.odps.table.utils.SchemaUtils;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
-
-import com.aliyun.odps.TableSchema;
-import com.aliyun.odps.storage.ClientException;
-import com.aliyun.odps.storage.internal.StorageStub;
-import com.aliyun.odps.storage.internal.models.CreateTableReadSessionResponse;
-import com.aliyun.odps.storage.models.SplitMode;
-import com.aliyun.odps.table.TableIdentifier;
-import com.aliyun.odps.table.read.split.InputSplit;
-import com.aliyun.odps.table.read.split.impl.IndexedInputSplit;
-import com.aliyun.odps.table.read.split.impl.RowRangeInputSplit;
-import com.aliyun.odps.table.utils.SchemaUtils;
 
 /**
  * Implementation of {@link TableReadSession} for the MaxCompute Storage API.
  *
- * <p>This class represents a read session for a MaxCompute table, allowing clients
- * to read data in a distributed manner using input splits. Each session is associated
- * with a specific table and provides methods to get the session ID, Arrow schema,
- * and input splits for parallel processing.
+ * <p>This class represents a read session for a MaxCompute table, allowing clients to read data in
+ * a distributed manner using input splits. Each session is associated with a specific table and
+ * provides methods to get the session ID, Arrow schema, and input splits for parallel processing.
  *
  * <p>Example usage:
+ *
  * <pre>{@code
  * TableIdentifier tableId = TableIdentifier.of("my_project", "my_table");
  * try (TableReadSession session = client.createReadSessionBuilder(tableId).build()) {
@@ -61,6 +64,11 @@ import com.aliyun.odps.table.utils.SchemaUtils;
  */
 public class TableReadSession implements AutoCloseable {
 
+  private final SessionDescriptor descriptor;
+  private final JsonObject descriptorMetadata;
+  private final String descriptorKind;
+  private final long rowsPerSplit;
+
   private final TableSchema schema;
   private final SplitMode splitMode;
   private final String id;
@@ -69,20 +77,22 @@ public class TableReadSession implements AutoCloseable {
   private final TableIdentifier tableId;
   private final List<InputSplit> splits;
   private String routeToken;
+  private final boolean extendedArrowIPCEnabled;
 
   /**
    * Constructs a new TableReadSession with the provided parameters.
    *
    * @param storageStub The storage stub for communicating with the MaxCompute service
-   * @param tableId     The identifier of the table to read from
-   * @param allocator   The buffer allocator for Arrow memory management
-   * @param response    The response from the create table read session API call
+   * @param tableId The identifier of the table to read from
+   * @param allocator The buffer allocator for Arrow memory management
+   * @param response The response from the create table read session API call
    */
-  public TableReadSession(StorageStub storageStub,
-                          TableIdentifier tableId,
-                          BufferAllocator allocator,
-                          CreateTableReadSessionResponse response,
-                          TableReadSessionBuilder builder) {
+  public TableReadSession(
+      StorageStub storageStub,
+      TableIdentifier tableId,
+      BufferAllocator allocator,
+      CreateTableReadSessionResponse response,
+      TableReadSessionBuilder builder) {
     this.storageStub = storageStub;
     this.tableId = tableId;
     this.allocator = allocator;
@@ -91,27 +101,70 @@ public class TableReadSession implements AutoCloseable {
     this.schema = response.getDataSchema();
     this.splitMode = response.getSplitMode();
     this.routeToken = response.getRouteToken();
+    this.extendedArrowIPCEnabled = response.isExtendedArrowIPCEnabled();
+
+    this.descriptor = builder.getSessionDescriptor();
+    Gson gson = StorageStub.createWireGson();
+    this.descriptorMetadata = gson.toJsonTree(response).getAsJsonObject();
+    if (response.getIncrementalReadOptions() == null
+        && builder.getRequest().getIncrementalReadOptions() != null) {
+      descriptorMetadata.add(
+          "IncrementalReadOptions",
+          gson.toJsonTree(builder.getRequest().getIncrementalReadOptions()));
+    }
+    this.descriptorKind =
+        builder.getRequest().isIncrementalRead() || descriptorMetadata.has("IncrementalReadOptions")
+            ? SessionDescriptorCodec.INCREMENTAL
+            : SessionDescriptorCodec.READ;
+    this.rowsPerSplit =
+        splitMode == SplitMode.ROW_OFFSET ? builder.getSplitOptions().getSplitNumber() : 0;
 
     switch (splitMode) {
       case SIZE:
         int splitsCount = response.getSplitsCount();
-        splits = IntStream.range(0, splitsCount)
-          .mapToObj(i -> new IndexedInputSplit(id, i))
-          .collect(Collectors.toList());
+        splits =
+            IntStream.range(0, splitsCount)
+                .mapToObj(i -> new IndexedInputSplit(id, i))
+                .collect(Collectors.toList());
         break;
       case ROW_OFFSET:
         splits = new ArrayList<>();
         long recordCount = response.getRecordCount();
         for (long i = 0; i < recordCount; i += builder.getSplitOptions().getSplitNumber()) {
-          splits.add(new RowRangeInputSplit(id, i,
-                                            Math.min(builder.getSplitOptions().getSplitNumber(),
-                                                     recordCount - i)));
+          splits.add(
+              new RowRangeInputSplit(
+                  id, i, Math.min(builder.getSplitOptions().getSplitNumber(), recordCount - i)));
+        }
+        break;
+      case BUCKET:
+        List<Integer> splitBucketId = response.getSplitBucketId();
+        if (splitBucketId == null || splitBucketId.size() != response.getSplitsCount()) {
+          throw new ClientException(
+              "BUCKET split mode requires SplitBucketId with one entry per split");
+        }
+        splits = new ArrayList<>(response.getSplitsCount());
+        for (int i = 0; i < response.getSplitsCount(); i++) {
+          splits.add(new BucketInputSplit(id, i, splitBucketId.get(i)));
         }
         break;
       default:
-        // TODO
+        // PARALLELISM and any future modes are not supported yet.
         throw new ClientException("Unsupported split mode: " + splitMode);
     }
+  }
+
+  /** Returns an immutable, credential-free description for distributed worker restoration. */
+  public SessionDescriptor getDescriptor() {
+    if (descriptor != null) {
+      return descriptor;
+    }
+    SessionDescriptorCodec codec =
+        SessionDescriptorCodec.create(
+            descriptorKind, tableId, descriptorMetadata, routeToken, null);
+    if (splitMode == SplitMode.ROW_OFFSET) {
+      codec = codec.withRowsPerSplit(rowsPerSplit);
+    }
+    return SessionDescriptor.fromJson(codec.toJson());
   }
 
   /**
@@ -126,15 +179,14 @@ public class TableReadSession implements AutoCloseable {
   /**
    * Gets the Arrow schema for the data in this read session.
    *
-   * <p>This method converts the MaxCompute table schema to an Arrow schema,
-   * which is used for efficient data processing and columnar format support.
+   * <p>This method converts the MaxCompute table schema to an Arrow schema, which is used for
+   * efficient data processing and columnar format support.
    *
    * @return The Arrow schema representation of the table data
    */
   public Schema getArrowSchema() {
     return SchemaUtils.toArrowSchema(schema.getAllColumns());
   }
-
 
   public TableSchema getTableSchema() {
     return schema;
@@ -143,9 +195,8 @@ public class TableReadSession implements AutoCloseable {
   /**
    * Gets the input splits for this read session.
    *
-   * <p>Input splits are used to divide the data into chunks that can be processed
-   * in parallel. Each split represents a portion of the data that can be read
-   * independently using an Arrow reader.
+   * <p>Input splits are used to divide the data into chunks that can be processed in parallel. Each
+   * split represents a portion of the data that can be read independently using an Arrow reader.
    *
    * @return A list of input splits for parallel processing
    */
@@ -154,17 +205,27 @@ public class TableReadSession implements AutoCloseable {
   }
 
   /**
+   * Gets the route token pinned to the front-end instance holding this session's state.
+   *
+   * @return The route token, may be null when the service did not issue one
+   */
+  public String getRouteToken() {
+    return routeToken;
+  }
+
+  /**
    * Creates a new builder for an Arrow reader for the specified input split.
    *
-   * <p>This method initializes an Arrow reader builder that can be configured with
-   * various options before creating the actual Arrow reader. The reader allows
-   * reading data from a specific input split in Arrow format.
+   * <p>This method initializes an Arrow reader builder that can be configured with various options
+   * before creating the actual Arrow reader. The reader allows reading data from a specific input
+   * split in Arrow format.
    *
    * @param split The input split to read data from
    * @return A new TableReaderBuilder instance to configure the Arrow reader
    */
   public TableReaderBuilder createReaderBuilder(InputSplit split) {
-    return new TableReaderBuilder(storageStub, tableId, schema, allocator, split, routeToken);
+    return new TableReaderBuilder(storageStub, tableId, schema, allocator, split, routeToken)
+        .withExtendedArrowIPC(extendedArrowIPCEnabled);
   }
 
   public void close() {

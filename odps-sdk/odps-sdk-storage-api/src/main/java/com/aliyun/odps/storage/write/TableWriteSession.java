@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.storage.write;
 
+import static com.aliyun.odps.table.utils.ConfigConstants.DEFAULT_UPLOAD_BUFFER_SIZE;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -28,16 +30,19 @@ import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.aliyun.odps.table.configuration.ArrowOptions;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.storage.ClientException;
 import com.aliyun.odps.storage.ServiceException;
 import com.aliyun.odps.storage.internal.Constants;
+import com.aliyun.odps.storage.internal.SessionDescriptorCodec;
+import com.aliyun.odps.storage.models.SessionDescriptor;
+import com.google.gson.JsonObject;
 import com.aliyun.odps.storage.internal.StorageStub;
 import com.aliyun.odps.storage.internal.models.BatchCompatibleSessionResponse;
-import com.aliyun.odps.storage.internal.models.CreateWriteStreamRequest;
-import com.aliyun.odps.storage.internal.models.CreateWriteStreamResponse;
 import com.aliyun.odps.storage.internal.models.GetTableWriteSessionResponse;
 import com.aliyun.odps.table.TableIdentifier;
+import com.aliyun.odps.table.configuration.CompressionCodec;
 
 /**
  * <p>This class represents a write session for a MaxCompute table, allowing clients
@@ -94,6 +99,8 @@ import com.aliyun.odps.table.TableIdentifier;
  */
 public class TableWriteSession implements AutoCloseable {
 
+  private final ArrowOptions arrowOptions;
+
   private final BufferAllocator allocator;
   boolean closed = false;
   boolean committed = false;
@@ -104,8 +111,15 @@ public class TableWriteSession implements AutoCloseable {
   private final WriteMode writeMode;
   private final long maxBlockNumber;
   private final BatchCompatibleSessionResponse.DataSchema batchCompatibleSchema;
+
+  /** Raw create/get response for batch-compatible sessions; null in other write modes. */
+  private final BatchCompatibleSessionResponse rawBatchCompatibleResponse;
   private final boolean enhanceWriteCheck;
+  private final int uploadBufferSize;
   private String routeToken;
+  private boolean descriptorOnly;
+  private boolean commitStarted;
+  private String descriptorStatus;
 
   /**
    * Constructs a new TableWriteSession with the provided parameters.
@@ -125,7 +139,7 @@ public class TableWriteSession implements AutoCloseable {
                     WriteMode writeMode,
                     String routeToken) {
     this(storageStub, tableId, staticPartitionSpec, allocator, sessionId, writeMode, routeToken,
-         0, null, false);
+         0, null, false, null, ArrowOptions.createDefault());
   }
 
   TableWriteSession(StorageStub storageStub,
@@ -138,6 +152,43 @@ public class TableWriteSession implements AutoCloseable {
                     long maxBlockNumber,
                     BatchCompatibleSessionResponse.DataSchema batchCompatibleSchema,
                     boolean enhanceWriteCheck) {
+    this(storageStub, tableId, staticPartitionSpec, allocator, sessionId, writeMode, routeToken,
+         maxBlockNumber, batchCompatibleSchema, enhanceWriteCheck, null,
+         ArrowOptions.createDefault());
+  }
+
+  TableWriteSession(StorageStub storageStub,
+                    TableIdentifier tableId,
+                    PartitionSpec staticPartitionSpec,
+                    BufferAllocator allocator,
+                    String sessionId,
+                    WriteMode writeMode,
+                    String routeToken,
+                    long maxBlockNumber,
+                    BatchCompatibleSessionResponse.DataSchema batchCompatibleSchema,
+                    boolean enhanceWriteCheck,
+                    BatchCompatibleSessionResponse rawBatchCompatibleResponse,
+                    ArrowOptions arrowOptions) {
+    this(storageStub, tableId, staticPartitionSpec, allocator, sessionId, writeMode, routeToken,
+        maxBlockNumber, batchCompatibleSchema, enhanceWriteCheck, rawBatchCompatibleResponse,
+        arrowOptions, DEFAULT_UPLOAD_BUFFER_SIZE);
+  }
+
+  TableWriteSession(StorageStub storageStub,
+                    TableIdentifier tableId,
+                    PartitionSpec staticPartitionSpec,
+                    BufferAllocator allocator,
+                    String sessionId,
+                    WriteMode writeMode,
+                    String routeToken,
+                    long maxBlockNumber,
+                    BatchCompatibleSessionResponse.DataSchema batchCompatibleSchema,
+                    boolean enhanceWriteCheck,
+                    BatchCompatibleSessionResponse rawBatchCompatibleResponse,
+                    ArrowOptions arrowOptions,
+                    int uploadBufferSize) {
+    this.uploadBufferSize = uploadBufferSize;
+    this.arrowOptions = arrowOptions;
     this.storageStub = storageStub;
     this.tableId = tableId;
     this.allocator = allocator;
@@ -147,7 +198,65 @@ public class TableWriteSession implements AutoCloseable {
     this.routeToken = routeToken;
     this.maxBlockNumber = maxBlockNumber;
     this.batchCompatibleSchema = batchCompatibleSchema;
+    this.rawBatchCompatibleResponse = rawBatchCompatibleResponse;
+    this.descriptorStatus = rawBatchCompatibleResponse == null
+        ? null : rawBatchCompatibleResponse.getSessionStatus();
     this.enhanceWriteCheck = enhanceWriteCheck;
+  }
+
+  /**
+   * Returns the raw batch-compatible create/get session response, so higher-level clients
+   * (e.g. the table-api v2 write provider) can persist and re-parse fields this SDK model
+   * does not surface, such as RequiredOrdering and SupportedDataFormat. Null for sessions
+   * restored without a full response payload.
+   */
+  public BatchCompatibleSessionResponse getBatchCompatibleResponse() {
+    return rawBatchCompatibleResponse;
+  }
+
+  /**
+   * Exports a credential-free snapshot for batch-compatible data-plane workers.
+   * Restoring this descriptor never transfers authority to commit or abort the session.
+   * Other write modes do not currently support descriptors.
+   */
+  public SessionDescriptor getDescriptor() {
+    if (writeMode != WriteMode.BATCH_COMPATIBLE) {
+      throw new UnsupportedOperationException(
+          "Session descriptors require WriteMode.BATCH_COMPATIBLE");
+    }
+    validateBatchCompatibleResponse(rawBatchCompatibleResponse);
+    JsonObject metadata = StorageStub.createWireGson().toJsonTree(rawBatchCompatibleResponse).getAsJsonObject();
+    metadata.addProperty("SessionId", id);
+    metadata.addProperty("SessionStatus", descriptorStatus);
+    if (committed) {
+      metadata.addProperty("SessionStatus", "COMMITTED");
+    } else if (closed) {
+      metadata.addProperty("SessionStatus", "UNKNOWN");
+    }
+    metadata.addProperty("CommitStarted", commitStarted);
+    return SessionDescriptor.fromJson(SessionDescriptorCodec.create(
+        SessionDescriptorCodec.WRITE, tableId, metadata, routeToken, arrowOptions).toJson());
+  }
+
+  static TableWriteSession restoreDescriptor(StorageStub stub, TableIdentifier table,
+      BufferAllocator allocator, SessionDescriptor descriptor, int uploadBufferSize) {
+    SessionDescriptorCodec codec = SessionDescriptorCodec.parse(descriptor.toJson());
+    if (!SessionDescriptorCodec.WRITE.equals(codec.kind()) || !table.equals(codec.table())) {
+      throw new IllegalArgumentException("Write descriptor kind or table does not match the builder");
+    }
+    JsonObject metadata = codec.metadata();
+    BatchCompatibleSessionResponse response =
+        StorageStub.createWireGson().fromJson(metadata, BatchCompatibleSessionResponse.class);
+    validateBatchCompatibleResponse(response);
+    response.setRouteToken(codec.routeToken());
+    TableWriteSession session = new TableWriteSession(stub, table, null, allocator,
+        response.getSessionId(), WriteMode.BATCH_COMPATIBLE, codec.routeToken(),
+        response.getMaxBlockNumber(), response.getDataSchema(), response.isEnhanceWriteCheck(),
+        response, codec.arrowOptions(), uploadBufferSize);
+    session.descriptorOnly = true;
+    session.commitStarted = metadata.has("CommitStarted")
+        && metadata.get("CommitStarted").getAsBoolean();
+    return session;
   }
 
   /**
@@ -264,18 +373,79 @@ public class TableWriteSession implements AutoCloseable {
 
   /**
    * Creates a block writer for {@link WriteMode#BATCH_COMPATIBLE}.
+   * The first nonempty batch reserves quota and starts the upload.
    *
    * @param blockNumber zero-based block number
    * @param attemptNumber zero-based attempt number for this block
    * @return a writer for exactly one block attempt
    * @throws UnsupportedOperationException if this session is not batch-compatible
-   * @throws ClientException if the service cannot reserve quota for this block attempt
    */
   public TableBlockWriter createBlockWriter(int blockNumber, int attemptNumber) {
+    return createBlockWriter(blockNumber, attemptNumber, allocator);
+  }
+
+  /**
+   * Creates a block writer using a caller-owned allocator. The writer does not close it.
+   */
+  public TableBlockWriter createBlockWriter(int blockNumber, int attemptNumber,
+                                            BufferAllocator writerAllocator) {
+    return createBlockWriter(blockNumber, attemptNumber, writerAllocator, storageStub,
+        64 * 1024);
+  }
+
+  /** Uses the caller's data-plane client and transport buffer size for this writer only. */
+  public TableBlockWriter createBlockWriter(int blockNumber, int attemptNumber,
+      BufferAllocator writerAllocator, StorageStub writerStub,
+      int chunkSize) {
+    return createBlockWriter(blockNumber, attemptNumber, writerAllocator, writerStub,
+        chunkSize, CompressionCodec.ZSTD);
+  }
+
+  /** Selects the Arrow IPC buffer codec without changing HTTP transport compression. */
+  public TableBlockWriter createBlockWriter(int blockNumber, int attemptNumber,
+      BufferAllocator writerAllocator, StorageStub writerStub, int chunkSize,
+      CompressionCodec compressionCodec) {
     checkNotClosed();
     if (writeMode != WriteMode.BATCH_COMPATIBLE) {
       throw new UnsupportedOperationException(
           "createBlockWriter requires WriteMode.BATCH_COMPATIBLE");
+    }
+    if (descriptorOnly && (commitStarted
+        || !"NORMAL".equalsIgnoreCase(rawBatchCompatibleResponse.getSessionStatus()))) {
+      throw new IllegalStateException("Descriptor cannot create writers after commit started "
+          + "or outside the NORMAL session state");
+    }
+    return createCompatibleBlockWriter(writerStub, tableId, id, routeToken,
+        batchCompatibleSchema, maxBlockNumber, enhanceWriteCheck, arrowOptions,
+        blockNumber, attemptNumber, writerAllocator, chunkSize, uploadBufferSize, compressionCodec);
+  }
+
+  static void validateBatchCompatibleResponse(BatchCompatibleSessionResponse response) {
+    if (response == null) {
+      throw new ClientException("Get batch-compatible session returned an empty response");
+    }
+    if (response.getDataSchema() == null) {
+      throw new ClientException("Batch-compatible session response did not contain DataSchema");
+    }
+  }
+
+  private static TableBlockWriter createCompatibleBlockWriter(
+      StorageStub writerStub, TableIdentifier tableId, String id, String routeToken,
+      BatchCompatibleSessionResponse.DataSchema batchCompatibleSchema, long maxBlockNumber,
+      boolean enhanceWriteCheck, ArrowOptions arrowOptions, int blockNumber, int attemptNumber,
+      BufferAllocator writerAllocator, int chunkSize, int uploadBufferSize,
+      CompressionCodec compressionCodec) {
+    if (compressionCodec == null) {
+      throw new IllegalArgumentException("Block writer compression codec must not be null");
+    }
+    if (writerStub == null || chunkSize <= 0) {
+      throw new IllegalArgumentException("Invalid block writer client or buffer size");
+    }
+    if (writerAllocator == null) {
+      throw new IllegalArgumentException("Block writer allocator must not be null");
+    }
+    if (tableId == null || id == null || id.trim().isEmpty()) {
+      throw new IllegalArgumentException("Block writer table and session identifier are required");
     }
     if (blockNumber < 0) {
       throw new IllegalArgumentException("blockNumber must not be negative");
@@ -291,37 +461,16 @@ public class TableWriteSession implements AutoCloseable {
       throw new ClientException("Batch-compatible session response did not contain DataSchema");
     }
 
-    CreateWriteStreamRequest request = new CreateWriteStreamRequest();
-    request.setStreamId(
-        "block-" + blockNumber + "-attempt-" + attemptNumber);
-    request.setStreamVersion(1);
-    CreateWriteStreamResponse reservation = storageStub.createTableWriteStream(
-        tableId,
-        id,
-        request,
-        routeToken,
-        WriteMode.BATCH_COMPATIBLE);
-    if (reservation == null
-        || reservation.getQuotaToken() == null
-        || reservation.getQuotaToken().isEmpty()) {
-      throw new ClientException(
-          "Batch-compatible quota reservation returned no quota token");
-    }
-    if (reservation.getRouteToken() == null || reservation.getRouteToken().isEmpty()) {
-      throw new ClientException(
-          "Batch-compatible quota reservation returned no route token");
-    }
     return new TableBlockWriter(
-        storageStub,
+        writerStub,
         tableId,
         id,
         blockNumber,
         attemptNumber,
-        reservation.getRouteToken(),
-        reservation.getQuotaToken(),
+        routeToken,
         batchCompatibleSchema,
         enhanceWriteCheck,
-        allocator);
+        writerAllocator, arrowOptions, chunkSize, uploadBufferSize, compressionCodec);
   }
 
   /**
@@ -337,6 +486,7 @@ public class TableWriteSession implements AutoCloseable {
    * @throws IllegalStateException if the session is already closed
    */
   public void commit() {
+    requireCoordinator();
     checkNotClosed();
     if (writeMode == WriteMode.BATCH_COMPATIBLE) {
       throw new UnsupportedOperationException(
@@ -352,6 +502,7 @@ public class TableWriteSession implements AutoCloseable {
    * them in the commit body; otherwise use {@link #commit()}.
    */
   public void commit(List<String> streamIds, List<Long> streamVersions) {
+    requireCoordinator();
     checkNotClosed();
     if (writeMode == WriteMode.BATCH_COMPATIBLE) {
       throw new UnsupportedOperationException(
@@ -374,10 +525,32 @@ public class TableWriteSession implements AutoCloseable {
   /**
    * Commits a batch-compatible session using results returned by successful block writers.
    *
-   * @param results successful writer results; use an empty collection for an empty write
+   * @param results successful writer results. Empty block results contribute no commit messages.
    * @throws UnsupportedOperationException if this session is not batch-compatible
    */
   public void commit(Collection<BlockWriteResult> results) {
+    commitCompatible(results, null);
+  }
+
+  /**
+   * Commits with an optional server timeout for unfinished writer attempts.
+   *
+   * @param results successful writer results
+   * @param waitFlyingWritersTimeoutSeconds timeout in seconds, 1 to 600
+   */
+  public void commit(Collection<BlockWriteResult> results,
+                     int waitFlyingWritersTimeoutSeconds) {
+    commitCompatible(results, waitFlyingWritersTimeoutSeconds);
+  }
+
+  private void commitCompatible(Collection<BlockWriteResult> results,
+                                Integer waitFlyingWritersTimeoutSeconds) {
+    requireCoordinator();
+    if (waitFlyingWritersTimeoutSeconds != null
+        && (waitFlyingWritersTimeoutSeconds < 1 || waitFlyingWritersTimeoutSeconds > 600)) {
+      throw new IllegalArgumentException(
+          "WaitFlyingWritersTimeoutSeconds must be between 1 and 600 seconds");
+    }
     checkNotClosed();
     if (writeMode != WriteMode.BATCH_COMPATIBLE) {
       throw new UnsupportedOperationException(
@@ -397,6 +570,9 @@ public class TableWriteSession implements AutoCloseable {
         throw new IllegalArgumentException(
             "block " + result.getBlockNumber() + " belongs to a different write session");
       }
+      if (result.isEmpty()) {
+        continue;
+      }
       if (!committedBlocks.add(result.getBlockNumber())) {
         throw new IllegalArgumentException(
             "results contain duplicate blockNumber " + result.getBlockNumber());
@@ -408,8 +584,11 @@ public class TableWriteSession implements AutoCloseable {
       commitMessages.add(result.getCommitMessage());
     }
 
-    BatchCompatibleSessionResponse response = storageStub.commitBatchCompatibleSession(
-        tableId, id, routeToken, commitMessages);
+    commitStarted = true;
+    BatchCompatibleSessionResponse response = waitFlyingWritersTimeoutSeconds == null
+        ? storageStub.commitBatchCompatibleSession(tableId, id, routeToken, commitMessages)
+        : storageStub.commitBatchCompatibleSession(
+            tableId, id, routeToken, commitMessages, waitFlyingWritersTimeoutSeconds);
     if (response == null) {
       throw new ClientException("Batch-compatible commit returned an empty response");
     }
@@ -417,6 +596,7 @@ public class TableWriteSession implements AutoCloseable {
       routeToken = response.getRouteToken();
     }
     String status = response.getSessionStatus();
+    descriptorStatus = status;
     if (!"COMMITTED".equalsIgnoreCase(status)) {
       throw new ClientException(
           "Batch-compatible commit returned session status " + status + " for session " + id);
@@ -436,6 +616,7 @@ public class TableWriteSession implements AutoCloseable {
    * call {@code TableAbortWriteSession}.
    */
   public void abort() {
+    requireCoordinator();
     if (closed) {
       return;
     }
@@ -449,23 +630,22 @@ public class TableWriteSession implements AutoCloseable {
   }
 
   /**
-   * Closes the write session, automatically aborting if not already committed.
+   * Closes this local session handle. An uncommitted coordinator that has not attempted a
+   * batch-compatible commit is aborted using the existing write-mode cleanup behavior.
    *
-   * <p>This method ensures proper cleanup of resources. If the session has not been
-   * explicitly committed, it will be automatically aborted to discard any written data.
-   * This behavior is intentional to prevent data inconsistency when a session is closed
-   * without explicit commitment.
+   * <p>Once a batch-compatible commit has been attempted, its outcome may be unknown even if
+   * the call failed. Closing then performs no remote abort; the coordinator must reconcile the
+   * session state separately. An explicit {@link #abort()} still expresses caller intent.
    *
-   * <p>In STREAMING mode, this method simply marks the session as closed without
-   * additional cleanup since data is already visible after flush.
-   *
-   * <p>If you want to explicitly close the session without aborting, call {@link #commit()}
-   * before calling this method.
-   *
-   * <p>This method is safe to call multiple times.
+   * <p>Descriptor-restored workers only close their local handle. They never abort the global
+   * session or close the borrowed client or allocator. This method is safe to call repeatedly.
    */
   @Override
   public void close() {
+    if (descriptorOnly || commitStarted) {
+      closed = true;
+      return;
+    }
     if (closed) {
       return;
     }
@@ -480,6 +660,13 @@ public class TableWriteSession implements AutoCloseable {
    *
    * @throws ClientException if the session is already closed
    */
+  private void requireCoordinator() {
+    if (descriptorOnly) {
+      throw new IllegalStateException(
+          "Descriptor-restored workers cannot commit or abort a session; use the coordinator");
+    }
+  }
+
   private void checkNotClosed() {
     if (closed) {
       throw new ClientException("Session is already closed");
