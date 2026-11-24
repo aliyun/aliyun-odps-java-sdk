@@ -109,7 +109,11 @@
                                 <includes>
                                     <include>com.squareup.okhttp3:okhttp:jar:</include>
                                     <include>com.squareup.okio:okio:jar:</include>
+                                    <include>com.squareup.okio:okio-jvm:jar:</include>
                                     <include>org.jetbrains.kotlin:kotlin-stdlib</include>
+                                    <include>org.jetbrains.kotlin:kotlin-stdlib-common</include>
+                                    <include>org.jetbrains.kotlin:kotlin-stdlib-jdk7</include>
+                                    <include>org.jetbrains.kotlin:kotlin-stdlib-jdk8</include>
                                 </includes>
                             </artifactSet>
                             <relocations>

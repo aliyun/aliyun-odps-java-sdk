@@ -24,9 +24,11 @@ import java.util.List;
 import org.apache.arrow.vector.complex.ListVector;
 
 import com.aliyun.odps.data.Vector;
+import com.aliyun.odps.exceptions.SchemaMismatchRuntimeException;
 import com.aliyun.odps.table.arrow.accessor.ArrowArrayAccessor;
 import com.aliyun.odps.table.arrow.accessor.ArrowVectorAccessor;
 import com.aliyun.odps.type.TypeInfo;
+import com.aliyun.odps.type.TypeInfoFactory;
 import com.aliyun.odps.type.VectorTypeInfo;
 
 public class ArrowVectorAccessorImpl {
@@ -36,14 +38,22 @@ public class ArrowVectorAccessorImpl {
         private final boolean isExtension;
         private final boolean encodeString;
         private final TypeInfo elementTypeInfo;
+        private final int expectedDimension;
         private final ArrowVectorAccessor dataAccessor;
 
-        public ArrowVectorAccessorForRecord(ListVector vector, VectorTypeInfo typeInfo,
+        public ArrowVectorAccessorForRecord(ListVector vector, TypeInfo typeInfo,
                                             boolean isExtension, boolean encodeString) {
             super(vector);
             this.isExtension = isExtension;
             this.encodeString = encodeString;
-            this.elementTypeInfo = typeInfo.getElementTypeInfo();
+            if (typeInfo instanceof VectorTypeInfo) {
+                VectorTypeInfo vectorType = (VectorTypeInfo) typeInfo;
+                this.elementTypeInfo = vectorType.getElementTypeInfo();
+                this.expectedDimension = vectorType.getDimension();
+            } else {
+                this.elementTypeInfo = TypeInfoFactory.FLOAT;
+                this.expectedDimension = 0;
+            }
             this.dataAccessor = ArrowToRecordConverter.createColumnVectorAccessor(
                 vector.getDataVector(), elementTypeInfo, isExtension, encodeString);
         }
@@ -54,6 +64,10 @@ public class ArrowVectorAccessorImpl {
 
         @Override
         protected Vector getArrayData(int offset, int length) {
+            if (expectedDimension > 0 && length != expectedDimension) {
+                throw new SchemaMismatchRuntimeException(
+                    "Vector dimension mismatch: expected " + expectedDimension + ", but got " + length);
+            }
             List<Number> values = new ArrayList<>(length);
             try {
                 for (int i = 0; i < length; i++) {
