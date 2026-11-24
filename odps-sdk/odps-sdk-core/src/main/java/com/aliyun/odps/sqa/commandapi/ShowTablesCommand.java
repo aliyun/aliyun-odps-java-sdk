@@ -54,6 +54,19 @@ class ShowTablesCommand implements Command {
     this.prefix = prefix;
   }
 
+  // visible for testing: the values the parser put into this command
+  String getProject() {
+    return project;
+  }
+
+  String getSchema() {
+    return schema;
+  }
+
+  String getPrefix() {
+    return prefix;
+  }
+
   @Override
   public boolean isSync() {
     return true;

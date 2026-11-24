@@ -35,6 +35,7 @@ import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.PartitionSpecC
 import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.ShowInstanceStatementContext;
 import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.ShowPartitionStatementContext;
 import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.ShowTableStatementContext;
+import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.ShowStmtIdentifierContext;
 import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.SqlCostStatementContext;
 import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.TableNameContext;
 import com.aliyun.odps.sqa.commandapi.antlr.command.CommandParser.WhoamiStatementContext;
@@ -88,13 +89,13 @@ public class CommandParserListener extends CommandParserBaseListener {
     String prefixName = null;
 
     if (ctx.project_Name != null) {
-      projectName = ctx.project_Name.getText();
+      projectName = unquoteIdentifier(ctx.project_Name.getText());
     }
     if (ctx.schema_Name != null) {
-      schemaName = ctx.schema_Name.getText();
+      schemaName = unquoteIdentifier(ctx.schema_Name.getText());
     }
     if (ctx.prefix_name != null) {
-      prefixName = ctx.prefix_name.getText();
+      prefixName = unquoteShowStmtIdentifier(ctx.prefix_name);
     }
 
     command = new ShowTablesCommand(projectName, schemaName, prefixName);
@@ -282,6 +283,71 @@ public class CommandParserListener extends CommandParserBaseListener {
   @Override
   public void exitDescSchemaStatement(CommandParser.DescSchemaStatementContext ctx) {
     command = new DescribeSchemaCommand();
+  }
+
+  /**
+   * `showStmtIdentifier` accepts a bare identifier as well as a quoted string literal, while the
+   * value ends up as the `name` parameter of the list tables request, which is a table name
+   * prefix. Raw token text still carries its quotes, and the service answers `Invalid table name`
+   * for it, so the value has to be unquoted here.
+   */
+  private static String unquoteShowStmtIdentifier(ShowStmtIdentifierContext ctx) {
+    String text = ctx.getText();
+    return ctx.simpleStringLiteral() != null ? unquoteStringLiteral(text) : unquoteIdentifier(text);
+  }
+
+  /**
+   * Remove the enclosing quotes of a string literal and resolve the escape sequences the lexer
+   * allows. Unknown escapes are kept as they are, they are not ours to interpret.
+   */
+  private static String unquoteStringLiteral(String literal) {
+    if (literal.length() < 2) {
+      return literal;
+    }
+    char quote = literal.charAt(0);
+    if ((quote != '\'' && quote != '"')
+        || literal.charAt(literal.length() - 1) != quote) {
+      return literal;
+    }
+    String content = literal.substring(1, literal.length() - 1);
+    StringBuilder unquoted = new StringBuilder(content.length());
+    for (int i = 0; i < content.length(); i++) {
+      char current = content.charAt(i);
+      if (current != '\\' || i + 1 >= content.length()) {
+        unquoted.append(current);
+        continue;
+      }
+      char escaped = content.charAt(++i);
+      switch (escaped) {
+        case '\\':
+        case '\'':
+        case '"':
+          unquoted.append(escaped);
+          break;
+        case 'n':
+          unquoted.append('\n');
+          break;
+        case 't':
+          unquoted.append('\t');
+          break;
+        case 'r':
+          unquoted.append('\r');
+          break;
+        default:
+          unquoted.append(current).append(escaped);
+          break;
+      }
+    }
+    return unquoted.toString();
+  }
+
+  /** Turn a quoted identifier `name` into name, `` inside it stands for a single back quote. */
+  private static String unquoteIdentifier(String identifier) {
+    if (identifier.length() < 2 || identifier.charAt(0) != '`'
+        || identifier.charAt(identifier.length() - 1) != '`') {
+      return identifier;
+    }
+    return identifier.substring(1, identifier.length() - 1).replace("``", "`");
   }
 
   public Command getCommand() {
