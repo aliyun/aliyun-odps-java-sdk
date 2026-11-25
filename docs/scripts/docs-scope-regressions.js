@@ -77,6 +77,58 @@ function unguardedToolchainSteps(wf) {
   return bad;
 }
 
+/*
+ * Real-git cases. The list cases above exercise the matcher; these exercise the branch CI actually
+ * takes (`PR_BASE` set, no --paths-file), which is where the two false-successes lived:
+ *   non-ascii-docs  docs/指南.md only  - `git diff --name-only` would quote it and a prefix match
+ *                                        on the raw line would say "out of scope"
+ *   move-out        docs/move.md -> archive/move.md - rename output lists only the destination, so a
+ *                                        naive matcher misses content leaving the site
+ *   workflow-only   only .github/workflows/docs-check.yml
+ *   source-only     control: nothing under the scope paths
+ * A throwaway repository is built under the system temp dir; identity is passed with `git -c` only,
+ * never written to any config file.
+ */
+function gitScopeCases() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-scope-fx-'));
+  const git = (args) => execFileSync('git', ['-c', 'user.name=scope-fixture', '-c', 'user.email=scope-fixture@invalid', ...args], { cwd: dir, encoding: 'utf8' });
+  git(['init', '-q', '.']);
+  fs.mkdirSync(path.join(dir, 'docs', 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+  fs.copyFileSync(CHECK, path.join(dir, 'docs', 'scripts', 'check-docs-release.js'));
+  fs.writeFileSync(path.join(dir, 'docs', 'index.md'), 'seed\n');
+  fs.writeFileSync(path.join(dir, 'docs', 'move.md'), 'seed\n');
+  fs.writeFileSync(path.join(dir, 'src', 'A.java'), 'class A {}\n');
+  git(['add', '-A']); git(['commit', '-q', '-m', 'base']);
+  const base = git(['rev-parse', 'HEAD']).trim();
+
+  const reset = () => { git(['reset', '--hard', '-q', base]); git(['clean', '-qfd']); };
+  const runScope = () => {
+    const out = execFileSync(process.execPath, ['docs/scripts/check-docs-release.js', '--scope'], {
+      cwd: dir, encoding: 'utf8', env: { ...process.env, PR_BASE: base, GITHUB_OUTPUT: '' },
+    });
+    const m = out.match(/docs_changed=(true|false)/);
+    return m ? m[1] : 'missing';
+  };
+  const commit = (msg) => { git(['add', '-A']); git(['commit', '-q', '-m', msg]); };
+
+  const results = [];
+  reset(); fs.writeFileSync(path.join(dir, 'docs', '\u6307\u5357.md'), '\u4e2d\u6587\u5185\u5bb9\n'); commit('non-ascii docs file');
+  results.push(['non-ascii-docs', 'true', runScope()]);
+
+  reset(); fs.mkdirSync(path.join(dir, 'archive'), { recursive: true });
+  fs.renameSync(path.join(dir, 'docs', 'move.md'), path.join(dir, 'archive', 'move.md')); commit('move out of docs');
+  results.push(['move-out', 'true', runScope()]);
+
+  reset(); fs.mkdirSync(path.join(dir, '.github', 'workflows'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.github', 'workflows', 'docs-check.yml'), 'name: Docs check\n'); commit('workflow only');
+  results.push(['workflow-only-git', 'true', runScope()]);
+
+  reset(); fs.writeFileSync(path.join(dir, 'src', 'A.java'), 'class A { void f() {} }\n'); commit('source only');
+  results.push(['source-only-git', 'false', runScope()]);
+  return results;
+}
+
 function codeOnly(text) {
   return text.split('\n').filter((l) => {
     const t = l.trim();
@@ -117,6 +169,19 @@ for (const [name, paths, expect] of cases) {
   if (written !== `docs_changed=${expect}`) { console.log(`FAIL ${name}: GITHUB_OUTPUT payload "${written}"`); failed++; continue; }
   console.log(`PASS ${name}: docs_changed=${got} payload=${written} inputs=${paths.length}`);
 }
+let gitResults = [];
+try {
+  gitResults = gitScopeCases();
+} catch (e) {
+  console.log(`FAIL git-scope: fixture run errored: ${e.message}`);
+  failed++;
+}
+for (const [name, expect, got] of gitResults) {
+  if (got === expect) { console.log(`PASS git ${name}: docs_changed=${got}`); continue; }
+  console.log(`FAIL git ${name}: docs_changed=${got}, expected ${expect}`);
+  failed++;
+}
+
 console.log(`shape file under test: ${WORKFLOW}`);
 const wfText = fs.existsSync(WORKFLOW) ? fs.readFileSync(WORKFLOW, 'utf8') : '';
 const scopeText = fs.existsSync(CHECK) ? fs.readFileSync(CHECK, 'utf8') : '';

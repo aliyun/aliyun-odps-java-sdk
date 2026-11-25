@@ -6,7 +6,8 @@
  *   node scripts/check-docs-release.js           PR check against the pinned release in scripts/expected-release.json
  *   node scripts/check-docs-release.js --build    additionally run `npm run build` and verify the generated site
  *   node scripts/check-docs-release.js --drift     compare the pin with the live Maven Central <release> (scheduled job)
- *   node scripts/check-docs-release.js --scope     decide whether this run is in docs scope; appends
+ *   node scripts/check-docs-release.js --scope     decide whether this run is in docs scope from real git
+ *                                                  state (pathspec diff), appending
  *                                                  docs_changed=true|false to $GITHUB_OUTPUT when set
  *   node scripts/check-docs-release.js --scope --paths-file <list>   feed a newline-separated path list
  *                                                  instead of asking git (used by the scope regressions)
@@ -42,46 +43,63 @@ function fail(step, detail) { failures.push(`${step}: ${detail}`); console.error
 function ok(step, detail) { notes.push(`${step}: ${detail}`); console.log(`PASS ${step}: ${detail}`); }
 
 /*
- * Scope decision, kept in JS on purpose: the earlier shell version piped a possibly huge
- * `git diff --name-only` list into `grep -q`, and grep's early exit makes printf die on SIGPIPE,
- * so a `set -o pipefail` shell could report "no docs changed" for a run that did change docs.
- * Here the list is filtered in memory, so there is no pipe to break and no first-match shortcut.
+ * Scope decision, kept in JS on purpose, and deliberately NOT parsed from `git diff --name-only`:
+ * that output quotes non-ASCII paths (core.quotepath) and prints only the destination of a rename,
+ * so a PR touching only `docs/指南.md` or moving a file out of docs/ used to read as out-of-scope
+ * (reproduced 2026-11-23, review comment on #82). Pathspec-limited `git diff --quiet` answers the
+ * question directly and has no output to mis-parse: exit 1 means something under the scope paths
+ * changed, 0 means nothing did, anything else is an error and must not report a scope verdict.
+ * Names are listed separately with `-z` (NUL-separated, never quoted) purely for the log line.
  */
 const SCOPE_PREFIXES = ['docs/'];
 const SCOPE_EXACT = ['.github/workflows/docs-check.yml'];
+const SCOPE_PATHS = ['docs/', '.github/workflows/docs-check.yml'];
 
 function isInScope(path) {
-  return SCOPE_PREFIXES.some((p) => path.startsWith(p)) || SCOPE_EXACT.includes(path);
+  return SCOPE_PREFIXES.some((pre) => path.startsWith(pre)) || SCOPE_EXACT.includes(path);
 }
 
-function changedPaths() {
+function nulList(out) {
+  return out.split('\0').map((s) => s.replace(/\n$/, '')).filter(Boolean);
+}
+
+function scopeDecide() {
   if (PATHS_FILE) {
-    return fs.readFileSync(PATHS_FILE, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+    const paths = fs.readFileSync(PATHS_FILE, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+    const hit = paths.filter(isInScope);
+    return { value: hit.length > 0 ? 'true' : 'false', basis: 'paths-file', seen: paths.length, hits: hit.slice(0, 5), error: '' };
   }
   const base = process.env.PR_BASE || '';
-  const out = base
-    ? execFileSync('git', ['-C', REPO_DIR, 'diff', '--name-only', base, 'HEAD'], { encoding: 'utf8' })
-    : execFileSync('git', ['-C', REPO_DIR, 'ls-files'], { encoding: 'utf8' });
-  return out.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (!base) {
+    const out = execFileSync('git', ['-C', REPO_DIR, 'ls-files', '-z', '--', ...SCOPE_PATHS], { encoding: 'utf8' });
+    const listed = nulList(out);
+    return { value: listed.length > 0 ? 'true' : 'false', basis: 'git ls-files (push/dispatch)', seen: listed.length, hits: listed.slice(0, 5), error: '' };
+  }
+  const probe = spawnSync('git', ['-C', REPO_DIR, 'diff', '--quiet', '--no-renames', base, 'HEAD', '--', ...SCOPE_PATHS], { encoding: 'utf8' });
+  if (probe.error || (probe.status !== 0 && probe.status !== 1)) {
+    return { value: '', basis: 'git diff --quiet base..HEAD', seen: 0, hits: [], error: `git exited with status ${probe.status === null ? String(probe.error && probe.error.message) : probe.status}` };
+  }
+  const listed = nulList(execFileSync('git', ['-C', REPO_DIR, 'diff', '--no-renames', '--name-only', '-z', base, 'HEAD', '--', ...SCOPE_PATHS], { encoding: 'utf8' }));
+  return { value: probe.status === 1 ? 'true' : 'false', basis: 'git diff --quiet base..HEAD (pathspec)', seen: listed.length, hits: listed.slice(0, 5), error: '' };
 }
 
 function scopeMode() {
-  let paths;
+  let d;
   try {
-    paths = changedPaths();
+    d = scopeDecide();
   } catch (e) {
-    console.error(`FAIL scope: could not list changed files: ${e.message}`);
+    d = { value: '', basis: 'unknown', seen: 0, hits: [], error: e.message };
+  }
+  if (d.error || !d.value) {
+    console.error(`FAIL scope: cannot decide scope (${d.error || 'empty verdict'}); refusing to report a verdict`);
     process.exitCode = 1;
     return;
   }
-  const hit = paths.filter(isInScope);
-  const value = hit.length > 0 ? 'true' : 'false';
   if (process.env.GITHUB_OUTPUT) {
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `docs_changed=${value}\n`);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `docs_changed=${d.value}\n`);
   }
-  console.log(`SCOPE paths_seen=${paths.length} in_scope=${hit.length} docs_changed=${value}`);
-  console.log(`SCOPE basis=${PATHS_FILE ? 'paths-file' : (process.env.PR_BASE ? 'git diff base..HEAD' : 'git ls-files (push/dispatch)')}`);
-  if (hit.length) console.log(`SCOPE first_hits=${hit.slice(0, 5).join(', ')}`);
+  console.log(`SCOPE docs_changed=${d.value} basis=${d.basis} files_in_scope=${d.seen}`);
+  if (d.hits.length) console.log(`SCOPE hits=${d.hits.join(', ')}`);
   process.exitCode = 0;
 }
 
