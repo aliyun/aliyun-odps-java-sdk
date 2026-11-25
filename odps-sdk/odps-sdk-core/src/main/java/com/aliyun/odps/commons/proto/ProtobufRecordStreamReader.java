@@ -53,6 +53,7 @@ import com.aliyun.odps.data.RecordReader;
 import com.aliyun.odps.data.SimpleJsonValue;
 import com.aliyun.odps.data.SimpleStruct;
 import com.aliyun.odps.data.Struct;
+import com.aliyun.odps.exceptions.SchemaMismatchRuntimeException;
 import com.aliyun.odps.data.Vector;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.tunnel.TunnelTableSchema;
@@ -81,6 +82,12 @@ public class ProtobufRecordStreamReader implements RecordReader {
 
     private BufferedInputStream bin;
     private CodedInputStream in;
+    /**
+     * 包在 bin 外面那层解压流（zlib / snappy / lz4 / zstd），RAW 与无 option 时为 null。
+     * 原来它是匿名对象：close() 只关到 bin，解压上下文（Inflater 的 native 上下文、frame 状态）
+     * 只能等 finalizer 回收，早关（批次读到一半抛错）时尤其明显。
+     */
+    private InputStream decompressStream;
     private Column[] columns;
     private TableSchema schema;
     private long count;
@@ -112,13 +119,17 @@ public class ProtobufRecordStreamReader implements RecordReader {
 
         if (option != null) {
             if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZLIB)) {
-                this.in = CodedInputStream.newInstance(new InflaterInputStream(bin));
+                decompressStream = new InflaterInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
-                this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
+                decompressStream = new SnappyFramedInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
-                this.in = CodedInputStream.newInstance(new LZ4FrameInputStream(bin));
+                decompressStream = new LZ4FrameInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZSTD)) {
-                this.in = CodedInputStream.newInstance(new ZstdInputStream(bin));
+                decompressStream = new ZstdInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
                 this.in = CodedInputStream.newInstance((bin));
             } else {
@@ -163,13 +174,17 @@ public class ProtobufRecordStreamReader implements RecordReader {
 
         if (option != null) {
             if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZLIB)) {
-                this.in = CodedInputStream.newInstance(new InflaterInputStream(bin));
+                decompressStream = new InflaterInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_SNAPPY)) {
-                this.in = CodedInputStream.newInstance(new SnappyFramedInputStream(bin));
+                decompressStream = new SnappyFramedInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_LZ4_FRAME)) {
-                this.in = CodedInputStream.newInstance(new LZ4FrameInputStream(bin));
+                decompressStream = new LZ4FrameInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_ZSTD)) {
-                this.in = CodedInputStream.newInstance(new ZstdInputStream(bin));
+                decompressStream = new ZstdInputStream(bin);
+                this.in = CodedInputStream.newInstance(decompressStream);
             } else if (option.algorithm.equals(CompressOption.CompressAlgorithm.ODPS_RAW)) {
                 this.in = CodedInputStream.newInstance((bin));
             } else {
@@ -467,8 +482,19 @@ public class ProtobufRecordStreamReader implements RecordReader {
 
     @Override
     public void close() throws IOException {
-        if (bin != null) {
-            bin.close();
+        InputStream codecStream = decompressStream;
+        decompressStream = null;
+        try {
+            if (bin != null) {
+                bin.close();
+            }
+        } finally {
+            // bin 的关闭排在前面：底层流（连接/文件）一定要还回去，解压层收尾失败不该把它顶掉。
+            // 解压层的 close 放进 finally，帧没读完就 close 也保证执行到，解压上下文随之释放
+            // （InflaterInputStream.close() 里会 inf.end()）。
+            if (codecStream != null) {
+                codecStream.close();
+            }
         }
     }
 
@@ -498,6 +524,15 @@ public class ProtobufRecordStreamReader implements RecordReader {
 
     private Vector readVector(VectorTypeInfo typeInfo) throws IOException {
         int dim = in.readUInt32();
+        int declaredDimension = typeInfo.getDimension();
+        if (dim != declaredDimension) {
+            // Check the length before using it as an allocation hint: the value comes off the wire,
+            // so a truncated or mis-framed stream would size the list from it and exhaust the heap
+            // before the mismatch was ever reported. ArrayRecord.set() reported the very same
+            // mismatch, but only after all elements had been read and buffered.
+            throw new SchemaMismatchRuntimeException(
+                "Vector dimension mismatch: expected " + declaredDimension + ", but got " + dim);
+        }
         TypeInfo elemTypeInfo = typeInfo.getElementTypeInfo();
         List<Number> values = new ArrayList<>(dim);
         for (int i = 0; i < dim; i++) {

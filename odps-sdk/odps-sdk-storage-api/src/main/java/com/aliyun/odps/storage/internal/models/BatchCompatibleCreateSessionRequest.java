@@ -99,5 +99,29 @@ public class BatchCompatibleCreateSessionRequest {
     public DynamicPartitionOptions(int dynamicPartitionLimit) {
       this.dynamicPartitionLimit = dynamicPartitionLimit;
     }
+
+    public String getInvalidStrategy() {
+      return invalidStrategy;
+    }
+
+    public void setInvalidStrategy(String invalidStrategy) {
+      this.invalidStrategy = invalidStrategy;
+    }
+
+    public int getInvalidLimit() {
+      return invalidLimit;
+    }
+
+    public void setInvalidLimit(int invalidLimit) {
+      this.invalidLimit = invalidLimit;
+    }
+
+    public int getDynamicPartitionLimit() {
+      return dynamicPartitionLimit;
+    }
+
+    public void setDynamicPartitionLimit(int dynamicPartitionLimit) {
+      this.dynamicPartitionLimit = dynamicPartitionLimit;
+    }
   }
 }

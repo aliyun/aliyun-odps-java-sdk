@@ -21,15 +21,26 @@ package com.aliyun.odps;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 
 /**
  * @author dingxin (zhangdingxin.zdx@alibaba-inc.com)
  */
 public class OdpsOptions {
 
+  volatile RequestMetadata requestMetadata = RequestMetadata.empty();
+
   private Boolean useLegacyLogview;
 
   private Boolean skipCheckIfEpv2;
+
+  /**
+   * 是否跳过 SQL 文本中的 MergeTask 预解析流程。
+   *
+   * <p>默认值为 {@code false}。开启后，执行 SQL 时会直接走普通 SQLTask 创建逻辑，
+   * 不再尝试将 `ALTER TABLE ... MERGE SMALLFILES` / `COMPACT` 解析为独立 MergeTask。
+   */
+  private boolean skipParseMergeTask;
 
   private ProxyConfig proxyConfig;
 
@@ -57,6 +68,45 @@ public class OdpsOptions {
     this.odps = odps;
   }
 
+  /**
+   * Appends the supplied suffix to the SDK/application User-Agent during HTTP assembly.
+   * Configure before making requests. Null or empty clears the suffix.
+   */
+  public synchronized void setUserAgentSuffix(String suffix) {
+    requestMetadata = requestMetadata.withSuffix(suffix);
+  }
+
+  /**
+   * Replaces the business context by encoding the supplied extensions in a version-1 JSON envelope.
+   * Null or empty clears the business context.
+   */
+  public synchronized void setCallContext(Map<String, String> extensions) {
+    requestMetadata = requestMetadata.withMap(extensions);
+  }
+
+  /**
+   * Replaces the business context by encoding the supplied text as UTF-8 and unpadded Base64URL.
+   * The receiver defines the JSON contract. Null or empty clears the business context.
+   */
+  public synchronized void setCallContextJson(String json) {
+    requestMetadata = requestMetadata.withJson(json);
+  }
+
+  /**
+   * Sets the supplied traceparent and clears tracestate. Null or empty clears both headers.
+   */
+  public void setTraceContext(String traceparent) {
+    setTraceContext(traceparent, null);
+  }
+
+  /**
+   * Replaces the traceparent and tracestate values as supplied.
+   * Each null or empty value omits that header.
+   */
+  public synchronized void setTraceContext(String traceparent, String tracestate) {
+    requestMetadata = requestMetadata.withTrace(traceparent, tracestate);
+  }
+
   public void setUseLegacyLogview(Boolean useLegacyLogview) {
     this.useLegacyLogview = useLegacyLogview;
   }
@@ -70,21 +120,29 @@ public class OdpsOptions {
         URI uri = new URI(odps.getEndpoint());
         switch (uri.getScheme()) {
           case "http":
-            proxyConfig.getProxy(ProxyConfig.Type.HTTP).ifPresent(proxy ->
-                                                                    this.odps.client.setProxy(
-                                                                      proxy));
+            applyProxy(proxyConfig, ProxyConfig.Type.HTTP);
             break;
           case "https":
-            proxyConfig.getProxy(ProxyConfig.Type.HTTPS).ifPresent(proxy ->
-                                                                     this.odps.client.setProxy(
-                                                                       proxy));
+            applyProxy(proxyConfig, ProxyConfig.Type.HTTPS);
             break;
+          default:
         }
       } catch (URISyntaxException e) {
         // won't happen here, already check in odps.setEndpoint();
         throw new RuntimeException(e);
       }
     }
+  }
+
+  /**
+   * Installs the proxy of {@code type} on the REST client, with its credential when present, so
+   * OkHttp based transports built on top of {@code RestClient} can authenticate to the proxy.
+   */
+  private void applyProxy(ProxyConfig proxyConfig, ProxyConfig.Type type) {
+    proxyConfig.getProxy(type).ifPresent(proxy -> {
+      this.odps.client.setProxy(proxy);
+      this.odps.client.setProxyCredential(proxyConfig.getProxyCredential(type).orElse(null));
+    });
   }
 
   public Boolean isUseLegacyLogview() {
@@ -97,6 +155,14 @@ public class OdpsOptions {
 
   public Boolean isSkipCheckIfEpv2() {
     return skipCheckIfEpv2;
+  }
+
+  public void setSkipParseMergeTask(boolean skipParseMergeTask) {
+    this.skipParseMergeTask = skipParseMergeTask;
+  }
+
+  public boolean isSkipParseMergeTask() {
+    return skipParseMergeTask;
   }
 
   public ProxyConfig getProxyConfig() {
@@ -113,8 +179,10 @@ public class OdpsOptions {
 
   OdpsOptions clone(Odps newOdps) {
     OdpsOptions options = new OdpsOptions(newOdps);
+    options.requestMetadata = requestMetadata;
     options.useLegacyLogview = useLegacyLogview;
     options.skipCheckIfEpv2 = skipCheckIfEpv2;
+    options.skipParseMergeTask = skipParseMergeTask;
     // proxy config is unmodified, shallow copy is enough
     options.proxyConfig = proxyConfig;
     options.allowStaleMetadataRead = allowStaleMetadataRead;

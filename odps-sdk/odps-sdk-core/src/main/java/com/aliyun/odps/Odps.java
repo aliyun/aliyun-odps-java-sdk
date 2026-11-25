@@ -93,6 +93,7 @@ public class Odps {
   private OfflineModels offlineModels;
   private Classifications classifications;
   private Quotas quotas;
+  private InfQuotas infQuotas;
   private Streams streams;
   private OdpsOptions options;
 
@@ -143,6 +144,8 @@ public class Odps {
     setEndpoint(defaultEndpoint);
 
     options = new OdpsOptions(this);
+    options.requestMetadata = RequestMetadata.environment();
+    client.setRequestMetadataSource(options);
     tenant = new Tenant(this);
     projects = new Projects(this);
     schemas = new Schemas(this);
@@ -156,6 +159,7 @@ public class Odps {
     offlineModels = new OfflineModels(this);
     classifications = new Classifications(this);
     quotas = new Quotas(this);
+    infQuotas = new InfQuotas(this);
   }
 
   public Odps(Odps odps) {
@@ -267,6 +271,10 @@ public class Odps {
 
   public Quotas quotas() {
     return quotas;
+  }
+
+  public InfQuotas infQuotas() {
+    return infQuotas;
   }
 
   /**
@@ -415,6 +423,7 @@ public class Odps {
 
   public void setOptions(OdpsOptions options) {
     this.options = options;
+    client.setRequestMetadataSource(options);
   }
 
   @Override

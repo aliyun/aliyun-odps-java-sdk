@@ -29,6 +29,8 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
   private boolean disableModifiedCheck;
   private final TunnelMetrics metrics = new TunnelMetrics();
   private final LinkedList<Record> recordBuffer = new LinkedList<>();
+  /** 非 null = 这一批的 reader 还没收尾；调用方 close() 时兜底关掉它。 */
+  private BatchRecordReader currentReader;
   private boolean shouldTransform = false;
   private boolean requireStreamFooter = false;
 
@@ -97,26 +99,54 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
       return;
     }
     long recordNum = Math.min(count - currOffset, batchSize);
-    TunnelRecordReader recordReader;
+    BatchRecordReader recordReader = openBatchReader(start + currOffset, recordNum);
+    currentReader = recordReader;
+    boolean batchSettled = false;
+    try {
+      recordReader.setTransform(this.shouldTransform);
+      recordReader.setRequireStreamFooter(this.requireStreamFooter);
+      Record record = recordReader.read();
+      while (record != null) {
+        recordBuffer.add(record);
+        record = recordReader.read();
+      }
+      recordReader.close();
+      metrics.add(recordReader.getMetrics());
+      batchSettled = true;
+    } finally {
+      // 批次读到一半抛错（流被截断、校验和不对、protobuf 帧不完整都是实测过的形状）时也必须把这一批的
+      // reader 关掉：RawTunnelRecordReader.close() 里的 conn.disconnect() 与解压层收尾都挂在它身上，
+      // 原来没有 try/finally，一抛错就整段跳过。成功路径的关闭时机与 metrics 行为保持原样。
+      boolean unsettledReaderClosed = true;
+      if (!batchSettled) {
+        try {
+          recordReader.close();
+        } catch (IOException | RuntimeException closeFailure) {
+          // 收尾失败不能顶掉让本批失败的原始异常。currentReader 保持非 null，调用方 close() 时再试
+          // 一次，那时仍失败就把收尾错误交给调用方。
+          unsettledReaderClosed = false;
+        }
+      }
+      if (unsettledReaderClosed) {
+        currentReader = null;
+      }
+    }
+  }
+
+  /**
+   * 开一个批次的 reader。默认实现就是抽取前 openReader() 里的 session 分派，行为一字未改；
+   * 留成包级方法是测试注入替身的接缝，见 {@link BatchRecordReader}。
+   */
+  BatchRecordReader openBatchReader(long readerStart, long readerCount)
+      throws IOException, TunnelException {
     if (tableSession != null) {
-      recordReader =
-          tableSession.openRecordReader(start + currOffset, recordNum, bufferSize, option, columnList, disableModifiedCheck);
+      return tableSession.openRecordReader(readerStart, readerCount, bufferSize, option, columnList,
+          disableModifiedCheck);
     } else if (instanceSession != null) {
-      recordReader =
-          instanceSession.openRecordReader(start + currOffset, recordNum, bufferSize, option, columnList);
+      return instanceSession.openRecordReader(readerStart, readerCount, bufferSize, option, columnList);
     } else {
       throw new IllegalArgumentException("Cannot create record reader if session is null.");
     }
-
-    recordReader.setTransform(this.shouldTransform);
-    recordReader.setRequireStreamFooter(this.requireStreamFooter);
-    Record record = recordReader.read();
-    while (record != null) {
-      recordBuffer.add(record);
-      record = recordReader.read();
-    }
-    recordReader.close();
-    metrics.add(recordReader.getMetrics());
   }
 
   public void setTransform(boolean shouldTransform) {
@@ -134,5 +164,12 @@ public class TunnelBufferedReader implements RecordReader, AutoCloseable {
   @Override
   public void close() throws IOException {
     recordBuffer.clear();
+    // 兜底：批次中途抛错且那次收尾没成功时，调用方的 close() 仍能把连接断掉；
+    // 已经正常收尾过的批次（currentReader == null）在这里不会被二次 close。
+    BatchRecordReader unsettled = currentReader;
+    if (unsettled != null) {
+      currentReader = null;
+      unsettled.close();
+    }
   }
 }

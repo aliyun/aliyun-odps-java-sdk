@@ -29,7 +29,21 @@ public class BatchCompatibleCommitRequest {
   @SerializedName("CommitMessages")
   private final Collection<String> commitMessages;
 
+  @SerializedName("WaitFlyingWritersTimeoutSeconds")
+  private final Integer waitFlyingWritersTimeoutSeconds;
+
   public BatchCompatibleCommitRequest(Collection<String> commitMessages) {
+    this(commitMessages, null);
+  }
+
+  public BatchCompatibleCommitRequest(Collection<String> commitMessages,
+                                      Integer waitFlyingWritersTimeoutSeconds) {
+    if (waitFlyingWritersTimeoutSeconds != null
+        && (waitFlyingWritersTimeoutSeconds < 1 || waitFlyingWritersTimeoutSeconds > 600)) {
+      throw new IllegalArgumentException(
+          "WaitFlyingWritersTimeoutSeconds must be between 1 and 600 seconds");
+    }
     this.commitMessages = commitMessages;
+    this.waitFlyingWritersTimeoutSeconds = waitFlyingWritersTimeoutSeconds;
   }
 }

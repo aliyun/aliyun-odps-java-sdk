@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.table.arrow;
 
+import com.aliyun.odps.table.arrow.compression.OdpsCompressionFactory;
 import com.aliyun.odps.table.arrow.writers.ArrowBatchWriter;
 import com.aliyun.odps.table.configuration.CompressionCodec;
 
@@ -56,6 +57,9 @@ public class ArrowWriterFactory {
                 return new ArrowBatchWriter(os, CompressionUtil.CodecType.ZSTD);
             case LZ4_FRAME:
                 return new ArrowBatchWriter(os, CompressionUtil.CodecType.LZ4_FRAME);
+            case LZ4_FRAME_NATIVE:
+                return new ArrowBatchWriter(os, CompressionUtil.CodecType.LZ4_FRAME,
+                    OdpsCompressionFactory.NATIVE_LZ4_INSTANCE);
             default:
                 throw new IllegalArgumentException("Unsupported compression codec: " +
                                                    compressionCodec);

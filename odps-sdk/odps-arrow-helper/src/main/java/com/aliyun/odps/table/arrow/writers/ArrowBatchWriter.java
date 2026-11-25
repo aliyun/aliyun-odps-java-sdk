@@ -23,6 +23,7 @@ import com.aliyun.odps.table.arrow.ArrowWriter;
 import com.aliyun.odps.table.arrow.compression.OdpsCompressionFactory;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
+import org.apache.arrow.vector.compression.CompressionCodec;
 import org.apache.arrow.vector.compression.CompressionUtil;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
@@ -41,6 +42,7 @@ public class ArrowBatchWriter implements ArrowWriter {
     private boolean started;
     private boolean ended;
     private final CompressionUtil.CodecType codecType;
+    private final CompressionCodec.Factory compressionFactory;
 
     public ArrowBatchWriter(OutputStream out) {
         this(out, new IpcOption());
@@ -55,6 +57,18 @@ public class ArrowBatchWriter implements ArrowWriter {
     }
 
     public ArrowBatchWriter(OutputStream out, IpcOption option, CompressionUtil.CodecType codecType) {
+        this(out, option, codecType, OdpsCompressionFactory.INSTANCE);
+    }
+
+    public ArrowBatchWriter(OutputStream out, CompressionUtil.CodecType codecType,
+                            CompressionCodec.Factory compressionFactory) {
+        this(out, new IpcOption(), codecType, compressionFactory);
+    }
+
+    private ArrowBatchWriter(OutputStream out, IpcOption option,
+                             CompressionUtil.CodecType codecType,
+                             CompressionCodec.Factory compressionFactory) {
+        this.compressionFactory = compressionFactory;
         this.out = new WriteChannel(Channels.newChannel(out));
         this.option = option;
         this.started = false;
@@ -71,7 +85,7 @@ public class ArrowBatchWriter implements ArrowWriter {
             // TODO: arrow 12.0 support compress unloader, remove it
             // See: https://github.com/apache/arrow/pull/15223
             unloader = new ArrowCompressVectorUnloader(root, true,
-                    OdpsCompressionFactory.INSTANCE.createCodec(codecType), true);
+                    compressionFactory.createCodec(codecType), true);
         }
         ensureStarted(root);
         try (ArrowRecordBatch batch = unloader.getRecordBatch()) {

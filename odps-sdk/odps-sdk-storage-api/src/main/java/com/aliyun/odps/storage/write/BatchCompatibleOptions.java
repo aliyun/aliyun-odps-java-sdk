@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.storage.write;
 
+import com.aliyun.odps.table.configuration.ArrowOptions;
+
 /**
  * Immutable advanced settings for {@link WriteMode#BATCH_COMPATIBLE}.
  *
@@ -27,14 +29,40 @@ package com.aliyun.odps.storage.write;
  */
 public final class BatchCompatibleOptions {
 
+  /** Invalid partition row handling, subject to service-side support. */
+  public enum InvalidStrategy {
+    EXCEPTION("Exception"), DROP("Drop"), LIMIT("Limit");
+
+    private final String wireName;
+
+    InvalidStrategy(String wireName) {
+      this.wireName = wireName;
+    }
+
+    @Override
+    public String toString() {
+      return wireName;
+    }
+  }
+
   private final boolean enhanceWriteCheck;
   private final long maxFieldSize;
   private final int dynamicPartitionLimit;
+  private final boolean supportWriteCluster;
+  private final InvalidStrategy invalidStrategy;
+  private final int invalidLimit;
+  private final ArrowOptions.TimestampUnit timestampUnit;
+  private final ArrowOptions.TimestampUnit datetimeUnit;
 
   private BatchCompatibleOptions(Builder builder) {
     this.enhanceWriteCheck = builder.enhanceWriteCheck;
     this.maxFieldSize = builder.maxFieldSize;
     this.dynamicPartitionLimit = builder.dynamicPartitionLimit;
+    this.supportWriteCluster = builder.supportWriteCluster;
+    this.invalidStrategy = builder.invalidStrategy;
+    this.invalidLimit = builder.invalidLimit;
+    this.timestampUnit = builder.arrowOptions.getTimestampUnit();
+    this.datetimeUnit = builder.arrowOptions.getDateTimeUnit();
   }
 
   public static Builder newBuilder() {
@@ -58,12 +86,33 @@ public final class BatchCompatibleOptions {
     return dynamicPartitionLimit;
   }
 
+  public boolean isSupportWriteCluster() {
+    return supportWriteCluster;
+  }
+
+  public InvalidStrategy getInvalidStrategy() {
+    return invalidStrategy;
+  }
+
+  public int getInvalidLimit() {
+    return invalidLimit;
+  }
+
+  public ArrowOptions getArrowOptions() {
+    return ArrowOptions.newBuilder().withTimestampUnit(timestampUnit)
+        .withDatetimeUnit(datetimeUnit).build();
+  }
+
   /** Builder for batch-compatible settings. */
   public static final class Builder {
 
     private boolean enhanceWriteCheck;
     private long maxFieldSize;
     private int dynamicPartitionLimit = -1;
+    private boolean supportWriteCluster;
+    private InvalidStrategy invalidStrategy = InvalidStrategy.EXCEPTION;
+    private int invalidLimit = -1;
+    private ArrowOptions arrowOptions = ArrowOptions.createDefault();
 
     private Builder() {
     }
@@ -92,6 +141,38 @@ public final class BatchCompatibleOptions {
         throw new IllegalArgumentException("dynamicPartitionLimit must be at least -1");
       }
       this.dynamicPartitionLimit = dynamicPartitionLimit;
+      return this;
+    }
+
+    /** Indicates that the caller can obey the cluster distribution and ordering. */
+    public Builder withSupportWriteCluster(boolean supportWriteCluster) {
+      this.supportWriteCluster = supportWriteCluster;
+      return this;
+    }
+
+    public Builder withInvalidStrategy(InvalidStrategy invalidStrategy) {
+      if (invalidStrategy == null) {
+        throw new IllegalArgumentException("invalidStrategy must not be null");
+      }
+      this.invalidStrategy = invalidStrategy;
+      return this;
+    }
+
+    /** Sets the invalid partition row limit, or -1 to use the service default. */
+    public Builder withInvalidLimit(int invalidLimit) {
+      if (invalidLimit < -1) {
+        throw new IllegalArgumentException("invalidLimit must be at least -1");
+      }
+      this.invalidLimit = invalidLimit;
+      return this;
+    }
+
+    public Builder withArrowOptions(ArrowOptions arrowOptions) {
+      if (arrowOptions == null || arrowOptions.getTimestampUnit() == null
+          || arrowOptions.getDateTimeUnit() == null) {
+        throw new IllegalArgumentException("Arrow timestamp units must not be null");
+      }
+      this.arrowOptions = arrowOptions;
       return this;
     }
 

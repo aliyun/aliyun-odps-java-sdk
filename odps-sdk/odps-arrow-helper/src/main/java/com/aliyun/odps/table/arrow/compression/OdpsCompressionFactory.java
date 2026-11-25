@@ -25,12 +25,30 @@ import org.apache.arrow.vector.compression.CompressionUtil;
 public class OdpsCompressionFactory implements CompressionCodec.Factory {
 
     public static final OdpsCompressionFactory INSTANCE = new OdpsCompressionFactory();
+    public static final OdpsCompressionFactory NATIVE_LZ4_INSTANCE =
+        new OdpsCompressionFactory(true);
+    /** Native-preferred LZ4 decoding for Arrow readers; writers retain INSTANCE. */
+    public static final CompressionCodec.Factory READ_INSTANCE = new Lz4ReadCompressionFactory();
+    /** Compatibility alias for callers compiled against the initial V2-only read factory. */
+    public static final CompressionCodec.Factory V2_READ_INSTANCE = READ_INSTANCE;
+
+    private final boolean nativeLz4;
+
+    public OdpsCompressionFactory() {
+        this(false);
+    }
+
+    private OdpsCompressionFactory(boolean nativeLz4) {
+        this.nativeLz4 = nativeLz4;
+    }
 
     public CompressionCodec createCodec(
       com.aliyun.odps.table.configuration.CompressionCodec codecType) {
         switch (codecType) {
             case LZ4_FRAME:
                 return new OdpsLz4CompressionCodec();
+            case LZ4_FRAME_NATIVE:
+                return new OdpsLz4NativeCompressionCodec();
             case ZSTD:
                 return new OdpsZstdCompressionCodec();
             default:
@@ -42,7 +60,8 @@ public class OdpsCompressionFactory implements CompressionCodec.Factory {
     public CompressionCodec createCodec(CompressionUtil.CodecType codecType) {
         switch (codecType) {
             case LZ4_FRAME:
-                return new OdpsLz4CompressionCodec();
+                return nativeLz4 ? new OdpsLz4NativeCompressionCodec()
+                    : new OdpsLz4CompressionCodec();
             case ZSTD:
                 return new OdpsZstdCompressionCodec();
             default:
@@ -53,7 +72,8 @@ public class OdpsCompressionFactory implements CompressionCodec.Factory {
     public CompressionCodec createCodec(CompressionUtil.CodecType codecType, int compressionLevel) {
         switch (codecType) {
             case LZ4_FRAME:
-                return new OdpsLz4CompressionCodec();
+                return nativeLz4 ? new OdpsLz4NativeCompressionCodec()
+                    : new OdpsLz4CompressionCodec();
             case ZSTD:
                 return new OdpsZstdCompressionCodec(compressionLevel);
             default:

@@ -2921,6 +2921,7 @@ public class TableTunnel {
       } catch (OdpsException e) {
         throw new TunnelException(e.getMessage(), e);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new TunnelException(e.getMessage(), e);
       } finally {
         if (conn != null) {
@@ -3270,6 +3271,7 @@ public class TableTunnel {
           download.reload();
           timeoutValueMs -= sleepInterval;
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           throw new TunnelException("Wait Async Create Download Session interrupted", e);
         }
       }

@@ -25,6 +25,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -492,11 +493,47 @@ public class Resources implements Iterable<Resource> {
 
     MessageDigest digest = DigestUtils.getMd5Digest();
     byte[] tmpContent = new byte[chunkSize];
-    long totalBytes = 0L;
+    InputStream remaining = in;
     int readSize;
+    // A pipe or network stream may not produce EOF until uploads have started. Waiting to fill a
+    // 64 MiB chunk before the first request would change the existing streaming contract and can
+    // deadlock a producer that waits for the consumer. Only probe streams with a known finite size.
+    boolean knownFinite = in instanceof ByteArrayInputStream
+        || (in instanceof FileInputStream && ((FileInputStream) in).getChannel().size() > 0);
+    if (knownFinite) {
+      int buffered = 0;
+      while (buffered < tmpContent.length) {
+        int count = in.read(tmpContent, buffered, tmpContent.length - buffered);
+        if (count == -1) {
+          break;
+        }
+        if (count == 0) {
+          int one = in.read();
+          if (one == -1) {
+            break;
+          }
+          tmpContent[buffered++] = (byte) one;
+        } else {
+          buffered += count;
+        }
+      }
+      int next = in.read();
+      if (next == -1) {
+        uploadSingleFile(project, schema, r, new ByteArrayInputStream(tmpContent, 0, buffered),
+            overwrite, buffered);
+        return;
+      }
+      PushbackInputStream pushback = new PushbackInputStream(in, 1);
+      pushback.unread(next);
+      remaining = pushback;
+      readSize = buffered;
+    } else {
+      readSize = in.read(tmpContent);
+    }
+    long totalBytes = 0L;
     int cnt = 0;
     List<String> tmpFiles = new ArrayList<>();
-    while ((readSize = in.read(tmpContent)) != -1) {
+    while (readSize != -1) {
       digest.update(tmpContent, 0, readSize);
       InputStream input = new ByteArrayInputStream(tmpContent, 0, readSize);
       FileResource tmp = new FileResource();
@@ -519,6 +556,7 @@ public class Resources implements Iterable<Resource> {
       cnt++;
       totalBytes += readSize;
       input.close();
+      readSize = remaining.read(tmpContent);
     }
 
     byte[] md5Bytes = digest.digest();
@@ -838,6 +876,26 @@ public class Resources implements Iterable<Resource> {
     params.put(Params.ODPS_RESOURCE_IS_PART, "true");
 
     client.request(resource, method, params, headers, in, IOUtils.getInputStreamLength(in));
+  }
+
+  private void uploadSingleFile(String project, String schema, FileResource resource,
+                                InputStream content, boolean overwrite, long size)
+      throws OdpsException, IOException {
+    String path = overwrite ? ResourceBuilder.buildResourceResource(project, resource.getName())
+                            : ResourceBuilder.buildResourcesResource(project);
+    Map<String, String> headers = new HashMap<>();
+    headers.put(Headers.CONTENT_TYPE, "application/octet-stream");
+    headers.put(Headers.CONTENT_DISPOSITION, "attachment;filename=" + resource.getName());
+    headers.put(Headers.ODPS_RESOURCE_TYPE, resource.getType().toString().toLowerCase());
+    headers.put(Headers.ODPS_RESOURCE_NAME, resource.getName());
+    if (resource.getComment() != null) {
+      headers.put(Headers.ODPS_COMMENT, resource.getComment());
+    }
+    if (resource.getIsTempResource()) {
+      headers.put(Headers.ODPS_RESOURCE_IS_TEMP, String.valueOf(true));
+    }
+    client.request(path, overwrite ? "PUT" : "POST",
+        NameSpaceSchemaUtils.initParamsWithSchema(schema), headers, content, size);
   }
 
   private void mergeTempPartFiles(

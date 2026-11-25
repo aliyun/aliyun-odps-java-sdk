@@ -146,9 +146,9 @@ public enum OdpsType implements Serializable {
   BLOB(22),
 
   /**
-   * 半结构化类型
+   * 半结构化类型。当前尚未纳入 Storage API ColumnType，使用 SDK 内部负值，避免与服务端类型码冲突。
    */
-  VARIANT(23),
+  VARIANT(-4),
 
   /**
    * 空
@@ -161,9 +161,9 @@ public enum OdpsType implements Serializable {
   GEOGRAPHY(-2),
 
   /**
-   * 向量类型
+   * 向量类型，对应 Storage API ColumnType.VECTOR = 23。
    */
-  VECTOR(-4),
+  VECTOR(23),
 
 
   /**

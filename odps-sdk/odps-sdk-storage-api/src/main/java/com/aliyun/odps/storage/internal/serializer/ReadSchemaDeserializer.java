@@ -64,19 +64,24 @@ public class ReadSchemaDeserializer implements JsonDeserializer<ReadSchema> {
       for (JsonElement columnElement : columnsElement.getAsJsonArray()) {
         JsonObject columnJson = columnElement.getAsJsonObject();
 
-        // 从 JSON 中提取字段
-        String name = columnJson.get("Name").getAsString();
-        String typeString = columnJson.get("Type").getAsString();
-        String comment = columnJson.get("Comment").getAsString();
-        boolean isNullable = columnJson.get("Nullable").getAsBoolean();
-        long columnId = columnJson.get("ColumnId").getAsLong();
+        // 从 JSON 中提取字段（服务端可能省略 ColumnId，按可选处理）
+        String name = requiredString(columnJson, "Name");
+        String typeString = requiredString(columnJson, "Type");
+        String comment = columnJson.has("Comment") && !columnJson.get("Comment").isJsonNull()
+            ? columnJson.get("Comment").getAsString() : "";
+        boolean isNullable = !columnJson.has("Nullable")
+            || columnJson.get("Nullable").getAsBoolean();
+        Long columnId = columnJson.has("ColumnId") && !columnJson.get("ColumnId").isJsonNull()
+            ? columnJson.get("ColumnId").getAsLong() : null;
 
         TypeInfo typeInfo = TypeInfoParser.getTypeInfoFromTypeString(typeString);
 
 
         Column.ColumnBuilder builder = Column.newBuilder(name, typeInfo)
-          .withComment(comment)
-          .withColumnId(columnId);
+          .withComment(comment);
+        if (columnId != null) {
+          builder.withColumnId(columnId);
+        }
 
         if (!isNullable) {
           builder.notNull();
@@ -87,6 +92,14 @@ public class ReadSchemaDeserializer implements JsonDeserializer<ReadSchema> {
     }
 
     return columnList;
+  }
+
+  private static String requiredString(JsonObject json, String key) {
+    JsonElement element = json.get(key);
+    if (element == null || element.isJsonNull()) {
+      throw new JsonParseException("Missing required column field: " + key);
+    }
+    return element.getAsString();
   }
 }
 

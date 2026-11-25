@@ -19,9 +19,13 @@
 
 package com.aliyun.odps.storage.internal;
 
+import java.util.Map;
+import java.util.function.Consumer;
+
 import com.aliyun.credentials.api.ICredentialsProvider;
 import com.aliyun.odps.storage.internal.retry.RetryHandler;
 import com.aliyun.odps.storage.settings.HttpSettings;
+import com.aliyun.odps.tracing.RequestTrace;
 
 /**
  * Configuration class for StubSettings used by the MaxCompute Storage API client.
@@ -60,7 +64,13 @@ public class StubSettings {
 
   private String userAgent;
 
+  private RequestTrace requestTrace;
+
   private RetryHandler retryHandler;
+
+  private String sharingQuotaToken;
+  private String tunnelTags;
+  private Consumer<Map<String, String>> additionalHeaderSigner;
 
   /**
    * Creates a new builder for constructing StubSettings instances.
@@ -147,6 +157,10 @@ public class StubSettings {
     return userAgent;
   }
 
+  public RequestTrace getRequestTrace() {
+    return requestTrace;
+  }
+
   /**
    * Gets the retry handler.
    *
@@ -154,6 +168,18 @@ public class StubSettings {
    */
   public RetryHandler getRetryHandler() {
     return retryHandler;
+  }
+
+  public String getSharingQuotaToken() {
+    return sharingQuotaToken;
+  }
+
+  public String getTunnelTags() {
+    return tunnelTags;
+  }
+
+  public Consumer<Map<String, String>> getAdditionalHeaderSigner() {
+    return additionalHeaderSigner;
   }
 
   public static final class StubSettingsBuilder {
@@ -166,7 +192,12 @@ public class StubSettings {
     private String project;
     private HttpSettings httpSettings;
     private String userAgent;
+    private RequestTrace requestTrace = RequestTrace.environment();
     private RetryHandler retryHandler;
+
+    private String sharingQuotaToken;
+    private String tunnelTags;
+    private Consumer<Map<String, String>> additionalHeaderSigner;
 
     private StubSettingsBuilder() {
     }
@@ -260,6 +291,11 @@ public class StubSettings {
       return this;
     }
 
+    public StubSettingsBuilder withRequestTrace(RequestTrace requestTrace) {
+      this.requestTrace = java.util.Objects.requireNonNull(requestTrace, "requestTrace");
+      return this;
+    }
+
     /**
      * Sets the retry handler.
      *
@@ -268,6 +304,23 @@ public class StubSettings {
      */
     public StubSettingsBuilder withRetryHandler(RetryHandler retryHandler) {
       this.retryHandler = retryHandler;
+      return this;
+    }
+
+    public StubSettingsBuilder withSharingQuotaToken(String token) {
+      this.sharingQuotaToken = token;
+      return this;
+    }
+
+    public StubSettingsBuilder withTunnelTags(String tags) {
+      this.tunnelTags = tags;
+      return this;
+    }
+
+    /** Adds application signatures after the primary Authorization header is available. */
+    public StubSettingsBuilder withAdditionalHeaderSigner(
+        Consumer<Map<String, String>> signer) {
+      this.additionalHeaderSigner = signer;
       return this;
     }
 
@@ -286,7 +339,11 @@ public class StubSettings {
       stubSettings.credentialsProvider = this.credentialProvider;
       stubSettings.region = this.region;
       stubSettings.userAgent = this.userAgent;
+      stubSettings.requestTrace = this.requestTrace;
       stubSettings.retryHandler = this.retryHandler;
+      stubSettings.sharingQuotaToken = this.sharingQuotaToken;
+      stubSettings.tunnelTags = this.tunnelTags;
+      stubSettings.additionalHeaderSigner = this.additionalHeaderSigner;
       return stubSettings;
     }
   }

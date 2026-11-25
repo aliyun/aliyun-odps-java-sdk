@@ -40,7 +40,7 @@ import com.aliyun.odps.utils.StringUtils;
  *
  * @author shenggong.wang@alibaba-inc.com
  */
-public class TunnelRecordReader extends ProtobufRecordStreamReader {
+public class TunnelRecordReader extends ProtobufRecordStreamReader implements BatchRecordReader {
 
   /**
    * 底层网络建立超时时间,30秒
