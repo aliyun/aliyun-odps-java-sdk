@@ -40,6 +40,8 @@ import java.util.Collections;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -175,16 +177,7 @@ class BatchCompatibleWriteModeTest {
     assertEquals(7, writer.getBlockNumber());
     assertEquals(0, writer.getAttemptNumber());
 
-    ArgumentCaptor<CreateWriteStreamRequest> request =
-        ArgumentCaptor.forClass(CreateWriteStreamRequest.class);
-    verify(storageStub).createTableWriteStream(
-        eq(table),
-        eq("session-1"),
-        request.capture(),
-        eq("route-token"),
-        eq(WriteMode.BATCH_COMPATIBLE));
-    assertEquals("block-7-attempt-0", request.getValue().getStreamId());
-    assertEquals(1, request.getValue().getStreamVersion());
+    verifyNoInteractions(storageStub);
 
     TableWriteSession batch = new TableWriteSession(
         storageStub, table, null, allocator, "batch-session", WriteMode.BATCH, null);
@@ -194,7 +187,7 @@ class BatchCompatibleWriteModeTest {
   }
 
   @Test
-  void typedCommitHidesMessagesAndRejectsInvalidResultSets() {
+  void typedCommitHidesMessagesAndRejectsInvalidResultSets() throws IOException {
     BatchCompatibleSessionResponse committed = mock(BatchCompatibleSessionResponse.class);
     when(committed.getSessionStatus()).thenReturn("COMMITTED");
     when(storageStub.commitBatchCompatibleSession(
@@ -203,8 +196,10 @@ class BatchCompatibleWriteModeTest {
 
     TableWriteSession session = compatibleSession();
     BlockWriteResult block0 = new BlockWriteResult("session-1", 0, 0, 10, "message-0");
-    BlockWriteResult block1 = new BlockWriteResult("session-1", 1, 2, 20, "message-1");
-    session.commit(Arrays.asList(block0, block1));
+    BlockWriteResult legacyEmpty = new BlockWriteResult("session-1", 1, 2, 0, "message-1");
+    BlockWriteResult empty = session.createBlockWriter(2, 0).commit();
+    assertTrue(empty.isEmpty());
+    session.commit(Arrays.asList(block0, empty, legacyEmpty));
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Collection<String>> messages = ArgumentCaptor.forClass(Collection.class);
@@ -250,24 +245,24 @@ class BatchCompatibleWriteModeTest {
 
   @Test
   void serviceFailureIsExposedAsWriterIoFailure() {
-    when(storageStub.writeBatchCompatibleBlock(
+    when(storageStub.openBatchCompatibleBlock(
         eq(table),
         eq("session-1"),
         anyInt(),
         anyInt(),
-        any(),
         eq("route-reservation"),
-        eq("quota-token")))
+        eq("quota-token"),
+        anyInt()))
         .thenThrow(new ServiceException(500, "InternalError", "write failed", "request-1"));
 
     TableBlockWriter writer = compatibleSession().createBlockWriter(0, 0);
-    IOException failure = assertThrows(IOException.class, writer::close);
+    IOException failure = assertThrows(IOException.class, () -> writeOneRow(writer));
     assertTrue(failure.getCause() instanceof ServiceException);
     assertThrows(IOException.class, writer::commit);
   }
 
   @Test
-  void missingReservationTokensFailBeforeCreatingWriter() {
+  void missingQuotaTokenFailsBeforeUpload() {
     CreateWriteStreamResponse missingQuota = new CreateWriteStreamResponse();
     missingQuota.setRouteToken("route-reservation");
     when(storageStub.createTableWriteStream(
@@ -278,14 +273,16 @@ class BatchCompatibleWriteModeTest {
         eq(WriteMode.BATCH_COMPATIBLE)))
         .thenReturn(missingQuota);
 
-    ClientException failure = assertThrows(
-        ClientException.class,
-        () -> compatibleSession().createBlockWriter(0, 0));
+    TableBlockWriter writer = compatibleSession().createBlockWriter(0, 0);
+    IOException failure = assertThrows(IOException.class, () -> writeOneRow(writer));
+    assertTrue(failure.getCause() instanceof ClientException);
     assertTrue(failure.getMessage().contains("no quota token"));
+    verify(storageStub, never()).openBatchCompatibleBlock(
+        any(), any(), anyInt(), anyInt(), any(), any(), anyInt());
   }
 
   @Test
-  void missingReservationRouteFailsBeforeCreatingWriter() {
+  void missingReservationRouteFailsBeforeUpload() {
     CreateWriteStreamResponse missingRoute = new CreateWriteStreamResponse();
     missingRoute.setQuotaToken("quota-token");
     when(storageStub.createTableWriteStream(
@@ -296,10 +293,54 @@ class BatchCompatibleWriteModeTest {
         eq(WriteMode.BATCH_COMPATIBLE)))
         .thenReturn(missingRoute);
 
-    ClientException failure = assertThrows(
-        ClientException.class,
-        () -> compatibleSession().createBlockWriter(0, 0));
+    TableBlockWriter writer = compatibleSession().createBlockWriter(0, 0);
+    IOException failure = assertThrows(IOException.class, () -> writeOneRow(writer));
+    assertTrue(failure.getCause() instanceof ClientException);
     assertTrue(failure.getMessage().contains("no route token"));
+    verify(storageStub, never()).openBatchCompatibleBlock(
+        any(), any(), anyInt(), anyInt(), any(), any(), anyInt());
+  }
+
+  @Test
+  void quotaFailurePreservesTheServiceCodeForTheCaller() {
+    ServiceException slotExceeded = new ServiceException(429, "SlotExceeded", "Quota busy", "req");
+    when(storageStub.createTableWriteStream(any(), any(), any(), any(), any()))
+        .thenThrow(slotExceeded);
+
+    TableBlockWriter writer = compatibleSession().createBlockWriter(0, 0);
+    IOException failure = assertThrows(IOException.class, () -> writeOneRow(writer));
+    assertEquals(slotExceeded, failure.getCause());
+    assertTrue(failure.getMessage().contains("SlotExceeded"));
+    assertThrows(IOException.class, writer::commit);
+    verify(storageStub, never()).openBatchCompatibleBlock(
+        any(), any(), anyInt(), anyInt(), any(), any(), anyInt());
+  }
+
+  @Test
+  void abortDuringReservationPreventsUpload() {
+    TableBlockWriter writer = compatibleSession().createBlockWriter(0, 0);
+    when(storageStub.createTableWriteStream(any(), any(), any(), any(), any()))
+        .thenAnswer(call -> {
+          writer.abort();
+          CreateWriteStreamResponse response = new CreateWriteStreamResponse();
+          response.setRouteToken("route");
+          response.setQuotaToken("quota");
+          return response;
+        });
+
+    assertThrows(IOException.class, () -> writeOneRow(writer));
+    assertThrows(IOException.class, writer::commit);
+    verify(storageStub, never()).openBatchCompatibleBlock(
+        any(), any(), anyInt(), anyInt(), any(), any(), anyInt());
+  }
+
+  private void writeOneRow(TableBlockWriter writer) throws IOException {
+    try (VectorSchemaRoot root = writer.createVectorSchemaRoot()) {
+      root.allocateNew();
+      ((IntVector) root.getVector(0)).setSafe(0, 1);
+      root.setRowCount(1);
+      writer.writeBatch(root);
+    }
   }
 
   private TableWriteSession compatibleSession() {

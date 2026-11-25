@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.table.arrow;
 
+import com.aliyun.odps.table.arrow.compression.OdpsCompressionFactory;
 import com.aliyun.odps.table.arrow.readers.ArrowBatchNonReusedReader;
 import com.aliyun.odps.table.arrow.readers.ArrowBatchReusedReader;
 import com.aliyun.odps.table.configuration.CompressionCodec;
@@ -68,9 +69,15 @@ public class ArrowReaderBuilder {
     }
 
     public ArrowReaderBuilder withCompression(CompressionCodec compression) {
-        this.compressionFactory =
-          compression.equals(CompressionCodec.NO_COMPRESSION) ?
-          NoCompressionCodec.Factory.INSTANCE : CommonsCompressionFactory.INSTANCE;
+        Objects.requireNonNull(compression, "Compression codec cannot be null.");
+        if (compression == CompressionCodec.LZ4_FRAME_NATIVE) {
+            this.compressionFactory = OdpsCompressionFactory.NATIVE_LZ4_INSTANCE;
+        } else if (compression == CompressionCodec.LZ4_FRAME) {
+            this.compressionFactory = OdpsCompressionFactory.READ_INSTANCE;
+        } else {
+            this.compressionFactory = compression == CompressionCodec.NO_COMPRESSION
+                ? NoCompressionCodec.Factory.INSTANCE : CommonsCompressionFactory.INSTANCE;
+        }
         return this;
     }
 

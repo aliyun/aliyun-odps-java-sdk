@@ -35,6 +35,7 @@ import com.aliyun.odps.tunnel.hasher.TypeHasher;
 import com.aliyun.odps.tunnel.io.Checksum;
 import com.aliyun.odps.tunnel.io.CompressOption;
 import com.aliyun.odps.tunnel.io.ProtobufRecordPack;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler.RetryState;
 import com.aliyun.odps.tunnel.streams.UpsertStream;
 import com.aliyun.odps.type.DecimalTypeInfo;
 import com.aliyun.odps.type.TypeInfo;
@@ -401,6 +402,7 @@ public class UpsertStreamImpl implements UpsertStream {
     boolean success;
     int retry = 0;
     Map<Integer, RetryContext> retryContexts = new HashMap<>();
+    Map<Integer, RetryState> retryStates = new HashMap<>();
 
     // update slot map
     Map<Integer, Slot> bucketMap = session.getBuckets();
@@ -464,6 +466,7 @@ public class UpsertStreamImpl implements UpsertStream {
         }
         latch.await();
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new TunnelException("flush interrupted", e);
       }
 
@@ -471,7 +474,9 @@ public class UpsertStreamImpl implements UpsertStream {
         if (handler.getException() != null) {
           success = false;
           if (listener != null) {
-            if (!listener.onFlushFail(handler.getException(), retry)) {
+            RetryState retryState = retryStates.computeIfAbsent(
+                handler.bucketId, ignored -> new RetryState());
+            if (!listener.onFlushFail(handler.getException(), retry, retryState)) {
               status = Status.ERROR;
               TunnelException e = new TunnelException(handler.getException().getErrorMsg(), handler.getException());
               e.setRequestId(handler.getException().getRequestId());

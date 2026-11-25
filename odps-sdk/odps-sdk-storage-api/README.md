@@ -80,6 +80,27 @@ try {
 }
 ```
 
+### Batch-compatible upload buffering
+
+Block/attempt writers automatically aggregate compressed output; no buffer
+configuration is needed:
+
+```java
+TableWriteSession session = storageClient.createWriteSessionBuilder(tableId)
+    .withWriteMode(WriteMode.BATCH_COMPATIBLE)
+    .build();
+```
+
+The default is 262144 bytes per active block writer; `0` disables aggregation.
+The override is intended for diagnostics and rollback. Negative values and
+explicit use with BATCH/STREAMING are rejected. The buffer
+combines small writes after Arrow ZSTD compression, independently of Arrow batch
+size and the upload chunk limit. `flush()` drains it without committing; commit
+drains its tail, and abort discards pending bytes.
+
+This option is local to the worker and is not in the session descriptor. Set it
+again on the builder when restoring with `withSessionDescriptor(...)`.
+
 ### Reading Blobs
 
 ```java

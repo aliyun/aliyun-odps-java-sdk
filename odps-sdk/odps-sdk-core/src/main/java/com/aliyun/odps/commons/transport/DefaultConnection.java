@@ -19,6 +19,7 @@
 
 package com.aliyun.odps.commons.transport;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -162,11 +163,20 @@ public class DefaultConnection implements Connection {
   public InputStream getInputStream() throws IOException {
     checkConnection();
 
+    int responseCode = conn.getResponseCode();
     InputStream is;
-    if (conn.getResponseCode() / 100 < 4) {
+    if (responseCode / 100 < 4) {
       is = conn.getInputStream();
     } else {
       is = conn.getErrorStream();
+      if (is == null) {
+        // An error response may legitimately carry no body (e.g. an empty-body 404/403 from a
+        // gateway). HttpURLConnection.getErrorStream() returns null in that case, which used to be
+        // reported as a connection failure: the HTTP status was lost, so a permanent client error
+        // was classified as retryable and replayed. Report an empty body instead of a stream to
+        // decode -- there is nothing left to inflate.
+        return new ByteArrayInputStream(new byte[0]);
+      }
     }
 
     if (is == null) {

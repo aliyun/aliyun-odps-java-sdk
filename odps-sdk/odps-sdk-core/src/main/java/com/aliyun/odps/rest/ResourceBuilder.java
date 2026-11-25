@@ -56,6 +56,7 @@ public class ResourceBuilder {
   private static final String CLASSIFICATIONS =  "/classifications";
   private static final String TAGS = "/tags";
   private static final String QUOTAS = "/quotas";
+  private static final String INFERENCE_QUOTAS = "/inferencequotas";
 
   private static final String OFFLINEMODELS = "/offlinemodels";
   private static final String USERS = "/users";
@@ -497,6 +498,14 @@ public class ResourceBuilder {
 
   public static String buildQuotaResource(String name) {
     return QUOTAS + "/" + encodeObjectName(name);
+  }
+
+  public static String buildInfQuotasResource() {
+    return INFERENCE_QUOTAS;
+  }
+
+  public static String buildInfQuotaResource(String name) {
+    return INFERENCE_QUOTAS + "/" + encodeObjectName(name);
   }
 
   public static String buildClustersResource() {

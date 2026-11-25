@@ -7,6 +7,7 @@ public class CheckPermissionConstants {
     Function,
     Resource,
     Instance,
+    Quota,
   }
 
   public enum ActionType {
@@ -25,7 +26,8 @@ public class CheckPermissionConstants {
     Drop,
     Execute,
     Delete,
-    Download
+    Download,
+    Usage
   }
 
   public enum CheckPermissionResult {

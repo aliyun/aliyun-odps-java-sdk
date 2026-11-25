@@ -20,8 +20,10 @@
 package com.aliyun.odps.table.enviroment;
 
 import com.aliyun.odps.Odps;
+import com.aliyun.odps.ProxyConfig;
 import com.aliyun.odps.rest.RestClient;
 import com.aliyun.odps.table.transport.TableTransport;
+import com.aliyun.odps.tracing.RequestTrace;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -103,6 +105,7 @@ public abstract class ExecutionEnvironment {
                 .flatMap(restOptions -> restOptions.getWriteTimeout())
                 .orElse(null);
         RestClient restClient = new RestClient(new TableTransport(writeTimeoutSeconds));
+        restClient.setRequestTrace(settings.getRequestTrace());
         restClient.enableTunnelRetryHeaders();
         restClient.setAccount(credentials.getAccount());
         credentials.getAppAccount().ifPresent(restClient::setAppAccount);
@@ -126,6 +129,11 @@ public abstract class ExecutionEnvironment {
     public Odps createOdpsClient() {
         Credentials credentials = settings.getCredentials();
         Odps odps = new Odps(credentials.getAccount());
+        RequestTrace trace = settings.getRequestTrace();
+        odps.options().setUserAgentSuffix(trace.getSuffix());
+        if (trace.isManaged()) {
+            odps.options().setTraceContext(trace.getParent(), trace.getState());
+        }
         settings.getDefaultProject().ifPresent(odps::setDefaultProject);
         settings.getDefaultSchema().ifPresent(odps::setCurrentSchema);
         credentials.getAppAccount().ifPresent(odps::setAppAccount);
@@ -142,10 +150,11 @@ public abstract class ExecutionEnvironment {
         return odps;
     }
 
-    private void setRestOptions(RestClient restClient) {
+    void setRestOptions(RestClient restClient) {
         restClient.setUserAgent("StorageAPI");
         settings.getDefaultProject().ifPresent(restClient::setDefaultProject);
         settings.getDefaultSchema().ifPresent(restClient::setCurrentSchema);
+        applyProxy(restClient);
         settings.getRestOptions().ifPresent(restOptions -> {
             restOptions.getConnectTimeout().ifPresent(restClient::setConnectTimeout);
             restOptions.getReadTimeout().ifPresent(restClient::setReadTimeout);
@@ -154,6 +163,62 @@ public abstract class ExecutionEnvironment {
             restOptions.getRetryWaitTimeInSeconds().ifPresent(restClient::setRetryWaitTime);
             restOptions.isIgnoreCerts().ifPresent(restClient::setIgnoreCerts);
         });
+    }
+
+    /**
+     * Applies the proxy configured through {@link EnvironmentSettings} to a client this module
+     * builds.
+     *
+     * <p>{@code withHttpProxy/withHttpsProxy} used to be stored and never read: every request left
+     * through whatever the host JVM happened to use, and there was no way at all to put an
+     * authenticating proxy between this client and the service. {@code java.net.Proxy} cannot carry
+     * a credential, so the credential travels next to it as {@link ProxyCredential}: the OkHttp
+     * based connection ({@code OkHttpConnection}) sends it to the proxy, including when no write
+     * timeout was explicitly configured. Requests without proxy credentials retain their previous
+     * transport selection.
+     *
+     * <p>Which setting applies follows the scheme of the endpoint the client is about to talk to:
+     * an https endpoint uses the https proxy, anything else the http proxy. When no proxy is
+     * configured nothing is touched, so the default path keeps its previous shape.
+     */
+    void applyProxy(RestClient restClient) {
+        ProxyConfig proxyConfig = proxyConfig();
+        if (proxyConfig == null) {
+            return;
+        }
+        ProxyConfig.Type type = isHttpsEndpoint(restClient.getEndpoint())
+                ? ProxyConfig.Type.HTTPS
+                : ProxyConfig.Type.HTTP;
+        proxyConfig.getProxy(type).ifPresent(proxy -> {
+            restClient.setProxy(proxy);
+            restClient.setProxyCredential(proxyConfig.getProxyCredential(type).orElse(null));
+        });
+    }
+
+    /**
+     * Builds the proxy config from the two endpoint strings, which may carry userinfo credentials
+     * ({@code http://user:pass@host:port}). {@code null} means "no proxy was configured".
+     */
+    private ProxyConfig proxyConfig() {
+        String httpProxy = settings.getHttpProxy().orElse(null);
+        String httpsProxy = settings.getHttpsProxy().orElse(null);
+        boolean hasHttp = httpProxy != null && !httpProxy.isEmpty();
+        boolean hasHttps = httpsProxy != null && !httpsProxy.isEmpty();
+        if (!hasHttp && !hasHttps) {
+            return null;
+        }
+        ProxyConfig.Builder builder = ProxyConfig.builder();
+        if (hasHttp) {
+            builder.withHttpProxy(httpProxy);
+        }
+        if (hasHttps) {
+            builder.withHttpsProxy(httpsProxy);
+        }
+        return builder.build();
+    }
+
+    private static boolean isHttpsEndpoint(String endpoint) {
+        return endpoint != null && endpoint.trim().toLowerCase().startsWith("https");
     }
 
     private static ExecutionEnvironment createDefaultEnvironment(EnvironmentSettings settings) {

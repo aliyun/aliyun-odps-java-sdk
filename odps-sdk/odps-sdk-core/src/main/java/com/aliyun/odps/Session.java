@@ -523,12 +523,12 @@ public class Session {
     JsonObject request = new JsonObject();
     request.add("query", new JsonPrimitive(sql));
 
-    hints = SQLSettingsEnvironment.merge(hints);
-
     JsonObject settings = new JsonObject();
 
-    for (Map.Entry<String, String> property : hints.entrySet()) {
-      settings.addProperty(property.getKey(), property.getValue());
+    if (hints != null) {
+      for (Map.Entry<String, String> property : hints.entrySet()) {
+        settings.addProperty(property.getKey(), property.getValue());
+      }
     }
 
     request.add("settings", settings);
@@ -595,12 +595,12 @@ public class Session {
     JsonObject request = new JsonObject();
     request.add("query", new JsonPrimitive(sql));
 
-    hints = SQLSettingsEnvironment.merge(hints);
-
     JsonObject settings = new JsonObject();
 
-    for (Map.Entry<String, String> property : hints.entrySet()) {
-      settings.addProperty(property.getKey(), property.getValue());
+    if (hints != null) {
+      for (Map.Entry<String, String> property : hints.entrySet()) {
+        settings.addProperty(property.getKey(), property.getValue());
+      }
     }
 
     request.add("settings", settings);

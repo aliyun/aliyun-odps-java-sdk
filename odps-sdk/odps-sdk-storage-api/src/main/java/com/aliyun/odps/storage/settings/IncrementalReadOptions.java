@@ -42,7 +42,7 @@ public class IncrementalReadOptions {
   private String endTimeStamp;
 
   @SerializedName("EndVersion")
-  private long endVersion;
+  private long endVersion = -1L;
 
   @SerializedName("Mode")
   private String mode;
@@ -51,7 +51,14 @@ public class IncrementalReadOptions {
   private String startTimeStamp;
 
   @SerializedName("StartVersion")
-  private long startVersion;
+  private long startVersion = -1L;
+
+  @SerializedName("StartTxnId")
+  private String startTxnId;
+
+  private IncrementalReadOptions() {
+    // Used by Gson; an absent version is not version zero.
+  }
 
   private IncrementalReadOptions(Builder builder) {
     this.endTimeStamp = builder.endTimeStamp;
@@ -59,6 +66,7 @@ public class IncrementalReadOptions {
     this.mode = builder.mode;
     this.startTimeStamp = builder.startTimeStamp;
     this.startVersion = builder.startVersion;
+    this.startTxnId = builder.startTxnId;
   }
 
   /**
@@ -116,15 +124,25 @@ public class IncrementalReadOptions {
   }
 
   /**
+   * Gets the start transaction id.
+   *
+   * @return The start transaction id, may be null
+   */
+  public String getStartTxnId() {
+    return startTxnId;
+  }
+
+  /**
    * Builder class for constructing IncrementalReadOptions instances.
    */
   public static class Builder {
 
     private String endTimeStamp;
-    private long endVersion;
+    private long endVersion = -1L;
     private String mode;
     private String startTimeStamp;
-    private long startVersion;
+    private long startVersion = -1L;
+    private String startTxnId;
 
     private Builder() {
     }
@@ -181,6 +199,17 @@ public class IncrementalReadOptions {
      */
     public Builder withStartVersion(long startVersion) {
       this.startVersion = startVersion;
+      return this;
+    }
+
+    /**
+     * Sets the start transaction id for exactly-once incremental reads.
+     *
+     * @param startTxnId The start transaction id
+     * @return This builder instance for method chaining
+     */
+    public Builder withStartTxnId(String startTxnId) {
+      this.startTxnId = startTxnId;
       return this;
     }
 

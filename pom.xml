@@ -10,7 +10,7 @@
 
     <groupId>com.aliyun.odps</groupId>
     <artifactId>odps</artifactId>
-    <version>0.61.2-public</version>
+    <version>0.62.0-public</version>
     <packaging>pom</packaging>
 
     <dependencies>
@@ -23,98 +23,77 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Align transitive modules as well as the direct aggregate dependencies. -->
-            <dependency>
-                <groupId>io.netty</groupId>
-                <artifactId>netty-bom</artifactId>
-                <version>4.1.137.Final</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson</groupId>
-                <artifactId>jackson-bom</artifactId>
-                <version>2.21.5</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>commons-collections</groupId>
-                <artifactId>commons-collections</artifactId>
-                <version>3.2.2</version>
-            </dependency>
-
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-table-api</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-commons</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-arrow-helper</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-storage-api</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-core</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-mapred</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-lot-proto</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-lot</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-graph</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-common-local</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-udf</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-mapred-bridge</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             <dependency>
@@ -167,8 +146,10 @@
                 <version>4.11.1</version>
             </dependency>
 
-            <!-- Protobuf 2.4.1 is a compatibility constraint, not a blanket CVE exemption.
-                 See docs/security/dependency-cve-assessment-2026-09-08.md. -->
+            <!-- protobuf-java have 3 CVE vulnerability, however we don't have to upgrade it since below reasons -->
+            <!-- CVE-2024-7254: Vulnerability is not exploitable as we only parse Protobuf data from our Server-Side. -->
+            <!-- CVE-2022-3509: Vulnerability is in the TextFormat parser, which is not used; this code only performs binary serialization. -->
+            <!-- CVE-2021-22569: Vulnerability is not exploitable as we only parse Protobuf data from our Server-Side. -->
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
@@ -392,9 +373,29 @@
                 <version>1.3.1</version>
             </dependency>
         <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.137.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>2.21.5</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>commons-collections</groupId>
+                <artifactId>commons-collections</artifactId>
+                <version>3.2.2</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.aliyun.odps</groupId>
                 <artifactId>odps-sdk-simplexml</artifactId>
-                <version>0.61.2-public</version>
+                <version>0.62.0-public</version>
             </dependency>
 
             </dependencies>

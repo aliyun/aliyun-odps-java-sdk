@@ -499,6 +499,7 @@ public class VolumeTunnel {
               try {
                 Thread.sleep(2 * count * 1000);
               } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new TunnelException(e.getMessage(), e);
               }
               retryContext = retryContext.next();

@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import com.aliyun.odps.table.configuration.RestOptions;
 import com.aliyun.odps.table.utils.Preconditions;
+import com.aliyun.odps.tracing.RequestTrace;
 
 /**
  * Environment settings for table read/write
@@ -48,6 +49,8 @@ public class EnvironmentSettings {
 
     private final RestOptions restOptions;
 
+    private final RequestTrace requestTrace;
+
     private final Long slotNum;
 
     private final String httpProxy;
@@ -69,6 +72,7 @@ public class EnvironmentSettings {
         this.serviceEndpoint = builder.serviceEndPoint;
         this.tunnelEndpoint = builder.tunnelEndpoint;
         this.restOptions = builder.restOptions;
+        this.requestTrace = builder.requestTrace;
         this.slotNum = builder.slotNum;
         this.httpProxy = builder.httpProxy;
         this.httpsProxy = builder.httpsProxy;
@@ -115,6 +119,11 @@ public class EnvironmentSettings {
         return Optional.ofNullable(restOptions);
     }
 
+    /** Internal request metadata shared by the V1 and V2 transports. */
+    public RequestTrace getRequestTrace() {
+        return requestTrace;
+    }
+
     public Optional<Long> getSlotNum() {
         return Optional.ofNullable(slotNum);
     }
@@ -152,6 +161,7 @@ public class EnvironmentSettings {
         private String serviceEndPoint;
         private String tunnelEndpoint;
         private RestOptions restOptions;
+        private RequestTrace requestTrace = RequestTrace.environment();
         private Long slotNum;
         private String httpProxy;
         private String httpsProxy;
@@ -220,6 +230,23 @@ public class EnvironmentSettings {
             Preconditions.checkNotNull(restOptions, "Rest Options");
             this.restOptions = restOptions;
             return this;
+        }
+
+        /** Replaces the environment UA suffix; null or empty clears it. */
+        public Builder withUserAgentSuffix(String suffix) {
+            this.requestTrace = requestTrace.withSuffix(suffix);
+            return this;
+        }
+
+        /** Replaces both trace headers; null or empty values omit the corresponding header. */
+        public Builder withTraceContext(String traceparent, String tracestate) {
+            this.requestTrace = requestTrace.withTrace(traceparent, tracestate);
+            return this;
+        }
+
+        /** Replaces traceparent and clears tracestate. */
+        public Builder withTraceContext(String traceparent) {
+            return withTraceContext(traceparent, null);
         }
 
         public Builder withSlotNum(Long slotNum) {

@@ -67,10 +67,19 @@ public interface Record {
   /**
    * 设置列的值
    *
+   * <p>{@code DATE} 列上传 {@link java.sql.Date} 时，年月日是按 <b>GMT</b> 取的，不是 JVM 默认时区：
+   * 这个值会原样存在 record 上，到 tunnel 写出时才用 {@link ArrayRecord#DEFAULT_CALENDAR}（GMT）换算成
+   * epoch day（见 {@code ProtobufRecordStreamWriter} 的 {@code DATE} 分支）。所以
+   * {@code java.sql.Date.valueOf("2026-01-01")} 在 UTC+ 时区（如 Asia/Shanghai）里存进去会变成
+   * {@code 2025-12-31}。要按自己的时区取年月日，用带 Calendar 的 {@code setDate(idx, value, calendar)}
+   * 重载，或直接传 {@link java.time.LocalDate}。ARRAY / MAP / STRUCT 里的 {@code DATE} 元素走同一个写出
+   * 分支，口径一样。
+   *
    * @param idx
    *     列的索引
    * @param value
    *     列的值 Object
+   * @see ArrayRecord#setDate(int, java.sql.Date, java.util.Calendar)
    */
   void set(int idx, Object value);
 
@@ -84,7 +93,7 @@ public interface Record {
   Object get(int idx);
 
   /**
-   * 设置列的值
+   * 设置列的值。{@code DATE} 列的 GMT 口径同 {@link #set(int, Object)}。
    *
    * @param columnName
    *     列名

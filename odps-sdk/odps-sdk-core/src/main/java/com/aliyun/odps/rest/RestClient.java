@@ -43,6 +43,9 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLHandshakeException;
 
 import com.aliyun.odps.NoSuchObjectException;
+import com.aliyun.odps.ProxyCredential;
+import com.aliyun.odps.OdpsOptions;
+import com.aliyun.odps.RequestMetadata;
 import com.aliyun.odps.OdpsDeprecatedLogger;
 import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.Survey;
@@ -68,6 +71,7 @@ import com.aliyun.odps.rest.interceptor.RequestInterceptor;
 import com.aliyun.odps.rest.interceptor.ResponseInterceptor;
 import com.aliyun.odps.retry.RetryContext;
 import com.aliyun.odps.retry.RetryHeaders;
+import com.aliyun.odps.tracing.RequestTrace;
 import com.aliyun.odps.utils.StringUtils;
 import com.google.gson.GsonBuilder;
 
@@ -158,10 +162,13 @@ public class RestClient {
       "JavaSDK" + " Revision:" + SvnRevisionUtils.getSvnRevision()
       + " Version:" + SvnRevisionUtils.getMavenVersion() + " JavaVersion:" + SvnRevisionUtils
           .getJavaVersion();
-  private static final String PLATFORM_ID_ENV = "MC_PLATFORM_ID";
 
   private String userAgent;
+  private OdpsOptions metadataSource;
+  private RequestTrace requestTrace;
   private Proxy proxy;
+
+  private ProxyCredential proxyCredential;
   private InterceptorChain interceptorChain = InterceptorChain.create();
 
   public RetryLogger getRetryLogger() {
@@ -220,6 +227,16 @@ public class RestClient {
   public <T> T request(Class<T> clazz, String resource, String method, Map<String, String> params)
       throws OdpsException {
     return request(clazz, resource, method, params, null, null);
+  }
+
+  /** Internal: read the owning client's options when building each HTTP request. */
+  public void setRequestMetadataSource(OdpsOptions options) {
+    metadataSource = options;
+  }
+
+  /** Internal: configure trace metadata for SDK clients without an Odps instance. */
+  public void setRequestTrace(RequestTrace trace) {
+    requestTrace = trace;
   }
 
   private static final String CHARSET = "UTF-8";
@@ -383,7 +400,12 @@ public class RestClient {
           retryStrategy.onFailure(e, logger);
         } catch (RetryExceedLimitException ignore) {
           throw e;
-        } catch (InterruptedException ignore) {
+        } catch (InterruptedException e1) {
+          // The retry back-off was interrupted, which is how callers cancel a request
+          // (e.g. Statement.cancel(), task cancellation). Thread.sleep already cleared the
+          // interrupt flag, so restore it before reporting the failure; otherwise the cancel
+          // signal is lost and the caller cannot tell cancellation from a server error.
+          Thread.currentThread().interrupt();
           throw e;
         }
 
@@ -430,20 +452,31 @@ public class RestClient {
 
     if (!resp.isOK()) {
       ErrorMessage error = ErrorMessage.from(resp.getBody());
+      if (error != null && StringUtils.isNullOrEmpty(error.getMessage())
+          && StringUtils.isNullOrEmpty(error.getErrorcode())
+          && StringUtils.isNullOrEmpty(error.getRequestId())) {
+        // Every field of the document is optional, so a peer's own error page (gateway HTML read as
+        // XML, JSON with other key names) can parse into an "error" with nothing in it. That shape
+        // used to reach the caller as an exception whose message was null; it is the same silence
+        // this method exists to avoid, so an empty document is treated as no document and the
+        // peer's wording is kept instead.
+        error = null;
+      }
 
       OdpsException e;
       if (resp.getStatus() == 404) {
         if (error != null) {
-          e = new NoSuchObjectException(error.getMessage(), new RestException(error));
+          e = new NoSuchObjectException(StringUtils.isNullOrEmpty(error.getMessage())
+              ? errorMessageWithoutBody(resp) : error.getMessage(), new RestException(error));
         } else {
           e = new NoSuchObjectException("No such object.");
         }
       } else {
         if (error != null) {
-          e = new OdpsException(error.getMessage(), new RestException(error));
+          e = new OdpsException(StringUtils.isNullOrEmpty(error.getMessage())
+              ? errorMessageWithoutBody(resp) : error.getMessage(), new RestException(error));
         } else {
-          String errorMessage = resp.getBody() == null ? null : new String(resp.getBody());
-          e = new OdpsException(errorMessage);
+          e = new OdpsException(errorMessageWithoutBody(resp));
         }
         // capture the header information, 429 flow exceed, 409 instance conflict
         if (resp.getStatus() == 429 || resp.getStatus() == 409) {
@@ -456,9 +489,46 @@ public class RestClient {
       }
 
       e.setStatus(resp.getStatus());
+      if (e.getRequestId() == null) {
+        // The error body is where a request id normally comes from. When there was none to read,
+        // the response header is the last copy of it (the original regression), and an absent header stays
+        // absent rather than becoming an empty string.
+        String headerRequestId = resp.getHeader(Headers.ODPS_REQUEST_ID);
+        if (headerRequestId != null && !headerRequestId.isEmpty()) {
+          e.setRequestId(headerRequestId);
+        }
+      }
 
       throw e;
     }
+  }
+
+  /**
+   * What a failed response says when its body holds no parseable error document.
+   *
+   * <p>The peer's own wording is kept whenever there is one. When there is nothing — a proxy that
+   * answered {@code 407} without a body, a gateway that hung up mid-response, a bare {@code 500} —
+   * the text names the HTTP status and whether a request id came with it, because those are the two
+   * facts left that can locate the failure, and they used to be dropped along with the body.
+   */
+  private static String errorMessageWithoutBody(Response resp) {
+    String raw = resp.getBody() == null ? null : new String(resp.getBody());
+    if (raw != null && !raw.trim().isEmpty()) {
+      return raw;
+    }
+
+    StringBuilder sb = new StringBuilder("HTTP ").append(resp.getStatus());
+    String reason = resp.getMessage();
+    if (reason != null && !reason.trim().isEmpty()) {
+      sb.append(' ').append(reason.trim());
+    }
+    String requestId = resp.getHeader(Headers.ODPS_REQUEST_ID);
+    if (requestId != null && !requestId.isEmpty()) {
+      sb.append(" returned no readable error body, x-odps-request-id=").append(requestId);
+    } else {
+      sb.append(" returned no readable error body and no x-odps-request-id");
+    }
+    return sb.toString();
   }
 
   private void resetBody(InputStream body) {
@@ -477,9 +547,8 @@ public class RestClient {
 
     Response resp = null;
 
-    if (headers == null) {
-      headers = new HashMap<String, String>();
-    }
+    // Content headers belong to this attempt, not to the caller's map.
+    headers = headers == null ? new HashMap<>() : new HashMap<>(headers);
 
     try {
       // set Content-Length
@@ -735,6 +804,11 @@ public class RestClient {
         req.setHeader(Headers.ODPS_USER_AGENT, userAgent);
       }
 
+      RequestMetadata.capture(metadataSource).apply(reqHeaders, userDefinedHeaders, headers);
+      if (metadataSource == null && requestTrace != null) {
+        requestTrace.apply(reqHeaders, userDefinedHeaders, headers);
+      }
+
       req.setHeader(Headers.DATE, DateUtils.formatRfc822Date(new Date()));
 
       // Sign the request
@@ -767,13 +841,7 @@ public class RestClient {
    * @param userAgent
    */
   public void setUserAgent(String userAgent) {
-    setUserAgent(userAgent, System.getenv(PLATFORM_ID_ENV));
-  }
-
-  void setUserAgent(String userAgent, String platformId) {
-    String platform = platformId == null || platformId.isEmpty()
-        ? "" : " Platform:" + platformId;
-    this.userAgent = (USER_AGENT_PREFIX + " " + userAgent + platform).trim();
+    this.userAgent = (USER_AGENT_PREFIX + " " + userAgent).trim();
   }
 
   int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
@@ -931,9 +999,23 @@ public class RestClient {
     this.userDefinedHeaders.put(key, value);
   }
 
+  /**
+   * Credentials for {@link #getProxy()}. {@code java.net.Proxy} cannot carry them, so consumers
+   * that can send {@code Proxy-Authorization} (the OkHttp based table-api connection) read them
+   * from here. The JDK based transport does not use them and behaves as before.
+   */
+  public void setProxyCredential(ProxyCredential credential) {
+    this.proxyCredential = credential;
+  }
+
+  public ProxyCredential getProxyCredential() {
+    return this.proxyCredential;
+  }
+
   public void setProxy(Proxy proxy) {
     if (proxy == null) {
       this.proxy = null;
+      this.proxyCredential = null;
       this.transport.setProxy(null);
     } else {
       if (!Proxy.Type.HTTP.equals(proxy.type())) {

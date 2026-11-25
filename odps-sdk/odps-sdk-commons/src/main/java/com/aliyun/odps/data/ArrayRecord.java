@@ -153,6 +153,15 @@ public class ArrayRecord implements Record, Serializable {
     return columns;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>关于 {@code DATE} 列与 {@code java.sql.Date}：这里存的是原对象，年月日在写出时按 GMT
+   * （{@link #DEFAULT_CALENDAR}）取，所以按 JVM 默认时区构造的 {@code java.sql.Date} 在 UTC+ 时区会少一天。
+   * 需要按别的时区取年月日就用 {@link #setDate(int, java.sql.Date, java.util.Calendar)}，或者直接传
+   * {@link java.time.LocalDate}。{@code ARRAY<DATE>} / {@code MAP<*,DATE>} / {@code STRUCT<...DATE>}
+   * 的元素走同一个写出分支，口径相同。
+   */
   @Override
   public void set(int idx, Object value) {
     set(idx, value, null);

@@ -19,6 +19,8 @@
 
 package com.aliyun.odps.tunnel.io;
 
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntConsumer;
@@ -41,6 +43,7 @@ public class TunnelRetryHandler {
 
     protected RetryPolicy defaultRetryPolicy;
     private RestClient.RetryLogger retryLogger;
+    private final boolean legacyOnFailureOverridden;
 
     public TunnelRetryHandler() {
         this(NoRetryPolicy.INSTANCE, null);
@@ -57,21 +60,50 @@ public class TunnelRetryHandler {
             this.defaultRetryPolicy = defaultRetryPolicy;
         }
         this.retryLogger = retryLogger;
+        this.legacyOnFailureOverridden = hasLegacyOnFailureOverride();
     }
 
     public boolean onFailure(Exception e, int attempt) {
+        return handleFailure(e, attempt, null);
+    }
+
+    private boolean hasLegacyOnFailureOverride() {
+        try {
+            return getClass().getMethod("onFailure", Exception.class, int.class)
+                .getDeclaringClass() != TunnelRetryHandler.class;
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("Missing legacy retry callback", e);
+        }
+    }
+
+    /**
+     * Handles a failure with counters belonging to one retry operation.
+     * Existing two-argument overrides retain control and receive the caller's original attempt.
+     *
+     * @param attempt overall retry count used for logging, with the caller's existing indexing
+     * @param retryState operation-local state; {@code null} preserves the legacy attempt semantics
+     */
+    public boolean onFailure(Exception e, int attempt, RetryState retryState) {
+        if (legacyOnFailureOverridden) {
+            return onFailure(e, attempt);
+        }
+        return handleFailure(e, attempt, retryState);
+    }
+
+    private boolean handleFailure(Exception e, int attempt, RetryState retryState) {
         RetryPolicy policy;
         if (e instanceof TunnelException) {
             policy = getRetryPolicy(((TunnelException) e).getStatus());
         } else {
             policy = defaultRetryPolicy;
         }
-        if (policy.shouldRetry(e, attempt)) {
+        int policyAttempt = retryState == null ? attempt : retryState.nextAttempt(policy);
+        if (policy.shouldRetry(e, policyAttempt)) {
             if (retryLogger != null) {
-                retryLogger.onRetryLog(e, attempt, policy.getRetryWaitTime(attempt));
+                retryLogger.onRetryLog(e, attempt, policy.getRetryWaitTime(policyAttempt));
             }
             try {
-                policy.waitForNextRetry(attempt);
+                policy.waitForNextRetry(policyAttempt);
             } catch (InterruptedException i) {
                 Thread.currentThread().interrupt();
             }
@@ -81,6 +113,23 @@ public class TunnelRetryHandler {
         }
     }
 
+    /**
+     * Selects the retry policy for an HTTP status code.
+     *
+     * <p>Managed retry loops count failures and compute backoff separately for each returned
+     * policy instance, using object identity rather than {@link Object#equals(Object)}.
+     * Overrides must return the same instance for errors that share a retry budget. Returning
+     * a new policy or wrapper on every call starts a new counter at one and may prevent the
+     * retry limit or backoff progression from taking effect.</p>
+     *
+     * <p>Reuse policy instances stored in handler fields, including wrappers around policies
+     * returned by {@code super.getRetryPolicy(errorCode)}. Normal customization through
+     * {@link Configuration.Builder#withRetryPolicy(TunnelRetryHandler.RetryPolicy)} supplies
+     * a fixed default policy and does not require overriding this method.</p>
+     *
+     * @param errorCode HTTP status code, or {@code null} for the default policy
+     * @return the policy instance for the selected retry group
+     */
     protected RetryPolicy getRetryPolicy(Integer errorCode) {
         if (errorCode == null) {
             return defaultRetryPolicy;
@@ -89,8 +138,27 @@ public class TunnelRetryHandler {
             return InfiniteExponentialWaitRetryPolicy.INSTANCE;
         } else if (HttpStatus.isServerError(errorCode)) {
             return ExponentialWaitRetryPolicy.INSTANCE;
-        } else {
-            return defaultRetryPolicy;
+        }
+        return defaultRetryPolicy;
+    }
+
+    /**
+     * Retry counters for a single operation, or a single bucket in one Upsert flush.
+     *
+     * <p>Counters follow the selected policy's identity, including subclass policy mappings.
+     * Policies must be reused for errors that share a retry budget. This state
+     * is confined to the retry loop's calling thread and must not be shared between independent
+     * operations. Policies and handlers do not retain it.</p>
+     */
+    public static final class RetryState {
+        private final Map<RetryPolicy, Integer> attempts = new IdentityHashMap<>();
+
+        private int nextAttempt(RetryPolicy policy) {
+            Integer previous = attempts.get(policy);
+            int attempt = previous == null ? 1
+                : previous == Integer.MAX_VALUE ? previous : previous + 1;
+            attempts.put(policy, attempt);
+            return attempt;
         }
     }
 
@@ -117,8 +185,8 @@ public class TunnelRetryHandler {
      * Executes an action using an existing retry sequence.
      *
      * <p>This overload allows nested retry loops to share one trace ID and monotonically
-     * increasing zero-based request indexes. Retry policies still receive their historical
-     * one-based attempt number. The supplied context represents the first actual request and
+     * increasing zero-based request indexes. Retry policies receive a one-based attempt number
+     * within their own retry group. The supplied context represents the first actual request and
      * must not concurrently start another retry loop.</p>
      */
     public <T> T executeWithRetry(RetryContext initialContext,
@@ -130,7 +198,8 @@ public class TunnelRetryHandler {
                                   RetryableAction<T> action,
                                   IntConsumer errorCodeHandler) throws Exception {
         RetryContext context = initialContext;
-        int policyAttempt = 1;
+        RetryState retryState = new RetryState();
+        int attempt = 1;
         while (true) {
             try {
                 return action.call(context);
@@ -141,15 +210,17 @@ public class TunnelRetryHandler {
                 } else {
                     policy = defaultRetryPolicy;
                 }
-                if (errorCodeHandler != null && e instanceof TunnelException) {
+                if (errorCodeHandler != null && e instanceof TunnelException
+                    && ((TunnelException) e).getStatus() != null) {
                     errorCodeHandler.accept(((TunnelException) e).getStatus());
                 }
+                int policyAttempt = retryState.nextAttempt(policy);
                 if (!policy.shouldRetry(e, policyAttempt)) {
                     throw e;
                 }
                 if (retryLogger != null) {
                     retryLogger.onRetryLog(
-                        e, policyAttempt, policy.getRetryWaitTime(policyAttempt));
+                        e, attempt, policy.getRetryWaitTime(policyAttempt));
                 }
                 try {
                     policy.waitForNextRetry(policyAttempt);
@@ -158,7 +229,7 @@ public class TunnelRetryHandler {
                     throw e;
                 }
                 context = context.next();
-                policyAttempt++;
+                attempt++;
             }
         }
     }
@@ -171,6 +242,7 @@ public class TunnelRetryHandler {
 
     public interface RetryPolicy {
 
+        /** Managed retry loops pass a one-based attempt within the selected retry group. */
         boolean shouldRetry(Exception e, int attempt);
 
         long getRetryWaitTime(int attempt);

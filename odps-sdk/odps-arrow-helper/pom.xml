@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.aliyun.odps</groupId>
         <artifactId>odps-sdk</artifactId>
-        <version>0.61.2-public</version>
+        <version>0.62.0-public</version>
     </parent>
 
     <artifactId>odps-arrow-helper</artifactId>
@@ -15,6 +15,7 @@
         <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <arrow.version>17.0.0</arrow.version>
+    <javacpp.lz4.version>1.9.4-1.5.8</javacpp.lz4.version>
     </properties>
 
     <dependencies>
@@ -52,6 +53,34 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
+        </dependency>
+    <!-- Official LZ4F bindings. Keep all supported runtimes on the same consumer classpath;
+             do not activate by the build host OS (a Mac build must also run on Linux). -->
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>lz4</artifactId>
+            <version>${javacpp.lz4.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>lz4</artifactId>
+            <version>${javacpp.lz4.version}</version>
+            <classifier>linux-x86_64</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>lz4</artifactId>
+            <version>${javacpp.lz4.version}</version>
+            <classifier>macosx-x86_64</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>lz4</artifactId>
+            <version>${javacpp.lz4.version}</version>
+            <classifier>macosx-arm64</classifier>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 </project>

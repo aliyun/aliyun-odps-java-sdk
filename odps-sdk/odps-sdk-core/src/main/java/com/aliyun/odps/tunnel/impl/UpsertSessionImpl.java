@@ -1,6 +1,7 @@
 package com.aliyun.odps.tunnel.impl;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URI;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.PartitionSpec;
 import com.aliyun.odps.ProxyConfig;
+import com.aliyun.odps.ProxyCredential;
 import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.HttpStatus;
@@ -154,6 +156,21 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
 
         @Override
         public boolean onFlushFail(Exception error, int retry) {
+            return onFlushFailure(error, retry, null);
+        }
+
+        @Override
+        public boolean onFlushFail(Exception error, int retry,
+                                   TunnelRetryHandler.RetryState retryState) {
+            // Preserve two-argument callback overrides in user-supplied subclasses.
+            if (getClass() != DefaultUpsertSteamListener.class) {
+                return onFlushFail(error, retry);
+            }
+            return onFlushFailure(error, retry, retryState);
+        }
+
+        private boolean onFlushFailure(Exception error, int retry,
+                                       TunnelRetryHandler.RetryState retryState) {
             if (error instanceof TunnelException) {
                 Integer errorStatus = ((TunnelException) error).getStatus();
                 if (errorStatus != null &&
@@ -166,7 +183,9 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                     }
                 }
             }
-            return session.getTunnelRetryHandler().onFailure(error, retry);
+            TunnelRetryHandler handler = session.getTunnelRetryHandler();
+            return retryState == null ? handler.onFailure(error, retry)
+                : handler.onFailure(error, retry, retryState);
         }
     }
 
@@ -227,6 +246,7 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                         i = i * 2;
                     }
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     throw new TunnelException(e.getMessage(), e);
                 } catch (TunnelException e) {
                     if (e.getErrorCode().equalsIgnoreCase("UpsertSessionNotFound")) {
@@ -418,6 +438,41 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
         }
     }
 
+    /**
+     * Builds the netty HTTP proxy handler for an Upsert connection.
+     *
+     * <p>Without a credential this is exactly the handler previous SDK versions installed. With a
+     * credential the {@code Proxy-Authorization} header is attached to the {@code CONNECT}, so a
+     * proxy that requires authentication never answers {@code 407} in the first place. The header
+     * value is produced by {@link ProxyCredential#proxyAuthorizationHeader()} (UTF-8 Basic), i.e.
+     * byte-identical to what the OkHttp based egresses send for the same credential; netty's own
+     * {@code (address, user, password)} constructor is not used because it encodes with ISO-8859-1.
+     */
+    static HttpProxyHandler newHttpProxyHandler(Proxy proxy, ProxyCredential credential) {
+        if (credential == null) {
+            return new HttpProxyHandler(proxy.address());
+        }
+        io.netty.handler.codec.http.HttpHeaders headers =
+                new io.netty.handler.codec.http.DefaultHttpHeaders();
+        headers.set(io.netty.handler.codec.http.HttpHeaderNames.PROXY_AUTHORIZATION,
+                    credential.proxyAuthorizationHeader());
+        return new HttpProxyHandler((InetSocketAddress) proxy.address(), headers);
+    }
+
+    /**
+     * Builds the netty SOCKS5 handler for an Upsert connection.
+     *
+     * <p>No credential keeps the handler in its no-auth form, i.e. exactly what previous SDK
+     * versions installed; a credential switches SOCKS5 to username/password authentication.
+     */
+    static Socks5ProxyHandler newSocks5ProxyHandler(Proxy proxy, ProxyCredential credential) {
+        if (credential == null) {
+            return new Socks5ProxyHandler(proxy.address());
+        }
+        return new Socks5ProxyHandler(proxy.address(),
+                                       credential.getUsername(), credential.getPassword());
+    }
+
     public static Bootstrap generateNettyBootstrap(Configuration configuration,
                                                    EventLoopGroup group) {
         Bootstrap bootstrap = new Bootstrap();
@@ -432,11 +487,15 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                         switch (uri.getScheme()) {
                             case "http":
                                 proxyConfig.getProxy(ProxyConfig.Type.HTTP).ifPresent(proxy ->
-                                        channel.pipeline().addLast(new HttpProxyHandler(proxy.address())));
+                                        channel.pipeline().addLast(newHttpProxyHandler(proxy,
+                                                proxyConfig.getProxyCredential(
+                                                        ProxyConfig.Type.HTTP).orElse(null))));
                                 break;
                             case "https":
                                 proxyConfig.getProxy(ProxyConfig.Type.HTTPS).ifPresent(proxy ->
-                                        channel.pipeline().addLast(new HttpProxyHandler(proxy.address())));
+                                        channel.pipeline().addLast(newHttpProxyHandler(proxy,
+                                                proxyConfig.getProxyCredential(
+                                                        ProxyConfig.Type.HTTPS).orElse(null))));
                                 break;
                             case "socks4":
                                 proxyConfig.getProxy(ProxyConfig.Type.SOCKS4).ifPresent(proxy ->
@@ -445,7 +504,9 @@ public class UpsertSessionImpl extends SessionBase implements TableTunnel.Upsert
                             case "socks":
                             case "socks5":
                                 proxyConfig.getProxy(ProxyConfig.Type.SOCKS5).ifPresent(proxy ->
-                                        channel.pipeline().addLast(new Socks5ProxyHandler(proxy.address())));
+                                        channel.pipeline().addLast(newSocks5ProxyHandler(proxy,
+                                                proxyConfig.getProxyCredential(
+                                                        ProxyConfig.Type.SOCKS5).orElse(null))));
                                 break;
                             default:
                         }

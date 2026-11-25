@@ -46,11 +46,6 @@ public class MergeTask extends Task {
 
   private static final String DEFAULT_NAME = "AnonymousMergeTask";
 
-  @Override
-  protected boolean supportsSQLSettingsFromEnvironment() {
-    return true;
-  }
-
   @ElementList(entry = "TableName", inline = true, required = false)
   private List<String> tables;
 
@@ -177,6 +172,10 @@ public class MergeTask extends Task {
 
   public static Instance parseMergeTask(Odps odps, String sql, SQLTaskOption option)
       throws OdpsException {
+    if (odps.options().isSkipParseMergeTask()) {
+      return null;
+    }
+
     sql = sql.trim();
     if (sql.endsWith(";")) {
       sql = sql.substring(0, sql.length() - 1);

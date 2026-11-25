@@ -266,10 +266,8 @@ public class SplitArrowReaderImpl
         TunnelRetryHandler retryHandler = new TableRetryHandler(restClient);
 
         Map<String, String> headers = HttpUtils.createCommonHeader(options.getSettings());
-        if (options.getCompressionCodec().equals(CompressionCodec.ZSTD)) {
-            headers.put(Headers.ACCEPT_ENCODING, CompressionCodec.ZSTD.toString());
-        } else if (options.getCompressionCodec().equals(CompressionCodec.LZ4_FRAME)) {
-            headers.put(Headers.ACCEPT_ENCODING, CompressionCodec.LZ4_FRAME.toString());
+        if (options.getCompressionCodec() != CompressionCodec.NO_COMPRESSION) {
+            headers.put(Headers.ACCEPT_ENCODING, options.getCompressionCodec().getWireName());
         }
 
         Map<String, String> params = HttpUtils.createCommonParams(options.getSettings());

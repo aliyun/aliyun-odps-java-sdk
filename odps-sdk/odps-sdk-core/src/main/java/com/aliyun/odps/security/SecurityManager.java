@@ -203,6 +203,7 @@ public class SecurityManager {
         try {
           Thread.sleep(interval);
         } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           throw new OdpsException(e);
         }
       }
@@ -506,6 +507,8 @@ public class SecurityManager {
     private ObjectType objectType;
     private String objectName;
     private ActionType actionType;
+    private String tenantId;
+    private String regionId;
     private Map<String, String> params;
 
     public PermissionDesc(String projectName,
@@ -526,6 +529,24 @@ public class SecurityManager {
       this.objectName = Objects.requireNonNull(objectName);
       this.actionType = Objects.requireNonNull(actionType);
       params = new HashMap<>();
+    }
+
+    public PermissionDesc(String projectName,
+                          ObjectType objectType,
+                          String objectName,
+                          ActionType actionType,
+                          String tenantId,
+                          String regionId) {
+      this.projectName = Objects.requireNonNull(projectName);
+      this.objectType = Objects.requireNonNull(objectType);
+      this.objectName = Objects.requireNonNull(objectName);
+      this.actionType = Objects.requireNonNull(actionType);
+      this.tenantId = Objects.requireNonNull(tenantId);
+      this.regionId = Objects.requireNonNull(regionId);
+      params = new HashMap<>();
+      params.put("tenantId", tenantId);
+      params.put("regionId", regionId);
+      params.put("projectName", projectName);
     }
 
     public String getProjectName() {
@@ -576,6 +597,10 @@ public class SecurityManager {
           return ResourceBuilder.buildInstanceResource(projectName, objectName);
         case Resource:
           return ResourceBuilder.buildResourceResource(projectName, objectName);
+        case Quota:
+          return "/tenants/" + ResourceBuilder.encodeObjectName(tenantId)
+              + "/regions/" + ResourceBuilder.encodeObjectName(regionId)
+              + "/quotas/" + ResourceBuilder.encodeObjectName(objectName);
         default:
           throw new IllegalArgumentException("Unsupported object type");
       }
