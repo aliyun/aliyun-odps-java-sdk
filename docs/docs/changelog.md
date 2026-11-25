@@ -1,5 +1,34 @@
 # 更新日志
 
+## [0.62.0-public] - 2026-11-24
+
+### Storage API 与 Table API
+
+- Table API 可显式选择 `v2` provider，支持批量和增量读取、Arrow 批量写入，默认仍为 V1。V2 支持按行偏移和 bucket 切分、分区和列裁剪以及扩展 Arrow IPC。切分模式、磁盘溢写和取消能力的差异见指南。[V2 provider 指南](https://github.com/aliyun/aliyun-odps-java-sdk/blob/release/0.58.x/odps-sdk/odps-sdk-table-api/docs/storage-api-v2-provider.md)
+- Table API 支持从 JSON 恢复 V2 读会话，并按会话 ID 恢复写入。原生 Storage API 支持将读会话和批兼容写会话的描述符序列化，供分布式 worker 恢复。恢复时由调用方提供凭据。[会话序列化](https://github.com/aliyun/aliyun-odps-java-sdk/blob/release/0.58.x/odps-sdk/odps-sdk-storage-api/SESSION_SERIALIZATION.md)
+- V2 批兼容写入为每个活跃 block writer 默认聚合 256 KiB 数据，缓冲大小可调。上传提前发送请求头并限制待传数据量。普通表和事务表支持零行 block，恢复写会话时复用首次查询结果。
+- 增加 `LZ4_FRAME_NATIVE`，V1 和 V2 的 Arrow 读取优先使用原生 LZ4 frame 解码，原生库无法加载时自动回退 Java。关闭异步 Arrow reader 时会停止后台读取并释放队列中待消费的批次。
+- Storage API 请求失败且响应体为空或无法读取时，仍保留 HTTP 状态、请求 ID 和可用的会话信息。
+
+### 数据类型与 Tunnel
+
+- Arrow 转 Record 和文本转 Record 支持 FLOAT、DOUBLE 两种 `VECTOR`。`VECTOR` 对应 Storage API 类型码 `23`，`VARIANT` 使用 SDK 内部类型码 `-4`。Arrow 和 Protobuf reader 在分配向量数据前校验声明的维度。Arrow 的无参数 VECTOR 元数据按 FLOAT 元素处理。
+- Tunnel 按操作和 Upsert bucket 隔离重试计数，兼容自定义重试策略和监听器。读取失败时释放临时 Record/Arrow reader，提前关闭时释放解压流。
+- 实例轮询、传输重试、安全任务轮询和 Tunnel 等待被中断时，保留线程中断标记。
+
+### SDK、认证与 SQL
+
+- REST、Storage API 和 Tunnel Upsert 可使用 `ProxyConfig` 中的代理凭据。JDK 传输层可通过 `ProxyAuthenticator` 显式安装认证器。REST 错误响应体无法读取时，仍保留 HTTP 状态和请求 ID。
+- 字节数组和非空文件资源在不超过 64 MiB 时用单个请求上传。更大的资源继续走分片上传，流式输入无需等到 EOF 即可开始上传。
+- 复用仍可用的 SQL executor，包括已降级到离线模式的实例，并保留会话连接失败的原始异常。设置 `OdpsOptions.setSkipParseMergeTask(true)` 可将合并小文件和压缩语句按普通 SQL 任务提交。
+- 可通过 `OdpsOptions` 或 `MC_USER_AGENT_SUFFIX`、`MC_CALL_CONTEXT`、`TRACEPARENT`、`TRACESTATE` 配置 User-Agent 后缀、调用上下文和 W3C Trace 请求头。旧版从 `MC_PLATFORM_ID`、`TRACEPARENT` 自动注入 SQL 设置的行为已撤销，显式 SQL 设置仍然生效。
+- 增加 `Odps.infQuotas()` 推理 Quota 管理、Quota 用量查询，以及按租户和地域检查 Quota 用量权限。
+
+### 发布与打包治理
+
+- 将构建模块统一到 `0.62.0-public`，保留公仓发布配置和依赖版本，打包 V2 provider 并声明原生 LZ4 运行时依赖。Storage API 和 Table API 的 shaded 制品均包含重定位的 OkHttp、Okio JVM 和 Kotlin 运行时类。
+- 过滤部署专用测试配置及预生成 TLS 密钥。代理和 TLS 测试使用文档专用地址、占位值及运行时生成的证书。
+
 ## [0.61.2-public] - 2026-09-09
 
 ### Table API 写超时
