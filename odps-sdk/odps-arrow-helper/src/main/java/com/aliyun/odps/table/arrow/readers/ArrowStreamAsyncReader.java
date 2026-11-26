@@ -25,6 +25,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.flatbuf.MessageHeader;
 import org.apache.arrow.memory.ArrowBuf;
@@ -57,6 +58,8 @@ public class ArrowStreamAsyncReader extends ArrowReader {
     private ExecutorService asyncThread;
 
     private boolean isEnd;
+
+    private volatile boolean closed;
 
     private MessageChannelReader messageReader;
 
@@ -189,21 +192,79 @@ public class ArrowStreamAsyncReader extends ArrowReader {
         asyncThread.shutdownNow();
     }
 
+    @Override
+    public void close(boolean closeReadSource) throws IOException {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        try {
+            if (closeReadSource) {
+                // Unblock a worker waiting for network input before joining it.
+                messageReader.close();
+            }
+        } finally {
+            asyncThread.shutdownNow();
+            boolean interrupted = Thread.interrupted();
+            try {
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                while (!asyncThread.isTerminated()) {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining <= 0) {
+                        throw new IOException("Timed out stopping the asynchronous Arrow reader");
+                    }
+                    try {
+                        asyncThread.awaitTermination(remaining, TimeUnit.NANOSECONDS);
+                    } catch (InterruptedException e) {
+                        // Cancellation must not skip releasing queued batches and vectors.
+                        interrupted = true;
+                    }
+                }
+                // The producer is stopped: no batch can enter the queue after this drain.
+                Object pending;
+                while ((pending = asyncQueue.poll()) != null) {
+                    if (pending instanceof ArrowRecordBatch) {
+                        ((ArrowRecordBatch) pending).close();
+                    }
+                }
+                super.close(false);
+            } finally {
+                if (interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
     public void startAsyncThread() {
         isEnd = false;
         asyncThread.submit(() -> {
+            ArrowRecordBatch nextBatch = null;
             try {
-                ArrowRecordBatch nextBatch = getNextBatch();
-                while (nextBatch != null) {
+                while (!closed && (nextBatch = getNextBatch()) != null) {
+                    if (closed) {
+                        break;
+                    }
                     asyncQueue.put(nextBatch);
-                    nextBatch = getNextBatch();
+                    nextBatch = null; // Ownership transferred to the consumer.
                 }
-                asyncQueue.put(DONE_SENTINEL);
+                if (!closed) {
+                    asyncQueue.put(DONE_SENTINEL);
+                }
             } catch (Exception e) {
-                try {
-                    asyncQueue.put(e);
-                } catch (InterruptedException ignored2) {
+                if (!closed) {
+                    try {
+                        asyncQueue.put(e);
+                    } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
+            } finally {
+                if (nextBatch != null) {
+                    nextBatch.close();
+                }
+                // No more tasks will be submitted for this Arrow substream.
+                asyncThread.shutdown();
             }
         });
     }

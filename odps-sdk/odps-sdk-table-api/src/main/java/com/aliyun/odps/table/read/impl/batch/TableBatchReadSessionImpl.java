@@ -20,6 +20,7 @@
 package com.aliyun.odps.table.read.impl.batch;
 
 import com.aliyun.odps.Column;
+import com.aliyun.odps.OdpsException;
 import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.data.ArrayRecord;
@@ -52,6 +53,7 @@ import com.aliyun.odps.utils.JsonUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
@@ -78,6 +80,14 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
     private transient TunnelRetryHandler retryHandler;
 
     private transient String details;
+
+    /**
+     * Identity of the last session create/reload response. A failure raised while the response was
+     * being parsed has nothing else to name the request with, so the request id and HTTP status
+     * are kept here and folded into the exception text by {@code describeFailure}.
+     */
+    private transient String lastRequestId;
+    private transient Integer lastResponseStatus;
 
     public TableBatchReadSessionImpl(TableReadSessionBuilder builder) throws IOException {
         super(builder);
@@ -174,6 +184,8 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
             }
 
             String response = retryHandler.executeWithRetry(ctx -> {
+                lastRequestId = null;
+                lastResponseStatus = null;
                 Map<String, String> requestHeaders = new HashMap<>(headers);
                 ctx.injectHeaders(requestHeaders);
                 Response resp = restClient.stringRequest(
@@ -186,8 +198,12 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                         "POST", params, requestHeaders, requestStr);
                 String body;
                 if (resp.isOK()) {
+                    lastRequestId = resp.getHeader(HEADER_ODPS_REQUEST_ID);
+                    lastResponseStatus = resp.getStatus();
                     body = new String(resp.getBody());
                     loadResultFromJson(parseResponse(body));
+                    lastRequestId = null;
+                    lastResponseStatus = null;
                     return body;
                 } else {
                     throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
@@ -244,7 +260,7 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                 }
             }
         } catch (Exception e) {
-            throw new IOException(e.getMessage(), e);
+            throw describeFailure("Failed to create table read session", e);
         } finally {
             // nothing
         }
@@ -263,6 +279,8 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         params.put(ConfigConstants.SESSION_REFRESH, Boolean.toString(sessionRefresh));
 
         try {
+            lastRequestId = null;
+            lastResponseStatus = null;
             Response resp = restClient.request(
                     ResourceBuilder.buildTableSessionResource(
                             ConfigConstants.VERSION_1,
@@ -272,15 +290,19 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                             sessionId),
                     "GET", params, headers, null);
             if (resp.isOK()) {
+                lastRequestId = resp.getHeader(HEADER_ODPS_REQUEST_ID);
+                lastResponseStatus = resp.getStatus();
                 String response = new String(resp.getBody());
                 loadResultFromJson(parseResponse(response));
+                lastRequestId = null;
+                lastResponseStatus = null;
                 return response;
             } else {
                 throw new TunnelException(resp.getHeader(HEADER_ODPS_REQUEST_ID),
                         new ByteArrayInputStream(resp.getBody()), resp.getStatus());
             }
         } catch (Exception e) {
-            throw new IOException("Failed to reload table read session with endpoint: "
+            throw describeFailure("Failed to reload table read session with endpoint: "
                     + restClient.getEndpoint(), e);
         } finally {
             // nothing
@@ -358,6 +380,78 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         request.add("UniqueMapKey", new JsonPrimitive(enableUniqueMapKey));
 
         return request;
+    }
+
+    /**
+     * Wraps a session creation/reload failure in an {@link IOException} that names what the caller
+     * needs to act on: the table, the session, the HTTP status and the {@code x-odps-request-id},
+     * plus the type of the original cause. The cause chain and the original message are kept as
+     * they were, so anything matching on the old text still finds it verbatim.
+     *
+     * <p>{@code new IOException(e.getMessage(), e)} used to be the whole story, which turned a
+     * message-less cause (a NullPointerException while parsing the response) into a silent
+     * "java.io.IOException" and dropped every piece of server context.
+     */
+    private IOException describeFailure(String action, Exception cause) {
+        StringBuilder message = new StringBuilder(action);
+        message.append("\nTable identifier: ")
+                .append(identifier == null ? "unknown" : identifier.toString());
+        if (sessionId != null) {
+            message.append("\nSession id: ").append(sessionId);
+        }
+        if (sessionStatus != null) {
+            message.append("\nSession status: ").append(sessionStatus);
+        }
+
+        Integer httpStatus = null;
+        String requestId = null;
+        for (Throwable current = cause; current != null; current = current.getCause()) {
+            if (current instanceof OdpsException) {
+                OdpsException service = (OdpsException) current;
+                if (httpStatus == null) {
+                    httpStatus = service.getStatus();
+                }
+                if (requestId == null) {
+                    requestId = service.getRequestId();
+                }
+            }
+        }
+        // Nothing in the chain named the request: fall back to the response that was being parsed.
+        if (httpStatus == null) {
+            httpStatus = lastResponseStatus;
+        }
+        if (requestId == null) {
+            requestId = lastRequestId;
+        }
+        if (httpStatus != null) {
+            message.append("\nHTTP status: ").append(httpStatus);
+        }
+        if (requestId != null) {
+            message.append("\nRequest id: ").append(requestId);
+        }
+
+        String text = cause.getMessage();
+        message.append("\nCause: ").append(cause.getClass().getName());
+        if (text == null || text.isEmpty()) {
+            message.append(" (no exception message)");
+        } else {
+            message.append(": ").append(text);
+        }
+        return new IOException(message.toString(), cause);
+    }
+
+    /**
+     * Returns a session response member that the surrounding contract makes mandatory. Absent or
+     * null members used to be dereferenced directly, which surfaced as a NullPointerException with
+     * no field name anywhere.
+     */
+    private static JsonElement requiredMember(JsonObject tree, String name, String requirement) {
+        JsonElement member = tree.get(name);
+        if (member == null || member.isJsonNull()) {
+            throw new IllegalArgumentException(String.format(
+                    "Invalid session response: field '%s' is missing while %s.", name, requirement));
+        }
+        return member;
     }
 
     protected void loadResultFromJson(JsonObject tree) {
@@ -456,7 +550,8 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
                     if (splitMode == SplitOptions.SplitMode.SIZE) {
                         inputSplitAssigner = new IndexedInputSplitAssigner(sessionId, splitsCount);
                     } else if (splitMode == SplitOptions.SplitMode.BUCKET) {
-                        JsonArray splitBucketIdJson = tree.get("SplitBucketId").getAsJsonArray();
+                        JsonArray splitBucketIdJson = requiredMember(
+                                tree, "SplitBucketId", "SplitMode is Bucket").getAsJsonArray();
                         List<Integer> splitBucketId = new ArrayList<>(splitsCount);
                         splitBucketIdJson.forEach(bucketId -> splitBucketId.add(
                           Integer.parseInt(bucketId.getAsString())));
@@ -493,10 +588,17 @@ public class TableBatchReadSessionImpl extends TableBatchReadSessionBase {
         }
 
         if (tree.has("SessionStats")) {
-            JsonObject statsJson = tree.getAsJsonObject("SessionStats");
+            JsonElement statsMember = tree.get("SessionStats");
+            if (!statsMember.isJsonObject()) {
+                throw new IllegalArgumentException(
+                        "Invalid session response: field 'SessionStats' is not an object.");
+            }
+            JsonObject statsJson = statsMember.getAsJsonObject();
             this.estimateStats = new SessionStats();
-            this.estimateStats.setEstimatedSize(statsJson.get("EstimatedSize").getAsLong());
-            this.estimateStats.setEstimatedRowCount(statsJson.get("EstimatedRowCount").getAsLong());
+            this.estimateStats.setEstimatedSize(requiredMember(
+                    statsJson, "EstimatedSize", "SessionStats is present").getAsLong());
+            this.estimateStats.setEstimatedRowCount(requiredMember(
+                    statsJson, "EstimatedRowCount", "SessionStats is present").getAsLong());
         }
 
         if (tree.has("ExtendedArrowIPCEnabled")) {

@@ -3,7 +3,7 @@
     <parent>
         <artifactId>odps-sdk</artifactId>
         <groupId>com.aliyun.odps</groupId>
-        <version>0.61.2-public</version>
+        <version>0.62.0-public</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <name>ODPS SDK Table API</name>
@@ -11,6 +11,12 @@
     <artifactId>odps-sdk-table-api</artifactId>
 
     <dependencies>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp-tls</artifactId>
+            <version>4.12.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.aliyun.odps</groupId>
             <artifactId>odps-sdk-core</artifactId>

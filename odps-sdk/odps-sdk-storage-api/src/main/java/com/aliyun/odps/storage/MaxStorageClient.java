@@ -41,6 +41,7 @@ import com.aliyun.odps.storage.write.TableWriteSessionBuilder;
 import com.aliyun.odps.table.InstanceIdentifier;
 import com.aliyun.odps.table.TableIdentifier;
 import com.aliyun.odps.table.arrow.ArrowReader;
+import com.aliyun.odps.tracing.RequestTrace;
 
 /**
  * Implementation of the MaxCompute Storage API client.
@@ -109,6 +110,7 @@ public class MaxStorageClient implements AutoCloseable {
       .withProject(builder.project)
       .withHttpSettings(builder.httpSettings)
       .withUserAgent(builder.userAgent)
+      .withRequestTrace(builder.requestTrace)
       .build();
     this.storageStub = new StorageStub(stubSettings);
     this.allocator = builder.bufferAllocator;
@@ -264,6 +266,8 @@ public class MaxStorageClient implements AutoCloseable {
 
     private String userAgent;
 
+    private RequestTrace requestTrace = RequestTrace.environment();
+
     private BufferAllocator bufferAllocator;
 
     /**
@@ -365,6 +369,29 @@ public class MaxStorageClient implements AutoCloseable {
      */
     public Builder userAgent(String userAgent) {
       this.userAgent = userAgent;
+      return this;
+    }
+
+    /** Replaces the environment UA suffix; null or empty clears it. */
+    public Builder userAgentSuffix(String suffix) {
+      this.requestTrace = requestTrace.withSuffix(suffix);
+      return this;
+    }
+
+    /** Replaces both trace headers; null or empty values omit the corresponding header. */
+    public Builder traceContext(String traceparent, String tracestate) {
+      this.requestTrace = requestTrace.withTrace(traceparent, tracestate);
+      return this;
+    }
+
+    /** Replaces traceparent and clears tracestate. */
+    public Builder traceContext(String traceparent) {
+      return traceContext(traceparent, null);
+    }
+
+    /** Internal bridge for SDK clients that already carry request metadata. */
+    public Builder requestTrace(RequestTrace trace) {
+      this.requestTrace = java.util.Objects.requireNonNull(trace, "trace");
       return this;
     }
 

@@ -29,6 +29,12 @@ import java.util.Collections;
 import java.util.List;
 
 import com.aliyun.odps.ProxyConfig;
+import com.aliyun.odps.ProxyCredential;
+
+import okhttp3.Authenticator;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.Route;
 
 public class OkHttpProxyHelper {
 
@@ -59,6 +65,56 @@ public class OkHttpProxyHelper {
 
       @Override
       public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+      }
+    };
+  }
+
+  /**
+   * Builds an OkHttp proxy authenticator for the credentials carried by {@code config}.
+   *
+   * <p>Returns {@code null} when no HTTP/HTTPS credential is configured, so the caller can leave
+   * {@code OkHttpClient.Builder.proxyAuthenticator(...)} untouched and keep the previous behaviour
+   * (OkHttp's default {@code Authenticator.NONE}: a {@code 407} is surfaced to the caller instead of
+   * being answered).
+   *
+   * <p>Selection mirrors {@link #createProxySelector(ProxyConfig)}: a request to an {@code https://}
+   * URL is tunnelled by the proxy configured for {@link ProxyConfig.Type#HTTPS}, everything else by
+   * {@link ProxyConfig.Type#HTTP}. Credentials are therefore never mixed between the two entries.
+   *
+   * @param config proxy configuration, may be null
+   * @return the authenticator, or null when there is nothing to authenticate with
+   */
+  public static Authenticator createProxyAuthenticator(ProxyConfig config) {
+    if (config == null || !config.hasProxyCredentials()) {
+      return null;
+    }
+    final ProxyCredential httpCredential =
+        config.getProxyCredential(ProxyConfig.Type.HTTP).orElse(null);
+    final ProxyCredential httpsCredential =
+        config.getProxyCredential(ProxyConfig.Type.HTTPS).orElse(null);
+    if (httpCredential == null && httpsCredential == null) {
+      return null;
+    }
+    return new Authenticator() {
+      @Override
+      public Request authenticate(Route route, Response response) {
+        if (response.code() != 407) {
+          // Not a proxy challenge: let the normal (server) authenticator handle it.
+          return null;
+        }
+        Request failed = response.request();
+        if (failed.header("Proxy-Authorization") != null) {
+          // Our credential was already sent and refused. Retrying would loop until OkHttp gives
+          // up, so surface the 407 to the caller instead.
+          return null;
+        }
+        ProxyCredential credential = failed.url().isHttps() ? httpsCredential : httpCredential;
+        if (credential == null) {
+          return null;
+        }
+        return failed.newBuilder()
+            .header("Proxy-Authorization", credential.proxyAuthorizationHeader())
+            .build();
       }
     };
   }

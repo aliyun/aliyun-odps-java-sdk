@@ -29,10 +29,13 @@ import com.aliyun.odps.OdpsType;
 import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Binary;
 import com.aliyun.odps.data.Char;
+import com.aliyun.odps.data.DoubleVector;
+import com.aliyun.odps.data.FloatVector;
 import com.aliyun.odps.data.JsonValue;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.SimpleJsonValue;
 import com.aliyun.odps.data.SimpleStruct;
+import com.aliyun.odps.data.Vector;
 import com.aliyun.odps.data.Varchar;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.type.DecimalTypeInfo;
@@ -711,6 +714,32 @@ public class OdpsRecordConverterTest {
 
         JsonValue parsedJson = (JsonValue) defaultConverter.parseObject(jsonStr, TypeInfoFactory.JSON);
         Assert.assertEquals("val", parsedJson.get("key").getAsString());
+    }
+
+    @Test
+    public void testFormatVector() {
+        TypeInfo floatVectorType = TypeInfoFactory.getVectorTypeInfo(TypeInfoFactory.FLOAT, 3);
+        Vector floatVector = FloatVector.of(1.0f, 2.5f, -3.14f);
+        Assert.assertEquals("[1.0, 2.5, -3.14]",
+                defaultConverter.formatObject(floatVector, floatVectorType));
+        Assert.assertEquals(floatVector,
+                defaultConverter.parseObject("[1.0, 2.5, -3.14]", floatVectorType));
+
+        TypeInfo doubleVectorType = TypeInfoFactory.getVectorTypeInfo(TypeInfoFactory.DOUBLE, 3);
+        Vector doubleVector = DoubleVector.of(1.0, 2.5, -3.14);
+        Assert.assertEquals("[1.0, 2.5, -3.14]",
+                defaultConverter.formatObject(doubleVector, doubleVectorType));
+        Assert.assertEquals(doubleVector,
+                defaultConverter.parseObject("[1.0, 2.5, -3.14]", doubleVectorType));
+    }
+
+    @Test
+    public void testFormatVectorWithBareType() {
+        Vector vector = FloatVector.of(1.0f, 2.0f);
+        Assert.assertEquals("[1.0, 2.0]",
+                defaultConverter.formatObject(vector, TypeInfoFactory.VECTOR));
+        Assert.assertEquals(vector,
+                defaultConverter.parseObject("[1.0, 2.0]", TypeInfoFactory.VECTOR));
     }
 
 

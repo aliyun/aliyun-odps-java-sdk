@@ -25,6 +25,7 @@ import java.util.List;
 
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
+import com.aliyun.odps.RequestMetadata;
 import com.aliyun.odps.commons.GeneralConfiguration;
 import com.aliyun.odps.credentials.StaticCredentialProvider;
 import com.aliyun.odps.rest.RestClient;
@@ -136,7 +137,10 @@ public class Configuration extends GeneralConfiguration {
 
   public RestClient newRestClient(String projectName) throws TunnelException {
 
-    RestClient odpsServiceClient = odps.clone().getRestClient();
+    Odps tunnelOdps = odps.clone();
+    // Older Tunnel endpoints omit this header when verifying the request signature.
+    tunnelOdps.options().setCallContextJson(null);
+    RestClient odpsServiceClient = tunnelOdps.getRestClient();
 
     odpsServiceClient.setReadTimeout(getSocketTimeout());
     odpsServiceClient.setConnectTimeout(getSocketConnectTimeout());
@@ -154,6 +158,7 @@ public class Configuration extends GeneralConfiguration {
       .credentialsProvider(StaticCredentialProvider.of(odps.getAccount().getCredentials()))
       .tunnelEndpoint(odps.getTunnelEndpoint())
       .quota(quotaName)
+      .requestTrace(RequestMetadata.capture(odps.options()).forStorage())
       .build();
   }
 

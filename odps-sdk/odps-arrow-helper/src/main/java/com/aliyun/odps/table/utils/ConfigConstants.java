@@ -52,6 +52,8 @@ public class ConfigConstants {
     public static final int DEFAULT_ASYNC_TIMEOUT_IN_SECONDS = 3600;
 
     public static final int DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024;
+    /** Default post-compression aggregation for V2 batch-compatible uploads, in bytes. */
+    public static final int DEFAULT_UPLOAD_BUFFER_SIZE = 256 * 1024;
     public static final int DEFAULT_BUFFERED_ROW_COUNT = 4096;
 
 }

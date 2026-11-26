@@ -45,6 +45,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.compression.CompressionCodec;
+import org.apache.arrow.vector.compression.CompressionUtil;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +63,7 @@ import com.aliyun.odps.storage.write.TableWriteSession;
 import com.aliyun.odps.storage.write.TableWriteSessionBuilder;
 import com.aliyun.odps.storage.write.WriteMode;
 import com.aliyun.odps.table.TableIdentifier;
+import com.aliyun.odps.table.arrow.compression.OdpsCompressionFactory;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
@@ -203,14 +206,24 @@ class BatchCompatibleWriteContractTest {
     assertTrue(write.firstHeader("Content-Type")
         .startsWith("application/vnd.apache.arrow.stream"));
 
+    // What the SDK put on the wire is a ZSTD-compressed Arrow stream, so reading it back needs a
+    // codec factory that knows ZSTD: the SDK's own one, from odps-arrow-helper. Apache Arrow's
+    // default NoCompressionCodec.Factory refuses any compressed buffer, which is the failure daily
+    // NewSdk reported: the row assertions below were never reached. The factory also counts, and
+    // that is what keeps this cell from being a tautology — Arrow consults a codec factory only for
+    // buffers that are actually compressed, so a write path that stopped compressing would read
+    // back green through any factory and leave this counter at zero.
+    ZstdPinningFactory codecFactory = new ZstdPinningFactory();
     try (ArrowStreamReader reader = new ArrowStreamReader(
-        new ByteArrayInputStream(write.body), allocator)) {
+        new ByteArrayInputStream(write.body), allocator, codecFactory)) {
       assertTrue(reader.loadNextBatch());
       VectorSchemaRoot root = reader.getVectorSchemaRoot();
       assertEquals(3, root.getRowCount());
       assertEquals(20, ((IntVector) root.getVector("a")).get(1));
       assertFalse(reader.loadNextBatch());
     }
+    assertTrue(codecFactory.consulted > 0,
+        "the batch the writer sent must be ZSTD-compressed; the codec factory was never consulted");
 
     CapturedRequest commit = requestFor("TableCommitWriteSession");
     assertCommonQuery(commit, true);
@@ -343,6 +356,20 @@ class BatchCompatibleWriteContractTest {
         }
       }
       return null;
+    }
+  }
+
+  /** The SDK's ZSTD-capable factory, recording every codec request the Arrow reader makes. */
+  private static final class ZstdPinningFactory extends OdpsCompressionFactory {
+
+    private int consulted;
+
+    @Override
+    public CompressionCodec createCodec(CompressionUtil.CodecType codecType) {
+      consulted++;
+      assertEquals(CompressionUtil.CodecType.ZSTD, codecType,
+          "the write path is expected to compress with ZSTD, not with " + codecType);
+      return super.createCodec(codecType);
     }
   }
 }

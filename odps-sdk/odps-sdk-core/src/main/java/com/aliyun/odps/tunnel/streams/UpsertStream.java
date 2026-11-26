@@ -9,6 +9,7 @@ import com.aliyun.odps.data.Record;
 import com.aliyun.odps.tunnel.TunnelException;
 import com.aliyun.odps.tunnel.impl.UpsertStreamImpl;
 import com.aliyun.odps.tunnel.io.CompressOption;
+import com.aliyun.odps.tunnel.io.TunnelRetryHandler.RetryState;
 
 public interface UpsertStream extends AutoCloseable {
   /**
@@ -64,6 +65,14 @@ public interface UpsertStream extends AutoCloseable {
      */
     default boolean onFlushFail(Exception error, int retry) {
       return onFlushFail(error.getMessage(), retry);
+    }
+
+    /**
+     * Handles one bucket's failure using state confined to the current flush.
+     * Existing listeners continue to receive the original zero-based flush retry count.
+     */
+    default boolean onFlushFail(Exception error, int retry, RetryState retryState) {
+      return onFlushFail(error, retry);
     }
 
     /**

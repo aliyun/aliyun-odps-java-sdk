@@ -24,6 +24,7 @@ import com.aliyun.odps.commons.transport.Headers;
 import com.aliyun.odps.commons.transport.Request;
 import com.aliyun.odps.commons.transport.Response;
 import com.aliyun.odps.rest.RestClient;
+import com.aliyun.odps.ProxyCredential;
 import com.aliyun.odps.rest.RestWriteTimeoutException;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -62,7 +63,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** OkHttp connection used by Table API when a write timeout is explicitly configured. */
+/** OkHttp connection used by Table API for explicit write timeouts and authenticated proxies. */
 final class OkHttpConnection implements Connection {
 
     private static final int OUTPUT_BUFFER_SIZE = 64 * 1024;
@@ -127,8 +128,38 @@ final class OkHttpConnection implements Connection {
                 .connectTimeout(restClient.getConnectTimeout(), TimeUnit.SECONDS)
                 .readTimeout(restClient.getReadTimeout(), TimeUnit.SECONDS)
                 .writeTimeout(writeTimeoutSeconds, TimeUnit.SECONDS);
+        String proxyAuthorizationHeader = null;
         if (restClient.getProxy() != null) {
             clientBuilder.proxy(restClient.getProxy());
+            // Without a credential the builder keeps OkHttp's default Authenticator.NONE, exactly as
+            // before: a 407 from the proxy is surfaced instead of being answered.
+            ProxyCredential proxyCredential = restClient.getProxyCredential();
+            if (proxyCredential != null && sendsRequestInClearToTheProxy(request)) {
+                // A body here is streamed into the call while it is written, so once the proxy has
+                // answered there is nothing left to send again: waiting for the 407 makes the
+                // credential unusable for POST/PUT (measured -- the retried request never appeared).
+                // Attach it to the first attempt instead, which is also what the netty Upsert path
+                // does. Restricted to plaintext targets on purpose: for an https target this request
+                // travels through the CONNECT tunnel to the origin, and a proxy credential must not
+                // be delivered there -- the authenticator below answers the CONNECT instead.
+                proxyAuthorizationHeader = proxyCredential.proxyAuthorizationHeader();
+            }
+            if (proxyCredential != null) {
+                clientBuilder.proxyAuthenticator(new okhttp3.Authenticator() {
+                    @Override
+                    public okhttp3.Request authenticate(okhttp3.Route route,
+                                                        okhttp3.Response response) {
+                        if (response.code() != 407
+                                || response.request().header("Proxy-Authorization") != null) {
+                            return null;
+                        }
+                        return response.request().newBuilder()
+                                .header("Proxy-Authorization",
+                                        proxyCredential.proxyAuthorizationHeader())
+                                .build();
+                    }
+                });
+            }
         }
         if (restClient.isIgnoreCerts()) {
             configureInsecureTls(clientBuilder);
@@ -136,13 +167,27 @@ final class OkHttpConnection implements Connection {
 
         okhttp3.Request.Builder requestBuilder = new okhttp3.Request.Builder()
                 .url(request.getURI().toString());
-        for (Map.Entry<String, String> header : request.getHeaders().entrySet()) {
-            requestBuilder.header(header.getKey(), header.getValue());
+        if (proxyAuthorizationHeader != null) {
+            requestBuilder.header("Proxy-Authorization", proxyAuthorizationHeader);
         }
 
         String contentType = request.getHeaders().get(Headers.CONTENT_TYPE);
         requestBodyAllowed = allowsRequestBody(request);
         RequestBody requestBody = null;
+        for (Map.Entry<String, String> header : request.getHeaders().entrySet()) {
+            if (!requestBodyAllowed && Headers.CONTENT_LENGTH.equalsIgnoreCase(header.getKey())) {
+                // RestClient stamps Content-Length: 0 on bodiless requests because HttpURLConnection
+                // drops the header for them, so the JDK transport never puts it on the wire. OkHttp
+                // sends what it is given, which made enabling RestOptions.withWriteTimeout(n) -- a
+                // timeout knob -- change the bytes of every GET/HEAD. Keep one wire shape for both
+                // transports: a request that carries no body says so by not claiming a length.
+                // Content-Length is not part of the signed canonical string (SecurityUtils
+                // .buildCanonicalString signs method, Content-Type, Content-MD5, Date and x-odps-*),
+                // so dropping it here cannot invalidate the signature.
+                continue;
+            }
+            requestBuilder.header(header.getKey(), header.getValue());
+        }
         if (requestBodyAllowed) {
             requestBody = new StreamingRequestBody(
                     contentType == null ? null : MediaType.parse(contentType),
@@ -231,6 +276,16 @@ final class OkHttpConnection implements Connection {
 
     private String requestMethod() {
         return call.request().method();
+    }
+
+    /**
+     * Whether this request is handed to the proxy in the clear, i.e. a plaintext (non-https) target
+     * through an HTTP proxy. Only then may the proxy credential be attached to the request itself:
+     * a tunneled request reaches the origin, not the proxy.
+     */
+    private static boolean sendsRequestInClearToTheProxy(Request request) {
+        String scheme = request.getURI() == null ? null : request.getURI().getScheme();
+        return scheme != null && "http".equalsIgnoreCase(scheme);
     }
 
     private static boolean allowsRequestBody(Request request) {

@@ -61,6 +61,8 @@ public class HttpSettings {
 
   private ProxyConfig proxyConfig;
 
+  private boolean ignoreCerts;
+
   private HttpSettings() {
   }
 
@@ -121,6 +123,10 @@ public class HttpSettings {
     return proxyConfig;
   }
 
+  public boolean isIgnoreCerts() {
+    return ignoreCerts;
+  }
+
   public static HttpSettingsBuilder newBuilder() {
     return new HttpSettingsBuilder();
   }
@@ -133,6 +139,8 @@ public class HttpSettings {
     private int maxIdleConnections = DEFAULT_MAX_IDLE_CONNECTIONS;
     private Duration keepAliveDuration = DEFAULT_KEEP_ALIVE_DURATION;
     private ProxyConfig proxyConfig;
+
+    private boolean ignoreCerts;
 
     private HttpSettingsBuilder() {
     }
@@ -205,14 +213,21 @@ public class HttpSettings {
       return this;
     }
 
+    public HttpSettingsBuilder withIgnoreCerts(boolean ignoreCerts) {
+      this.ignoreCerts = ignoreCerts;
+      return this;
+    }
+
     /**
      * Builds and returns a new HttpSettings instance with the configured settings.
      *
      * @return A new HttpSettings instance
      */
+    /** Disables certificate and hostname verification only when explicitly enabled. */
     public HttpSettings build() {
       HttpSettings httpSettings = new HttpSettings();
       httpSettings.proxyConfig = this.proxyConfig;
+      httpSettings.ignoreCerts = this.ignoreCerts;
       httpSettings.connectTimeout = this.connectTimeout;
       httpSettings.readTimeout = this.readTimeout;
       httpSettings.writeTimeout = this.writeTimeout;

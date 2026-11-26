@@ -21,6 +21,7 @@ package com.aliyun.odps.table.configuration;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -29,11 +30,24 @@ import java.util.stream.Collectors;
 public enum CompressionCodec implements Serializable {
     NO_COMPRESSION(""),
     ZSTD("ZSTD"),
-    LZ4_FRAME("LZ4_FRAME");
+    LZ4_FRAME("LZ4_FRAME"),
+    /** Official native LZ4F implementation; uses the standard LZ4_FRAME wire format. */
+    LZ4_FRAME_NATIVE("LZ4_FRAME_NATIVE", "LZ4_FRAME");
     private final String codecName;
+    private final String wireName;
 
     CompressionCodec(String codecName) {
+        this(codecName, codecName);
+    }
+
+    CompressionCodec(String codecName, String wireName) {
         this.codecName = codecName;
+        this.wireName = wireName;
+    }
+
+    /** Returns the server's compression name, independent of the client implementation. */
+    public String getWireName() {
+        return wireName;
     }
 
     @Override
@@ -46,6 +60,6 @@ public enum CompressionCodec implements Serializable {
                     .collect(Collectors.toMap(v -> v.codecName, Function.identity()));
 
     public static Optional<CompressionCodec> byName(String name) {
-        return Optional.ofNullable(CODEC_MAP.get(name.toUpperCase()));
+        return Optional.ofNullable(CODEC_MAP.get(name.toUpperCase(Locale.ROOT)));
     }
 }

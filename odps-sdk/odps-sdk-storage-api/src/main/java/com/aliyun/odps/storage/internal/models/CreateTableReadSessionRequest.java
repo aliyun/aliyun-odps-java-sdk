@@ -65,6 +65,15 @@ public class CreateTableReadSessionRequest {
   @SerializedName("IncrementalRead")
   private boolean incrementalRead = false;
 
+  @SerializedName("EnableEstimateStats")
+  private boolean enableEstimateStats = false;
+
+  @SerializedName("EnableExtendedArrowIPC")
+  private boolean enableExtendedArrowIPC = false;
+
+  @SerializedName("UniqueMapKey")
+  private boolean uniqueMapKey = false;
+
 
 
   public List<String> getRequiredDataColumns() {
@@ -154,5 +163,29 @@ public class CreateTableReadSessionRequest {
 
   public void setIncrementalRead(boolean incrementalRead) {
     this.incrementalRead = incrementalRead;
+  }
+
+  public boolean isEnableEstimateStats() {
+    return enableEstimateStats;
+  }
+
+  public void setEnableEstimateStats(boolean enableEstimateStats) {
+    this.enableEstimateStats = enableEstimateStats;
+  }
+
+  public boolean isEnableExtendedArrowIPC() {
+    return enableExtendedArrowIPC;
+  }
+
+  public void setEnableExtendedArrowIPC(boolean enableExtendedArrowIPC) {
+    this.enableExtendedArrowIPC = enableExtendedArrowIPC;
+  }
+
+  public boolean isUniqueMapKey() {
+    return uniqueMapKey;
+  }
+
+  public void setUniqueMapKey(boolean uniqueMapKey) {
+    this.uniqueMapKey = uniqueMapKey;
   }
 }

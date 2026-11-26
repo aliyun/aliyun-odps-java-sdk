@@ -47,6 +47,8 @@ import com.aliyun.odps.data.InstanceDataIterator;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.data.StorageAPIResultSet;
+import com.aliyun.odps.rest.ErrorMessage;
+import com.aliyun.odps.rest.RestException;
 import com.aliyun.odps.sqa.commandapi.Command;
 import com.aliyun.odps.sqa.commandapi.CommandInfo;
 import com.aliyun.odps.sqa.commandapi.RecordIter;
@@ -93,6 +95,11 @@ public class SQLExecutorImpl implements SQLExecutor {
   private SQLExecutorPool pool = null;
   // current SQLRT
   Session session = null;
+
+  // session attach 失败的完整异常。attach 失败会静默降级成 offline,没有这个字段就没有任何线索:
+  // 对外表现是 isActive() 恒为 false、连接池越用越小,而不是报错。
+  // 存异常而不是拼字符串:errorCode / requestId / cause 链是拿去服务端反查这次请求的键,拼完就丢了。
+  Throwable sessionAttachError = null;
 
   // current query info
   QueryInfo queryInfo = null;
@@ -182,9 +189,14 @@ public class SQLExecutorImpl implements SQLExecutor {
           LOG.debug("Session attached, instance: {}", session.getInstance().getId());
         }
       } catch (OdpsException e) {
+        this.sessionAttachError = e;
         if (fallbackPolicy.isAlwaysFallBack() || fallbackPolicy.isFallback4AttachError()) {
-          LOG.info("Session attach failed, will fallback to offline mode. Error: {}", e.getMessage());
+          // 降级本身是预期行为,但必须留下痕迹,否则调用方只能看到 isActive() == false
+          LOG.warn("Session attach failed, falling back to offline mode. {}",
+              describeSessionAttachError(), e);
         } else {
+          LOG.warn("Session attach failed, re-throwing because fallback is disabled. {}",
+              describeSessionAttachError(), e);
           throw e;
         }
       }
@@ -268,6 +280,74 @@ public class SQLExecutorImpl implements SQLExecutor {
   @Override
   public String getTaskName() {
     return taskName;
+  }
+
+  /**
+   * 创建该 executor 时使用的执行模式。区别于 {@link #getExecuteMode()}:后者返回最近一次
+   * 查询实际运行的模式,未执行过查询时为 null。包内可见,供 SQLExecutorPool 判断归还时能否复用。
+   */
+  ExecuteMode getCreatedExecuteMode() {
+    return executeMode;
+  }
+
+  /**
+   * attach 失败时记录的完整异常,成功时为 null。包内可见,供同包的诊断用例与连接池使用。
+   * 是否提成 public API(让客户自己能查"MCQA 为什么没走起来")在 MR 30178937 上待定,本轮不扩接口。
+   */
+  Throwable getSessionAttachError() {
+    return sessionAttachError;
+  }
+
+  /**
+   * 是否真的持有一个 MCQA session。attach 失败并按策略降级时 session 仍为 null,
+   * 这种 executor 和 executeMode=OFFLINE 创建的一样"没有 session 可泄漏"。
+   * 包内可见,供 SQLExecutorPool 判断归还时能否复用。
+   */
+  boolean holdsSession() {
+    return session != null;
+  }
+
+  /**
+   * attach 失败的一行摘要:session/project 上下文 + 异常本身 + 服务端 errorCode + requestId。
+   *
+   * 三样东西分散在不同地方:上下文只在调用点知道,errorCode / requestId 挂在异常或其 cause 上
+   * (真实抛点是 OdpsException,cause 为 RestException),所以都得单独捞一次,少一个就没法反查。
+   * 堆栈由日志的 throwable 参数负责,这里只给可读的一行。
+   */
+  String describeSessionAttachError() {
+    if (sessionAttachError == null) {
+      return null;
+    }
+    String errorCode = null;
+    String requestId = null;
+    for (Throwable t = sessionAttachError; t != null; ) {
+      if (t instanceof OdpsException) {
+        OdpsException oe = (OdpsException) t;
+        errorCode = errorCode == null ? oe.getErrorCode() : errorCode;
+        requestId = requestId == null ? oe.getRequestId() : requestId;
+      } else if (t instanceof RestException) {
+        ErrorMessage em = ((RestException) t).getErrorMessage();
+        if (em != null) {
+          errorCode = errorCode == null ? em.getErrorcode() : errorCode;
+          requestId = requestId == null ? em.getRequestId() : requestId;
+        }
+      }
+      Throwable cause = t.getCause() == t ? null : t.getCause();
+      if (cause == null || (errorCode != null && requestId != null)) {
+        break;
+      }
+      t = cause;
+    }
+    StringBuilder desc = new StringBuilder("attach session '").append(serviceName)
+        .append("' in project '").append(odps.getDefaultProject())
+        .append("' failed: ").append(sessionAttachError);
+    if (errorCode != null) {
+      desc.append(", errorCode=").append(errorCode);
+    }
+    if (requestId != null) {
+      desc.append(", requestId=").append(requestId);
+    }
+    return desc.toString();
   }
 
   /**

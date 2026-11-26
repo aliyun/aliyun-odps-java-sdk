@@ -239,7 +239,10 @@ public class ProtobufRecordStreamWriter implements RecordWriter {
         if (v instanceof LocalDate) {
           localDate = (LocalDate) v;
         } else {
-          // to date in GMT, for compatible
+          // to date in GMT, for compatible. The same branch is reached for DATE elements embedded
+          // in ARRAY / MAP / STRUCT (writeArray and writeStruct call back into writeField), so the
+          // GMT reading applies to them too -- documented on Record#set(int, Object) and
+          // ArrayRecord#set(int, Object).
           localDate = OdpsTypeTransformer.dateToLocalDate((java.sql.Date)v, DEFAULT_CALENDAR);
         }
         longValue = localDate.toEpochDay();

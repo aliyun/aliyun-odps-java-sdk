@@ -277,6 +277,98 @@ public class TableTransportTest {
         }
     }
 
+    /**
+     * `RestClient` stamps Content-Length: 0 on bodiless requests and HttpURLConnection drops that
+     * header again before it hits the wire, so the default transport never sends a length for GET.
+     * The transport installed by RestOptions.withWriteTimeout(n) used to forward the header as it was
+     * given, so turning on a *timeout* option changed the bytes of every GET.
+     */
+    @Test
+    public void testConfiguredTransportSendsNoContentLengthForBodilessGet() throws Exception {
+        MockWebServer server = new MockWebServer();
+        server.enqueue(new MockResponse().setResponseCode(200).setBody("session-result"));
+        server.start();
+        try {
+            RestClient restClient = configuredClient(server.url("/").toString(), 2);
+            Request request = bodilessRequest(restClient, Request.Method.GET, "/sessions");
+
+            Assert.assertTrue(restClient.getTransport().request(request).isOK());
+
+            RecordedRequest recorded = server.takeRequest(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(recorded);
+            Assert.assertEquals("GET", recorded.getMethod());
+            Assert.assertEquals(0L, recorded.getBodySize());
+            Assert.assertNull(
+                    "a bodiless GET must not claim a body length on the wire",
+                    recorded.getHeader(Headers.CONTENT_LENGTH));
+        } finally {
+            server.shutdown();
+        }
+    }
+
+    /** Same for HEAD, which is how the reader path probes a stream before opening it. */
+    @Test
+    public void testConfiguredTransportSendsNoContentLengthForHead() throws Exception {
+        MockWebServer server = new MockWebServer();
+        server.enqueue(new MockResponse().setResponseCode(200));
+        server.start();
+        try {
+            RestClient restClient = configuredClient(server.url("/").toString(), 2);
+            Request request = bodilessRequest(restClient, Request.Method.HEAD, "/sessions");
+
+            Assert.assertTrue(restClient.getTransport().request(request).isOK());
+
+            RecordedRequest recorded = server.takeRequest(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(recorded);
+            Assert.assertEquals("HEAD", recorded.getMethod());
+            Assert.assertNull(recorded.getHeader(Headers.CONTENT_LENGTH));
+        } finally {
+            server.shutdown();
+        }
+    }
+
+    /**
+     * Control for the two cases above: a request that really does carry a body keeps declaring its
+     * length, so this change is only about bodiless methods.
+     */
+    @Test
+    public void testConfiguredTransportKeepsContentLengthForRealBody() throws Exception {
+        MockWebServer server = new MockWebServer();
+        server.enqueue(new MockResponse().setResponseCode(200).setBody("ok"));
+        server.start();
+        try {
+            RestClient restClient = configuredClient(server.url("/").toString(), 2);
+            byte[] body = "{\"SessionType\":\"batch_read\"}".getBytes(StandardCharsets.UTF_8);
+            Request request = new Request(restClient);
+            request.setURI(server.url("/sessions").uri());
+            request.setMethod(Request.Method.POST);
+            request.setHeader(Headers.CONTENT_TYPE, "application/json");
+            request.setHeader(Headers.CONTENT_LENGTH, String.valueOf(body.length));
+            request.setBody(new ByteArrayInputStream(body));
+            request.setBodyLength(body.length);
+
+            Assert.assertTrue(restClient.getTransport().request(request).isOK());
+
+            RecordedRequest recorded = server.takeRequest(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(recorded);
+            Assert.assertEquals(
+                    String.valueOf(body.length), recorded.getHeader(Headers.CONTENT_LENGTH));
+            Assert.assertEquals(body.length, recorded.getBodySize());
+        } finally {
+            server.shutdown();
+        }
+    }
+
+    /** Builds a request the way RestClient.requestWithNoRetry does for GET/HEAD: length header of 0. */
+    private static Request bodilessRequest(RestClient restClient, Request.Method method, String path)
+            throws java.net.URISyntaxException {
+        Request request = new Request(restClient);
+        request.setURI(new java.net.URI(restClient.getEndpoint() + path));
+        request.setMethod(method);
+        request.setHeader(Headers.CONTENT_LENGTH, "0");
+        return request;
+    }
+
     @Test
     public void testWriteTimeoutMustBePositive() {
         Assert.assertEquals(

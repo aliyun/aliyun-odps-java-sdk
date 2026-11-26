@@ -61,11 +61,20 @@ public final class BlockWriteResult implements Serializable {
     return recordCount;
   }
 
-  String getCommitMessage() {
+  /** Whether the writer completed locally without uploading any records. */
+  public boolean isEmpty() {
+    return recordCount == 0 && commitMessage == null;
+  }
+
+  /**
+   * Server-issued commit message for this block attempt, or {@code null} for an empty result.
+   */
+  public String getCommitMessage() {
     return commitMessage;
   }
 
-  String getSessionId() {
+  /** Session this block belongs to; validated during commit. */
+  public String getSessionId() {
     return sessionId;
   }
 }

@@ -1,6 +1,35 @@
 # Changelog
 ## [Unreleased]
 
+## [0.62.0-public] - 2026-11-24
+
+### Storage API and Table API
+
+- Add the opt-in `v2` Table API provider for batch and incremental reads and Arrow batch writes. V1 remains the default. V2 adds row-offset and bucket splits, partition and column pruning, and extended Arrow IPC support. The provider guide describes differences in split modes, disk spilling, and cancellation. [V2 provider guide](odps-sdk/odps-sdk-table-api/docs/storage-api-v2-provider.md)
+- Restore V2 Table API read sessions from JSON and resume writes by session ID. Native Storage API can serialize read and batch-compatible write session descriptors for distributed workers. Restoring a session requires credentials from the caller. [Session serialization](odps-sdk/odps-sdk-storage-api/SESSION_SERIALIZATION.md)
+- Buffer V2 batch-compatible uploads in configurable 256 KiB chunks per active block writer. Send request headers before the first Arrow payload, bound pending upload data, handle zero-row blocks on transactional and ordinary tables, and reuse the lookup response when resuming writes.
+- Add `LZ4_FRAME_NATIVE` and prefer native LZ4 frame decoding for V1 and V2 Arrow reads, with automatic Java fallback when the native library cannot load. Closing an asynchronous Arrow reader stops its worker and releases queued batches.
+- Preserve HTTP status, request ID, and available session details when a Storage API request fails with an empty or unreadable error response.
+
+### Data types and Tunnel
+
+- Support `VECTOR` in Arrow-to-record and text-to-record conversion, including FLOAT and DOUBLE elements. `VECTOR` uses Storage API type code `23`. `VARIANT` uses SDK-local code `-4`. Arrow and Protobuf readers validate declared dimensions before allocating vector data. Bare Arrow VECTOR metadata uses FLOAT elements.
+- Isolate Tunnel retries per operation and per Upsert bucket while preserving custom retry policies and listeners. Close temporary record and Arrow readers on read failure and release decompression streams on early close.
+- Preserve the thread interrupt flag when instance polling, transport retry, security-task polling, or Tunnel waits are interrupted.
+
+### Core SDK, authentication, and SQL
+
+- Accept proxy credentials in `ProxyConfig` for REST, Storage API, and Tunnel Upsert. Applications can opt in to an authenticator for the JDK transport with `ProxyAuthenticator`. REST errors retain their HTTP status and request ID if the error body cannot be read.
+- Upload byte-array and nonempty file resources at or below 64 MiB in one request. Larger resources continue to use multipart uploads, and streaming inputs can begin uploading before EOF.
+- Reuse eligible SQL executors, including executors in offline fallback, and retain the original session attachment error for diagnosis. Set `OdpsOptions.setSkipParseMergeTask(true)` to submit merge and compact statements as ordinary SQL tasks.
+- Configure a User-Agent suffix, call context, and W3C trace headers through `OdpsOptions` or `MC_USER_AGENT_SUFFIX`, `MC_CALL_CONTEXT`, `TRACEPARENT`, and `TRACESTATE`. `MC_PLATFORM_ID` and `TRACEPARENT` no longer inject legacy SQL settings. Explicit SQL settings still apply.
+- Add inference quota management through `Odps.infQuotas()`, quota usage queries, and quota usage permission checks scoped by tenant and region.
+
+### Packaging and release hygiene
+
+- Align all reactor artifacts to `0.62.0-public`, retain public release metadata and dependency pins, package the V2 provider, and declare native LZ4 runtime dependencies. Both API shaded classifiers include relocated OkHttp, Okio JVM, and Kotlin runtime classes.
+- Exclude deployment-specific fixtures and pregenerated TLS keys. The proxy and TLS tests use documentation-only addresses, placeholder values, and certificates generated at runtime.
+
 ## [0.61.2-public] - 2026-09-09
 
 ### Table API write timeout

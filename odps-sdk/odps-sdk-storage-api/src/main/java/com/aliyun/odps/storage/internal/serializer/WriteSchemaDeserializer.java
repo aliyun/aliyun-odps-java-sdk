@@ -205,6 +205,16 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
         }
         return TypeInfoFactory.getStructTypeInfo(fieldNames, fieldTypeInfos);
       }
+      case 23: { // VECTOR in the Storage API ColumnType enum
+        JsonArray subTypesArray = typeInfoJson.getAsJsonArray("SubTypes");
+        if (subTypesArray == null || subTypesArray.size() != 1) {
+          throw new JsonParseException("VECTOR type must have exactly one element sub-type.");
+        }
+        JsonObject elementJson = subTypesArray.get(0).getAsJsonObject();
+        TypeInfo elementType = parseTypeInfo(elementJson, path + ".element", nestedColumnIds);
+        int dimension = getJsonInt(typeInfoJson, "VectorDimension", 0);
+        return TypeInfoFactory.getVectorTypeInfo(elementType, dimension);
+      }
       default:
         return TypeInfoFactory.getPrimitiveTypeInfo(OdpsType.fromInt(typeCode));
     }
@@ -231,4 +241,3 @@ public class WriteSchemaDeserializer implements JsonDeserializer<WriteSchema> {
     return (element != null && !element.isJsonNull()) ? element.getAsLong() : defaultValue;
   }
 }
-

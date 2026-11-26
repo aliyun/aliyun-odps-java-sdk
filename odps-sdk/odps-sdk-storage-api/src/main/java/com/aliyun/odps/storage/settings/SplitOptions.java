@@ -52,6 +52,9 @@ public class SplitOptions {
   @SerializedName("CrossPartition")
   private boolean crossPartition;
 
+  @SerializedName("BucketSort")
+  private boolean bucketSort;
+
   private SplitOptions() {
   }
 
@@ -131,12 +134,31 @@ public class SplitOptions {
     this.crossPartition = crossPartition;
   }
 
+  /**
+   * Checks whether bucket split results keep the clustered ordering.
+   *
+   * @return true if bucket sort is enabled
+   */
+  public boolean isBucketSort() {
+    return bucketSort;
+  }
+
+  /**
+   * Sets whether bucket split results keep the clustered ordering.
+   *
+   * @param bucketSort true to enable bucket sort
+   */
+  public void setBucketSort(boolean bucketSort) {
+    this.bucketSort = bucketSort;
+  }
+
   public static final class SplitOptionsBuilder {
 
     private SplitMode splitMode = SplitMode.SIZE;
     private String splitUnit = "ByteSize";
     private long splitNumber = 256 * 1024 * 1024;
     private boolean crossPartition = true;
+    private boolean bucketSort = false;
 
     private SplitOptionsBuilder() {
     }
@@ -189,6 +211,17 @@ public class SplitOptions {
     }
 
     /**
+     * Sets whether bucket split results keep the clustered ordering.
+     *
+     * @param bucketSort true to enable bucket sort
+     * @return This builder instance for method chaining
+     */
+    public SplitOptionsBuilder withBucketSort(boolean bucketSort) {
+      this.bucketSort = bucketSort;
+      return this;
+    }
+
+    /**
      * Builds and returns a new SplitOptions instance with the configured settings.
      *
      * @return A new SplitOptions instance
@@ -199,6 +232,7 @@ public class SplitOptions {
       splitOptions.setSplitUnit(splitUnit);
       splitOptions.setSplitNumber(splitNumber);
       splitOptions.setCrossPartition(crossPartition);
+      splitOptions.setBucketSort(bucketSort);
       return splitOptions;
     }
   }
