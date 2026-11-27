@@ -293,7 +293,19 @@ public class CommandParserListener extends CommandParserBaseListener {
    */
   private static String unquoteShowStmtIdentifier(ShowStmtIdentifierContext ctx) {
     String text = ctx.getText();
-    return ctx.simpleStringLiteral() != null ? unquoteStringLiteral(text) : unquoteIdentifier(text);
+    if (ctx.simpleStringLiteral() == null) {
+      return unquoteIdentifier(text);
+    }
+    String unquoted = unquoteStringLiteral(text);
+    if (unquoted.isEmpty()) {
+      // An empty literal is kept as it was written on purpose. Turning it into an empty value
+      // would send an empty `name` parameter, and the list tables request reads that as "no
+      // filter at all" and answers with every table in the project, including in a project or
+      // schema that does not exist. Keeping it means the service keeps rejecting it the way it
+      // does today, and an empty prefix never silently becomes something else.
+      return text;
+    }
+    return unquoted;
   }
 
   /**
