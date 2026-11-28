@@ -298,11 +298,13 @@ public class CommandParserListener extends CommandParserBaseListener {
     }
     String unquoted = unquoteStringLiteral(text);
     if (unquoted.isEmpty()) {
-      // An empty literal is kept as it was written on purpose. Turning it into an empty value
-      // would send an empty `name` parameter, and the list tables request reads that as "no
-      // filter at all" and answers with every table in the project, including in a project or
-      // schema that does not exist. Keeping it means the service keeps rejecting it the way it
-      // does today, and an empty prefix never silently becomes something else.
+      // An empty literal is kept as it was written on purpose. The list tables request reads an
+      // empty `name` parameter as "no filter at all" and answers with every table in the project,
+      // so normalizing '' to an empty value would turn an empty prefix into a full listing.
+      // Answering "no rows" locally instead, to match how plain SQL treats the same statement,
+      // would skip the request altogether and make a missing project or schema look like an
+      // empty namespace, so that is not the fix either. Passing the literal through keeps the
+      // rejection the service already returns for it.
       return text;
     }
     return unquoted;
